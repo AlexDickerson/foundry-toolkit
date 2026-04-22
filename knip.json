@@ -18,6 +18,10 @@
     },
     "apps/character-creator": {
       "ignoreDependencies": ["@eslint/js"]
+    },
+    "tools/launcher": {
+      "entry": ["preload.cjs", "renderer/renderer.js"],
+      "project": ["**/*.{cjs,js}"]
     }
   }
 }

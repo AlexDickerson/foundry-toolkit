@@ -15,6 +15,7 @@ export default tseslint.config(
       'apps/foundry-mcp/',
       'apps/foundry-api-bridge/',
       'apps/character-creator/',
+      'tools/',
       'apps/*/out/',
       'apps/*/dist/',
       'apps/*/server-dist/',

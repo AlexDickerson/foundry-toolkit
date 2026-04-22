@@ -18,6 +18,8 @@ foundry-toolkit/
 │   └── shared/               Types + shared UI
 ├── resources/                dm-tool Electron icons
 ├── tagger/                   Python map-indexing subtool (built separately)
+├── tools/
+│   └── launcher/             Tiny Electron GUI to run `dev:*` scripts per worktree
 └── tsconfig.base.json        Shared strict TS config
 ```
 
@@ -33,6 +35,7 @@ foundry-toolkit/
 - `npm run dev:character-creator` — launch character-creator Vite dev
 - `npm run dev:player-portal` — launch player-portal (Vite + Fastify concurrently)
 - `npm run dev:api-bridge` — vite watch build for the Foundry module
+- `npm run launcher` — open `tools/launcher`, a small Electron GUI that lists every worktree × `dev:*` app pair and spawns the selected one in a new Windows Terminal tab
 
 See each workspace's README / CLAUDE.md for app-specific details.
 
