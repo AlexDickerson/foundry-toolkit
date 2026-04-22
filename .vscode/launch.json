@@ -2,16 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
-      //  Build the module dist + bring up Foundry + API-Bridge in a
-      //  detached Docker container via ./local.sh up. The container keeps
-      //  running after this launch "completes" — stop it via the
-      //  "local: stop" task or Docker Desktop. First-time setup needs a
-      //  .env with FOUNDRY_USERNAME/PASSWORD next to docker-compose.local.yml.
+      //  preLaunchTask "local: up" runs ./local.sh via Git Bash on
+      //  Windows (PowerShell's default `bash` resolves to WSL's bash.exe
+      //  and breaks). After the container is detached and running, the
+      //  launch command tails container logs so you can see Foundry
+      //  startup; hit Stop or Ctrl+C to end the log tail — the container
+      //  keeps running. Stop it via the "local: stop" task or Docker
+      //  Desktop. First-time setup needs .env with FOUNDRY_USERNAME/
+      //  PASSWORD next to docker-compose.local.yml.
       "name": "1. Foundry + API Bridge (Docker)",
       "type": "node-terminal",
       "request": "launch",
       "cwd": "${workspaceFolder}/apps/foundry-api-bridge",
-      "command": "bash ./local.sh up"
+      "command": "docker compose -f docker-compose.local.yml logs -f --tail=100",
+      "preLaunchTask": "local: up"
     },
     {
       //  Launches the MCP server on the HOST via tsx (no Docker) with
