@@ -1,0 +1,303 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    //  ─── Local Docker (apps/foundry-api-bridge) ──────────────────────────
+    {
+      "label": "local: up",
+      "detail": "First-time: build module + image, start Foundry container",
+      "type": "shell",
+      "command": "./local.sh up",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/foundry-api-bridge",
+        "shell": { "executable": "bash", "args": ["-c"] }
+      },
+      "windows": {
+        "options": {
+          "cwd": "${workspaceFolder}/apps/foundry-api-bridge",
+          "shell": { "executable": "${env:PROGRAMFILES}\\Git\\bin\\bash.exe", "args": ["-c"] }
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "local: rebuild",
+      "detail": "Rebuild module dist + restart container (fast iteration)",
+      "type": "shell",
+      "command": "./local.sh rebuild",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/foundry-api-bridge",
+        "shell": { "executable": "bash", "args": ["-c"] }
+      },
+      "windows": {
+        "options": {
+          "cwd": "${workspaceFolder}/apps/foundry-api-bridge",
+          "shell": { "executable": "${env:PROGRAMFILES}\\Git\\bin\\bash.exe", "args": ["-c"] }
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "local: start",
+      "detail": "Start container without rebuilding",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.local.yml up -d",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-api-bridge" },
+      "problemMatcher": []
+    },
+    {
+      "label": "local: restart",
+      "detail": "docker compose restart (picks up new module dist)",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.local.yml restart",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-api-bridge" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" }
+    },
+    {
+      "label": "local: stop",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.local.yml stop",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-api-bridge" },
+      "problemMatcher": []
+    },
+    {
+      "label": "local: logs",
+      "detail": "Tail container logs (dedicated terminal)",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.local.yml logs -f --tail=100",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-api-bridge" },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "group": "foundrylogs", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "local: status",
+      "type": "shell",
+      "command": "./local.sh status",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/foundry-api-bridge",
+        "shell": { "executable": "bash", "args": ["-c"] }
+      },
+      "windows": {
+        "options": {
+          "cwd": "${workspaceFolder}/apps/foundry-api-bridge",
+          "shell": { "executable": "${env:PROGRAMFILES}\\Git\\bin\\bash.exe", "args": ["-c"] }
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "local: shell",
+      "detail": "Interactive bash inside the running Foundry container",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.local.yml exec foundry-local bash",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-api-bridge" },
+      "presentation": { "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    },
+
+    //  ─── apps/foundry-api-bridge (Foundry module) ────────────────────────
+    {
+      "label": "api-bridge: watch",
+      "detail": "vite build --watch — rebuilds module dist on source changes",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-api-bridge" },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "group": "foundrymodule", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "api-bridge: build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-api-bridge" },
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "api-bridge: test",
+      "type": "shell",
+      "command": "npm run test",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-api-bridge" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "api-bridge: typecheck",
+      "type": "shell",
+      "command": "npm run type-check",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-api-bridge" },
+      "problemMatcher": ["$tsc"]
+    },
+
+    //  ─── apps/foundry-mcp (server) ───────────────────────────────────────
+    {
+      "label": "mcp: dev",
+      "detail": "tsx watch on host — the primary MCP iteration path",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-mcp" },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "group": "foundryserver", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "mcp: build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/apps/foundry-mcp" },
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "mcp: typecheck",
+      "type": "shell",
+      "command": "./node_modules/.bin/tsc --noEmit",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/foundry-mcp",
+        "shell": { "executable": "bash", "args": ["-c"] }
+      },
+      "windows": {
+        "options": {
+          "cwd": "${workspaceFolder}/apps/foundry-mcp",
+          "shell": { "executable": "${env:PROGRAMFILES}\\Git\\bin\\bash.exe", "args": ["-c"] }
+        }
+      },
+      "problemMatcher": ["$tsc"]
+    },
+
+    //  ─── apps/character-creator (React SPA) ──────────────────────────────
+    {
+      //  Long-running; background problemMatcher lets preLaunchTask
+      //  (the Chrome debug config) know when Vite has finished booting
+      //  so Chrome attaches only after :5173 is listening.
+      "label": "character-creator: dev",
+      "detail": "Vite dev server on :5173 — proxies /api to foundry-mcp",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/apps/character-creator" },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "group": "frontend", "reveal": "always" },
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": [{ "regexp": "^$", "file": 1, "location": 2, "message": 3 }],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*VITE\\s+v",
+          "endsPattern": "ready in "
+        }
+      }
+    },
+    {
+      "label": "character-creator: build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/apps/character-creator" },
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "character-creator: test",
+      "type": "shell",
+      "command": "npm run test",
+      "options": { "cwd": "${workspaceFolder}/apps/character-creator" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "character-creator: typecheck",
+      "type": "shell",
+      "command": "npm run typecheck",
+      "options": { "cwd": "${workspaceFolder}/apps/character-creator" },
+      "problemMatcher": ["$tsc"]
+    },
+
+    //  ─── apps/dm-tool (Electron) ─────────────────────────────────────────
+    {
+      "label": "dm-tool: dev",
+      "detail": "electron-vite dev — launches the Electron window",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/apps/dm-tool" },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "group": "dmtool", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "dm-tool: build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/apps/dm-tool" },
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "dm-tool: test",
+      "type": "shell",
+      "command": "npm run test",
+      "options": { "cwd": "${workspaceFolder}/apps/dm-tool" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "dm-tool: typecheck",
+      "type": "shell",
+      "command": "npm run typecheck",
+      "options": { "cwd": "${workspaceFolder}/apps/dm-tool" },
+      "problemMatcher": ["$tsc"]
+    },
+
+    //  ─── apps/player-portal ─────────────────────────────────────────────
+    {
+      "label": "player-portal: dev",
+      "detail": "concurrently — Vite client + tsx watch server",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/apps/player-portal" },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "group": "playerportal", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "player-portal: build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/apps/player-portal" },
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "player-portal: typecheck",
+      "type": "shell",
+      "command": "npm run typecheck",
+      "options": { "cwd": "${workspaceFolder}/apps/player-portal" },
+      "problemMatcher": ["$tsc"]
+    },
+
+    //  ─── Root aggregates ────────────────────────────────────────────────
+    {
+      "label": "root: typecheck all",
+      "type": "shell",
+      "command": "npm run typecheck",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "root: test all",
+      "type": "shell",
+      "command": "npm run test",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "root: lint",
+      "type": "shell",
+      "command": "npm run lint",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$eslint-stylish"]
+    }
+  ]
+}

@@ -2,6 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
+      //  Build the module dist + bring up Foundry + API-Bridge in a
+      //  detached Docker container via ./local.sh up. The container keeps
+      //  running after this launch "completes" — stop it via the
+      //  "local: stop" task or Docker Desktop. First-time setup needs a
+      //  .env with FOUNDRY_USERNAME/PASSWORD next to docker-compose.local.yml.
       "name": "1. Foundry + API Bridge (Docker)",
       "type": "node-terminal",
       "request": "launch",
@@ -9,13 +14,25 @@
       "command": "bash ./local.sh up"
     },
     {
+      //  Launches the MCP server on the HOST via tsx (no Docker) with
+      //  VS Code's Node debugger attached. Breakpoints in apps/foundry-mcp/src
+      //  work. Port 8765 must be free. This is the primary iteration path —
+      //  the api-bridge container is where Foundry runs; the MCP server is
+      //  a separate host process that connects to Foundry via WebSocket.
       "name": "2. MCP Server",
-      "type": "node-terminal",
+      "type": "node",
       "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "cwd": "${workspaceFolder}/apps/foundry-mcp",
-      "command": "npm run dev"
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
     },
     {
+      //  Vite dev server on :5173. Proxies /api → :8765 (foundry-mcp)
+      //  and Foundry asset prefixes → :30000 (api-bridge container).
+      //  Prefer "3a. Debug Character Creator (Chrome)" if you want
+      //  breakpoints in React components.
       "name": "3. Character Creator (Vite)",
       "type": "node-terminal",
       "request": "launch",
@@ -23,11 +40,58 @@
       "command": "npm run dev"
     },
     {
+      //  Launches Chrome against the Vite dev server at :5173. preLaunchTask
+      //  boots Vite first and waits for the "ready in" banner before Chrome
+      //  opens, so the attach doesn't race the server startup.
+      "name": "3a. Debug Character Creator (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/apps/character-creator/src",
+      "preLaunchTask": "character-creator: dev",
+      "sourceMaps": true
+    },
+    {
+      //  electron-vite dev — main process (Node) + renderer (Chromium).
+      //  electron-vite enables --inspect on the main process automatically;
+      //  open chrome://inspect or attach via "Debug DM Tool (Electron main)"
+      //  if you want breakpoints in the main process. Renderer breakpoints
+      //  go through Chrome DevTools on the Electron window (Ctrl+Shift+I).
       "name": "4. DM Tool (Electron)",
       "type": "node-terminal",
       "request": "launch",
       "cwd": "${workspaceFolder}/apps/dm-tool",
       "command": "npm run dev"
+    },
+    {
+      "name": "Debug api-bridge tests (Jest)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "test", "--", "--runInBand"],
+      "cwd": "${workspaceFolder}/apps/foundry-api-bridge",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Debug character-creator tests (Vitest)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "test"],
+      "cwd": "${workspaceFolder}/apps/character-creator",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Debug dm-tool tests (Vitest)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "test"],
+      "cwd": "${workspaceFolder}/apps/dm-tool",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
     }
   ],
   "compounds": [
