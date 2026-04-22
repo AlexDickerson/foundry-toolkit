@@ -1,4 +1,11 @@
 import type {
+  AddItemFromCompendiumBody,
+  CreateActorBody,
+  UpdateActorBody,
+  UpdateActorItemBody,
+} from '@foundry-toolkit/shared/rpc';
+
+import type {
   ActorItemRef,
   ActorRef,
   ActorSummary,
@@ -82,34 +89,16 @@ export const api = {
   },
   getCompendiumDocument: (uuid: string): Promise<{ document: CompendiumDocument }> =>
     request<{ document: CompendiumDocument }>(`/compendium/document?uuid=${encodeURIComponent(uuid)}`),
-  createActor: (body: {
-    name: string;
-    type: string;
-    folder?: string;
-    img?: string;
-    system?: Record<string, unknown>;
-  }): Promise<ActorRef> => request<ActorRef>('/actors', { method: 'POST', body }),
-  updateActor: (
-    id: string,
-    patch: { name?: string; img?: string; folder?: string; system?: Record<string, unknown> },
-  ): Promise<ActorRef> => request<ActorRef>(`/actors/${id}`, { method: 'PATCH', body: patch }),
-  addItemFromCompendium: (
-    id: string,
-    body: {
-      packId: string;
-      itemId: string;
-      name?: string;
-      quantity?: number;
-      systemOverrides?: Record<string, unknown>;
-    },
-  ): Promise<ActorItemRef> => request<ActorItemRef>(`/actors/${id}/items/from-compendium`, { method: 'POST', body }),
+  createActor: (body: CreateActorBody): Promise<ActorRef> =>
+    request<ActorRef>('/actors', { method: 'POST', body }),
+  updateActor: (id: string, patch: UpdateActorBody): Promise<ActorRef> =>
+    request<ActorRef>(`/actors/${id}`, { method: 'PATCH', body: patch }),
+  addItemFromCompendium: (id: string, body: AddItemFromCompendiumBody): Promise<ActorItemRef> =>
+    request<ActorItemRef>(`/actors/${id}/items/from-compendium`, { method: 'POST', body }),
   deleteActorItem: (id: string, itemId: string): Promise<{ success: boolean }> =>
     request<{ success: boolean }>(`/actors/${id}/items/${itemId}`, { method: 'DELETE' }),
-  updateActorItem: (
-    id: string,
-    itemId: string,
-    patch: { name?: string; img?: string; system?: Record<string, unknown> },
-  ): Promise<ActorItemRef> => request<ActorItemRef>(`/actors/${id}/items/${itemId}`, { method: 'PATCH', body: patch }),
+  updateActorItem: (id: string, itemId: string, patch: UpdateActorItemBody): Promise<ActorItemRef> =>
+    request<ActorItemRef>(`/actors/${id}/items/${itemId}`, { method: 'PATCH', body: patch }),
   resolvePrompt: (bridgeId: string, value: unknown): Promise<{ ok: boolean }> =>
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),
   listCompendiumSources: (

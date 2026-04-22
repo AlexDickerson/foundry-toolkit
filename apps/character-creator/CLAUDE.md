@@ -44,7 +44,7 @@ Env overrides for dev server targets:
 - Run linting before committing. Fix lint errors before pushing.
 
 ## Key Decisions
-- HTTP-only contract with foundry-mcp (`/api/*`). No cross-package imports — this repo is fully standalone.
+- HTTP-only runtime contract with foundry-mcp (`/api/*`) — the SPA never reaches into other apps at runtime. Shared *type* imports from `@foundry-toolkit/shared` are fine and preferred (the foundry-mcp wire contract lives in `@foundry-toolkit/shared/foundry-api`).
 - PF2e visuals are ported forward from the upstream pf2e system; frontend-side `t()` resolves i18n keys. Upstream license (Apache-2.0) preserved via `NOTICE`.
 - Mock mode exists so the SPA can boot with neither Foundry nor foundry-mcp running.
 - The user prefers sans-serif by default; serif is opt-in.

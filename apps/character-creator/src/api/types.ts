@@ -1,147 +1,39 @@
 // Types for the foundry-mcp REST API surface.
 //
-// Kept deliberately minimal: we type the slice of `system.*` that the
-// active tab actually reads. `PreparedActor.system` stays as
-// `Record<string, unknown>` generically; narrower actor types like
-// `PreparedCharacter` type the fields we consume.
+// The wire-contract shapes (actor / item / compendium DTOs, ApiError)
+// live in `@foundry-toolkit/shared/foundry-api` — shared with dm-tool.
+// This file re-exports them alongside the character-creator–only shapes
+// that describe the PF2e `system.*` slices each tab reads.
 
-export interface ActorSummary {
-  id: string;
-  name: string;
-  type: string;
-  img: string;
-}
+import type {
+  ActorItemRef,
+  ActorRef,
+  ActorSummary,
+  ApiError,
+  CompendiumDocument,
+  CompendiumMatch,
+  CompendiumPack,
+  CompendiumSearchOptions,
+  CompendiumSource,
+  ItemPrice,
+  PreparedActor,
+  PreparedActorItem,
+} from '@foundry-toolkit/shared/foundry-api';
 
-// Narrow result shape returned by create-actor / update-actor — just
-// enough to thread the new id back to the caller and to log a name /
-// folder change. The full actor is re-fetched via /api/actors/:id/
-// prepared when the caller actually needs to render it.
-export interface ActorRef {
-  id: string;
-  uuid: string;
-  name: string;
-  type: string;
-  img: string;
-  folder: string | null;
-}
-
-// Result shape for add-item-from-compendium. Returns the newly-
-// created embedded item id so the wizard can remember which item to
-// delete when the user changes their pick.
-export interface ActorItemRef {
-  id: string;
-  name: string;
-  type: string;
-  img: string;
-  actorId: string;
-  actorName: string;
-}
-
-export interface PreparedActorItem {
-  id: string;
-  name: string;
-  type: string;
-  img: string;
-  system: Record<string, unknown>;
-}
-
-export interface PreparedActor {
-  id: string;
-  uuid: string;
-  name: string;
-  type: string;
-  img: string;
-  system: Record<string, unknown>;
-  items: PreparedActorItem[];
-}
-
-export interface ApiError {
-  error: string;
-  suggestion?: string;
-}
-
-// ─── Compendium search ─────────────────────────────────────────────────
-
-export interface CompendiumSearchOptions {
-  /** Free-text query tokenised on whitespace; every token must appear
-   *  in a candidate's name. Optional — pickers can browse by trait /
-   *  pack / level alone. The server returns an empty response when
-   *  every filter field is empty, as a guard rail. */
-  q?: string;
-  /** Restrict to one or more packs (e.g. ['pf2e.feats-srd']). When
-   *  omitted, every pack matching `documentType` is searched. */
-  packIds?: string[];
-  /** Restrict to packs whose document type matches (e.g. 'Item'). */
-  documentType?: string;
-  /** Every trait in this list must be present on `system.traits.value`.
-   *  Creator pickers use this to scope e.g. class-feat slots to the
-   *  character's class trait. */
-  traits?: string[];
-  /** OR-filter: a candidate qualifies if any of its traits matches any
-   *  value here. Composes with `traits` when both are supplied.
-   *  Used by the ancestry-feat picker to surface both parent-ancestry
-   *  feats and versatile-heritage feats in the same list. */
-  anyTraits?: string[];
-  /** Cap `system.level.value`. Creator pickers use this to hide feats
-   *  the character doesn't yet qualify for. */
-  maxLevel?: number;
-  /** OR-filter on `system.publication.title`. Matches if the candidate's
-   *  publication title is any of these (case-insensitive). Drives the
-   *  source-book filter in the picker. */
-  sources?: string[];
-  /** Restrict heritage-style items to those whose `system.ancestry.slug`
-   *  matches. Versatile heritages (ancestry === null) still come
-   *  through so the picker surfaces them; items without any
-   *  `system.ancestry` field are unaffected. */
-  ancestrySlug?: string;
-  /** Max results. Clamped server-side to 1-100, defaults to 10. */
-  limit?: number;
-}
-
-export interface CompendiumMatch {
-  packId: string;
-  packLabel: string;
-  documentId: string;
-  uuid: string;
-  name: string;
-  type: string;
-  img: string;
-  /** Present only when the search included a trait or maxLevel filter
-   *  (the server requests the fields lazily to keep plain name-only
-   *  searches lean). */
-  level?: number;
-  traits?: string[];
-  /** Set on heritage matches whose `system.ancestry === null` — pf2e's
-   *  tag for versatile heritages (Aiuvarin, Changeling, Beastkin …).
-   *  Absent for ancestry-specific heritages and for non-heritage items.
-   *  The picker uses this to render a "Versatile Heritages" section. */
-  isVersatile?: boolean;
-}
-
-export interface CompendiumPack {
-  id: string;
-  label: string;
-  type: string;
-  system?: string;
-  packageName?: string;
-}
-
-export interface CompendiumSource {
-  title: string;
-  count: number;
-}
-
-export interface CompendiumDocument {
-  id: string;
-  uuid: string;
-  name: string;
-  type: string;
-  img: string;
-  /** Full `system.*` slice. Shape varies by item type; the picker's
-   *  detail renderer reads description / level / traits / prerequisites
-   *  defensively. */
-  system: Record<string, unknown>;
-}
+export type {
+  ActorItemRef,
+  ActorRef,
+  ActorSummary,
+  ApiError,
+  CompendiumDocument,
+  CompendiumMatch,
+  CompendiumPack,
+  CompendiumSearchOptions,
+  CompendiumSource,
+  ItemPrice,
+  PreparedActor,
+  PreparedActorItem,
+};
 
 // ─── PF2e character-specific shapes (used by the Proficiencies tab) ────
 
@@ -602,11 +494,6 @@ export interface ItemBulk {
   per?: number;
   capacity?: number; // containers only
   ignored?: number; // containers only — bulk that doesn't count toward carry limit
-}
-
-export interface ItemPrice {
-  value: { pp?: number; gp?: number; sp?: number; cp?: number };
-  per?: number;
 }
 
 // Union of fields across physical item subtypes. Specific item types
