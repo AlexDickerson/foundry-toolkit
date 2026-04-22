@@ -11,11 +11,7 @@ import react from '@vitejs/plugin-react';
 // than externalized — their sources are pure TS with `./foo.js` imports that
 // Node's runtime resolver can't handle without a compile step. Bundling lets
 // Vite transform them during build.
-const workspaceBundled = [
-  '@foundry-toolkit/ai',
-  '@foundry-toolkit/db',
-  '@foundry-toolkit/shared',
-];
+const workspaceBundled = ['@foundry-toolkit/ai', '@foundry-toolkit/db', '@foundry-toolkit/shared'];
 
 export default defineConfig({
   main: {
