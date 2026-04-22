@@ -41,3 +41,7 @@ See each workspace's README / CLAUDE.md for app-specific details.
 - **CI**: per-repo GitHub Actions workflows were not ported. Minimal CI TBD.
 - **Deployments**: Fly.io (foundry-mcp), electron-builder (dm-tool), GHCR images (api-bridge, character-creator) all still reference the old repos. Re-point when productionizing.
 - **Branches**: feature branches (e.g. `player-portal-restructure`) stay in the source repos until explicitly carried over.
+
+## License
+
+[MIT](LICENSE) © Alex Dickerson. `apps/foundry-api-bridge` additionally preserves upstream fork attribution; `apps/character-creator` includes Apache-2.0 derived files — see its [NOTICE](apps/character-creator/NOTICE).

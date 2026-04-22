@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "Monorepo consolidating dm-tool, foundry-mcp, foundry-api-bridge, character-creator, and player-portal. npm-workspaces.",
+  "author": "Alex Dickerson",
+  "license": "MIT",
   "type": "module",
   "workspaces": [
     "apps/*",
