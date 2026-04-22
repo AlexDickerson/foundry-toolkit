@@ -5,7 +5,7 @@ jest.mock('@/ui/ApiConfigForm', () => ({
   ApiConfigForm: class MockApiConfigForm {},
 }));
 
-import { registerSettings, registerMenu, getConfig, setConfig } from '@/settings/SettingsManager';
+import { registerSettings, registerMenu, getConfig, setConfig, parseServerConfigs } from '@/settings/SettingsManager';
 
 const mockSettings = {
   register: jest.fn(),
@@ -105,6 +105,54 @@ describe('SettingsManager', () => {
       await setConfig(newConfig);
 
       expect(mockSettings.set).toHaveBeenCalledWith('foundry-api-bridge', 'config', newConfig);
+    });
+  });
+
+  describe('parseServerConfigs', () => {
+    it('returns primary when only primary is configured', () => {
+      expect(parseServerConfigs('ws://a/foundry', 'pk_a', '')).toEqual([{ url: 'ws://a/foundry', apiKey: 'pk_a' }]);
+    });
+
+    it('returns empty when primary is missing url or key', () => {
+      expect(parseServerConfigs('', 'pk_a', '')).toEqual([]);
+      expect(parseServerConfigs('ws://a/foundry', '', '')).toEqual([]);
+    });
+
+    it('inherits primary apiKey for additional URLs without pipe', () => {
+      expect(parseServerConfigs('ws://a/foundry', 'pk_a', 'ws://b/foundry\nws://c/foundry')).toEqual([
+        { url: 'ws://a/foundry', apiKey: 'pk_a' },
+        { url: 'ws://b/foundry', apiKey: 'pk_a' },
+        { url: 'ws://c/foundry', apiKey: 'pk_a' },
+      ]);
+    });
+
+    it('accepts explicit apiKey per additional entry via pipe', () => {
+      expect(parseServerConfigs('ws://a/foundry', 'pk_a', 'ws://b/foundry|pk_b\nws://c/foundry|pk_c')).toEqual([
+        { url: 'ws://a/foundry', apiKey: 'pk_a' },
+        { url: 'ws://b/foundry', apiKey: 'pk_b' },
+        { url: 'ws://c/foundry', apiKey: 'pk_c' },
+      ]);
+    });
+
+    it('skips blank lines and # comments', () => {
+      const additional = ['', '# primary is defined above', 'ws://b/foundry', '   ', '# another server'].join('\n');
+      expect(parseServerConfigs('ws://a/foundry', 'pk_a', additional)).toEqual([
+        { url: 'ws://a/foundry', apiKey: 'pk_a' },
+        { url: 'ws://b/foundry', apiKey: 'pk_a' },
+      ]);
+    });
+
+    it('drops additional entries that have no key after inheritance', () => {
+      expect(parseServerConfigs('', '', 'ws://b/foundry')).toEqual([]);
+      expect(parseServerConfigs('', '', 'ws://b/foundry|pk_b')).toEqual([{ url: 'ws://b/foundry', apiKey: 'pk_b' }]);
+    });
+
+    it('handles CRLF line endings', () => {
+      expect(parseServerConfigs('ws://a/foundry', 'pk_a', 'ws://b/foundry\r\nws://c/foundry')).toEqual([
+        { url: 'ws://a/foundry', apiKey: 'pk_a' },
+        { url: 'ws://b/foundry', apiKey: 'pk_a' },
+        { url: 'ws://c/foundry', apiKey: 'pk_a' },
+      ]);
     });
   });
 });
