@@ -2,6 +2,8 @@
 
 React 19 SPA that renders a Pathfinder 2e character creator/viewer, consuming the foundry-mcp REST API.
 
+Part of the foundry-toolkit monorepo at `apps/character-creator` — see the root [CLAUDE.md](../../CLAUDE.md) for cross-workspace context.
+
 ## Tech Stack
 - React 19 + Vite 8
 - TypeScript
@@ -36,7 +38,7 @@ Env overrides for dev server targets:
 
 ## Git Workflow
 - All work MUST be done in git worktrees. Never work directly on main.
-- Worktree directory: `.claude/worktrees/<branch-name>`
+- Worktree directory: `.claude/worktrees/<branch-name>/` at the monorepo root (not per-app)
 - Push work to the remote frequently — at minimum after every logical unit of work, and always before ending a session.
 - All changes go through PRs to main. Never commit directly to main.
 - Run linting before committing. Fix lint errors before pushing.
