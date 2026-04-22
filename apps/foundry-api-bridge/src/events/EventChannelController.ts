@@ -91,7 +91,7 @@ interface HookHandle {
 // the server's http/schemas.ts — the server rejects SSE requests for
 // channels that don't appear there, and the module ignores
 // `set-event-subscription` for channels it doesn't switch on below.
-const KNOWN_CHANNELS = new Set(['rolls', 'chat', 'combat', 'crafting']);
+const KNOWN_CHANNELS = new Set(['rolls', 'chat', 'combat', 'actors']);
 
 /**
  * Owns Foundry Hook registrations for every active event channel. The
@@ -138,13 +138,14 @@ export class EventChannelController {
         );
         break;
 
-      case 'crafting':
+      case 'actors':
         handles.push(
           this.reg('updateActor', (...args: unknown[]) => {
             const [rawActor, rawChange] = args;
             if (!isFoundryActorForEvent(rawActor)) return;
-            if (!craftingChanged(rawChange)) return;
-            this.wsClient.pushEvent('crafting', { actorId: rawActor.id });
+            const changedPaths = extractChangedPaths(rawChange);
+            if (changedPaths.length === 0) return;
+            this.wsClient.pushEvent('actors', { actorId: rawActor.id, changedPaths });
           }),
         );
         break;
@@ -357,18 +358,34 @@ function isFoundryActorForEvent(value: unknown): value is FoundryActorForEvent {
   return typeof obj['id'] === 'string';
 }
 
-// True when a `updateActor` diff touches `system.crafting.*`. Foundry
-// can deliver the diff either as a nested object (`{system: {crafting:
-// {...}}}`) or, for some update paths, with dot-notation keys like
-// `"system.crafting.formulas"` at the top level — accept both.
+// Flatten a Foundry `updateActor` diff into dot-notation leaf paths so
+// subscribers can filter by prefix ("system.crafting", "system.attributes.hp",
+// etc.). Foundry delivers diffs as a mix of nested objects and
+// dot-notation keys depending on the update path; this walker handles
+// both and always produces path strings in the same shape.
+//
 // Exported for unit testing; the hook callback is the only caller.
-export function craftingChanged(change: unknown): boolean {
-  if (typeof change !== 'object' || change === null) return false;
-  const obj = change as Record<string, unknown>;
-  const system = obj['system'];
-  if (typeof system === 'object' && system !== null && 'crafting' in system) return true;
+export function extractChangedPaths(change: unknown): string[] {
+  if (typeof change !== 'object' || change === null) return [];
+  const out: string[] = [];
+  walk(change as Record<string, unknown>, '', out);
+  return out;
+}
+
+function walk(obj: Record<string, unknown>, prefix: string, out: string[]): void {
   for (const key of Object.keys(obj)) {
-    if (key.startsWith('system.crafting')) return true;
+    const path = prefix ? `${prefix}.${key}` : key;
+    const value = obj[key];
+    // Dot-notation keys already encode depth — treat as a leaf so the
+    // emitted path mirrors what Foundry actually sent.
+    if (key.includes('.')) {
+      out.push(path);
+      continue;
+    }
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      walk(value as Record<string, unknown>, path, out);
+    } else {
+      out.push(path);
+    }
   }
-  return false;
 }

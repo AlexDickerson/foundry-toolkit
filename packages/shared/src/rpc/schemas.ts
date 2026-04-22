@@ -113,7 +113,7 @@ export const evalBody = z.object({
 // the channels the Foundry module's EventChannelController knows how
 // to register. Requests for unknown channels 400 with a clear suggestion
 // rather than opening a dead stream.
-export const EVENT_CHANNELS = ['rolls', 'chat', 'combat', 'crafting'] as const;
+export const EVENT_CHANNELS = ['rolls', 'chat', 'combat', 'actors'] as const;
 
 export const eventChannelParam = z.object({
   channel: z.enum(EVENT_CHANNELS),
