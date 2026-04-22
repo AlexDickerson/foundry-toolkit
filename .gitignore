@@ -1,6 +1,10 @@
 node_modules/
 *.log
 .DS_Store
+Thumbs.db
+.idea/
+*.sw?
+coverage/
 
 # Build outputs
 out/
@@ -14,6 +18,8 @@ packages/*/dist/
 # foundry-api-bridge: keep checked-in static assets in dist/ but ignore vite output
 apps/foundry-api-bridge/dist/*.js
 apps/foundry-api-bridge/dist/*.js.map
+apps/foundry-api-bridge/dist/*.d.ts
+apps/foundry-api-bridge/dist/*.d.ts.map
 
 # Personal config (dm-tool)
 apps/dm-tool/config.json
