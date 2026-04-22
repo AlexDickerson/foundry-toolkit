@@ -55,16 +55,17 @@ interface PromptResponse {
 
 const HOOK_NAME = 'renderPickAThingPrompt';
 
-export function installPromptInterception(wsClient: WebSocketClient): void {
+export function installPromptInterception(wsClients: readonly WebSocketClient[]): void {
   // @ts-expect-error — Foundry's Hooks global is untyped in this module
   Hooks.on(HOOK_NAME, (app: PickAThingPromptApp) => {
-    void handlePrompt(app, wsClient);
+    void handlePrompt(app, wsClients);
   });
   console.log('Foundry API Bridge | ChoiceSet prompt interception installed');
 }
 
-async function handlePrompt(app: PickAThingPromptApp, wsClient: WebSocketClient): Promise<void> {
-  if (!wsClient.isConnected()) {
+async function handlePrompt(app: PickAThingPromptApp, wsClients: readonly WebSocketClient[]): Promise<void> {
+  const connected = wsClients.filter((c) => c.isConnected());
+  if (connected.length === 0) {
     // No frontend listening — fall back to the native dialog.
     return;
   }
@@ -87,7 +88,11 @@ async function handlePrompt(app: PickAThingPromptApp, wsClient: WebSocketClient)
   };
 
   try {
-    const raw = await wsClient.sendEvent('prompt-request', payload);
+    // First-response-wins across every connected client. Promise.any
+    // resolves with the first fulfillment and only rejects (with
+    // AggregateError) if *every* client rejects, in which case we
+    // fall through to the native dialog like the single-client case.
+    const raw = await Promise.any(connected.map((c) => c.sendEvent('prompt-request', payload)));
     const response = raw as PromptResponse | null;
     if (!response || response.value === null) {
       // User skipped — let pf2e's close-without-selection path run.

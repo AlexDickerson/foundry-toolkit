@@ -1,8 +1,16 @@
 import { ConfigManager } from '@/config/ConfigManager';
 import { installPromptInterception } from '@/creator/prompt-intercept';
 import { EventChannelController } from '@/events/EventChannelController';
-import { registerSettings, registerMenu, getWsUrl, getApiKey } from '@/settings/SettingsManager';
-import { WebSocketClient } from '@/transport';
+import {
+  registerSettings,
+  registerMenu,
+  getWsUrl,
+  getApiKey,
+  getAdditionalWsUrls,
+  parseServerConfigs,
+  type ServerConfig,
+} from '@/settings/SettingsManager';
+import { Broadcaster, WebSocketClient } from '@/transport';
 import {
   CommandRouter,
   rollDiceHandler,
@@ -98,11 +106,12 @@ import {
   updateRollTableHandler,
   deleteRollTableHandler,
   createSetEventSubscriptionHandler,
+  type SetEventSubscriptionParams,
 } from '@/commands';
 
 const MODULE_VERSION = '7.7.0';
 
-let wsClient: WebSocketClient | null = null;
+let wsClients: WebSocketClient[] = [];
 let commandRouter: CommandRouter | null = null;
 
 Hooks.once('init', () => {
@@ -125,18 +134,19 @@ function initializeModule(): void {
     ConfigManager.initialize();
     const config = ConfigManager.getConfig();
 
-    const wsUrl = getWsUrl();
-    const apiKey = getApiKey();
+    const servers = parseServerConfigs(getWsUrl(), getApiKey(), getAdditionalWsUrls());
 
-    if (!wsUrl || !apiKey) {
+    if (servers.length === 0) {
       console.log(
         `Foundry API Bridge | v${MODULE_VERSION} loaded. Configure WebSocket URL and API Key in module settings to connect.`,
       );
       return;
     }
 
-    initializeWebSocket(config.webSocket, wsUrl, apiKey);
-    console.log(`Foundry API Bridge | v${MODULE_VERSION} initialized`);
+    initializeWebSocket(config.webSocket, servers);
+    console.log(
+      `Foundry API Bridge | v${MODULE_VERSION} initialized (${String(servers.length)} server${servers.length === 1 ? '' : 's'})`,
+    );
   } catch (error: unknown) {
     console.error('Foundry API Bridge | Initialization failed:', error);
   }
@@ -144,8 +154,7 @@ function initializeModule(): void {
 
 function initializeWebSocket(
   wsConfig: { reconnectInterval: number; maxReconnectAttempts: number },
-  wsUrl: string,
-  apiKey: string,
+  servers: readonly ServerConfig[],
 ): void {
   commandRouter = new CommandRouter();
 
@@ -261,49 +270,95 @@ function initializeWebSocket(
   commandRouter.register('get-scene-background', getSceneBackgroundHandler);
   commandRouter.register('update-scene', updateSceneHandler);
 
-  const wsConnectUrl = `${wsUrl}?apiKey=${encodeURIComponent(apiKey)}`;
-  wsClient = new WebSocketClient({
-    url: wsConnectUrl,
-    reconnectInterval: wsConfig.reconnectInterval,
-    maxReconnectAttempts: wsConfig.maxReconnectAttempts,
-  });
+  wsClients = servers.map(
+    (server) =>
+      new WebSocketClient({
+        url: `${server.url}?apiKey=${encodeURIComponent(server.apiKey)}`,
+        reconnectInterval: wsConfig.reconnectInterval,
+        maxReconnectAttempts: wsConfig.maxReconnectAttempts,
+      }),
+  );
 
-  // Event channels own Hooks.on registrations on behalf of the
-  // server's ChannelManager. Created after wsClient so the controller
-  // can push event payloads without a circular dependency.
-  const eventChannels = new EventChannelController(wsClient);
-  commandRouter.register('set-event-subscription', createSetEventSubscriptionHandler(eventChannels));
+  // One controller shared across every client. The Broadcaster fans
+  // channel events to whichever clients are currently connected; the
+  // controller refcounts subscriptions per-client so one server
+  // unsubscribing doesn't drop the hook while another still wants it.
+  const broadcaster = new Broadcaster(wsClients);
+  const eventChannels = new EventChannelController(broadcaster);
 
-  wsClient.onConnect(() => {
-    console.log('Foundry API Bridge | WebSocket connected to server');
-    if (ui.notifications) {
-      ui.notifications.info('Foundry API Bridge | Connected to server');
-    }
-  });
+  for (let i = 0; i < wsClients.length; i++) {
+    const client = wsClients[i];
+    const server = servers[i];
+    // Indices line up by construction (wsClients built from servers).
+    if (!client || !server) continue;
+    const label = describeServer(server);
+    const subscriptionHandler = createSetEventSubscriptionHandler(eventChannels, client);
 
-  wsClient.onDisconnect(() => {
-    console.log('Foundry API Bridge | WebSocket disconnected from server');
-    if (ui.notifications) {
-      ui.notifications.warn('Foundry API Bridge | Disconnected from server');
-    }
-  });
+    client.onConnect(() => {
+      console.log(`Foundry API Bridge | WebSocket connected (${label})`);
+      if (ui.notifications) {
+        ui.notifications.info(`Foundry API Bridge | Connected (${label})`);
+      }
+    });
 
-  wsClient.onMessage((command) => {
-    if (!commandRouter || !wsClient) return;
+    client.onDisconnect(() => {
+      console.log(`Foundry API Bridge | WebSocket disconnected (${label})`);
+      // Drop subscriptions owned by this connection so phantom subs
+      // don't keep hooks alive while the server is gone. On reconnect
+      // the server re-requests subscription state.
+      eventChannels.removeSubscriber(client);
+      if (ui.notifications) {
+        ui.notifications.warn(`Foundry API Bridge | Disconnected (${label})`);
+      }
+    });
 
-    commandRouter
-      .execute(command)
-      .then((response) => {
-        wsClient?.send(response);
-      })
-      .catch((error: unknown) => {
-        console.error('Foundry API Bridge | Command execution failed:', error);
-      });
-  });
+    client.onMessage((command) => {
+      if (!commandRouter) return;
 
-  installPromptInterception(wsClient);
+      // set-event-subscription needs per-client identity for the
+      // controller's refcount; route it inline instead of through the
+      // shared router, which has no notion of which socket sent a
+      // command.
+      if (command.type === 'set-event-subscription') {
+        subscriptionHandler(command.params as SetEventSubscriptionParams)
+          .then((data) => {
+            client.send({ id: command.id, success: true, data });
+          })
+          .catch((error: unknown) => {
+            client.send({
+              id: command.id,
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
+        return;
+      }
 
-  wsClient.connect();
+      commandRouter
+        .execute(command)
+        .then((response) => {
+          client.send(response);
+        })
+        .catch((error: unknown) => {
+          console.error('Foundry API Bridge | Command execution failed:', error);
+        });
+    });
+  }
+
+  installPromptInterception(wsClients);
+
+  for (const client of wsClients) {
+    client.connect();
+  }
+}
+
+function describeServer(server: ServerConfig): string {
+  try {
+    const parsed = new URL(server.url);
+    return `${parsed.host}${parsed.pathname}`;
+  } catch {
+    return server.url;
+  }
 }
 
 export {};
