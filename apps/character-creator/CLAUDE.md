@@ -5,7 +5,7 @@ React 19 SPA that renders a Pathfinder 2e character creator/viewer, consuming th
 Part of the foundry-toolkit monorepo at `apps/character-creator` — see the root [CLAUDE.md](../../CLAUDE.md) for cross-workspace context.
 
 ## Tech Stack
-- React 19 + Vite 8
+- React 19 + Vite 7 (pinned to match dm-tool's electron-vite@5 peer range; bump when electron-vite 6 stable lands)
 - TypeScript
 - Tailwind CSS 4 (PostCSS)
 - Sass (for ported pf2e SCSS)

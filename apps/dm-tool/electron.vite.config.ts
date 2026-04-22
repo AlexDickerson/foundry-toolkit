@@ -7,11 +7,19 @@ import react from '@vitejs/plugin-react';
 //   - preload: the contextBridge shim between main and renderer
 //   - renderer: the React app loaded inside the BrowserWindow
 //
-// Shared types come from the @foundry-toolkit/shared workspace package, resolved
-// via node_modules symlinks — no manual alias needed.
+// Workspace packages (@foundry-toolkit/*) are bundled into main/preload rather
+// than externalized — their sources are pure TS with `./foo.js` imports that
+// Node's runtime resolver can't handle without a compile step. Bundling lets
+// Vite transform them during build.
+const workspaceBundled = [
+  '@foundry-toolkit/ai',
+  '@foundry-toolkit/db',
+  '@foundry-toolkit/shared',
+];
+
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin({ exclude: ['@foundry-toolkit/ai'] })],
+    plugins: [externalizeDepsPlugin({ exclude: workspaceBundled })],
     build: {
       rollupOptions: {
         input: {
@@ -21,7 +29,7 @@ export default defineConfig({
     },
   },
   preload: {
-    plugins: [externalizeDepsPlugin({ exclude: ['@foundry-toolkit/ai'] })],
+    plugins: [externalizeDepsPlugin({ exclude: workspaceBundled })],
     build: {
       rollupOptions: {
         input: {
