@@ -1,6 +1,7 @@
 @import './pf2e/fonts.css';
 @import 'tailwindcss';
 @import './pf2e/tokens.css';
+@import './color-schemes.css';
 
 /* Reserve scrollbar-gutter space always so the page doesn't horizontally
    shift when content grows past the viewport and a scrollbar appears. */

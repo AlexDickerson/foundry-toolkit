@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiRequestError } from '../api/client';
 import type { PreparedActor, PreparedCharacter } from '../api/types';
 import { SheetHeader } from '../components/layout/SheetHeader';
+import { SettingsDialog } from '../components/settings/SettingsDialog';
 import { TabStrip } from '../components/common/TabStrip';
 import type { Tab } from '../components/common/TabStrip';
 import { Actions } from '../components/tabs/Actions';
@@ -13,6 +14,7 @@ import { Proficiencies } from '../components/tabs/Proficiencies';
 import { Progression } from '../components/tabs/Progression';
 import { Spells } from '../components/tabs/Spells';
 import { fromPreparedCharacter } from '../prereqs';
+import type { ColorScheme } from '../lib/usePreferences';
 
 type State =
   | { kind: 'loading' }
@@ -43,11 +45,16 @@ const TABS: readonly Tab<TabId>[] = [
 interface Props {
   actorId: string;
   onBack: () => void;
+  preferences: {
+    colorScheme: ColorScheme;
+    setColorScheme: (scheme: ColorScheme) => void;
+  };
 }
 
-export function CharacterSheet({ actorId, onBack }: Props): React.ReactElement {
+export function CharacterSheet({ actorId, onBack, preferences }: Props): React.ReactElement {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [activeTab, setActiveTab] = useState<TabId>('character');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Bumping this triggers a fresh `/prepared` fetch — used after buy/
   // sell mutations from the Inventory tab so the sheet reflects the
   // updated item list and coin totals without a full page reload.
@@ -118,7 +125,13 @@ export function CharacterSheet({ actorId, onBack }: Props): React.ReactElement {
 
       {state.kind === 'ready' && (
         <>
-          <SheetHeader character={state.actor} onBack={onBack} />
+          <SheetHeader
+            character={state.actor}
+            onBack={onBack}
+            onSettingsOpen={(): void => {
+              setSettingsOpen(true);
+            }}
+          />
           <TabStrip tabs={TABS} active={activeTab} onChange={setActiveTab} />
           {activeTab === 'character' && <Character system={state.actor.system} />}
           {activeTab === 'actions' && (
@@ -145,6 +158,15 @@ export function CharacterSheet({ actorId, onBack }: Props): React.ReactElement {
           )}
           {activeTab === 'background' && <Background details={state.actor.system.details} />}
         </>
+      )}
+      {settingsOpen && (
+        <SettingsDialog
+          colorScheme={preferences.colorScheme}
+          onColorSchemeChange={preferences.setColorScheme}
+          onClose={(): void => {
+            setSettingsOpen(false);
+          }}
+        />
       )}
     </div>
   );
