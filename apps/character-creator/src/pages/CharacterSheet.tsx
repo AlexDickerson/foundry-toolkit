@@ -7,6 +7,7 @@ import type { Tab } from '../components/common/TabStrip';
 import { Actions } from '../components/tabs/Actions';
 import { Background } from '../components/tabs/Background';
 import { Character } from '../components/tabs/Character';
+import { Crafting } from '../components/tabs/Crafting';
 import { Feats } from '../components/tabs/Feats';
 import { Inventory } from '../components/tabs/Inventory';
 import { Proficiencies } from '../components/tabs/Proficiencies';
@@ -24,6 +25,7 @@ type TabId =
   | 'actions'
   | 'spells'
   | 'inventory'
+  | 'crafting'
   | 'feats'
   | 'proficiencies'
   | 'progression'
@@ -34,6 +36,7 @@ const TABS: readonly Tab<TabId>[] = [
   { id: 'actions', label: 'Actions' },
   { id: 'spells', label: 'Spells' },
   { id: 'inventory', label: 'Inventory' },
+  { id: 'crafting', label: 'Crafting' },
   { id: 'feats', label: 'Feats' },
   { id: 'proficiencies', label: 'Proficiencies' },
   { id: 'progression', label: 'Progression' },
@@ -134,6 +137,7 @@ export function CharacterSheet({ actorId, onBack }: Props): React.ReactElement {
           {activeTab === 'inventory' && (
             <Inventory items={state.actor.items} actorId={actorId} onActorChanged={reloadActor} />
           )}
+          {activeTab === 'crafting' && <Crafting crafting={state.actor.system.crafting} />}
           {activeTab === 'feats' && <Feats items={state.actor.items} />}
           {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} />}
           {activeTab === 'progression' && (
