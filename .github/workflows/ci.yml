@@ -34,7 +34,11 @@ jobs:
         run: npm run typecheck
 
       - name: Tests
-        run: npm test
+        run: |
+          npm run test --workspace apps/dm-tool
+          npm run test --workspace apps/character-creator
+          npm run test --workspace apps/foundry-api-bridge
+          npm run test --workspace packages/shared
 
   electronegativity:
     runs-on: ubuntu-latest
