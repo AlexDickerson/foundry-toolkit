@@ -29,7 +29,7 @@ npm run test         # Jest
 Layers the module onto `felddy/foundryvtt:14`, so the container serves Foundry with the bridge module pre-installed. The MCP server runs separately — point its `FOUNDRY_WS_URL` at this container's websocket once the module is enabled in your world.
 
 ```bash
-cp .env.example .env         # fill in FOUNDRY_USERNAME/PASSWORD
+cp .env.example ../../.env   # fill in FOUNDRY_USERNAME/PASSWORD at the toolkit root
 ./local.sh up                # build image, deps, dist, start container
 # open http://localhost:30000 and set up a world
 
@@ -40,7 +40,7 @@ cp .env.example .env         # fill in FOUNDRY_USERNAME/PASSWORD
 ./local.sh nuke              # destroy the data volume (asks first)
 ```
 
-Data lives in a named Docker volume (`foundry-data-local`) by default, so the workflow is OS-portable. Set `FOUNDRY_DATA=/some/host/path` in `.env` to bind to a host path instead. Port defaults to 30000 and can be overridden via `FOUNDRY_PORT` if you already have a production container running on the same machine.
+Data lives in a named Docker volume (`foundry-data-local`) by default, so the workflow is OS-portable. Set `FOUNDRY_DATA=/some/host/path` in the root `.env` to bind to a host path instead. Port defaults to 30000 and can be overridden via `FOUNDRY_PORT` if you already have a production container running on the same machine.
 
 ## Installation in Foundry
 
