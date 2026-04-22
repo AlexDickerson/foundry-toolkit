@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>foundry-toolkit launcher</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="top-bar">
+      <h1>foundry-toolkit</h1>
+      <button id="refresh" title="Re-scan worktrees">Refresh</button>
+    </div>
+    <main id="grid"></main>
+    <script src="renderer.js"></script>
+  </body>
+</html>

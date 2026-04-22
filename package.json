@@ -8,7 +8,8 @@
   "type": "module",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "tools/*"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -22,6 +23,7 @@
     "dev:character-creator": "npm --workspace apps/character-creator run dev",
     "dev:player-portal": "npm --workspace apps/player-portal run dev",
     "dev:api-bridge": "npm --workspace apps/foundry-api-bridge run dev",
+    "launcher": "npm --workspace tools/launcher start",
     "rebuild-sqlite": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "format": "prettier --write .",

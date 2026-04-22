@@ -1,0 +1,13 @@
+{
+  "name": "@foundry-toolkit/launcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tiny Electron launcher — pick a worktree × app pair and spawn its dev server in a new Windows Terminal tab.",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "41.2.1"
+  }
+}
