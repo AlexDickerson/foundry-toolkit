@@ -58,6 +58,16 @@ export const listCompendiumSourcesQuery = z.object({
   maxLevel: z.coerce.number().int().nonnegative().max(30).optional(),
 });
 
+// Server-side DISTINCT aggregation over one or more cached packs. Fronts
+// dm-tool's Monster Browser + Item Browser sidebar filter panels, which
+// previously derived these values client-side from pf2e.db. Scoped by
+// `documentType` (e.g. 'npc' vs 'Item') and optionally narrowed to a
+// specific pack subset; omit both to get facets across every cached pack.
+export const listCompendiumFacetsQuery = z.object({
+  documentType: z.string().optional(),
+  packId: csvParam,
+});
+
 export const getCompendiumDocumentQuery = z.object({
   uuid: z.string().min(1),
 });

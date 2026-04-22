@@ -1,9 +1,12 @@
 import type { FastifyInstance } from 'fastify';
+import type { CompendiumFacets } from '@foundry-toolkit/shared/foundry-api';
 import { sendCommand } from '../../bridge.js';
+import { log } from '../../logger.js';
 import { compendiumCache } from '../compendium-cache-singleton.js';
 import {
   compendiumSearchQuery,
   getCompendiumDocumentQuery,
+  listCompendiumFacetsQuery,
   listCompendiumPacksQuery,
   listCompendiumSourcesQuery,
 } from '../schemas.js';
@@ -64,4 +67,40 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
       maxLevel,
     });
   });
+
+  // Pre-aggregated facets for the Monster/Item Browser sidebars. Served
+  // from the warm cache — any requested pack that isn't warm triggers a
+  // synchronous warm, logged loudly so a misconfigured
+  // COMPENDIUM_CACHE_PACK_IDS surfaces in ops.
+  app.get('/api/compendium/facets', async (req) => {
+    const { documentType, packId } = listCompendiumFacetsQuery.parse(req.query);
+    const opts = {
+      ...(documentType !== undefined ? { documentType } : {}),
+      ...(packId !== undefined ? { packIds: packId } : {}),
+    };
+    let facets = compendiumCache.facets(opts);
+    if (facets === null) {
+      const ids = packId ?? [];
+      for (const id of ids) {
+        if (!compendiumCache.hasPack(id)) {
+          log.warn(`compendium-cache: facets cold-call warming ${id}`);
+          await compendiumCache.warmPack(id);
+        }
+      }
+      facets = compendiumCache.facets(opts) ?? emptyFacets();
+    }
+    return facets;
+  });
+}
+
+function emptyFacets(): CompendiumFacets {
+  return {
+    rarities: [],
+    sizes: [],
+    creatureTypes: [],
+    traits: [],
+    sources: [],
+    usageCategories: [],
+    levelRange: null,
+  };
 }

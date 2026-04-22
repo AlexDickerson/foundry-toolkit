@@ -2,6 +2,124 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { CompendiumCache, type CompendiumDocument, type SendCommand } from '../src/http/compendium-cache.js';
 
+// Synthetic bestiary pack — covers every NPC facet branch: a common
+// humanoid, an uncommon beast at medium size, a rare dragon at huge
+// size, plus a deliberate odd `size.value` to ensure the extractor
+// takes what pf2e gives us rather than normalising.
+const bestiaryDocs: CompendiumDocument[] = [
+  {
+    id: 'goblin-warrior',
+    uuid: 'Compendium.pf2e.pathfinder-bestiary.Actor.goblin-warrior',
+    name: 'Goblin Warrior',
+    type: 'npc',
+    img: '/icons/goblin.webp',
+    system: {
+      details: { level: { value: -1 } },
+      traits: {
+        rarity: 'common',
+        size: { value: 'sm' },
+        value: ['humanoid', 'goblin'],
+      },
+      publication: { title: 'Pathfinder Bestiary' },
+    },
+  },
+  {
+    id: 'giant-centipede',
+    uuid: 'Compendium.pf2e.pathfinder-bestiary.Actor.giant-centipede',
+    name: 'Giant Centipede',
+    type: 'npc',
+    img: '/icons/centipede.webp',
+    system: {
+      details: { level: { value: 1 } },
+      traits: {
+        rarity: 'uncommon',
+        size: { value: 'med' },
+        value: ['animal', 'beast'],
+      },
+      publication: { title: 'Pathfinder Bestiary' },
+    },
+  },
+  {
+    id: 'adult-red-dragon',
+    uuid: 'Compendium.pf2e.pathfinder-bestiary.Actor.adult-red-dragon',
+    name: 'Adult Red Dragon',
+    type: 'npc',
+    img: '/icons/dragon.webp',
+    system: {
+      details: { level: { value: 14 } },
+      traits: {
+        rarity: 'rare',
+        size: { value: 'huge' },
+        value: ['dragon', 'fire'],
+      },
+      publication: { title: 'Pathfinder Bestiary' },
+    },
+  },
+];
+
+// Equipment fixture with usage/rarity/traits/sources variety — drives
+// the item-flavoured facet tests. Deliberately mixes worn-*, held-*,
+// and affixed-* prefixes plus one uncategorisable slug to exercise the
+// `'other'` bucket.
+const equipmentFacetDocs: CompendiumDocument[] = [
+  {
+    id: 'longsword',
+    uuid: 'Compendium.pf2e.equipment-srd.Item.longsword',
+    name: 'Longsword',
+    type: 'weapon',
+    img: '/icons/longsword.webp',
+    system: {
+      level: { value: 0 },
+      traits: { rarity: 'common', value: ['versatile-p'] },
+      publication: { title: 'Player Core' },
+      usage: { value: 'held-in-one-hand' },
+      price: { value: { gp: 1 } },
+    },
+  },
+  {
+    id: 'amulet-of-undying',
+    uuid: 'Compendium.pf2e.equipment-srd.Item.amulet-of-undying',
+    name: 'Amulet of Undying',
+    type: 'equipment',
+    img: '/icons/amulet.webp',
+    system: {
+      level: { value: 19 },
+      traits: { rarity: 'rare', value: ['invested', 'magical', 'necromancy'] },
+      publication: { title: 'Gamemastery Guide' },
+      usage: { value: 'worn-necklace' },
+      price: { value: { gp: 8000 } },
+    },
+  },
+  {
+    id: 'striking-rune',
+    uuid: 'Compendium.pf2e.equipment-srd.Item.striking-rune',
+    name: 'Striking Rune',
+    type: 'weapon',
+    img: '/icons/rune.webp',
+    system: {
+      level: { value: 4 },
+      traits: { rarity: 'uncommon', value: ['magical', 'transmutation'] },
+      publication: { title: 'Player Core' },
+      usage: { value: 'affixed-to-a-weapon' },
+      price: { value: { gp: 65 } },
+    },
+  },
+  {
+    id: 'bag-of-holding',
+    uuid: 'Compendium.pf2e.equipment-srd.Item.bag-of-holding',
+    name: 'Bag of Holding',
+    type: 'equipment',
+    img: '/icons/bag.webp',
+    system: {
+      level: { value: 4 },
+      traits: { rarity: 'common', value: ['extradimensional', 'magical'] },
+      publication: { title: 'Player Core' },
+      usage: { value: 'carried' },
+      price: { value: { gp: 75 } },
+    },
+  },
+];
+
 // Synthetic equipment pack — just enough items to exercise every
 // filter branch (tokens, traits, anyTraits, maxLevel, sources, price).
 const equipmentDocs: CompendiumDocument[] = [
@@ -267,5 +385,117 @@ describe('CompendiumCache.search — filters', () => {
     // match on "Bastard" should beat it.
     const result = cache.search({ packIds: ['pf2e.equipment-srd'], q: 'bastard' });
     assert.equal(result?.matches[0]?.name, 'Bastard Sword');
+  });
+});
+
+describe('CompendiumCache.facets', () => {
+  // Mocks that expose a bestiary and an equipment pack side by side so
+  // the cross-pack / documentType-filter tests have real data to chew
+  // on. Mirrors `makeSendCommand` above but keyed by packId.
+  function makeMultiPackSendCommand(): SendCommand {
+    return async (type, params) => {
+      if (type !== 'dump-compendium-pack') throw new Error(`unexpected command: ${type}`);
+      const packId = String(params?.['packId'] ?? '');
+      if (packId === 'pf2e.pathfinder-bestiary') {
+        return { packId, packLabel: 'Pathfinder Bestiary', documents: bestiaryDocs };
+      }
+      if (packId === 'pf2e.equipment-srd') {
+        return { packId, packLabel: 'Equipment', documents: equipmentFacetDocs };
+      }
+      throw new Error(`unknown pack: ${packId}`);
+    };
+  }
+
+  it('returns null when the cache is empty', () => {
+    const cache = new CompendiumCache(makeMultiPackSendCommand());
+    assert.equal(cache.facets(), null);
+  });
+
+  it('aggregates bestiary facets from the warmed pack', async () => {
+    const cache = new CompendiumCache(makeMultiPackSendCommand());
+    await cache.warmPack('pf2e.pathfinder-bestiary');
+    const facets = cache.facets({ packIds: ['pf2e.pathfinder-bestiary'] });
+    assert.ok(facets, 'facets should be returned for a warmed pack');
+    assert.deepEqual(facets.rarities, ['common', 'rare', 'uncommon']);
+    assert.deepEqual(facets.sizes, ['huge', 'med', 'sm']);
+    assert.deepEqual(facets.creatureTypes, ['animal', 'dragon', 'humanoid']);
+    assert.ok(facets.traits.includes('goblin'));
+    assert.ok(facets.traits.includes('fire'));
+    assert.deepEqual(facets.sources, ['Pathfinder Bestiary']);
+    assert.deepEqual(facets.levelRange, [-1, 14]);
+    // Bestiary actors don't carry `system.usage`, so the bucket stays empty.
+    assert.deepEqual(facets.usageCategories, []);
+  });
+
+  it('aggregates equipment facets including bucketed usage categories', async () => {
+    const cache = new CompendiumCache(makeMultiPackSendCommand());
+    await cache.warmPack('pf2e.equipment-srd');
+    const facets = cache.facets({ packIds: ['pf2e.equipment-srd'] });
+    assert.ok(facets);
+    assert.deepEqual(facets.rarities, ['common', 'rare', 'uncommon']);
+    assert.ok(facets.traits.includes('magical'));
+    assert.ok(facets.traits.includes('versatile-p'));
+    assert.deepEqual(facets.sources, ['Gamemastery Guide', 'Player Core']);
+    // held-in-one-hand → 'held', worn-necklace → 'worn',
+    // affixed-to-a-weapon → 'affixed', carried → 'other'. Alphabetical.
+    assert.deepEqual(facets.usageCategories, ['affixed', 'held', 'other', 'worn']);
+    // Items never carry a creature-type trait.
+    assert.deepEqual(facets.creatureTypes, []);
+    // Items don't set `system.traits.size` → sizes stays empty here.
+    assert.deepEqual(facets.sizes, []);
+  });
+
+  it('filters the docList by documentType', async () => {
+    const cache = new CompendiumCache(makeMultiPackSendCommand());
+    await Promise.all([
+      cache.warmPack('pf2e.pathfinder-bestiary'),
+      cache.warmPack('pf2e.equipment-srd'),
+    ]);
+    const npcFacets = cache.facets({ documentType: 'npc' });
+    assert.ok(npcFacets);
+    // Narrowed to NPCs: creature types present, no equipment traits,
+    // no usage buckets.
+    assert.deepEqual(npcFacets.creatureTypes, ['animal', 'dragon', 'humanoid']);
+    assert.deepEqual(npcFacets.usageCategories, []);
+    assert.equal(npcFacets.sources.length, 1);
+    assert.deepEqual(npcFacets.sources, ['Pathfinder Bestiary']);
+  });
+
+  it('restricts aggregation to the requested packIds', async () => {
+    const cache = new CompendiumCache(makeMultiPackSendCommand());
+    await Promise.all([
+      cache.warmPack('pf2e.pathfinder-bestiary'),
+      cache.warmPack('pf2e.equipment-srd'),
+    ]);
+    const onlyEquipment = cache.facets({ packIds: ['pf2e.equipment-srd'] });
+    assert.ok(onlyEquipment);
+    assert.deepEqual(onlyEquipment.creatureTypes, [], 'equipment pack has no creature types');
+    assert.deepEqual(onlyEquipment.sources, ['Gamemastery Guide', 'Player Core']);
+
+    // Omitting packIds falls back to "all cached packs" → merged sources.
+    const allCached = cache.facets();
+    assert.ok(allCached);
+    assert.deepEqual(allCached.sources, ['Gamemastery Guide', 'Pathfinder Bestiary', 'Player Core']);
+  });
+
+  it('returns alphabetically sorted arrays', async () => {
+    const cache = new CompendiumCache(makeMultiPackSendCommand());
+    await Promise.all([
+      cache.warmPack('pf2e.pathfinder-bestiary'),
+      cache.warmPack('pf2e.equipment-srd'),
+    ]);
+    const facets = cache.facets();
+    assert.ok(facets);
+    for (const key of ['rarities', 'sizes', 'creatureTypes', 'traits', 'sources', 'usageCategories'] as const) {
+      const arr = facets[key];
+      assert.deepEqual(arr, [...arr].sort((a, b) => a.localeCompare(b)), `${key} not sorted`);
+    }
+  });
+
+  it('returns null when any requested pack is not warmed', async () => {
+    const cache = new CompendiumCache(makeMultiPackSendCommand());
+    await cache.warmPack('pf2e.pathfinder-bestiary');
+    // Equipment pack not yet warmed → cold-call signal.
+    assert.equal(cache.facets({ packIds: ['pf2e.equipment-srd'] }), null);
   });
 });

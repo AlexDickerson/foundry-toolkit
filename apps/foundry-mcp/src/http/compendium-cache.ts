@@ -13,6 +13,7 @@
 // from bridge responses. Any pack that isn't warmed falls through to
 // the bridge unchanged.
 
+import type { CompendiumFacets } from '@foundry-toolkit/shared/foundry-api';
 import { log } from '../logger.js';
 
 // Subset of a Foundry compendium document that we care about for
@@ -283,6 +284,88 @@ export class CompendiumCache {
     return { matches: matches.slice(0, limit) };
   }
 
+  // Aggregate DISTINCT facet values over every document in the
+  // requested packs. Mirrors `search()`'s contract: returns null when
+  // ANY requested pack is not cached so the caller can warm then retry.
+  // Passing no packIds means "all cached packs"; no cached packs returns
+  // null too.
+  //
+  // The iteration is microseconds over a few thousand docs — no need to
+  // memoize beyond the warm cache itself. Callers must call this after
+  // every warm because the cache doesn't invalidate the result set.
+  facets(opts: { packIds?: string[]; documentType?: string } = {}): CompendiumFacets | null {
+    const requested = opts.packIds ?? Array.from(this.packs.keys());
+    if (requested.length === 0) {
+      this.misses++;
+      return null;
+    }
+    const packs: CachedPack[] = [];
+    for (const id of requested) {
+      const pack = this.packs.get(id);
+      if (!pack) {
+        this.misses++;
+        return null;
+      }
+      packs.push(pack);
+    }
+
+    this.hits++;
+    const documentType = opts.documentType;
+
+    const rarities = new Set<string>();
+    const sizes = new Set<string>();
+    const creatureTypes = new Set<string>();
+    const traits = new Set<string>();
+    const sources = new Set<string>();
+    const usageCategories = new Set<string>();
+    let minLevel = Number.POSITIVE_INFINITY;
+    let maxLevel = Number.NEGATIVE_INFINITY;
+
+    for (const pack of packs) {
+      for (const doc of pack.docList) {
+        if (documentType !== undefined && doc.type !== documentType && documentType !== 'Item') {
+          // Align with `search()`'s wildcard semantics: 'Item' matches
+          // every item subtype, anything else is an exact type filter.
+          continue;
+        }
+
+        const rarity = extractRarity(doc);
+        if (rarity !== undefined) rarities.add(rarity);
+
+        const size = extractSize(doc);
+        if (size !== undefined) sizes.add(size);
+
+        const creatureType = extractCreatureType(doc);
+        if (creatureType !== undefined) creatureTypes.add(creatureType);
+
+        for (const t of extractTraits(doc)) traits.add(t);
+
+        const source = extractSource(doc);
+        if (source !== undefined) sources.add(source);
+
+        const usage = extractUsage(doc);
+        if (usage !== undefined) usageCategories.add(usage);
+
+        const level = extractLevel(doc);
+        if (level !== undefined) {
+          if (level < minLevel) minLevel = level;
+          if (level > maxLevel) maxLevel = level;
+        }
+      }
+    }
+
+    const sortAsc = (a: string, b: string): number => a.localeCompare(b);
+    return {
+      rarities: [...rarities].sort(sortAsc),
+      sizes: [...sizes].sort(sortAsc),
+      creatureTypes: [...creatureTypes].sort(sortAsc),
+      traits: [...traits].sort(sortAsc),
+      sources: [...sources].sort(sortAsc),
+      usageCategories: [...usageCategories].sort(sortAsc),
+      levelRange: Number.isFinite(minLevel) ? [minLevel, maxLevel] : null,
+    };
+  }
+
   getDocument(uuid: string): CompendiumDocument | null {
     for (const pack of this.packs.values()) {
       const doc = pack.docs.get(uuid);
@@ -442,10 +525,16 @@ function extractTraits(doc: CompendiumDocument): string[] {
 }
 
 function extractLevel(doc: CompendiumDocument): number | undefined {
-  const sys = doc.system as { level?: unknown };
+  // Item docs store level at `system.level.value` (occasionally as a
+  // bare number); NPC actors store it at `system.details.level.value`.
+  // Falling through to the NPC form lets `facets()` aggregate the level
+  // range across bestiary packs without a separate extractor.
+  const sys = doc.system as { level?: unknown; details?: { level?: unknown } };
   if (typeof sys.level === 'number') return sys.level;
-  const obj = sys.level as { value?: unknown } | undefined;
-  return typeof obj?.value === 'number' ? obj.value : undefined;
+  const itemLevel = sys.level as { value?: unknown } | undefined;
+  if (typeof itemLevel?.value === 'number') return itemLevel.value;
+  const npcLevel = sys.details?.level as { value?: unknown } | undefined;
+  return typeof npcLevel?.value === 'number' ? npcLevel.value : undefined;
 }
 
 function extractSource(doc: CompendiumDocument): string | undefined {
@@ -462,6 +551,80 @@ function extractAncestrySlug(doc: CompendiumDocument): string | null | undefined
   if (!ancestry || typeof ancestry !== 'object') return undefined;
   const slug = (ancestry as { slug?: unknown }).slug;
   return typeof slug === 'string' ? slug : undefined;
+}
+
+// Canonical PF2e creature-type traits. An NPC's creature type is
+// derived from whichever of these appears on `system.traits.value`;
+// items never carry them so their `creatureTypes` facet stays empty.
+// Kept in sync with
+// https://2e.aonprd.com/Rules.aspx?ID=2419 (Creature Traits).
+const CREATURE_TYPE_TRAITS = new Set<string>([
+  'aberration',
+  'animal',
+  'astral',
+  'beast',
+  'celestial',
+  'construct',
+  'dragon',
+  'dream',
+  'elemental',
+  'ethereal',
+  'fey',
+  'fiend',
+  'fungus',
+  'giant',
+  'humanoid',
+  'monitor',
+  'ooze',
+  'plant',
+  'spirit',
+  'time',
+  'undead',
+]);
+
+// Usage-slug prefix buckets. The prefix is the first `-`-separated
+// token of `system.usage.value` (e.g. `held-in-one-hand` → `held`,
+// `worn-necklace` → `worn`). Anything whose prefix isn't in this set
+// falls into `'other'`.
+const USAGE_PREFIXES = new Set<string>(['held', 'worn', 'etched', 'affixed', 'tattooed']);
+
+function extractRarity(doc: CompendiumDocument): string | undefined {
+  // NPCs store rarity at `system.traits.rarity`; physical items at
+  // `system.traits.rarity` as well (same shape, different prominence).
+  // Common is a real value — we don't filter it out, so the filter UI
+  // can surface it as a bucket.
+  const raw = (doc.system as { traits?: { rarity?: unknown } }).traits?.rarity;
+  return typeof raw === 'string' && raw.length > 0 ? raw : undefined;
+}
+
+function extractSize(doc: CompendiumDocument): string | undefined {
+  // Actors keep size at `system.traits.size.value` (e.g. 'med', 'lg').
+  // Item docs don't carry a top-level size field — `undefined` skips
+  // them, keeping the item-facet `sizes` array empty as expected.
+  const raw = (doc.system as { traits?: { size?: { value?: unknown } } }).traits?.size?.value;
+  return typeof raw === 'string' && raw.length > 0 ? raw : undefined;
+}
+
+function extractCreatureType(doc: CompendiumDocument): string | undefined {
+  // First trait on the doc that matches a canonical creature-type
+  // token (see CREATURE_TYPE_TRAITS). An NPC always carries exactly
+  // one of these in practice; items never do, so this correctly
+  // returns undefined for them.
+  for (const t of extractTraits(doc)) {
+    if (CREATURE_TYPE_TRAITS.has(t.toLowerCase())) return t.toLowerCase();
+  }
+  return undefined;
+}
+
+function extractUsage(doc: CompendiumDocument): string | undefined {
+  // Bucket by the usage-slug prefix so the sidebar surfaces a small
+  // set of categories (held / worn / etched / affixed / tattooed /
+  // other) rather than every slug variant.
+  const raw = (doc.system as { usage?: { value?: unknown } }).usage?.value;
+  if (typeof raw !== 'string' || raw.length === 0) return undefined;
+  const prefix = raw.split('-')[0]?.toLowerCase();
+  if (!prefix) return undefined;
+  return USAGE_PREFIXES.has(prefix) ? prefix : 'other';
 }
 
 function extractPrice(doc: CompendiumDocument): ItemPrice | undefined {
