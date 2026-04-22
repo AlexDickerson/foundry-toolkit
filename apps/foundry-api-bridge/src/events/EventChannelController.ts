@@ -1,4 +1,4 @@
-import type { WebSocketClient } from '@/transport/WebSocketClient';
+import type { EventPublisher } from '@/transport/Broadcaster';
 
 // Minimal local Foundry type snippets for the documents we read in hook
 // callbacks. Kept here rather than pulled from shared types because
@@ -68,6 +68,11 @@ interface CombatForEvent {
   combatants: { map<T>(fn: (c: CombatantForEvent) => T): T[] };
 }
 
+interface FoundryActorForEvent {
+  id: string;
+  type?: string;
+}
+
 type HookCallback = (...args: unknown[]) => void;
 
 interface FoundryHooks {
@@ -86,30 +91,70 @@ interface HookHandle {
 // the server's http/schemas.ts — the server rejects SSE requests for
 // channels that don't appear there, and the module ignores
 // `set-event-subscription` for channels it doesn't switch on below.
-const KNOWN_CHANNELS = new Set(['rolls', 'chat', 'combat']);
+const KNOWN_CHANNELS = new Set(['rolls', 'chat', 'combat', 'actors']);
+
+// Opaque handle used to refcount subscriptions per connected client.
+// Each `WebSocketClient` instance is passed in for reference equality;
+// tests can pass any object. Multiple enables with the same
+// SubscriberId are a no-op; cleanup walks every channel on disconnect.
+export type SubscriberId = object;
 
 /**
- * Owns Foundry Hook registrations for every active event channel. The
- * server's ChannelManager calls `enable` on 0→1 subscriber transitions
- * and `disable` on 1→0, so Hook callbacks exist only while somebody is
- * listening. `createChatMessage` is shared between the rolls and chat
- * channels and torn down only when both go idle.
+ * Owns Foundry Hook registrations for every active event channel.
+ * Enables on the first subscriber for a channel (0→1) and tears the
+ * Foundry hooks down only when the last subscriber disables (1→0), so
+ * running multiple MCP servers against one Foundry world doesn't drop
+ * a channel when one of them unsubscribes. `createChatMessage` is
+ * shared between the rolls and chat channels and torn down only when
+ * both go idle.
  */
 export class EventChannelController {
-  private readonly active = new Set<string>();
+  private readonly subscribers = new Map<string, Set<SubscriberId>>();
   private readonly hookHandles = new Map<string, HookHandle[]>();
   private chatMsgHookHandle: number | null = null;
 
-  constructor(private readonly wsClient: WebSocketClient) {}
+  constructor(private readonly publisher: EventPublisher) {}
 
-  enable(channel: string): void {
-    if (this.active.has(channel)) return;
+  enable(channel: string, subscriber: SubscriberId): void {
     if (!KNOWN_CHANNELS.has(channel)) {
       console.warn(`Foundry API Bridge | Unknown event channel: ${channel}`);
       return;
     }
-    this.active.add(channel);
 
+    const existing = this.subscribers.get(channel);
+    if (existing) {
+      existing.add(subscriber);
+      return;
+    }
+
+    // 0→1 transition: this is the first subscriber for the channel,
+    // so register Foundry hooks now.
+    this.subscribers.set(channel, new Set([subscriber]));
+    this.registerHooks(channel);
+    console.log(`Foundry API Bridge | Event channel enabled: ${channel}`);
+  }
+
+  disable(channel: string, subscriber: SubscriberId): void {
+    const subs = this.subscribers.get(channel);
+    if (!subs || !subs.delete(subscriber)) return;
+    if (subs.size > 0) return;
+
+    // 1→0 transition: tear down hooks for this channel.
+    this.subscribers.delete(channel);
+    this.teardownHooks(channel);
+    console.log(`Foundry API Bridge | Event channel disabled: ${channel}`);
+  }
+
+  // Remove every subscription belonging to a single connection. Invoked
+  // when a client disconnects so phantom subscriptions don't keep
+  // shared hooks alive after the server drops.
+  removeSubscriber(subscriber: SubscriberId): void {
+    for (const channel of [...this.subscribers.keys()]) {
+      this.disable(channel, subscriber);
+    }
+  }
+
+  private registerHooks(channel: string): void {
     const handles: HookHandle[] = [];
 
     switch (channel) {
@@ -122,13 +167,25 @@ export class EventChannelController {
         handles.push(
           this.reg('deleteChatMessage', (raw) => {
             if (!isFoundryChatMessage(raw)) return;
-            this.wsClient.pushEvent('chat', { eventType: 'delete', data: { id: raw.id } });
+            this.publisher.pushEvent('chat', { eventType: 'delete', data: { id: raw.id } });
           }),
         );
         handles.push(
           this.reg('updateChatMessage', (raw) => {
             if (!isFoundryChatMessage(raw)) return;
-            this.wsClient.pushEvent('chat', { eventType: 'update', data: serializeChatMessage(raw) });
+            this.publisher.pushEvent('chat', { eventType: 'update', data: serializeChatMessage(raw) });
+          }),
+        );
+        break;
+
+      case 'actors':
+        handles.push(
+          this.reg('updateActor', (...args: unknown[]) => {
+            const [rawActor, rawChange] = args;
+            if (!isFoundryActorForEvent(rawActor)) return;
+            const changedPaths = extractChangedPaths(rawChange);
+            if (changedPaths.length === 0) return;
+            this.wsClient.pushEvent('actors', { actorId: rawActor.id, changedPaths });
           }),
         );
         break;
@@ -138,7 +195,7 @@ export class EventChannelController {
           (eventType: 'start' | 'turn' | 'round') =>
           (raw: unknown): void => {
             if (!isFoundryCombat(raw)) return;
-            this.wsClient.pushEvent('combat', { eventType, ...serializeCombat(raw) });
+            this.publisher.pushEvent('combat', { eventType, ...serializeCombat(raw) });
           };
         handles.push(this.reg('combatStart', combatPush('start')));
         handles.push(this.reg('combatTurn', combatPush('turn')));
@@ -146,7 +203,7 @@ export class EventChannelController {
         handles.push(
           this.reg('createCombatant', (raw) => {
             if (!isCombatantWithParent(raw) || !raw.combat) return;
-            this.wsClient.pushEvent('combat', {
+            this.publisher.pushEvent('combat', {
               eventType: 'combatant-add',
               encounterId: raw.combat.id,
               combatant: serializeCombatant(raw),
@@ -156,7 +213,7 @@ export class EventChannelController {
         handles.push(
           this.reg('deleteCombatant', (raw) => {
             if (!isCombatantWithParent(raw) || !raw.combat) return;
-            this.wsClient.pushEvent('combat', {
+            this.publisher.pushEvent('combat', {
               eventType: 'combatant-remove',
               encounterId: raw.combat.id,
               combatant: serializeCombatant(raw),
@@ -166,7 +223,7 @@ export class EventChannelController {
         handles.push(
           this.reg('deleteCombat', (raw) => {
             if (!isFoundryCombat(raw)) return;
-            this.wsClient.pushEvent('combat', { eventType: 'end', encounterId: raw.id });
+            this.publisher.pushEvent('combat', { eventType: 'end', encounterId: raw.id });
           }),
         );
         break;
@@ -176,13 +233,9 @@ export class EventChannelController {
     if (handles.length > 0) {
       this.hookHandles.set(channel, handles);
     }
-    console.log(`Foundry API Bridge | Event channel enabled: ${channel}`);
   }
 
-  disable(channel: string): void {
-    if (!this.active.has(channel)) return;
-    this.active.delete(channel);
-
+  private teardownHooks(channel: string): void {
     const handles = this.hookHandles.get(channel);
     if (handles) {
       for (const { name, id } of handles) {
@@ -195,15 +248,13 @@ export class EventChannelController {
     // when both channels have gone idle.
     if (
       (channel === 'rolls' || channel === 'chat') &&
-      !this.active.has('rolls') &&
-      !this.active.has('chat') &&
+      !this.subscribers.has('rolls') &&
+      !this.subscribers.has('chat') &&
       this.chatMsgHookHandle !== null
     ) {
       Hooks.off('createChatMessage', this.chatMsgHookHandle);
       this.chatMsgHookHandle = null;
     }
-
-    console.log(`Foundry API Bridge | Event channel disabled: ${channel}`);
   }
 
   private reg(name: string, fn: HookCallback): HookHandle {
@@ -219,14 +270,14 @@ export class EventChannelController {
   }
 
   private handleChatMessage(message: FoundryChatMessage): void {
-    if (this.active.has('rolls')) {
+    if (this.subscribers.has('rolls')) {
       const roll = message.rolls?.[0];
       if (message.isRoll && roll) {
-        this.wsClient.pushEvent('rolls', serializeRoll(message, roll));
+        this.publisher.pushEvent('rolls', serializeRoll(message, roll));
       }
     }
-    if (this.active.has('chat')) {
-      this.wsClient.pushEvent('chat', { eventType: 'create', data: serializeChatMessage(message) });
+    if (this.subscribers.has('chat')) {
+      this.publisher.pushEvent('chat', { eventType: 'create', data: serializeChatMessage(message) });
     }
   }
 }
@@ -333,4 +384,42 @@ function isCombatantWithParent(value: unknown): value is CombatantWithParent {
   // `combat` may be null for a combatant mid-creation; the caller
   // checks before pushing.
   return true;
+}
+
+function isFoundryActorForEvent(value: unknown): value is FoundryActorForEvent {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj['id'] === 'string';
+}
+
+// Flatten a Foundry `updateActor` diff into dot-notation leaf paths so
+// subscribers can filter by prefix ("system.crafting", "system.attributes.hp",
+// etc.). Foundry delivers diffs as a mix of nested objects and
+// dot-notation keys depending on the update path; this walker handles
+// both and always produces path strings in the same shape.
+//
+// Exported for unit testing; the hook callback is the only caller.
+export function extractChangedPaths(change: unknown): string[] {
+  if (typeof change !== 'object' || change === null) return [];
+  const out: string[] = [];
+  walk(change as Record<string, unknown>, '', out);
+  return out;
+}
+
+function walk(obj: Record<string, unknown>, prefix: string, out: string[]): void {
+  for (const key of Object.keys(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    const value = obj[key];
+    // Dot-notation keys already encode depth — treat as a leaf so the
+    // emitted path mirrors what Foundry actually sent.
+    if (key.includes('.')) {
+      out.push(path);
+      continue;
+    }
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      walk(value as Record<string, unknown>, path, out);
+    } else {
+      out.push(path);
+    }
+  }
 }

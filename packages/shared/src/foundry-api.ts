@@ -217,12 +217,35 @@ export interface CompendiumSource {
   count: number;
 }
 
+/** Pre-aggregated distinct values over the cached documents in one or
+ *  more packs, scoped by documentType. Populates dm-tool's Monster
+ *  Browser + Item Browser sidebar filter panels. Every string array
+ *  is alphabetically sorted; empty arrays mean "no matching values in
+ *  this slice", not "not supported". */
+export interface CompendiumFacets {
+  rarities: string[];
+  sizes: string[];
+  creatureTypes: string[];
+  traits: string[];
+  sources: string[];
+  /** Bucketed names derived from the prefix of `system.usage.value`
+   *  (e.g. `'held-in-one-hand'` → `'held'`, `'worn-necklace'` → `'worn'`).
+   *  Only includes buckets that actually matched at least one doc. */
+  usageCategories: string[];
+  /** `[min, max]` or `null` when the filtered docs had no level field. */
+  levelRange: [number, number] | null;
+}
+
 export interface CompendiumDocument {
   id: string;
   uuid: string;
   name: string;
   type: string;
   img: string;
+  /** Actor-only. Foundry PrototypeToken.texture.src — the token art URL,
+   *  distinct from the portrait `img`. Absent for Item documents and
+   *  Actors without a configured prototype token. */
+  tokenImg?: string;
   /** Full `system.*` slice. Shape varies by item type; consumers narrow
    *  defensively via `document.type`. */
   system: Record<string, unknown>;

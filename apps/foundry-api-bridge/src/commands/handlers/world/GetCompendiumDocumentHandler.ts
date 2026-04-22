@@ -3,6 +3,7 @@ import type {
   GetCompendiumDocumentParams,
   GetCompendiumDocumentResult,
 } from '@/commands/types';
+import { extractTokenImg } from './extractTokenImg';
 
 interface FoundryDocument {
   id: string;
@@ -10,6 +11,9 @@ interface FoundryDocument {
   name: string;
   type: string;
   img: string | null;
+  // Actor-only; Item documents omit it. Typed as `unknown` so we don't
+  // over-promise — `extractTokenImg` walks it defensively.
+  prototypeToken?: unknown;
   toObject(source?: boolean): { system: Record<string, unknown> };
 }
 
@@ -36,6 +40,7 @@ export async function getCompendiumDocumentHandler(
   if (!doc) {
     throw new Error(`Compendium document not found: ${params.uuid}`);
   }
+  const tokenImg = extractTokenImg(doc);
   const data: CompendiumDocumentData = {
     id: doc.id,
     uuid: doc.uuid,
@@ -44,5 +49,7 @@ export async function getCompendiumDocumentHandler(
     img: doc.img ?? '',
     system: doc.toObject(false).system,
   };
+  // Only attach when present so item docs stay clean on the wire.
+  if (tokenImg !== undefined) data.tokenImg = tokenImg;
   return { document: data };
 }
