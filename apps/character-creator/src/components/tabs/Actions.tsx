@@ -1,20 +1,27 @@
 import { useState } from 'react';
+import { api } from '../../api/client';
 import type { Ability, AbilityKey, ActionItem, PreparedActorItem, Strike } from '../../api/types';
 import { isActionItem } from '../../api/types';
 import { enrichDescription } from '../../lib/foundry-enrichers';
+import { useActorAction, type ActorActionState } from '../../lib/useActorAction';
 import { SectionHeader } from '../common/SectionHeader';
 
 interface Props {
   actions: Strike[];
   items: PreparedActorItem[];
   abilities?: Record<AbilityKey, Ability>;
+  actorId: string;
+  /** Called after an item use succeeds — Strike rolls are chat-only and
+   *  don't trigger this. Wire to the parent's `reloadActor` so any charge
+   *  / quantity updates show up. */
+  onItemUsed: () => void;
 }
 
 // Actions tab — strikes (from system.actions[]) plus action-type items
 // split into Actions / Reactions / Free Actions. pf2e's full Actions tab
 // also has Encounter/Exploration/Downtime sub-tabs, which we skip since
 // the split mostly mirrors the same item data with a sub-trait filter.
-export function Actions({ actions, items, abilities }: Props): React.ReactElement {
+export function Actions({ actions, items, abilities, actorId, onItemUsed }: Props): React.ReactElement {
   const strikes = actions.filter((a) => a.type === 'strike' && a.visible);
   const actionItems = items.filter(isActionItem);
   const regularActions = actionItems.filter((a) => a.system.actionType.value === 'action');
@@ -33,15 +40,21 @@ export function Actions({ actions, items, abilities }: Props): React.ReactElemen
           <SectionHeader>Strikes</SectionHeader>
           <ul className="space-y-2">
             {strikes.map((strike) => (
-              <StrikeCard key={strike.slug} strike={strike} abilities={abilities} />
+              <StrikeCard key={strike.slug} strike={strike} abilities={abilities} actorId={actorId} />
             ))}
           </ul>
         </div>
       )}
 
-      <ActionSection title="Actions" kind="action" items={regularActions} />
-      <ActionSection title="Reactions" kind="reaction" items={reactions} />
-      <ActionSection title="Free Actions" kind="free" items={freeActions} />
+      <ActionSection title="Actions" kind="action" items={regularActions} actorId={actorId} onUsed={onItemUsed} />
+      <ActionSection title="Reactions" kind="reaction" items={reactions} actorId={actorId} onUsed={onItemUsed} />
+      <ActionSection
+        title="Free Actions"
+        kind="free"
+        items={freeActions}
+        actorId={actorId}
+        onUsed={onItemUsed}
+      />
     </section>
   );
 }
@@ -51,13 +64,20 @@ export function Actions({ actions, items, abilities }: Props): React.ReactElemen
 function StrikeCard({
   strike,
   abilities,
+  actorId,
 }: {
   strike: Strike;
   abilities: Record<AbilityKey, Ability> | undefined;
+  actorId: string;
 }): React.ReactElement {
   const allTraits = [...strike.traits, ...strike.weaponTraits];
   const damageText = formatStrikeDamage(strike, abilities);
   const range = strike.item.system.range;
+
+  const attack = useActorAction({ run: (variantIndex: number) => api.rollStrike(actorId, strike.slug, variantIndex) });
+  const damage = useActorAction({ run: () => api.rollStrikeDamage(actorId, strike.slug, false) });
+  const crit = useActorAction({ run: () => api.rollStrikeDamage(actorId, strike.slug, true) });
+  const error = firstError(attack.state, damage.state, crit.state);
 
   return (
     <li
@@ -88,7 +108,32 @@ function StrikeCard({
               </span>
             )}
           </div>
-          <VariantStrip variants={strike.variants} />
+          <VariantStrip
+            variants={strike.variants}
+            onVariant={(i) => void attack.trigger(i)}
+            pending={attack.state === 'pending'}
+          />
+          <div className="mt-1.5 flex flex-wrap gap-1.5" data-role="strike-damage-actions">
+            <button
+              type="button"
+              onClick={() => void damage.trigger()}
+              disabled={damage.state === 'pending'}
+              className="rounded border border-neutral-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-neutral-800 hover:bg-neutral-100 disabled:opacity-50"
+              data-role="strike-damage-roll"
+            >
+              {damage.state === 'pending' ? 'Rolling…' : 'Damage'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void crit.trigger()}
+              disabled={crit.state === 'pending'}
+              className="rounded border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-900 hover:bg-rose-100 disabled:opacity-50"
+              data-role="strike-damage-crit"
+            >
+              {crit.state === 'pending' ? 'Rolling…' : 'Crit'}
+            </button>
+          </div>
+          {error !== null && <p className="mt-1 text-[11px] text-red-700">{error}</p>}
           {allTraits.length > 0 && <TraitChips traits={allTraits} />}
           {range !== null && range !== undefined && (
             <p className="mt-1 text-[10px] text-neutral-500">Range: {range} ft</p>
@@ -97,6 +142,13 @@ function StrikeCard({
       </div>
     </li>
   );
+}
+
+function firstError(...states: ActorActionState[]): string | null {
+  for (const s of states) {
+    if (typeof s === 'object') return s.error;
+  }
+  return null;
 }
 
 // Compose the damage string from the weapon's static `system.damage`
@@ -163,20 +215,35 @@ function computeDamageAbilityMod(
   return 0;
 }
 
-function VariantStrip({ variants }: { variants: { label: string }[] }): React.ReactElement {
+function VariantStrip({
+  variants,
+  onVariant,
+  pending,
+}: {
+  variants: { label: string }[];
+  onVariant: (index: number) => void;
+  pending: boolean;
+}): React.ReactElement {
   return (
     <ul className="mt-1 flex flex-wrap gap-1.5" role="group" aria-label="Attack variants">
       {variants.map((v, i) => (
-        <li
-          key={`${i.toString()}-${v.label}`}
-          className={[
-            'rounded border px-1.5 py-0.5 font-mono text-xs tabular-nums',
-            i === 0
-              ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-              : 'border-neutral-200 bg-neutral-50 text-neutral-700',
-          ].join(' ')}
-        >
-          {v.label}
+        <li key={`${i.toString()}-${v.label}`}>
+          <button
+            type="button"
+            onClick={() => {
+              onVariant(i);
+            }}
+            disabled={pending}
+            data-variant-index={i}
+            className={[
+              'rounded border px-1.5 py-0.5 font-mono text-xs tabular-nums disabled:opacity-50',
+              i === 0
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+                : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100',
+            ].join(' ')}
+          >
+            {v.label}
+          </button>
         </li>
       ))}
     </ul>
@@ -189,10 +256,14 @@ function ActionSection({
   title,
   kind,
   items,
+  actorId,
+  onUsed,
 }: {
   title: string;
   kind: string;
   items: ActionItem[];
+  actorId: string;
+  onUsed: () => void;
 }): React.ReactElement | null {
   if (items.length === 0) return null;
   return (
@@ -200,14 +271,22 @@ function ActionSection({
       <SectionHeader>{title}</SectionHeader>
       <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {items.map((item) => (
-          <ActionCard key={item.id} item={item} />
+          <ActionCard key={item.id} item={item} actorId={actorId} onUsed={onUsed} />
         ))}
       </ul>
     </div>
   );
 }
 
-function ActionCard({ item }: { item: ActionItem }): React.ReactElement {
+function ActionCard({
+  item,
+  actorId,
+  onUsed,
+}: {
+  item: ActionItem;
+  actorId: string;
+  onUsed: () => void;
+}): React.ReactElement {
   const kind = item.system.actionType.value;
   const count = item.system.actions.value;
   const traits = item.system.traits.value;
@@ -215,6 +294,10 @@ function ActionCard({ item }: { item: ActionItem }): React.ReactElement {
   const description = item.system.description?.value ?? '';
   const hasDescription = description.trim() !== '';
   const enriched = hasDescription ? enrichDescription(description) : '';
+  const use = useActorAction({
+    run: () => api.useItem(actorId, item.id),
+    onSuccess: onUsed,
+  });
 
   const toggle = (): void => {
     setExpanded((v) => !v);
@@ -227,13 +310,7 @@ function ActionCard({ item }: { item: ActionItem }): React.ReactElement {
       data-action-kind={kind}
       data-expanded={expanded ? 'true' : 'false'}
     >
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={expanded}
-        className="flex w-full items-start gap-3 px-3 py-2 text-left hover:bg-pf-bg-dark/40"
-        data-testid="action-card-toggle"
-      >
+      <div className="flex items-start gap-3 px-3 py-2">
         <img
           src={item.img}
           alt=""
@@ -241,12 +318,37 @@ function ActionCard({ item }: { item: ActionItem }): React.ReactElement {
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="truncate text-sm font-medium text-neutral-900">{item.name}</span>
+            <button
+              type="button"
+              onClick={toggle}
+              aria-expanded={expanded}
+              className="min-w-0 truncate text-left text-sm font-medium text-neutral-900 hover:underline"
+              data-testid="action-card-toggle"
+            >
+              {item.name}
+            </button>
             <ActionCostBadge kind={kind} count={count} />
-            <span className="ml-auto text-[10px] text-neutral-500" aria-hidden="true">
+            <button
+              type="button"
+              onClick={() => void use.trigger()}
+              disabled={use.state === 'pending'}
+              className="ml-auto rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
+              data-role="action-use"
+            >
+              {use.state === 'pending' ? 'Using…' : 'Use'}
+            </button>
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label={expanded ? 'Collapse' : 'Expand'}
+              className="text-[10px] text-neutral-500 hover:text-neutral-800"
+            >
               {expanded ? '▾' : '▸'}
-            </span>
+            </button>
           </div>
+          {typeof use.state === 'object' && (
+            <p className="mt-1 text-[11px] text-red-700">{use.state.error}</p>
+          )}
           {traits.length > 0 && (
             <ul className="mt-1 flex flex-wrap gap-1">
               {traits.map((slug) => (
@@ -260,7 +362,7 @@ function ActionCard({ item }: { item: ActionItem }): React.ReactElement {
             </ul>
           )}
         </div>
-      </button>
+      </div>
       {expanded && (
         <div
           className="border-t border-neutral-200 bg-pf-bg/60 px-3 py-2 text-sm text-pf-text"

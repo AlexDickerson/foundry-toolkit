@@ -163,6 +163,8 @@ export function CharacterSheet({ actorId, onBack, preferences }: Props): React.R
               actions={state.actor.system.actions}
               items={state.actor.items}
               abilities={state.actor.system.abilities}
+              actorId={actorId}
+              onItemUsed={reloadActor}
             />
           )}
           {activeTab === 'spells' && (
