@@ -23,7 +23,7 @@ describe('Actions tab — strikes', () => {
   });
 
   it('renders a card per visible strike', () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     for (const slug of Object.keys(EXPECTED_STRIKES)) {
       const card = container.querySelector(`[data-strike-slug="${slug}"]`);
       expect(card, `strike card for ${slug}`).toBeTruthy();
@@ -31,7 +31,7 @@ describe('Actions tab — strikes', () => {
   });
 
   it('renders each strike label', () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     for (const [slug, { label }] of Object.entries(EXPECTED_STRIKES)) {
       const card = container.querySelector(`[data-strike-slug="${slug}"]`);
       expect(within(card as HTMLElement).getByText(label)).toBeTruthy();
@@ -39,7 +39,7 @@ describe('Actions tab — strikes', () => {
   });
 
   it("renders each strike's three attack variants with MAP labels", () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     for (const [slug, { variants }] of Object.entries(EXPECTED_STRIKES)) {
       const card = container.querySelector(`[data-strike-slug="${slug}"]`);
       for (const label of variants) {
@@ -49,13 +49,13 @@ describe('Actions tab — strikes', () => {
   });
 
   it('shows weapon traits on the Bastard Sword card', () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     const card = container.querySelector('[data-strike-slug="bastard-sword"]');
     expect(card?.textContent).toContain('Two-Hand d12');
   });
 
   it("shows Amiri's javelin quantity (4)", () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     const card = container.querySelector('[data-strike-slug="javelin"]');
     expect(card?.textContent).toContain('×4');
   });
@@ -65,7 +65,7 @@ describe('Actions tab — strikes', () => {
   //   Bastard Sword (melee): 1d8+4 slashing
   //   Javelin (ranged+thrown): 1d6+4 piercing
   it('folds STR into melee strike damage when abilities are provided', () => {
-    const { container } = render(<Actions actions={actions} items={items} abilities={abilities} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} abilities={abilities} />);
     const unarmed = container.querySelector('[data-strike-slug="basic-unarmed"] [data-role="strike-damage"]');
     const bastard = container.querySelector('[data-strike-slug="bastard-sword"] [data-role="strike-damage"]');
     expect(unarmed?.textContent).toBe('1d4+4 bludgeoning');
@@ -73,13 +73,13 @@ describe('Actions tab — strikes', () => {
   });
 
   it('adds STR to a thrown ranged weapon (javelin)', () => {
-    const { container } = render(<Actions actions={actions} items={items} abilities={abilities} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} abilities={abilities} />);
     const javelin = container.querySelector('[data-strike-slug="javelin"] [data-role="strike-damage"]');
     expect(javelin?.textContent).toBe('1d6+4 piercing');
   });
 
   it('falls back to base-die damage when abilities are not provided', () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     const bastard = container.querySelector('[data-strike-slug="bastard-sword"] [data-role="strike-damage"]');
     expect(bastard?.textContent).toBe('1d8 slashing');
   });
@@ -98,7 +98,7 @@ describe('Actions tab — strikes', () => {
         },
       };
     });
-    const { container } = render(<Actions actions={buffed} items={items} abilities={abilities} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={buffed} items={items} abilities={abilities} />);
     const bastard = container.querySelector('[data-strike-slug="bastard-sword"] [data-role="strike-damage"]');
     expect(bastard?.textContent).toBe('2d8+4 slashing');
   });
@@ -110,7 +110,7 @@ describe('Actions tab — action items', () => {
   });
 
   it('renders the Actions section with Rage and Demoralize (both 1-action)', () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     const section = container.querySelector('[data-action-section="action"]');
     expect(section, 'Actions section').toBeTruthy();
     expect(section?.textContent).toContain('Rage');
@@ -123,7 +123,7 @@ describe('Actions tab — action items', () => {
   });
 
   it('renders the Free Actions section with Quick-Tempered', () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     const section = container.querySelector('[data-action-section="free"]');
     expect(section, 'Free Actions section').toBeTruthy();
     expect(section?.textContent).toContain('Quick-Tempered');
@@ -131,18 +131,18 @@ describe('Actions tab — action items', () => {
   });
 
   it('omits the Reactions section when Amiri has no reactions', () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     const section = container.querySelector('[data-action-section="reaction"]');
     expect(section).toBeNull();
   });
 
   it('renders empty-state when no strikes and no action items', () => {
-    const { container } = render(<Actions actions={[]} items={[]} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={[]} items={[]} />);
     expect(container.textContent).toContain('No actions available');
   });
 
   it('collapses action cards by default and expands on click', () => {
-    const { container } = render(<Actions actions={actions} items={items} />);
+    const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     const section = container.querySelector('[data-action-section="action"]') as HTMLElement;
     const rage = within(section)
       .getAllByText(/Rage/i)[0]
