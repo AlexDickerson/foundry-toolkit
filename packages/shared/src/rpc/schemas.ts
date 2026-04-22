@@ -25,6 +25,14 @@ const csvParam = z
   .transform((v) => (Array.isArray(v) ? v : v.split(',')).map((t) => t.trim()).filter((t) => t.length > 0))
   .optional();
 
+// Query-string booleans arrive as plain strings; coerce only
+// `'true'` / `'false'` (case-insensitive) so typos 400 instead of
+// silently truthifying.
+const boolParam = z
+  .union([z.boolean(), z.enum(['true', 'false', 'TRUE', 'FALSE', 'True', 'False'])])
+  .transform((v) => (typeof v === 'boolean' ? v : v.toLowerCase() === 'true'))
+  .optional();
+
 // `q` is optional so pickers can browse by trait/pack/level without a
 // text query. The handler short-circuits to an empty response unless
 // at least one of q / packId / traits / maxLevel is provided, to avoid
@@ -37,7 +45,42 @@ export const compendiumSearchQuery = z.object({
   anyTraits: csvParam,
   sources: csvParam,
   ancestrySlug: z.string().optional(),
+  minLevel: z.coerce.number().int().nonnegative().max(30).optional(),
   maxLevel: z.coerce.number().int().nonnegative().max(30).optional(),
+  // Rarity filter (common / uncommon / rare / unique in pf2e). CSV or
+  // repeated param; matched against `system.traits.rarity`.
+  rarities: csvParam,
+  // Size filter (tiny / sm / med / lg / huge / grg). Matched against
+  // `system.traits.size.value`.
+  sizes: csvParam,
+  // Creature-type filter (dragon / humanoid / undead …). Matched by
+  // intersection with `system.traits.value` — creature types are
+  // encoded as traits on pf2e NPC actors.
+  creatureTypes: csvParam,
+  // Usage-category filter for items. Accepts case-insensitive prefixes
+  // of `system.usage.value` (e.g. 'held' matches 'held-in-one-hand';
+  // 'worn' matches 'worn-necklace'). Kept as a prefix rather than a
+  // bucket enum so the server doesn't have to maintain pf2e's usage
+  // taxonomy.
+  usageCategories: csvParam,
+  // Magical-items flag. True = only items carrying the `magical` trait
+  // (or any of arcane/divine/occult/primal). False = explicitly
+  // non-magical. Omit for no filter.
+  isMagical: boolParam,
+  // Monster combat-stat range filters. All read from the bestiary
+  // actor's `system.attributes.*` / `system.saves.*` — skipped for any
+  // document that doesn't carry the field, so item-pack searches see
+  // them as no-ops.
+  hpMin: z.coerce.number().int().nonnegative().optional(),
+  hpMax: z.coerce.number().int().nonnegative().optional(),
+  acMin: z.coerce.number().int().nonnegative().optional(),
+  acMax: z.coerce.number().int().nonnegative().optional(),
+  fortMin: z.coerce.number().int().optional(),
+  fortMax: z.coerce.number().int().optional(),
+  refMin: z.coerce.number().int().optional(),
+  refMax: z.coerce.number().int().optional(),
+  willMin: z.coerce.number().int().optional(),
+  willMax: z.coerce.number().int().optional(),
   // Hard ceiling chosen so a single request can return every item in
   // the largest cached pack (pf2e.equipment-srd ≈ 5.6k items) without
   // pagination. The in-memory cache's filter/sort is microseconds on
