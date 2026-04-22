@@ -9,9 +9,11 @@ FROM node:20-alpine AS build-module
 WORKDIR /app
 # npm install (not npm ci) because this workspace lives in the
 # foundry-toolkit monorepo — the lockfile is at the root, not here.
-# .npmrc carries legacy-peer-deps=true for foundry-vtt-types.
-COPY package.json .npmrc ./
-RUN npm install
+# --legacy-peer-deps is required for foundry-vtt-types vs our TypeScript
+# pin (same rationale as the root .npmrc); passed as a flag here rather
+# than a per-workspace .npmrc so there's one source of truth.
+COPY package.json ./
+RUN npm install --legacy-peer-deps
 COPY tsconfig.json vite.config.ts ./
 COPY src ./src
 RUN npx vite build
