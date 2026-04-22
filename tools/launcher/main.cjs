@@ -78,7 +78,9 @@ function spawnWindowsTerminal(cwd, commandAfter, title) {
   const args = ['-w', '0', 'nt', '-d', cwd];
   if (title) args.push('--title', title);
   if (commandAfter) args.push('cmd', '/k', commandAfter);
-  const child = spawn('wt', args, { detached: true, stdio: 'ignore', shell: true });
+  // shell: false so Node/CreateProcess handles arg quoting. With shell: true,
+  // spaces in title or cwd get split by cmd.exe and wt sees garbled flags.
+  const child = spawn('wt', args, { detached: true, stdio: 'ignore', windowsHide: true });
   child.on('error', (err) => console.error('wt spawn failed:', err));
   child.unref();
 }
