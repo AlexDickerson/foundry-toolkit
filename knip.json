@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    "apps/dm-tool": {
+      "entry": ["electron.vite.config.ts", "electron/main.ts", "electron/preload.ts"],
+      "project": ["electron/**/*.ts", "src/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["tailwindcss", "tailwindcss-animate"]
+    },
+    "apps/foundry-mcp": {
+      "entry": ["test/**/*.test.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["husky", "lint-staged"]
+    },
+    "apps/foundry-api-bridge": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.ts"],
+      "ignore": ["src/config/index.ts"]
+    },
+    "apps/character-creator": {
+      "ignoreDependencies": ["@eslint/js"]
+    }
+  }
+}
