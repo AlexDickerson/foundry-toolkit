@@ -1,7 +1,13 @@
 import { useCallback, useState } from 'react';
 import { ChevronLeft, ChevronRight, Dice5, Heart, Trash2, UploadCloud, UserPlus, X } from 'lucide-react';
 import { Skull } from 'lucide-react';
-import type { Combatant, Encounter, MonsterDetail, MonsterSummary, PushEncounterResult } from '@foundry-toolkit/shared/types';
+import type {
+  Combatant,
+  Encounter,
+  MonsterDetail,
+  MonsterSummary,
+  PushEncounterResult,
+} from '@foundry-toolkit/shared/types';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';

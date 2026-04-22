@@ -9,7 +9,13 @@
 
 import { useCallback, useState } from 'react';
 import { ChevronDown, ChevronRight, Coins, ExternalLink, Plus, Sparkles, Trash2, Upload } from 'lucide-react';
-import type { Encounter, LootItem, LootKind, PartyInventoryCategory, PartyInventoryItem } from '@foundry-toolkit/shared/types';
+import type {
+  Encounter,
+  LootItem,
+  LootKind,
+  PartyInventoryCategory,
+  PartyInventoryItem,
+} from '@foundry-toolkit/shared/types';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';

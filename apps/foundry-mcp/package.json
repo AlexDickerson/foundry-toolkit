@@ -9,8 +9,7 @@
     "start": "node dist/index.js",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
-    "test": "tsx --test test/**/*.test.ts",
-    "prepare": "husky"
+    "test": "tsx --test test/**/*.test.ts"
   },
   "dependencies": {
     "@fastify/static": "^9.1.2",
