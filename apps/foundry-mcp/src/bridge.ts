@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { COMMAND_TIMEOUT_MS } from './config.js';
+import { channelManager } from './events/channel-manager.js';
 import { log } from './logger.js';
 
 // ---------------------------------------------------------------------------
@@ -159,6 +160,23 @@ export async function foundryTool(type: string, params: Record<string, unknown> 
 
 export const wss = new WebSocketServer({ noServer: true });
 
+// Wire channel-manager subscription transitions to the Foundry module.
+// On 0→1 the module registers the matching Hooks.on listeners; on 1→0
+// it tears them down. If Foundry is disconnected we skip the send —
+// the reconnect handler below re-syncs every active channel on
+// re-connect so nothing leaks subscriber state.
+channelManager.setSubscriptionChangeCallback((channel, active) => {
+  if (!foundrySocket || foundrySocket.readyState !== WebSocket.OPEN) {
+    log.info(`Skipped event-subscription update for "${channel}" (active=${String(active)}): Foundry disconnected`);
+    return;
+  }
+  sendCommand('set-event-subscription', { channel, active }).catch((err: unknown) => {
+    log.error(
+      `set-event-subscription failed for "${channel}" (active=${String(active)}): ${err instanceof Error ? err.message : String(err)}`,
+    );
+  });
+});
+
 wss.on('connection', (ws: WebSocket) => {
   if (foundrySocket) {
     log.warn('Rejecting duplicate Foundry connection');
@@ -169,9 +187,29 @@ wss.on('connection', (ws: WebSocket) => {
   foundrySocket = ws;
   log.info('Foundry module connected');
 
+  // Re-sync active channels. SSE consumers held their subscriptions
+  // through the Foundry disconnect, but the module's Hooks.on
+  // registrations were destroyed — we have to tell it to set them up
+  // again so events start flowing.
+  for (const channel of channelManager.getActiveChannels()) {
+    sendCommand('set-event-subscription', { channel, active: true }).catch((err: unknown) => {
+      log.error(
+        `Resync set-event-subscription failed for "${channel}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
+  }
+
   ws.on('message', (raw: Buffer) => {
     try {
       const msg = JSON.parse(raw.toString()) as Record<string, unknown>;
+
+      // Module-pushed event on an active channel. Fire-and-forget from
+      // the module's side — no id, no bridgeId. The channel manager
+      // fans out to SSE subscribers; unknown channels silently drop.
+      if (msg['kind'] === 'event' && typeof msg['channel'] === 'string') {
+        channelManager.publish(msg['channel'], msg['data']);
+        return;
+      }
 
       // Module-initiated bridge event: store + broadcast for frontend
       // subscribers. The module is blocking on our reply; we dispatch

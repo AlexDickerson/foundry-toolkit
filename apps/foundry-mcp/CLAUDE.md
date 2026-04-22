@@ -28,10 +28,52 @@ Default ports:
 
 - `src/tools/` — MCP tool implementations
 - `src/bridge.ts` — WebSocket bridge to Foundry module
+- `src/events/` — Multi-channel SSE pool + subscription lifecycle (see Event Channels below)
 - `src/http/` — Fastify REST surface (consumed by foundry-character-creator)
 - `src/config.ts`, `src/logger.ts`
 - `src/index.ts` — Entry point
 - `_http/` — REST Client `.http` files for interactive endpoint testing
+
+## Event Channels
+
+SSE pub/sub for live Foundry events (rolls, chat, combat). External consumers — dm-tool, character-creator, Discord bots, stream overlays — subscribe to a named channel and receive events as they fire. `Hooks.on` registrations on the Foundry side are lazy: the module only listens while at least one subscriber is connected, so an idle server pushes nothing.
+
+### Architecture
+
+- `src/events/channel-manager.ts` — singleton `ChannelManager` with a per-channel `Set<SubscriberFn>`. `subscribe(channel, fn)` returns an unsubscribe. The 0→1 and 1→0 subscriber-count transitions fire `onSubscriptionChange(channel, active)`.
+- `src/bridge.ts` wires that callback to `sendCommand('set-event-subscription', {channel, active})`. The module owns the matching `Hooks.on` / `Hooks.off` lifecycle (see [apps/foundry-api-bridge/CLAUDE.md](../foundry-api-bridge/CLAUDE.md)).
+- `src/http/routes/events.ts` — `GET /api/events/:channel/stream` is the SSE endpoint. Writes `: connected`, subscribes to the channel, streams `data: {json}\n\n` with a 20s heartbeat, cleans up on client close.
+
+### Wire protocol
+
+| Direction | Shape | Path |
+|---|---|---|
+| Server → module | `{id, type: "set-event-subscription", params: {channel, active}}` | Existing command path; gets a normal `CommandResponse` ack |
+| Module → server | `{kind: "event", channel, data}` | Third branch in `bridge.ts` message handler — no `id`, no `bridgeId` |
+| Client → server | `GET /api/events/:channel/stream` | SSE; each `data:` line is the raw JSON payload |
+
+### Lifecycle
+
+1. Client opens SSE → `ChannelManager.subscribe()` → 0→1 transition fires callback
+2. `bridge.ts` sends `set-event-subscription {active: true}` to the module
+3. Module's `EventChannelController.enable(channel)` registers `Hooks.on(...)` listeners
+4. Foundry fires a hook → module serializes → `wsClient.pushEvent(channel, data)`
+5. `bridge.ts` sees `{kind: "event"}` → `ChannelManager.publish()` → fan-out to every SSE subscriber
+6. Last client disconnects → 1→0 transition → module `Hooks.off(...)` + state cleared
+7. On Foundry reconnect, `bridge.ts` re-pushes `set-event-subscription {active: true}` for every currently-active channel so streams survive module disconnects without consumers re-subscribing
+
+### Adding a channel
+
+1. Add the name to `EVENT_CHANNELS` in `src/http/schemas.ts`
+2. Add a matching case to the switch in `apps/foundry-api-bridge/src/events/EventChannelController.ts#enable` that registers the Foundry hooks and pushes via `wsClient.pushEvent(channel, data)`
+3. Add the name to `KNOWN_CHANNELS` in the same file
+4. Consume: `curl -N http://localhost:8765/api/events/<channel>/stream`
+
+Currently implemented: `rolls`, `chat`, `combat`.
+
+### Testing
+
+`test/channel-manager.test.ts` covers pool invariants: 0↔1 transitions, fan-out, dead-subscriber pruning, idempotent unsubscribe, independent channels, callback errors. Module-side integration lives in the bridge repo's Jest suite.
 
 ## Git Workflow
 
