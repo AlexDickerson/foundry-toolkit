@@ -10,6 +10,10 @@ WORKDIR /app
 # npm install (not npm ci) because this workspace lives in the
 # foundry-toolkit monorepo — the lockfile is at the root, not here.
 # .npmrc carries legacy-peer-deps=true for foundry-vtt-types.
+# git is required: at least one transitive dep resolves from a git URL
+# (npm ci used to skip git lookups by using tarball URLs in the
+# lockfile, but we can't use npm ci without a sibling lockfile).
+RUN apk add --no-cache git
 COPY package.json .npmrc ./
 RUN npm install
 COPY tsconfig.json vite.config.ts ./
