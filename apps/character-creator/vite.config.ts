@@ -2,7 +2,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { loadRootEnv } from '@foundry-toolkit/shared/env';
 import { mockApi } from './mock/api-middleware';
+
+// Populate process.env from the monorepo root .env before FOUNDRY_URL /
+// MCP_URL are read below. `envDir` on the returned config tells Vite to
+// read the same file for `import.meta.env.VITE_*` lookups in source.
+loadRootEnv();
 
 // Dev server at :5173.
 //   /api/*         → foundry-mcp bridge on :8765 (our REST surface)
@@ -33,6 +39,7 @@ const fixturesDir = path.resolve(here, 'src', 'fixtures');
 export default defineConfig(({ mode }) => {
   const useMock = mode === 'mock';
   return {
+    envDir: path.resolve(here, '../..'),
     plugins: [react(), ...(useMock ? [mockApi(fixturesDir)] : [])],
     build: {
       outDir: 'dist',

@@ -18,8 +18,15 @@ const workspaceBundled = ['@foundry-toolkit/ai', '@foundry-toolkit/db', '@foundr
 // being inlined by Rollup (which breaks the `bindings` loader).
 const nativeDeps = ['better-sqlite3'];
 
+// Monorepo root holds the single .env. All three build targets point at it
+// so Vite's `import.meta.env.VITE_*` resolution reads the same file. The
+// main process also calls loadRootEnv() at startup (via
+// @foundry-toolkit/shared/env-auto) for non-VITE-prefixed vars.
+const rootEnvDir = resolve(__dirname, '../..');
+
 export default defineConfig({
   main: {
+    envDir: rootEnvDir,
     plugins: [externalizeDepsPlugin({ exclude: workspaceBundled, include: nativeDeps })],
     build: {
       rollupOptions: {
@@ -30,6 +37,7 @@ export default defineConfig({
     },
   },
   preload: {
+    envDir: rootEnvDir,
     plugins: [externalizeDepsPlugin({ exclude: workspaceBundled })],
     build: {
       rollupOptions: {
@@ -40,6 +48,7 @@ export default defineConfig({
     },
   },
   renderer: {
+    envDir: rootEnvDir,
     root: __dirname,
     plugins: [react()],
     server: {

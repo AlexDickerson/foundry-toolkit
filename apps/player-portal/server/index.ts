@@ -14,6 +14,7 @@
 // Reads/WS are unauthed since players need them and nothing private lives
 // in these feeds (DM notes stay in dm-tool's SQLite / Obsidian vault).
 
+import './load-env.js';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';

@@ -7,6 +7,8 @@
   "exports": {
     ".": "./src/types.ts",
     "./types": "./src/types.ts",
+    "./env": "./src/env.ts",
+    "./env-auto": "./src/env-auto.ts",
     "./foundry-api": "./src/foundry-api.ts",
     "./foundry-markup": "./src/foundry-markup.ts",
     "./map-stem": "./src/map-stem.ts",
@@ -20,6 +22,7 @@
   },
   "dependencies": {
     "@iconify-json/game-icons": "^1.2.3",
+    "dotenv": "^16.6.1",
     "zod": "^4.3.6"
   },
   "peerDependencies": {
