@@ -104,7 +104,8 @@ export type CommandType =
   | 'capture-scene'
   | 'get-scene-background'
   | 'update-scene'
-  | 'get-combat-turn-context';
+  | 'get-combat-turn-context'
+  | 'set-event-subscription';
 
 export interface RollDiceParams {
   formula: string;
@@ -1442,6 +1443,19 @@ export interface CombatTurnContext {
   asciiMap: string;
 }
 
+// Event channel subscription updates. Server pushes one of these
+// whenever a channel transitions 0↔1 SSE subscribers; the module
+// registers or tears down the matching Hooks.on listeners.
+export interface SetEventSubscriptionParams {
+  channel: string;
+  active: boolean;
+}
+
+export interface SetEventSubscriptionResult {
+  channel: string;
+  active: boolean;
+}
+
 export type AbilityKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
 
 export const ABILITY_KEYS: readonly AbilityKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
@@ -1540,6 +1554,7 @@ export interface CommandParamsMap {
   'get-scene-background': GetSceneBackgroundParams;
   'update-scene': UpdateSceneParams;
   'get-combat-turn-context': GetCombatTurnContextParams;
+  'set-event-subscription': SetEventSubscriptionParams;
 }
 
 export interface CommandResultMap {
@@ -1634,4 +1649,5 @@ export interface CommandResultMap {
   'get-scene-background': GetSceneBackgroundResult;
   'update-scene': UpdateSceneResult;
   'get-combat-turn-context': CombatTurnContext;
+  'set-event-subscription': SetEventSubscriptionResult;
 }

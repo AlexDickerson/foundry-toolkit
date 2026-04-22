@@ -127,3 +127,6 @@ export {
   removeActorEffectHandler,
   updateActorEffectHandler,
 } from '@/commands/handlers/effect';
+
+// Event channel handlers
+export { createSetEventSubscriptionHandler } from '@/commands/handlers/events';
