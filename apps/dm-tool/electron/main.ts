@@ -23,6 +23,7 @@ import { registerIpcHandlers } from './ipc/index.js';
 import { registerSetupIpcHandlers } from './setup-ipc.js';
 import { scanBookRoot } from './book-scanner.js';
 import { closePf2eDb, getPf2eDb, openPf2eDb } from '@foundry-toolkit/db/pf2e';
+import { initPreparedCompendium } from './compendium/singleton.js';
 
 // `map-file://` and `book-file://` must be registered as privileged
 // schemes BEFORE app.ready fires, otherwise the CSP rules in index.html
@@ -350,6 +351,26 @@ async function startup(): Promise<void> {
     });
     app.quit();
     return;
+  }
+
+  // Prepared compendium facade — wraps the foundry-mcp HTTP client with
+  // dm-tool-shape projection helpers. We defer via setImmediate so it
+  // doesn't block window creation; consumers of the prepared layer are
+  // all async IPC handlers that can retry if a call races the init.
+  //
+  // No existing pf2e.db consumer is rewired in this PR — this only makes
+  // the new layer available for follow-up migrations. When foundryMcpUrl
+  // is empty (local-only config) we skip init; callers that reach for
+  // it will see a clear "not initialised" error.
+  if (cfg.foundryMcpUrl) {
+    const mcpUrl = cfg.foundryMcpUrl;
+    setImmediate(() => {
+      try {
+        initPreparedCompendium({ foundryMcpUrl: mcpUrl });
+      } catch (e) {
+        console.error('Failed to initialise prepared compendium:', (e as Error).message);
+      }
+    });
   }
 
   try {
