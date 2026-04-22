@@ -151,6 +151,55 @@ export const api = {
         return { ok: true, messageCount: messages.length };
       `,
     }),
+  // Rolls a single MAP variant of a Strike. variantIndex 0/1/2 maps to
+  // first attack / second (MAP) / third (MAP2). The PF2e `StrikeData`
+  // lives at `actor.system.actions[i]` and each variant exposes its
+  // own `roll()` that bakes in the MAP penalty.
+  rollStrike: (id: string, strikeSlug: string, variantIndex: number): Promise<{ ok: boolean }> =>
+    api.runActorScript<{ ok: boolean }>({
+      actorId: id,
+      requireType: 'character',
+      body: `
+        const strike = actor.system.actions.find(s => s.slug === ${JSON.stringify(strikeSlug)});
+        if (!strike) throw new Error('Strike not found: ' + ${JSON.stringify(strikeSlug)});
+        const variant = strike.variants?.[${variantIndex.toString()}];
+        if (!variant) throw new Error('Strike variant ${variantIndex.toString()} not available');
+        await variant.roll({});
+        return { ok: true };
+      `,
+    }),
+  rollStrikeDamage: (id: string, strikeSlug: string, critical: boolean): Promise<{ ok: boolean }> =>
+    api.runActorScript<{ ok: boolean }>({
+      actorId: id,
+      requireType: 'character',
+      body: `
+        const strike = actor.system.actions.find(s => s.slug === ${JSON.stringify(strikeSlug)});
+        if (!strike) throw new Error('Strike not found: ' + ${JSON.stringify(strikeSlug)});
+        if (${critical.toString()}) {
+          if (typeof strike.critical !== 'function') throw new Error('Strike has no critical roll');
+          await strike.critical({});
+        } else {
+          if (typeof strike.damage !== 'function') throw new Error('Strike has no damage roll');
+          await strike.damage({});
+        }
+        return { ok: true };
+      `,
+    }),
+  // Posts an item's action card to chat — the same behaviour as the
+  // pf2e sheet's "send to chat" button on an action/reaction/free
+  // action. Consumable charge consumption is left to whoever clicks
+  // the roll buttons inside the posted card.
+  useItem: (id: string, itemId: string): Promise<{ ok: boolean }> =>
+    api.runActorScript<{ ok: boolean }>({
+      actorId: id,
+      requireType: 'character',
+      body: `
+        const item = actor.items.get(${JSON.stringify(itemId)});
+        if (!item) throw new Error('Item not found: ' + ${JSON.stringify(itemId)});
+        await item.toMessage();
+        return { ok: true };
+      `,
+    }),
   listCompendiumSources: (
     opts: {
       documentType?: string;
