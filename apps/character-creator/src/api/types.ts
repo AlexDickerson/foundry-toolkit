@@ -296,6 +296,24 @@ export interface CharacterDetails {
   alliance: 'party' | 'opposition' | null;
 }
 
+// Formula book entry. pf2e stores these as compendium UUID references on
+// `system.crafting.formulas`; the item itself isn't owned by the actor,
+// just recorded as "known". `batch` overrides the default batch size for
+// consumables; `expended` tracks per-day usage for magical crafting.
+export interface CraftingFormulaEntry {
+  uuid: string;
+  batch?: number;
+  expended?: { nth?: number; day?: string } | null;
+}
+
+export interface CraftingField {
+  formulas: CraftingFormulaEntry[];
+  // Daily-prep slots keyed by entry id (alchemist, herbalist, etc.).
+  // Shape varies by class; we don't render these yet — they belong with
+  // the daily-prep sub-app this port intentionally skips.
+  entries: Record<string, unknown>;
+}
+
 export interface CharacterSystem {
   abilities: Record<AbilityKey, Ability>;
   attributes: {
@@ -312,6 +330,7 @@ export interface CharacterSystem {
     reach: Reach;
     handsFree: number;
   };
+  crafting: CraftingField;
   details: CharacterDetails;
   initiative: Initiative;
   perception: Perception;
@@ -665,4 +684,8 @@ export interface PreparedCharacter {
   img: string;
   system: CharacterSystem;
   items: PreparedActorItem[];
+  /** Mirrors the shared `PreparedActor.flags` field. character-creator
+   *  persists sheet-level preferences (e.g. background image path)
+   *  under the `character-creator` scope. */
+  flags?: Record<string, Record<string, unknown>>;
 }

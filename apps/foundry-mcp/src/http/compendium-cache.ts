@@ -30,6 +30,9 @@ export interface CompendiumDocument {
 
 // Shape of the lean match emitted by the bridge's find-in-compendium
 // handler (plus the `price` field we add when responding from cache).
+// Optional fields beyond the bridge baseline are populated during
+// cache-served filtering so dm-tool's browser tables can render a
+// full row without a follow-up document fetch per result.
 export interface EnrichedMatch {
   packId: string;
   packLabel: string;
@@ -42,6 +45,17 @@ export interface EnrichedMatch {
   traits?: string[];
   isVersatile?: boolean;
   price?: ItemPrice;
+  rarity?: string;
+  size?: string;
+  creatureType?: string;
+  hp?: number;
+  ac?: number;
+  fort?: number;
+  ref?: number;
+  will?: number;
+  usage?: string;
+  isMagical?: boolean;
+  source?: string;
 }
 
 export interface ItemPrice {
@@ -57,7 +71,23 @@ export interface SearchOptions {
   anyTraits?: string[];
   sources?: string[];
   ancestrySlug?: string;
+  minLevel?: number;
   maxLevel?: number;
+  rarities?: string[];
+  sizes?: string[];
+  creatureTypes?: string[];
+  usageCategories?: string[];
+  isMagical?: boolean;
+  hpMin?: number;
+  hpMax?: number;
+  acMin?: number;
+  acMax?: number;
+  fortMin?: number;
+  fortMax?: number;
+  refMin?: number;
+  refMax?: number;
+  willMin?: number;
+  willMax?: number;
   limit?: number;
 }
 
@@ -327,7 +357,11 @@ export class CompendiumCache {
   // FindInCompendiumHandler. Keep the behaviour aligned: text tokens
   // match in name OR traits, with a rank penalty for trait-only
   // matches; AND-traits and OR-anyTraits filter, then level, source,
-  // ancestry.
+  // ancestry. dm-tool's browser-only filters (rarity/size/creatureType/
+  // usage/isMagical, combat-stat ranges, minLevel) extend this
+  // pipeline — they short-circuit to a no-op when the candidate
+  // document doesn't carry the field, so searches against item packs
+  // aren't penalised by monster-only filters and vice versa.
   private runFilter(packs: readonly CachedPack[], opts: SearchOptions): EnrichedMatch[] {
     const tokens = (opts.q ?? '')
       .toLowerCase()
@@ -336,7 +370,12 @@ export class CompendiumCache {
     const requiredTraits = (opts.traits ?? []).map((t) => t.toLowerCase());
     const anyTraits = (opts.anyTraits ?? []).map((t) => t.toLowerCase());
     const allowedSources = (opts.sources ?? []).map((s) => s.toLowerCase());
+    const allowedRarities = (opts.rarities ?? []).map((r) => r.toLowerCase());
+    const allowedSizes = (opts.sizes ?? []).map((s) => s.toLowerCase());
+    const allowedCreatureTypes = (opts.creatureTypes ?? []).map((c) => c.toLowerCase());
+    const allowedUsagePrefixes = (opts.usageCategories ?? []).map((u) => u.toLowerCase());
     const ancestrySlug = opts.ancestrySlug;
+    const minLevel = opts.minLevel;
     const maxLevel = opts.maxLevel;
     const documentType = opts.documentType;
 
@@ -376,10 +415,11 @@ export class CompendiumCache {
         if (anyTraits.length > 0 && !loweredTraits.some((t) => anyTraits.includes(t))) continue;
 
         const level = extractLevel(doc);
+        if (minLevel !== undefined && (level === undefined || level < minLevel)) continue;
         if (maxLevel !== undefined && level !== undefined && level > maxLevel) continue;
 
+        const source = extractSource(doc);
         if (allowedSources.length > 0) {
-          const source = extractSource(doc);
           if (source === undefined) continue;
           if (!allowedSources.includes(source.toLowerCase())) continue;
         }
@@ -390,6 +430,54 @@ export class CompendiumCache {
             continue;
           }
         }
+
+        const rarity = extractRarity(doc);
+        if (allowedRarities.length > 0) {
+          if (rarity === undefined) continue;
+          if (!allowedRarities.includes(rarity.toLowerCase())) continue;
+        }
+
+        const size = extractSize(doc);
+        if (allowedSizes.length > 0) {
+          if (size === undefined) continue;
+          if (!allowedSizes.includes(size.toLowerCase())) continue;
+        }
+
+        const creatureType = extractCreatureType(doc, loweredTraits);
+        if (allowedCreatureTypes.length > 0) {
+          if (creatureType === undefined) continue;
+          if (!allowedCreatureTypes.includes(creatureType.toLowerCase())) continue;
+        }
+
+        const usage = extractUsage(doc);
+        if (allowedUsagePrefixes.length > 0) {
+          if (usage === undefined) continue;
+          const loweredUsage = usage.toLowerCase();
+          if (!allowedUsagePrefixes.some((prefix) => loweredUsage.startsWith(prefix))) continue;
+        }
+
+        const isMagical = extractIsMagical(doc, loweredTraits);
+        if (opts.isMagical !== undefined && isMagical !== opts.isMagical) continue;
+
+        const hp = extractHp(doc);
+        if (opts.hpMin !== undefined && (hp === undefined || hp < opts.hpMin)) continue;
+        if (opts.hpMax !== undefined && hp !== undefined && hp > opts.hpMax) continue;
+
+        const ac = extractAc(doc);
+        if (opts.acMin !== undefined && (ac === undefined || ac < opts.acMin)) continue;
+        if (opts.acMax !== undefined && ac !== undefined && ac > opts.acMax) continue;
+
+        const fort = extractSave(doc, 'fortitude');
+        if (opts.fortMin !== undefined && (fort === undefined || fort < opts.fortMin)) continue;
+        if (opts.fortMax !== undefined && fort !== undefined && fort > opts.fortMax) continue;
+
+        const ref = extractSave(doc, 'reflex');
+        if (opts.refMin !== undefined && (ref === undefined || ref < opts.refMin)) continue;
+        if (opts.refMax !== undefined && ref !== undefined && ref > opts.refMax) continue;
+
+        const will = extractSave(doc, 'will');
+        if (opts.willMin !== undefined && (will === undefined || will < opts.willMin)) continue;
+        if (opts.willMax !== undefined && will !== undefined && will > opts.willMax) continue;
 
         const match: Scored = {
           packId: pack.packId,
@@ -407,6 +495,17 @@ export class CompendiumCache {
         if (extractAncestrySlug(doc) === null) match.isVersatile = true;
         const price = extractPrice(doc);
         if (price) match.price = price;
+        if (rarity !== undefined) match.rarity = rarity;
+        if (size !== undefined) match.size = size;
+        if (creatureType !== undefined) match.creatureType = creatureType;
+        if (hp !== undefined) match.hp = hp;
+        if (ac !== undefined) match.ac = ac;
+        if (fort !== undefined) match.fort = fort;
+        if (ref !== undefined) match.ref = ref;
+        if (will !== undefined) match.will = will;
+        if (usage !== undefined) match.usage = usage;
+        if (isMagical !== undefined) match.isMagical = isMagical;
+        if (source !== undefined) match.source = source;
 
         out.push(match);
       }
@@ -470,6 +569,108 @@ function extractPrice(doc: CompendiumDocument): ItemPrice | undefined {
   const v = (price as { value?: unknown }).value;
   if (!v || typeof v !== 'object') return undefined;
   return price as ItemPrice;
+}
+
+// `system.traits.rarity` on pf2e items/actors carries one of
+// 'common' | 'uncommon' | 'rare' | 'unique'. Absent on documents
+// that don't have a traits block.
+function extractRarity(doc: CompendiumDocument): string | undefined {
+  const raw = (doc.system as { traits?: { rarity?: unknown } }).traits?.rarity;
+  return typeof raw === 'string' ? raw : undefined;
+}
+
+// `system.traits.size.value` on pf2e NPC actors carries one of
+// 'tiny' | 'sm' | 'med' | 'lg' | 'huge' | 'grg'. Items don't have
+// this shape, so the field is absent for them.
+function extractSize(doc: CompendiumDocument): string | undefined {
+  const size = (doc.system as { traits?: { size?: unknown } }).traits?.size;
+  if (!size || typeof size !== 'object') return undefined;
+  const value = (size as { value?: unknown }).value;
+  return typeof value === 'string' ? value : undefined;
+}
+
+// Pf2e NPC creature types. Newer module versions expose
+// `system.details.creatureType`; older ones list it under
+// `system.traits.value` alongside other tags. Try the explicit field
+// first, then fall back to intersecting the trait list with the known
+// creature-type vocabulary — passing the already-lowercased traits
+// saves one pass over the array.
+const CREATURE_TYPE_TRAITS = new Set([
+  'aberration',
+  'animal',
+  'astral',
+  'beast',
+  'celestial',
+  'construct',
+  'dragon',
+  'dream',
+  'elemental',
+  'ethereal',
+  'fey',
+  'fiend',
+  'fungus',
+  'giant',
+  'humanoid',
+  'monitor',
+  'ooze',
+  'plant',
+  'shade',
+  'spirit',
+  'time',
+  'undead',
+]);
+
+function extractCreatureType(doc: CompendiumDocument, loweredTraits: readonly string[]): string | undefined {
+  const explicit = (doc.system as { details?: { creatureType?: unknown } }).details?.creatureType;
+  if (typeof explicit === 'string' && explicit.length > 0) return explicit;
+  for (const trait of loweredTraits) {
+    if (CREATURE_TYPE_TRAITS.has(trait)) return trait;
+  }
+  return undefined;
+}
+
+// `system.usage.value` on pf2e items carries slugs like
+// 'held-in-one-hand', 'worn-necklace', 'etched-onto-a-weapon'. The
+// filter does a prefix match so dm-tool can pass 'held' / 'worn' /
+// 'etched' / 'affixed' / 'tattooed' without the server having to
+// maintain pf2e's full usage taxonomy.
+function extractUsage(doc: CompendiumDocument): string | undefined {
+  const usage = (doc.system as { usage?: unknown }).usage;
+  if (!usage || typeof usage !== 'object') return undefined;
+  const value = (usage as { value?: unknown }).value;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+// Pf2e convention: any item carrying `magical` OR one of the four
+// tradition traits (arcane/divine/occult/primal) is magical.
+// Returns undefined for documents without a traits array (no basis to
+// classify) — the filter short-circuits to no-op in that case.
+const TRADITION_TRAITS = new Set(['magical', 'arcane', 'divine', 'occult', 'primal']);
+function extractIsMagical(doc: CompendiumDocument, loweredTraits: readonly string[]): boolean | undefined {
+  const raw = (doc.system as { traits?: { value?: unknown } }).traits?.value;
+  if (!Array.isArray(raw)) return undefined;
+  return loweredTraits.some((t) => TRADITION_TRAITS.has(t));
+}
+
+// `system.attributes.hp.max` on pf2e NPC actors. Items use
+// `system.hp.value` for durability, which we deliberately ignore —
+// the hp filter is monster-only.
+function extractHp(doc: CompendiumDocument): number | undefined {
+  const raw = (doc.system as { attributes?: { hp?: { max?: unknown } } }).attributes?.hp?.max;
+  return typeof raw === 'number' ? raw : undefined;
+}
+
+// `system.attributes.ac.value` on pf2e NPC actors.
+function extractAc(doc: CompendiumDocument): number | undefined {
+  const raw = (doc.system as { attributes?: { ac?: { value?: unknown } } }).attributes?.ac?.value;
+  return typeof raw === 'number' ? raw : undefined;
+}
+
+// `system.saves.<save>.value` on pf2e NPC actors.
+function extractSave(doc: CompendiumDocument, save: 'fortitude' | 'reflex' | 'will'): number | undefined {
+  const saves = (doc.system as { saves?: Record<string, { value?: unknown } | undefined> }).saves;
+  const raw = saves?.[save]?.value;
+  return typeof raw === 'number' ? raw : undefined;
 }
 
 function estimateBytes(doc: CompendiumDocument): number {
