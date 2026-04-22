@@ -35,3 +35,11 @@ export {
   getItemFacets,
   buildLootShortlist,
 } from './compendium.js';
+export {
+  getCachedDocument,
+  getCachedDocumentAllowStale,
+  putCachedDocument,
+  invalidateCachedDocument,
+  invalidateAllCachedDocuments,
+} from './compendium-cache.js';
+export type { CachedDocument } from './compendium-cache.js';
