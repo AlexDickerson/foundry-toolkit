@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { api, ApiRequestError } from '../../api/client';
 import type { AbilityKey, CharacterSystem, IWREntry, Save, Shield, Speed } from '../../api/types';
 import { ABILITY_KEYS } from '../../api/types';
 import { t } from '../../i18n/t';
@@ -7,13 +9,15 @@ import { SectionHeader } from '../common/SectionHeader';
 
 interface Props {
   system: CharacterSystem;
+  actorId: string;
+  onRested: () => void;
 }
 
 // Character landing tab — ability scores, headline defensive/offensive
 // stats, hero points, speeds, languages, traits. Ported in structure
 // from pf2e's static/templates/actors/character/tabs/character.hbs, but
 // read-only (no input widgets) and Tailwind-styled.
-export function Character({ system }: Props): React.ReactElement {
+export function Character({ system, actorId, onRested }: Props): React.ReactElement {
   const keyAbility = system.details.keyability.value;
   const classDC = system.attributes.classDC;
   const speeds = populatedSpeeds(system.movement.speeds);
@@ -36,7 +40,10 @@ export function Character({ system }: Props): React.ReactElement {
 
       {system.attributes.shield.itemId !== null && <ShieldTile shield={system.attributes.shield} />}
 
-      <ResourcesRow resources={system.resources} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ResourcesRow resources={system.resources} />
+        <LongRestButton actorId={actorId} onRested={onRested} />
+      </div>
 
       <MetaRow>
         <MetaItem label="XP">
@@ -569,6 +576,47 @@ function ChipList({ label, items }: { label: string; items: string[] }): React.R
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function LongRestButton({ actorId, onRested }: { actorId: string; onRested: () => void }): React.ReactElement {
+  const [state, setState] = useState<'idle' | 'pending' | { error: string }>('idle');
+
+  const onClick = async (): Promise<void> => {
+    if (state === 'pending') return;
+    if (!window.confirm('Rest for the night? This restores HP, refreshes resources, and advances in-world time.')) {
+      return;
+    }
+    setState('pending');
+    try {
+      await api.longRest(actorId);
+      setState('idle');
+      onRested();
+    } catch (err) {
+      const message =
+        err instanceof ApiRequestError
+          ? `${err.message}${err.suggestion !== undefined ? ` — ${err.suggestion}` : ''}`
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      setState({ error: message });
+    }
+  };
+
+  const isError = typeof state === 'object';
+
+  return (
+    <div className="flex flex-col items-end gap-1" data-action="long-rest">
+      <button
+        type="button"
+        onClick={() => void onClick()}
+        disabled={state === 'pending'}
+        className="rounded border border-pf-tertiary-dark bg-pf-tertiary px-3 py-1.5 text-sm font-semibold text-pf-alt-dark hover:bg-pf-tertiary-dark hover:text-white disabled:opacity-50"
+      >
+        {state === 'pending' ? 'Resting…' : 'Long Rest'}
+      </button>
+      {isError && <span className="text-xs text-red-700">{state.error}</span>}
     </div>
   );
 }
