@@ -64,6 +64,20 @@ export interface PreparedActor {
   img: string;
   system: Record<string, unknown>;
   items: PreparedActorItem[];
+  /** Optional: Foundry module flags (`flags.<scope>.<key>` → value).
+   *  character-creator stores its sheet-level preferences (e.g. the
+   *  uploaded background image path) under the `character-creator`
+   *  scope. Missing when the bridge/mock doesn't surface them. */
+  flags?: Record<string, Record<string, unknown>>;
+}
+
+/** POST /api/uploads response — the relative path the file was written
+ *  to (inside the Foundry Data dir) plus the byte count for client-side
+ *  sanity checks. The path is what the SPA stores as the background
+ *  reference on the actor flag. */
+export interface UploadAssetResult {
+  path: string;
+  bytes: number;
 }
 
 // ─── Prices (shared between compendium rows and physical items) ────────

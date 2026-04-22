@@ -124,7 +124,11 @@ export function CharacterSheet({ actorId, onBack, preferences }: Props): React.R
       )}
 
       {state.kind === 'ready' && (
-        <>
+        <div
+          data-testid="sheet-surface"
+          style={buildSheetSurfaceStyle(readBackgroundPath(state.actor))}
+          className={readBackgroundPath(state.actor) ? '-mx-4 rounded-lg px-4 py-2' : undefined}
+        >
           <SheetHeader
             character={state.actor}
             onBack={onBack}
@@ -157,12 +161,15 @@ export function CharacterSheet({ actorId, onBack, preferences }: Props): React.R
             />
           )}
           {activeTab === 'background' && <Background details={state.actor.system.details} />}
-        </>
+        </div>
       )}
-      {settingsOpen && (
+      {settingsOpen && state.kind === 'ready' && (
         <SettingsDialog
           colorScheme={preferences.colorScheme}
           onColorSchemeChange={preferences.setColorScheme}
+          actorId={actorId}
+          backgroundPath={readBackgroundPath(state.actor)}
+          onBackgroundChanged={reloadActor}
           onClose={(): void => {
             setSettingsOpen(false);
           }}
@@ -170,4 +177,26 @@ export function CharacterSheet({ actorId, onBack, preferences }: Props): React.R
       )}
     </div>
   );
+}
+
+function readBackgroundPath(character: PreparedCharacter): string | null {
+  const raw = character.flags?.['character-creator']?.['backgroundImage'];
+  return typeof raw === 'string' && raw.length > 0 ? raw : null;
+}
+
+// Layers a cream overlay on top of the user's image so arbitrary
+// artwork (dark, busy, saturated) stays readable behind the sheet
+// content. The overlay hex matches `--color-pf-bg` for the Classic
+// palette; since no scheme currently overrides the cream surface, this
+// stays visually consistent across color schemes.
+function buildSheetSurfaceStyle(bgPath: string | null): React.CSSProperties | undefined {
+  if (!bgPath) return undefined;
+  const url = bgPath.startsWith('/') ? bgPath : `/${bgPath}`;
+  return {
+    backgroundImage: `linear-gradient(rgba(248, 244, 241, 0.88), rgba(248, 244, 241, 0.88)), url(${url})`,
+    backgroundSize: 'auto, cover',
+    backgroundPosition: 'center, center',
+    backgroundRepeat: 'no-repeat, no-repeat',
+    backgroundAttachment: 'local, local',
+  };
 }

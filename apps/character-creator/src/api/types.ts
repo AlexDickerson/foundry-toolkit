@@ -665,4 +665,8 @@ export interface PreparedCharacter {
   img: string;
   system: CharacterSystem;
   items: PreparedActorItem[];
+  /** Mirrors the shared `PreparedActor.flags` field. character-creator
+   *  persists sheet-level preferences (e.g. background image path)
+   *  under the `character-creator` scope. */
+  flags?: Record<string, Record<string, unknown>>;
 }
