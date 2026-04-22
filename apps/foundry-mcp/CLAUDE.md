@@ -1,6 +1,8 @@
 # foundry-mcp
 
-Self-hosted MCP server that bridges Claude Code (or any MCP client) to a live Foundry VTT instance. Pairs with the [foundry-api-bridge](https://github.com/AlexDickerson/foundry-api-bridge) module running in the GM's browser tab, plus the [foundry-character-creator](https://github.com/AlexDickerson/foundry-character-creator) SPA for the REST-driven character creator UI.
+Self-hosted MCP server that bridges Claude Code (or any MCP client) to a live Foundry VTT instance. Pairs with the [foundry-api-bridge](../foundry-api-bridge/) module running in the GM's browser tab, plus the [character-creator](../character-creator/) SPA for the REST-driven character creator UI.
+
+Part of the foundry-toolkit monorepo at `apps/foundry-mcp` — see the root [CLAUDE.md](../../CLAUDE.md) for cross-workspace context.
 
 ## Tech Stack
 
@@ -78,7 +80,7 @@ Currently implemented: `rolls`, `chat`, `combat`.
 ## Git Workflow
 
 - All work MUST be done in git worktrees. Never work directly on main.
-- Worktree directory: `.claude/worktrees/<branch-name>`
+- Worktree directory: `.claude/worktrees/<branch-name>/` at the monorepo root (not per-app)
 - Push work to the remote frequently — at minimum after every logical unit of work, and always before ending a session.
 - All changes go through PRs to main. Never commit directly to main.
 - Run linting before committing. Fix lint errors before pushing.
@@ -116,6 +118,6 @@ The Docker image for Foundry+module itself lives in [foundry-api-bridge](https:/
 - WebSocket bridge to Foundry lives at `/foundry`; the module opens the WS outbound from the GM browser.
 - REST `/api/*` exposes the same data the MCP tools see (actors, items, compendia, scenes, etc.) for the character-creator SPA.
 - OpenAI SDK used specifically for GPT-image-1 map editing (not for chat).
-- Module and frontend live in separate repos now; contract between them is WS (module) + REST (frontend). No shared code.
+- Module and frontend live in sibling workspaces (`apps/foundry-api-bridge`, `apps/character-creator`); contract between them is WS (module) + REST (frontend). No shared code.
 - Server ships three ways: as a source zip (GitHub Releases, for systemd-on-Foundry-host), as a bare Node process, and as a Docker image on GHCR that bundles the character-creator SPA for single-container Fly.io deploys. The Foundry + module Docker image still lives in foundry-api-bridge; this repo's image is MCP server + SPA only.
 - The SPA bundle is pulled into the Dockerfile via `COPY --from=ghcr.io/alexdickerson/foundry-character-creator:latest` rather than bundled here — keeps the frontend on its own release cadence and avoids duplicate checkouts in CI.
