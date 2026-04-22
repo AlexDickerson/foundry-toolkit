@@ -9,6 +9,7 @@ import { registerActorRoutes } from './routes/actors.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerCompendiumRoutes } from './routes/compendium.js';
 import { registerEvalRoutes } from './routes/eval.js';
+import { registerEventRoutes } from './routes/events.js';
 import { registerPromptRoutes } from './routes/prompts.js';
 
 // Directory on disk containing the built character-creator SPA.
@@ -84,6 +85,7 @@ export async function buildHttpApp(): Promise<FastifyInstance> {
   registerAssetRoutes(app);
   registerCompendiumRoutes(app);
   registerEvalRoutes(app);
+  registerEventRoutes(app);
   registerPromptRoutes(app);
 
   // Lightweight health probe for container orchestrators (Fly/Docker

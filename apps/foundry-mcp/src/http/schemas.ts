@@ -54,6 +54,16 @@ export const evalBody = z.object({
   script: z.string().min(1).max(100_000),
 });
 
+// Channels the event-stream route accepts. Keep this synchronised with
+// the channels the Foundry module's EventChannelController knows how
+// to register. Requests for unknown channels 400 with a clear suggestion
+// rather than opening a dead stream.
+export const EVENT_CHANNELS = ['rolls', 'chat', 'combat'] as const;
+
+export const eventChannelParam = z.object({
+  channel: z.enum(EVENT_CHANNELS),
+});
+
 // Minimal creation payload for the character-creator flow: a type +
 // a (possibly empty) name is enough to instantiate a blank actor that
 // the wizard will patch piecemeal. Callers can seed `system` as well

@@ -1,5 +1,6 @@
 import { ConfigManager } from '@/config/ConfigManager';
 import { installPromptInterception } from '@/creator/prompt-intercept';
+import { EventChannelController } from '@/events/EventChannelController';
 import { registerSettings, registerMenu, getWsUrl, getApiKey } from '@/settings/SettingsManager';
 import { WebSocketClient } from '@/transport';
 import {
@@ -95,6 +96,7 @@ import {
   createRollTableHandler,
   updateRollTableHandler,
   deleteRollTableHandler,
+  createSetEventSubscriptionHandler,
 } from '@/commands';
 
 const MODULE_VERSION = '7.7.0';
@@ -263,6 +265,12 @@ function initializeWebSocket(
     reconnectInterval: wsConfig.reconnectInterval,
     maxReconnectAttempts: wsConfig.maxReconnectAttempts,
   });
+
+  // Event channels own Hooks.on registrations on behalf of the
+  // server's ChannelManager. Created after wsClient so the controller
+  // can push event payloads without a circular dependency.
+  const eventChannels = new EventChannelController(wsClient);
+  commandRouter.register('set-event-subscription', createSetEventSubscriptionHandler(eventChannels));
 
   wsClient.onConnect(() => {
     console.log('Foundry API Bridge | WebSocket connected to server');
