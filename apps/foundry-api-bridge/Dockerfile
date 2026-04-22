@@ -7,8 +7,11 @@
 # -- Build: Foundry module --
 FROM node:20-alpine AS build-module
 WORKDIR /app
-COPY package.json package-lock.json* .npmrc ./
-RUN npm ci
+# npm install (not npm ci) because this workspace lives in the
+# foundry-toolkit monorepo — the lockfile is at the root, not here.
+# .npmrc carries legacy-peer-deps=true for foundry-vtt-types.
+COPY package.json .npmrc ./
+RUN npm install
 COPY tsconfig.json vite.config.ts ./
 COPY src ./src
 RUN npx vite build
