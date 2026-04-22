@@ -13,6 +13,7 @@
 // from bridge responses. Any pack that isn't warmed falls through to
 // the bridge unchanged.
 
+import type { CompendiumFacets } from '@foundry-toolkit/shared/foundry-api';
 import { log } from '../logger.js';
 
 // Subset of a Foundry compendium document that we care about for
@@ -318,6 +319,91 @@ export class CompendiumCache {
     return { matches: matches.slice(0, limit) };
   }
 
+  // Aggregate DISTINCT facet values over every document in the
+  // requested packs. Mirrors `search()`'s contract: returns null when
+  // ANY requested pack is not cached so the caller can warm then retry.
+  // Passing no packIds means "all cached packs"; no cached packs returns
+  // null too.
+  //
+  // The iteration is microseconds over a few thousand docs — no need to
+  // memoize beyond the warm cache itself. Callers must call this after
+  // every warm because the cache doesn't invalidate the result set.
+  facets(opts: { packIds?: string[]; documentType?: string } = {}): CompendiumFacets | null {
+    const requested = opts.packIds ?? Array.from(this.packs.keys());
+    if (requested.length === 0) {
+      this.misses++;
+      return null;
+    }
+    const packs: CachedPack[] = [];
+    for (const id of requested) {
+      const pack = this.packs.get(id);
+      if (!pack) {
+        this.misses++;
+        return null;
+      }
+      packs.push(pack);
+    }
+
+    this.hits++;
+    const documentType = opts.documentType;
+
+    const rarities = new Set<string>();
+    const sizes = new Set<string>();
+    const creatureTypes = new Set<string>();
+    const traits = new Set<string>();
+    const sources = new Set<string>();
+    const usageCategories = new Set<string>();
+    let minLevel = Number.POSITIVE_INFINITY;
+    let maxLevel = Number.NEGATIVE_INFINITY;
+
+    for (const pack of packs) {
+      for (const doc of pack.docList) {
+        if (documentType !== undefined && doc.type !== documentType && documentType !== 'Item') {
+          // Align with `search()`'s wildcard semantics: 'Item' matches
+          // every item subtype, anything else is an exact type filter.
+          continue;
+        }
+
+        const rarity = extractRarity(doc);
+        if (rarity !== undefined) rarities.add(rarity);
+
+        const size = extractSize(doc);
+        if (size !== undefined) sizes.add(size);
+
+        const docTraits = extractTraits(doc);
+        const loweredTraits = docTraits.map((t) => t.toLowerCase());
+        const creatureType = extractCreatureType(doc, loweredTraits);
+        if (creatureType !== undefined) creatureTypes.add(creatureType);
+
+        for (const t of docTraits) traits.add(t);
+
+        const source = extractSource(doc);
+        if (source !== undefined) sources.add(source);
+
+        const usage = extractUsage(doc);
+        const bucketed = bucketUsage(usage);
+        if (bucketed !== undefined) usageCategories.add(bucketed);
+
+        const level = extractLevel(doc);
+        if (level !== undefined) {
+          if (level < minLevel) minLevel = level;
+          if (level > maxLevel) maxLevel = level;
+        }
+      }
+    }
+
+    const sortAsc = (a: string, b: string): number => a.localeCompare(b);
+    return {
+      rarities: [...rarities].sort(sortAsc),
+      sizes: [...sizes].sort(sortAsc),
+      creatureTypes: [...creatureTypes].sort(sortAsc),
+      traits: [...traits].sort(sortAsc),
+      sources: [...sources].sort(sortAsc),
+      usageCategories: [...usageCategories].sort(sortAsc),
+      levelRange: Number.isFinite(minLevel) ? [minLevel, maxLevel] : null,
+    };
+  }
+
   getDocument(uuid: string): CompendiumDocument | null {
     for (const pack of this.packs.values()) {
       const doc = pack.docs.get(uuid);
@@ -546,10 +632,16 @@ function extractTraits(doc: CompendiumDocument): string[] {
 }
 
 function extractLevel(doc: CompendiumDocument): number | undefined {
-  const sys = doc.system as { level?: unknown };
+  // Item docs store level at `system.level.value` (occasionally as a
+  // bare number); NPC actors store it at `system.details.level.value`.
+  // Falling through to the NPC form lets `facets()` aggregate the level
+  // range across bestiary packs without a separate extractor.
+  const sys = doc.system as { level?: unknown; details?: { level?: unknown } };
   if (typeof sys.level === 'number') return sys.level;
-  const obj = sys.level as { value?: unknown } | undefined;
-  return typeof obj?.value === 'number' ? obj.value : undefined;
+  const itemLevel = sys.level as { value?: unknown } | undefined;
+  if (typeof itemLevel?.value === 'number') return itemLevel.value;
+  const npcLevel = sys.details?.level as { value?: unknown } | undefined;
+  return typeof npcLevel?.value === 'number' ? npcLevel.value : undefined;
 }
 
 function extractSource(doc: CompendiumDocument): string | undefined {
@@ -691,4 +783,18 @@ function estimateBytes(doc: CompendiumDocument): number {
 
 function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+// Facet-side bucketing of `system.usage.value`. Main's `extractUsage`
+// returns the raw slug so `search()` can match with `startsWith` against
+// any depth; the facet response needs a bounded taxonomy, so we collapse
+// the slug to its leading segment and lump anything outside the known
+// set into `'other'`. Keeps the sidebar filter list short and stable.
+const USAGE_PREFIX_BUCKETS = new Set(['held', 'worn', 'etched', 'affixed', 'tattooed']);
+
+function bucketUsage(usage: string | undefined): string | undefined {
+  if (usage === undefined || usage.length === 0) return undefined;
+  const prefix = usage.split('-')[0]?.toLowerCase();
+  if (!prefix) return undefined;
+  return USAGE_PREFIX_BUCKETS.has(prefix) ? prefix : 'other';
 }

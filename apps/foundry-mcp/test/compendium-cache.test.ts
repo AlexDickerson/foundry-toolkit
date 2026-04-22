@@ -564,3 +564,100 @@ describe('CompendiumCache.search — dm-tool filters (items)', () => {
     );
   });
 });
+
+describe('CompendiumCache.facets', () => {
+  it('returns null when the cache is empty', () => {
+    const cache = new CompendiumCache(makeSendCommand());
+    assert.equal(cache.facets(), null);
+  });
+
+  it('aggregates bestiary facets from the warmed pack', async () => {
+    const cache = new CompendiumCache(makeSendCommand());
+    await cache.warmPack('pf2e.pathfinder-bestiary');
+    const facets = cache.facets({ packIds: ['pf2e.pathfinder-bestiary'] });
+    assert.ok(facets, 'facets should be returned for a warmed pack');
+    assert.deepEqual(facets.rarities, ['common', 'uncommon']);
+    assert.deepEqual(facets.sizes, ['lg', 'med', 'sm']);
+    assert.deepEqual(facets.creatureTypes, ['dragon', 'humanoid', 'undead']);
+    assert.ok(facets.traits.includes('goblin'));
+    assert.ok(facets.traits.includes('fire'));
+    assert.ok(facets.traits.includes('mindless'));
+    assert.deepEqual(facets.sources, ['Pathfinder Bestiary']);
+    assert.deepEqual(facets.levelRange, [-1, 10]);
+    // Bestiary actors don't carry `system.usage`, so the bucket stays empty.
+    assert.deepEqual(facets.usageCategories, []);
+  });
+
+  it('aggregates equipment facets including bucketed usage categories', async () => {
+    const cache = new CompendiumCache(makeSendCommand());
+    await cache.warmPack('pf2e.equipment-srd');
+    const facets = cache.facets({ packIds: ['pf2e.equipment-srd'] });
+    assert.ok(facets);
+    assert.deepEqual(facets.rarities, ['common', 'uncommon']);
+    assert.ok(facets.traits.includes('magical'));
+    assert.ok(facets.traits.includes('invested'));
+    assert.deepEqual(facets.sources, ['Player Core', 'Treasure Vault']);
+    // held-in-one-hand → 'held', worn-backpack / worn-amulet → 'worn'.
+    assert.deepEqual(facets.usageCategories, ['held', 'worn']);
+    // Items never carry a creature-type trait.
+    assert.deepEqual(facets.creatureTypes, []);
+    // equipmentDocs don't set `system.traits.size` → sizes stays empty.
+    assert.deepEqual(facets.sizes, []);
+    // Equipment levels span 0-8 across the five items.
+    assert.deepEqual(facets.levelRange, [0, 8]);
+  });
+
+  it('filters the docList by documentType', async () => {
+    const cache = new CompendiumCache(makeSendCommand());
+    await Promise.all([
+      cache.warmPack('pf2e.pathfinder-bestiary'),
+      cache.warmPack('pf2e.equipment-srd'),
+    ]);
+    const npcFacets = cache.facets({ documentType: 'npc' });
+    assert.ok(npcFacets);
+    // Narrowed to NPCs: creature types present, no usage buckets, only
+    // bestiary source.
+    assert.deepEqual(npcFacets.creatureTypes, ['dragon', 'humanoid', 'undead']);
+    assert.deepEqual(npcFacets.usageCategories, []);
+    assert.deepEqual(npcFacets.sources, ['Pathfinder Bestiary']);
+    assert.deepEqual(npcFacets.levelRange, [-1, 10]);
+  });
+
+  it('restricts aggregation to the requested packIds', async () => {
+    const cache = new CompendiumCache(makeSendCommand());
+    await Promise.all([
+      cache.warmPack('pf2e.pathfinder-bestiary'),
+      cache.warmPack('pf2e.equipment-srd'),
+    ]);
+    const onlyEquipment = cache.facets({ packIds: ['pf2e.equipment-srd'] });
+    assert.ok(onlyEquipment);
+    assert.deepEqual(onlyEquipment.creatureTypes, [], 'equipment pack has no creature types');
+    assert.deepEqual(onlyEquipment.sources, ['Player Core', 'Treasure Vault']);
+
+    // Omitting packIds falls back to "all cached packs" → merged sources.
+    const allCached = cache.facets();
+    assert.ok(allCached);
+    assert.deepEqual(allCached.sources, ['Pathfinder Bestiary', 'Player Core', 'Treasure Vault']);
+  });
+
+  it('returns alphabetically sorted arrays', async () => {
+    const cache = new CompendiumCache(makeSendCommand());
+    await Promise.all([
+      cache.warmPack('pf2e.pathfinder-bestiary'),
+      cache.warmPack('pf2e.equipment-srd'),
+    ]);
+    const facets = cache.facets();
+    assert.ok(facets);
+    for (const key of ['rarities', 'sizes', 'creatureTypes', 'traits', 'sources', 'usageCategories'] as const) {
+      const arr = facets[key];
+      assert.deepEqual(arr, [...arr].sort((a, b) => a.localeCompare(b)), `${key} not sorted`);
+    }
+  });
+
+  it('returns null when any requested pack is not warmed', async () => {
+    const cache = new CompendiumCache(makeSendCommand());
+    await cache.warmPack('pf2e.pathfinder-bestiary');
+    // Equipment pack not yet warmed → cold-call signal.
+    assert.equal(cache.facets({ packIds: ['pf2e.equipment-srd'] }), null);
+  });
+});
