@@ -2,6 +2,8 @@
 
 Foundry VTT module that exposes a WebSocket command interface to a self-hosted MCP server. Fork of `foundry-api-bridge` (MIT) with phone-home behaviour removed.
 
+Part of the foundry-toolkit monorepo at `apps/foundry-api-bridge` — see the root [CLAUDE.md](../../CLAUDE.md) for cross-workspace context.
+
 ## Tech Stack
 - TypeScript
 - Vite bundler (watch + build)
@@ -77,7 +79,7 @@ No module-side tests for `EventChannelController` yet — follow-up. Would need 
 
 ## Git Workflow
 - All work MUST be done in git worktrees. Never work directly on main.
-- Worktree directory: `.claude/worktrees/<branch-name>`
+- Worktree directory: `.claude/worktrees/<branch-name>/` at the monorepo root (not per-app)
 - Push work to the remote frequently — at minimum after every logical unit of work, and always before ending a session.
 - All changes go through PRs to main. Never commit directly to main.
 - Run linting before committing. Fix lint errors before pushing.
