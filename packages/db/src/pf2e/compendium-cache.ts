@@ -27,9 +27,9 @@ interface Row {
  *  row is older than maxAgeMs. The stale path (past TTL) is exposed via
  *  getCachedDocumentAllowStale for graceful degradation on HTTP failures. */
 export function getCachedDocument<T>(uuid: string, maxAgeMs: number): CachedDocument<T> | null {
-  const row = getPf2eDb().prepare('SELECT uuid, fetched_at, body_json FROM pf2e_compendium_docs WHERE uuid = ?').get(
-    uuid,
-  ) as Row | undefined;
+  const row = getPf2eDb()
+    .prepare('SELECT uuid, fetched_at, body_json FROM pf2e_compendium_docs WHERE uuid = ?')
+    .get(uuid) as Row | undefined;
   if (!row) return null;
   if (Date.now() - row.fetched_at > maxAgeMs) return null;
   return { uuid: row.uuid, fetchedAt: row.fetched_at, body: JSON.parse(row.body_json) as T };
@@ -38,9 +38,9 @@ export function getCachedDocument<T>(uuid: string, maxAgeMs: number): CachedDocu
 /** Look up a cached document ignoring TTL. Used as a fallback when the HTTP
  *  fetch fails — we'd rather return a stale document than nothing. */
 export function getCachedDocumentAllowStale<T>(uuid: string): CachedDocument<T> | null {
-  const row = getPf2eDb().prepare('SELECT uuid, fetched_at, body_json FROM pf2e_compendium_docs WHERE uuid = ?').get(
-    uuid,
-  ) as Row | undefined;
+  const row = getPf2eDb()
+    .prepare('SELECT uuid, fetched_at, body_json FROM pf2e_compendium_docs WHERE uuid = ?')
+    .get(uuid) as Row | undefined;
   if (!row) return null;
   return { uuid: row.uuid, fetchedAt: row.fetched_at, body: JSON.parse(row.body_json) as T };
 }

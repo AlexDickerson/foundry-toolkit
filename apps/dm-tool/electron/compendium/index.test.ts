@@ -64,7 +64,10 @@ describe('createCompendiumApi', () => {
 
   it('hits the HTTP client on first document read, then serves from cache on the second', async () => {
     const get = vi.fn().mockResolvedValue({ document: doc('u1', 'Acid Arrow') });
-    const api = createCompendiumApi({ baseUrl: 'http://ignored', httpClient: fakeClient({ getCompendiumDocument: get }) });
+    const api = createCompendiumApi({
+      baseUrl: 'http://ignored',
+      httpClient: fakeClient({ getCompendiumDocument: get }),
+    });
 
     const first = await api.getCompendiumDocument('u1');
     const second = await api.getCompendiumDocument('u1');
@@ -117,7 +120,10 @@ describe('createCompendiumApi', () => {
 
   it('rethrows when HTTP fails and nothing is cached', async () => {
     const get = vi.fn().mockRejectedValue(new CompendiumRequestError(502, 'boom'));
-    const api = createCompendiumApi({ baseUrl: 'http://ignored', httpClient: fakeClient({ getCompendiumDocument: get }) });
+    const api = createCompendiumApi({
+      baseUrl: 'http://ignored',
+      httpClient: fakeClient({ getCompendiumDocument: get }),
+    });
 
     await expect(api.getCompendiumDocument('never-seen')).rejects.toMatchObject({
       name: 'CompendiumRequestError',
@@ -130,7 +136,10 @@ describe('createCompendiumApi', () => {
       .fn()
       .mockResolvedValueOnce({ document: doc('u3', 'first') })
       .mockResolvedValueOnce({ document: doc('u3', 'second') });
-    const api = createCompendiumApi({ baseUrl: 'http://ignored', httpClient: fakeClient({ getCompendiumDocument: get }) });
+    const api = createCompendiumApi({
+      baseUrl: 'http://ignored',
+      httpClient: fakeClient({ getCompendiumDocument: get }),
+    });
 
     await api.getCompendiumDocument('u3');
     api.invalidateDocument('u3');
@@ -142,7 +151,10 @@ describe('createCompendiumApi', () => {
 
   it('does not cache search results (every search round-trips)', async () => {
     const search = vi.fn().mockResolvedValue({ matches: [] });
-    const api = createCompendiumApi({ baseUrl: 'http://ignored', httpClient: fakeClient({ searchCompendium: search }) });
+    const api = createCompendiumApi({
+      baseUrl: 'http://ignored',
+      httpClient: fakeClient({ searchCompendium: search }),
+    });
 
     await api.searchCompendium({ q: 'wand' });
     await api.searchCompendium({ q: 'wand' });

@@ -88,7 +88,9 @@ describe('createCompendiumHttpClient', () => {
 
   it('URL-encodes uuid segments with dots and pipes', async () => {
     const client = createCompendiumHttpClient('http://localhost:8765');
-    fetchMock.mockResolvedValueOnce(jsonResponse({ document: { id: 'x', uuid: 'x', name: 'x', type: 'spell', img: '', system: {} } }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ document: { id: 'x', uuid: 'x', name: 'x', type: 'spell', img: '', system: {} } }),
+    );
     const uuid = 'Compendium.pf2e.spells-srd.Item.abc|def';
     await client.getCompendiumDocument(uuid);
     const url = fetchMock.mock.calls[0][0] as string;
@@ -99,9 +101,7 @@ describe('createCompendiumHttpClient', () => {
 
   it('parses structured error responses into CompendiumRequestError', async () => {
     const client = createCompendiumHttpClient('http://localhost:8765');
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ error: 'Not found', suggestion: 'Check the uuid' }, 404),
-    );
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Not found', suggestion: 'Check the uuid' }, 404));
     await expect(client.getCompendiumDocument('bad-uuid')).rejects.toMatchObject({
       name: 'CompendiumRequestError',
       status: 404,

@@ -21,12 +21,14 @@ import {
   invalidateCachedDocument,
   putCachedDocument,
 } from '@foundry-toolkit/db/pf2e';
-import {
-  type CompendiumHttpClient,
-  CompendiumRequestError,
-  createCompendiumHttpClient,
-} from './client.js';
-import type { CompendiumDocument, CompendiumMatch, CompendiumPack, CompendiumSearchOptions, CompendiumSource } from './types.js';
+import { type CompendiumHttpClient, CompendiumRequestError, createCompendiumHttpClient } from './client.js';
+import type {
+  CompendiumDocument,
+  CompendiumMatch,
+  CompendiumPack,
+  CompendiumSearchOptions,
+  CompendiumSource,
+} from './types.js';
 
 // Compendium data changes rarely; docs are safe to keep for a month before
 // we re-fetch. Invalidate individual uuids on demand when we know the
@@ -47,9 +49,13 @@ export interface CompendiumApi {
   searchCompendium(opts: CompendiumSearchOptions): Promise<{ matches: CompendiumMatch[] }>;
   getCompendiumDocument(uuid: string): Promise<{ document: CompendiumDocument; stale: boolean }>;
   listCompendiumPacks(opts?: { documentType?: string }): Promise<{ packs: CompendiumPack[] }>;
-  listCompendiumSources(
-    opts?: { documentType?: string; packIds?: string[]; q?: string; traits?: string[]; maxLevel?: number },
-  ): Promise<{ sources: CompendiumSource[] }>;
+  listCompendiumSources(opts?: {
+    documentType?: string;
+    packIds?: string[];
+    q?: string;
+    traits?: string[];
+    maxLevel?: number;
+  }): Promise<{ sources: CompendiumSource[] }>;
   invalidateDocument(uuid: string): void;
   invalidateAllDocuments(): void;
 }
@@ -77,7 +83,9 @@ export function createCompendiumApi(opts: CreateCompendiumApiOptions): Compendiu
         // the caller because the stale lookup returns null too.
         const stale = getCachedDocumentAllowStale<CompendiumDocument>(uuid);
         if (stale) return { document: stale.body, stale: true };
-        throw err instanceof CompendiumRequestError ? err : new Error(`Failed to fetch compendium document: ${String(err)}`);
+        throw err instanceof CompendiumRequestError
+          ? err
+          : new Error(`Failed to fetch compendium document: ${String(err)}`);
       }
     },
 

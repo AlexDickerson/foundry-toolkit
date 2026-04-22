@@ -64,9 +64,13 @@ export interface CompendiumHttpClient {
   searchCompendium(opts: CompendiumSearchOptions): Promise<{ matches: CompendiumMatch[] }>;
   getCompendiumDocument(uuid: string): Promise<{ document: CompendiumDocument }>;
   listCompendiumPacks(opts?: { documentType?: string }): Promise<{ packs: CompendiumPack[] }>;
-  listCompendiumSources(
-    opts?: { documentType?: string; packIds?: string[]; q?: string; traits?: string[]; maxLevel?: number },
-  ): Promise<{ sources: CompendiumSource[] }>;
+  listCompendiumSources(opts?: {
+    documentType?: string;
+    packIds?: string[];
+    q?: string;
+    traits?: string[];
+    maxLevel?: number;
+  }): Promise<{ sources: CompendiumSource[] }>;
 }
 
 /** Build a typed HTTP client rooted at a foundry-mcp base URL. Example
