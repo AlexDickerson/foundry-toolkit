@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { api, ApiRequestError } from '../../api/client';
+import { api } from '../../api/client';
 import type { AbilityKey, CharacterSystem, IWREntry, Save, Shield, Speed } from '../../api/types';
 import { ABILITY_KEYS } from '../../api/types';
 import { t } from '../../i18n/t';
 import { formatSignedInt } from '../../lib/format';
+import { useActorAction } from '../../lib/useActorAction';
 import { RankChip } from '../common/RankChip';
 import { SectionHeader } from '../common/SectionHeader';
 
@@ -581,36 +581,18 @@ function ChipList({ label, items }: { label: string; items: string[] }): React.R
 }
 
 function LongRestButton({ actorId, onRested }: { actorId: string; onRested: () => void }): React.ReactElement {
-  const [state, setState] = useState<'idle' | 'pending' | { error: string }>('idle');
-
-  const onClick = async (): Promise<void> => {
-    if (state === 'pending') return;
-    if (!window.confirm('Rest for the night? This restores HP, refreshes resources, and advances in-world time.')) {
-      return;
-    }
-    setState('pending');
-    try {
-      await api.longRest(actorId);
-      setState('idle');
-      onRested();
-    } catch (err) {
-      const message =
-        err instanceof ApiRequestError
-          ? `${err.message}${err.suggestion !== undefined ? ` — ${err.suggestion}` : ''}`
-          : err instanceof Error
-            ? err.message
-            : String(err);
-      setState({ error: message });
-    }
-  };
-
+  const { state, trigger } = useActorAction({
+    run: () => api.longRest(actorId),
+    confirm: 'Rest for the night? This restores HP, refreshes resources, and advances in-world time.',
+    onSuccess: onRested,
+  });
   const isError = typeof state === 'object';
 
   return (
     <div className="flex flex-col items-end gap-1" data-action="long-rest">
       <button
         type="button"
-        onClick={() => void onClick()}
+        onClick={() => void trigger()}
         disabled={state === 'pending'}
         className="rounded border border-pf-tertiary-dark bg-pf-tertiary px-3 py-1.5 text-sm font-semibold text-pf-alt-dark hover:bg-pf-tertiary-dark hover:text-white disabled:opacity-50"
       >

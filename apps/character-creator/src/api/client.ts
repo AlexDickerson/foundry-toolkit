@@ -46,6 +46,18 @@ export interface LongRestResponse {
   messageCount: number;
 }
 
+export type ActorType = 'character' | 'npc' | 'hazard' | 'loot' | 'party' | 'vehicle' | 'familiar';
+
+export interface RunActorScriptOptions {
+  actorId: string;
+  /** If set, throws before running `body` when the actor's type doesn't match. */
+  requireType?: ActorType;
+  /** JS body that runs inside an async IIFE with `actor` in scope. Must
+   *  `return` a JSON-serializable value — Foundry Documents need
+   *  `.toObject(false)` first. */
+  body: string;
+}
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const method = opts.method ?? 'GET';
   const init: RequestInit = {
@@ -110,20 +122,35 @@ export const api = {
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),
   uploadAsset: (body: UploadAssetBody): Promise<UploadAssetResult> =>
     request<UploadAssetResult>('/uploads', { method: 'POST', body }),
-  // Triggers PF2e's "Rest for the Night" on the given character actor.
-  // Hits the dev-gated /api/eval route (ALLOW_EVAL=1 on the server) — the
-  // runScriptHandler wraps the body in an async IIFE, so `await` + `return`
-  // work. Promote to a typed `long-rest` command when we outgrow eval.
-  longRest: (id: string): Promise<LongRestResponse> => {
+  // Runs `body` inside an async IIFE in the Foundry page with an `actor`
+  // local pre-resolved from the given id. Fails with a clear message if the
+  // actor doesn't exist or doesn't match `requireType`. `body` must
+  // explicitly `return` — JS has no implicit last-expression return. Hits
+  // /api/eval, so the server must have ALLOW_EVAL=1 for this to work at
+  // all; promote a call site to a typed command when the eval gate
+  // becomes a problem.
+  runActorScript: <T = unknown>(opts: RunActorScriptOptions): Promise<T> => {
+    const typeCheck =
+      opts.requireType !== undefined
+        ? `if (actor.type !== ${JSON.stringify(opts.requireType)}) throw new Error('Actor is not a ' + ${JSON.stringify(opts.requireType)});`
+        : '';
     const script = `
-      const actor = game.actors.get(${JSON.stringify(id)});
-      if (!actor) throw new Error('Actor not found: ' + ${JSON.stringify(id)});
-      if (actor.type !== 'character') throw new Error('Actor is not a character');
-      const messages = await game.pf2e.actions.restForTheNight({ actors: [actor], skipDialog: true });
-      return { ok: true, messageCount: messages.length };
+      const actor = game.actors.get(${JSON.stringify(opts.actorId)});
+      if (!actor) throw new Error('Actor not found: ' + ${JSON.stringify(opts.actorId)});
+      ${typeCheck}
+      ${opts.body}
     `;
-    return request<LongRestResponse>('/eval', { method: 'POST', body: { script } });
+    return request<T>('/eval', { method: 'POST', body: { script } });
   },
+  longRest: (id: string): Promise<LongRestResponse> =>
+    api.runActorScript<LongRestResponse>({
+      actorId: id,
+      requireType: 'character',
+      body: `
+        const messages = await game.pf2e.actions.restForTheNight({ actors: [actor], skipDialog: true });
+        return { ok: true, messageCount: messages.length };
+      `,
+    }),
   listCompendiumSources: (
     opts: {
       documentType?: string;
