@@ -12,13 +12,14 @@ Monorepo consolidating five Foundry VTT companion tools. npm-workspaces, no Turb
 ## Workspaces
 
 - `apps/*` — five apps (dm-tool, foundry-mcp, foundry-api-bridge, character-creator, player-portal).
-- `packages/*` — three internal libs (ai, db, shared).
+- `packages/*` — four internal libs (ai, db, pf2e-rules, shared).
 
 Internal dependency graph:
 
-- `shared` → `ai` → `db` → `dm-tool`
+- `shared` + `pf2e-rules` → `ai` → `db` → `dm-tool`
 - `shared` → `player-portal`
-- `foundry-mcp`, `foundry-api-bridge`, `character-creator` are standalone (no workspace deps).
+- `shared` → `character-creator`, `foundry-mcp` (wire contract types + Zod schemas via `@foundry-toolkit/shared/foundry-api` and `@foundry-toolkit/shared/rpc`).
+- `foundry-api-bridge` is standalone (no workspace deps).
 
 Every workspace has its own `CLAUDE.md` covering app-specific details.
 
