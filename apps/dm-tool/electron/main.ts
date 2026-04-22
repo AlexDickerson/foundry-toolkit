@@ -11,6 +11,7 @@
 // Failures during startup show an error dialog and quit rather than
 // leaving the user staring at a blank window.
 
+import '@foundry-toolkit/shared/env-auto';
 import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, net, session } from 'electron';
 import { dirname, join, normalize, sep, resolve as resolvePath } from 'node:path';
 import { pathToFileURL } from 'node:url';

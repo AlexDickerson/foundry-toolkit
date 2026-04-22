@@ -4,9 +4,11 @@
 //   tsx harness/run.ts --fixture fixtures/chat/rules-frightened.json
 //   tsx harness/run.ts --fixture fixtures/chat/general-flanking.json --transcript
 //
-// Reads ANTHROPIC_API_KEY from env. No pf2e-db deps — tool lookups fall through
-// to Archives of Nethys (realistic for prompt iteration).
+// Reads ANTHROPIC_API_KEY from the monorepo root .env (or existing env).
+// No pf2e-db deps — tool lookups fall through to Archives of Nethys
+// (realistic for prompt iteration).
 
+import '@foundry-toolkit/shared/env-auto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
