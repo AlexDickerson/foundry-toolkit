@@ -68,6 +68,11 @@ interface CombatForEvent {
   combatants: { map<T>(fn: (c: CombatantForEvent) => T): T[] };
 }
 
+interface FoundryActorForEvent {
+  id: string;
+  type?: string;
+}
+
 type HookCallback = (...args: unknown[]) => void;
 
 interface FoundryHooks {
@@ -86,7 +91,7 @@ interface HookHandle {
 // the server's http/schemas.ts — the server rejects SSE requests for
 // channels that don't appear there, and the module ignores
 // `set-event-subscription` for channels it doesn't switch on below.
-const KNOWN_CHANNELS = new Set(['rolls', 'chat', 'combat']);
+const KNOWN_CHANNELS = new Set(['rolls', 'chat', 'combat', 'actors']);
 
 // Opaque handle used to refcount subscriptions per connected client.
 // Each `WebSocketClient` instance is passed in for reference equality;
@@ -169,6 +174,18 @@ export class EventChannelController {
           this.reg('updateChatMessage', (raw) => {
             if (!isFoundryChatMessage(raw)) return;
             this.publisher.pushEvent('chat', { eventType: 'update', data: serializeChatMessage(raw) });
+          }),
+        );
+        break;
+
+      case 'actors':
+        handles.push(
+          this.reg('updateActor', (...args: unknown[]) => {
+            const [rawActor, rawChange] = args;
+            if (!isFoundryActorForEvent(rawActor)) return;
+            const changedPaths = extractChangedPaths(rawChange);
+            if (changedPaths.length === 0) return;
+            this.wsClient.pushEvent('actors', { actorId: rawActor.id, changedPaths });
           }),
         );
         break;
@@ -367,4 +384,42 @@ function isCombatantWithParent(value: unknown): value is CombatantWithParent {
   // `combat` may be null for a combatant mid-creation; the caller
   // checks before pushing.
   return true;
+}
+
+function isFoundryActorForEvent(value: unknown): value is FoundryActorForEvent {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj['id'] === 'string';
+}
+
+// Flatten a Foundry `updateActor` diff into dot-notation leaf paths so
+// subscribers can filter by prefix ("system.crafting", "system.attributes.hp",
+// etc.). Foundry delivers diffs as a mix of nested objects and
+// dot-notation keys depending on the update path; this walker handles
+// both and always produces path strings in the same shape.
+//
+// Exported for unit testing; the hook callback is the only caller.
+export function extractChangedPaths(change: unknown): string[] {
+  if (typeof change !== 'object' || change === null) return [];
+  const out: string[] = [];
+  walk(change as Record<string, unknown>, '', out);
+  return out;
+}
+
+function walk(obj: Record<string, unknown>, prefix: string, out: string[]): void {
+  for (const key of Object.keys(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    const value = obj[key];
+    // Dot-notation keys already encode depth — treat as a leaf so the
+    // emitted path mirrors what Foundry actually sent.
+    if (key.includes('.')) {
+      out.push(path);
+      continue;
+    }
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      walk(value as Record<string, unknown>, path, out);
+    } else {
+      out.push(path);
+    }
+  }
 }
