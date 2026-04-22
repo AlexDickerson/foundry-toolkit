@@ -92,6 +92,41 @@ describe('Background tab', () => {
     const { container } = render(<Background details={details} />);
     expect(container.querySelector('[data-section="campaign-notes"]')).toBeNull();
   });
+
+  it('shows an empty-state message when every background field is blank', () => {
+    const bare: CharacterDetails = {
+      ...details,
+      gender: { value: '' },
+      ethnicity: { value: '' },
+      nationality: { value: '' },
+      age: { value: '' },
+      height: { value: '' },
+      weight: { value: '' },
+      biography: {
+        ...details.biography,
+        birthPlace: '',
+        appearance: '',
+        backstory: '',
+        campaignNotes: '',
+        attitude: '',
+        beliefs: '',
+        likes: '',
+        dislikes: '',
+        catchphrases: '',
+        allies: '',
+        enemies: '',
+        organizations: '',
+        edicts: [],
+        anathema: [],
+      },
+    };
+    const { container } = render(<Background details={bare} />);
+    expect(container.querySelector('[data-section="background-empty"]')).toBeTruthy();
+    expect(container.textContent).toContain('No background details');
+    // None of the populated-only sections should have rendered.
+    expect(container.querySelector('[data-section="demographics"]')).toBeNull();
+    expect(container.querySelector('[data-section="backstory"]')).toBeNull();
+  });
 });
 
 // Quick sanity test: biography type fields line up with what Background consumes.

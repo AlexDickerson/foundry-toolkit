@@ -79,8 +79,22 @@ interface PendingCommand {
 let foundrySocket: WebSocket | null = null;
 const pendingCommands = new Map<string, PendingCommand>();
 
+// Side-effect subscribers for the module-connected event. Used by the
+// compendium cache to kick off warm-up once the module is reachable.
+const onConnectSubscribers = new Set<() => void>();
+
 export function isFoundryConnected(): boolean {
   return foundrySocket?.readyState === WebSocket.OPEN;
+}
+
+// Register a callback to fire each time the module reconnects. Called
+// synchronously during the ws.on('connection') handler, so any async
+// work should be fire-and-forget.
+export function onFoundryConnect(fn: () => void): () => void {
+  onConnectSubscribers.add(fn);
+  return () => {
+    onConnectSubscribers.delete(fn);
+  };
 }
 
 export function sendCommand(type: string, params: Record<string, unknown> = {}): Promise<unknown> {
@@ -186,6 +200,14 @@ wss.on('connection', (ws: WebSocket) => {
 
   foundrySocket = ws;
   log.info('Foundry module connected');
+
+  for (const fn of onConnectSubscribers) {
+    try {
+      fn();
+    } catch (err) {
+      log.warn(`onFoundryConnect subscriber threw: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   // Re-sync active channels. SSE consumers held their subscriptions
   // through the Foundry disconnect, but the module's Hooks.on

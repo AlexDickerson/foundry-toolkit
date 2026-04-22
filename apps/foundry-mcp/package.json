@@ -4,9 +4,9 @@
   "description": "Self-hosted MCP server that bridges Claude Code to a Foundry VTT instance over WebSocket",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx --env-file-if-exists=.env src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node --env-file-if-exists=.env dist/index.js",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "test": "tsx --test test/**/*.test.ts"

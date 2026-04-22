@@ -2,6 +2,12 @@
 @import 'tailwindcss';
 @import './pf2e/tokens.css';
 
+/* Reserve scrollbar-gutter space always so the page doesn't horizontally
+   shift when content grows past the viewport and a scrollbar appears. */
+html {
+  scrollbar-gutter: stable;
+}
+
 /* Sheet-wide base: cream parchment surface, Gelasio for long-form text.
    Individual components override via `font-sans` / `font-serif` utilities
    as needed. */

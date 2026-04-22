@@ -2,6 +2,10 @@ import type { PreparedCharacter } from '../../api/types';
 
 interface Props {
   character: PreparedCharacter;
+  /** When provided, renders a "← Actors" link to the right of the
+   *  name row. Lets the character sheet reclaim the row the button
+   *  used to occupy above the header. */
+  onBack?: () => void;
 }
 
 // Rarity pill colours borrowed from pf2e's _colors.scss rarity palette
@@ -23,7 +27,7 @@ const ALLIANCE_CLASSES: Record<string, string> = {
 // Ported in spirit from pf2e's
 // static/templates/actors/character/partials/header.hbs but
 // render-only (no name/level inputs, no XP bar).
-export function SheetHeader({ character }: Props): React.ReactElement {
+export function SheetHeader({ character, onBack }: Props): React.ReactElement {
   const { name, system, items } = character;
   const level = system.details.level.value;
   const ancestry = system.details.ancestry?.name;
@@ -47,6 +51,16 @@ export function SheetHeader({ character }: Props): React.ReactElement {
         )}
         {alliance && (
           <Badge data-badge="alliance" label={capitalise(alliance)} className={ALLIANCE_CLASSES[alliance] ?? ''} />
+        )}
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            data-testid="back-to-actors"
+            className="ml-auto rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+          >
+            ← Actors
+          </button>
         )}
       </div>
       {subtitle && (

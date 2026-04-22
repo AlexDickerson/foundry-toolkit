@@ -98,10 +98,11 @@ describe('Inventory tab', () => {
   it('nests stowed items under their container, not at the top level', () => {
     const { container } = render(<Inventory items={items} />);
     selectListView(container);
-    // Top-level list items are direct children of the section's primary
-    // <ul>. Check via item-id so we don't confuse ourselves with nested
-    // textContent (Backpack's <li> contains its children's text too).
-    const topIds = Array.from(container.querySelectorAll('section > ul > [data-item-id]')).map((el) =>
+    // Top-level list items now live inside a per-category list:
+    // `[data-category] > ul > [data-item-id]`. The backpack appears
+    // in the `containers` category at the top level; stowed items
+    // show up as descendants of that <li>, not as siblings.
+    const topIds = Array.from(container.querySelectorAll('[data-category] > ul > [data-item-id]')).map((el) =>
       el.getAttribute('data-item-id'),
     );
     expect(topIds).toContain(BACKPACK_ID);
@@ -121,5 +122,25 @@ describe('Inventory tab', () => {
   it('renders empty-state when no physical items exist', () => {
     const { container } = render(<Inventory items={[]} />);
     expect(container.textContent).toContain('No items yet');
+  });
+
+  it('groups items under category headers (weapons / armor / consumables / equipment / containers)', () => {
+    const { container } = render(<Inventory items={items} />);
+    const cats = Array.from(container.querySelectorAll('[data-category]')).map((el) =>
+      el.getAttribute('data-category'),
+    );
+    // Amiri carries at least one of each of these types, so every
+    // bucket should render in the grid view (the default).
+    expect(cats).toEqual(expect.arrayContaining(['weapons', 'armor', 'consumables', 'equipment', 'containers']));
+  });
+
+  it('places the Bastard Sword under Weapons and Hide Armor under Armor & Shields', () => {
+    const { container } = render(<Inventory items={items} />);
+    const weapons = container.querySelector('[data-category="weapons"]');
+    const armor = container.querySelector('[data-category="armor"]');
+    expect(weapons?.textContent).toContain('Bastard Sword');
+    expect(weapons?.textContent).not.toContain('Hide Armor');
+    expect(armor?.textContent).toContain('Hide Armor');
+    expect(armor?.textContent).not.toContain('Bastard Sword');
   });
 });

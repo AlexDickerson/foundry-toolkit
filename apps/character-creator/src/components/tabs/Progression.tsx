@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../../api/client';
 import type {
@@ -10,7 +10,7 @@ import type {
   PreparedActorItem,
   ProficiencyRank,
 } from '../../api/types';
-import { isClassItem } from '../../api/types';
+import { isClassItem, isFeatItem } from '../../api/types';
 import { enrichDescription } from '../../lib/foundry-enrichers';
 import { useUuidHover } from '../../lib/useUuidHover';
 import type { CharacterContext } from '../../prereqs';
@@ -156,6 +156,38 @@ export function Progression({ characterLevel, items, characterContext }: Props):
     };
   }, [classItem]);
 
+  // Fast lookup from the actor's local feat id → feat item, so the
+  // picked-chip hover popover can resolve hydrated picks (whose uuids
+  // are actor-local placeholders, not compendium UUIDs) against the
+  // item on the character directly. Fresh picks out of the picker keep
+  // their real compendium uuid and hit the API as normal.
+  //
+  // Declared before the `!classItem` early return so React can call
+  // the hooks in the same order on every render.
+  const feathItemById = useMemo(() => {
+    const map = new Map<string, PreparedActorItem>();
+    for (const item of items) {
+      if (isFeatItem(item)) map.set(item.id, item);
+    }
+    return map;
+  }, [items]);
+  const resolveLocalPickDoc = useCallback(
+    (uuid: string): CompendiumDocument | undefined => {
+      const item = feathItemById.get(uuid);
+      if (!item) return undefined;
+      return {
+        id: item.id,
+        uuid: item.id,
+        name: item.name,
+        type: item.type,
+        img: item.img,
+        system: item.system,
+      };
+    },
+    [feathItemById],
+  );
+  const pickedHover = useUuidHover({ resolveLocal: resolveLocalPickDoc });
+
   if (!classItem) {
     return <p className="text-sm text-pf-alt-dark">No class item on this character.</p>;
   }
@@ -213,7 +245,7 @@ export function Progression({ characterLevel, items, characterContext }: Props):
           pick one; selections are held in memory until the scratch-actor flow lands.
         </p>
       </div>
-      <ol className="space-y-1.5">
+      <ol className="space-y-1.5" {...pickedHover.delegationHandlers}>
         {/* eslint-disable-next-line react-hooks/refs -- cache snapshot taken per render; docsVersion bump in useEffect re-renders whenever either cache mutates */}
         {LEVELS.map((level) => {
           const features = featuresByLevel.get(level) ?? [];
@@ -234,6 +266,7 @@ export function Progression({ characterLevel, items, characterContext }: Props):
           );
         })}
       </ol>
+      {pickedHover.popover}
       {pickerTarget && pickerFilters && (
         <FeatPicker
           title={pickerTitleFor(pickerTarget.slot, pickerTarget.level)}
@@ -366,7 +399,7 @@ function LevelRow({
       // row's opacity group — past-level popovers render full-
       // strength even when the row itself is dimmed.
       className={[
-        'grid grid-cols-[3rem_1fr] items-start gap-3 rounded border px-3 py-2',
+        'grid min-h-12 grid-cols-[3rem_1fr] items-center gap-3 rounded border px-3 py-2',
         state === 'current' ? 'border-pf-primary bg-pf-tertiary/30' : 'border-pf-border bg-white',
         state === 'past' ? 'opacity-60' : '',
       ].join(' ')}
@@ -423,6 +456,11 @@ function FeatureList({
 // constant the CSS (`w-[...]px`) and the JS positioning both read.
 const FEATURE_POPOVER_WIDTH = 420;
 const FEATURE_POPOVER_GAP = 6;
+// Preferred height of the popover; used by the flip-above check.
+// Actual height is capped by `maxHeight` so content scrolls internally
+// rather than overflowing the viewport.
+const FEATURE_POPOVER_PREFERRED_HEIGHT = 520;
+const FEATURE_POPOVER_VIEWPORT_MARGIN = 12;
 // Tiny delay before closing on mouseleave gives the cursor time to
 // bridge from chip → popover without the popover winking out.
 const HOVER_CLOSE_DELAY_MS = 120;
@@ -440,7 +478,7 @@ function FeatureChip({
   failed: boolean;
 }): React.ReactElement {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
   const chipRef = useRef<HTMLLIElement>(null);
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
@@ -476,9 +514,10 @@ function FeatureChip({
       const rect = chipRef.current.getBoundingClientRect();
       // Keep the popover inside the viewport — shift left if it'd overflow
       // the right edge, and snap a minimum margin on the left.
-      const maxLeft = window.innerWidth - FEATURE_POPOVER_WIDTH - 12;
-      const left = Math.max(12, Math.min(rect.left, maxLeft));
-      setPos({ top: rect.bottom + FEATURE_POPOVER_GAP, left });
+      const maxLeft = window.innerWidth - FEATURE_POPOVER_WIDTH - FEATURE_POPOVER_VIEWPORT_MARGIN;
+      const left = Math.max(FEATURE_POPOVER_VIEWPORT_MARGIN, Math.min(rect.left, maxLeft));
+      const vertical = pickFeaturePopoverVerticalSlot(rect);
+      setPos({ top: vertical.top, left, maxHeight: vertical.maxHeight });
       setOpen(true);
     }, HOVER_OPEN_DELAY_MS);
   };
@@ -510,7 +549,14 @@ function FeatureChip({
             data-testid="feature-tooltip"
             onMouseEnter={cancelClose}
             onMouseLeave={scheduleClose}
-            style={{ position: 'fixed', top: pos.top, left: pos.left, width: FEATURE_POPOVER_WIDTH }}
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: FEATURE_POPOVER_WIDTH,
+              maxHeight: pos.maxHeight,
+              overflowY: 'auto',
+            }}
             className="z-50 rounded border border-pf-border bg-pf-bg p-4 text-left shadow-xl"
           >
             <div className="mb-2 flex items-center gap-2">
@@ -523,7 +569,7 @@ function FeatureChip({
             {description !== undefined && description.length > 0 ? (
               <div
                 {...uuidHover.delegationHandlers}
-                className="max-h-[28rem] overflow-y-auto pr-1 text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2 [&_p]:leading-relaxed"
+                className="text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2 [&_p]:leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: enrichDescription(description) }}
               />
             ) : failed ? (
@@ -545,6 +591,30 @@ function extractDescription(doc: CompendiumDocument): string {
   const sys = doc.system as { description?: { value?: unknown } };
   const raw = sys.description?.value;
   return typeof raw === 'string' ? raw : '';
+}
+
+// Choose below vs above the anchor based on available viewport space,
+// and return a `maxHeight` so the popover caps itself to the space it
+// has and scrolls inside rather than overflowing the viewport.
+function pickFeaturePopoverVerticalSlot(anchor: DOMRect): { top: number; maxHeight: number } {
+  const viewportH = window.innerHeight;
+  const spaceBelow = viewportH - anchor.bottom - FEATURE_POPOVER_GAP - FEATURE_POPOVER_VIEWPORT_MARGIN;
+  const spaceAbove = anchor.top - FEATURE_POPOVER_GAP - FEATURE_POPOVER_VIEWPORT_MARGIN;
+
+  if (spaceBelow >= FEATURE_POPOVER_PREFERRED_HEIGHT) {
+    return { top: anchor.bottom + FEATURE_POPOVER_GAP, maxHeight: FEATURE_POPOVER_PREFERRED_HEIGHT };
+  }
+  if (spaceAbove >= FEATURE_POPOVER_PREFERRED_HEIGHT) {
+    return {
+      top: anchor.top - FEATURE_POPOVER_GAP - FEATURE_POPOVER_PREFERRED_HEIGHT,
+      maxHeight: FEATURE_POPOVER_PREFERRED_HEIGHT,
+    };
+  }
+  if (spaceBelow >= spaceAbove) {
+    return { top: anchor.bottom + FEATURE_POPOVER_GAP, maxHeight: Math.max(120, spaceBelow) };
+  }
+  const h = Math.max(120, spaceAbove);
+  return { top: Math.max(FEATURE_POPOVER_VIEWPORT_MARGIN, anchor.top - FEATURE_POPOVER_GAP - h), maxHeight: h };
 }
 
 // ─── Slot chips ────────────────────────────────────────────────────────
@@ -648,9 +718,16 @@ function SlotChips({
 function PickedChip({ slot, pick, onClear }: { slot: SlotType; pick: Pick; onClear: () => void }): React.ReactElement {
   const body = renderPickBody(pick);
   const title = renderPickTitle(slot, pick);
+  const featUuid = pick.kind === 'feat' ? pick.match.uuid : undefined;
   return (
     <span
-      data-pick-uuid={pick.kind === 'feat' ? pick.match.uuid : undefined}
+      // `data-uuid` triggers the rich hover popover wired at the
+      // Progression level (Parent <ol> holds the delegation handlers);
+      // the Progression-level resolver falls back to the actor-local
+      // feat item when the uuid isn't a compendium UUID, so hydrated
+      // picks show their description too.
+      data-pick-uuid={featUuid}
+      data-uuid={featUuid}
       className="inline-flex items-center gap-1 rounded border border-pf-border bg-white pl-1 pr-0.5 text-[11px] text-pf-text"
       title={title}
     >
