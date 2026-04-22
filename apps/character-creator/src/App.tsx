@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { ActorList } from './components/ActorList';
 import { CharacterCreator } from './pages/CharacterCreator';
 import { CharacterSheet } from './pages/CharacterSheet';
+import { usePreferences } from './lib/usePreferences';
 
 type View = { kind: 'list' } | { kind: 'create' } | { kind: 'sheet'; actorId: string };
 
 export function App(): React.ReactElement {
   const [view, setView] = useState<View>({ kind: 'list' });
+  // Hoisted so the palette chosen on one sheet persists when navigating
+  // back to the actor list (whose Create button uses the same palette).
+  const preferences = usePreferences();
 
   return (
     <main className="mx-auto max-w-3xl p-6 font-sans">
@@ -52,6 +56,7 @@ export function App(): React.ReactElement {
           onBack={(): void => {
             setView({ kind: 'list' });
           }}
+          preferences={preferences}
         />
       )}
     </main>

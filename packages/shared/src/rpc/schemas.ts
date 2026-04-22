@@ -133,12 +133,14 @@ export const createActorBody = z.object({
 
 // Partial-merge update. Any subset of fields can be supplied; Foundry
 // does a deep merge on `system`, so patching e.g. `system.details.age`
-// leaves every other detail untouched.
+// leaves every other detail untouched. `flags` follows the same rule —
+// patch `flags.<scope>.<key>` to poke one value without losing siblings.
 export const updateActorBody = z.object({
   name: z.string().optional(),
   img: z.string().optional(),
   folder: z.string().optional(),
   system: z.record(z.string(), z.unknown()).optional(),
+  flags: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
 });
 
 // Item-on-actor operations for the wizard's piecemeal picks
@@ -181,4 +183,13 @@ export const bridgeIdParam = z.object({
 // domain (e.g. the ChoiceSet prompt matches against its choice list).
 export const resolvePromptBody = z.object({
   value: z.unknown(),
+});
+
+// POST /api/uploads — deposit a base64-encoded file into the Foundry
+// Data directory. Mirrors the `upload_asset` MCP tool shape. `path` is
+// relative to the Data dir; the server normalises + rejects anything
+// that tries to escape it.
+export const uploadAssetBody = z.object({
+  path: z.string().min(1),
+  dataBase64: z.string().min(1),
 });
