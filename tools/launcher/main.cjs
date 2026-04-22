@@ -1,12 +1,17 @@
 'use strict';
 
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
-const { spawn } = require('node:child_process');
-const { readFile, readdir } = require('node:fs/promises');
+const { spawn, execFile } = require('node:child_process');
+const { readFile } = require('node:fs/promises');
+const { promisify } = require('node:util');
 const path = require('node:path');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const worktreesDir = path.join(repoRoot, '.claude', 'worktrees');
+const execFileAsync = promisify(execFile);
+
+// Start from the launcher's own directory; git finds the repo from there. This
+// way the launcher resolves the full worktree list whether it's run from the
+// main checkout or from any linked worktree.
+const launcherDir = __dirname;
 
 async function readDevScripts(rootPath) {
   try {
@@ -21,21 +26,50 @@ async function readDevScripts(rootPath) {
   }
 }
 
-async function enumerate() {
-  const roots = [{ name: 'main', path: repoRoot, isMain: true }];
-  try {
-    const entries = await readdir(worktreesDir, { withFileTypes: true });
-    for (const e of entries) {
-      if (e.isDirectory()) {
-        roots.push({ name: e.name, path: path.join(worktreesDir, e.name), isMain: false });
-      }
-    }
-  } catch {
-    /* worktrees dir may not exist */
-  }
+async function listWorktrees() {
+  const { stdout } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], {
+    cwd: launcherDir,
+    windowsHide: true,
+  });
   const out = [];
-  for (const root of roots) {
-    out.push({ ...root, apps: await readDevScripts(root.path) });
+  let current = null;
+  for (const line of stdout.split(/\r?\n/)) {
+    if (line.startsWith('worktree ')) {
+      if (current) out.push(current);
+      current = { path: line.slice('worktree '.length).trim() };
+    } else if (!current) {
+      continue;
+    } else if (line.startsWith('branch ')) {
+      current.branch = line
+        .slice('branch '.length)
+        .replace(/^refs\/heads\//, '')
+        .trim();
+    } else if (line === 'bare') {
+      current.bare = true;
+    } else if (line === 'detached') {
+      current.detached = true;
+    }
+  }
+  if (current) out.push(current);
+  return out.filter((w) => !w.bare);
+}
+
+async function enumerate() {
+  let worktrees;
+  try {
+    worktrees = await listWorktrees();
+  } catch (err) {
+    return [{ name: 'error', path: launcherDir, isMain: false, apps: [], error: String(err) }];
+  }
+  const primaryPath = worktrees[0]?.path;
+  const out = [];
+  for (const wt of worktrees) {
+    out.push({
+      name: wt.branch || path.basename(wt.path),
+      path: wt.path,
+      isMain: wt.path === primaryPath,
+      apps: await readDevScripts(wt.path),
+    });
   }
   return out;
 }
