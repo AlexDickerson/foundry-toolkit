@@ -76,7 +76,7 @@ export function captureSceneHandler(_params: CaptureSceneParams): Promise<Captur
 
   const overlay = addGridOverlay(canvas as unknown as OverlayCanvas);
 
-  canvas.app.renderer.render(stage as unknown);
+  canvas.app.renderer.render(stage);
   const dataUrl = view.toDataURL(MIME_TYPE, QUALITY);
   const image = dataUrl.replace(BASE64_PREFIX_PATTERN, '');
 
@@ -87,7 +87,7 @@ export function captureSceneHandler(_params: CaptureSceneParams): Promise<Captur
   // Restore viewport
   stage.position.set(saved.px, saved.py);
   stage.scale.set(saved.sx, saved.sy);
-  canvas.app.renderer.render(stage as unknown);
+  canvas.app.renderer.render(stage);
 
   return Promise.resolve({
     sceneId: canvas.scene.id,

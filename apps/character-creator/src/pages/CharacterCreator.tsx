@@ -661,7 +661,7 @@ function IdentityStep({
               type="text"
               value={draft[key]}
               onChange={(e): void => {
-                onChange({ [key]: e.target.value } as Partial<Draft>);
+                onChange({ [key]: e.target.value });
               }}
               autoFocus={autoFocus}
               placeholder={placeholder}

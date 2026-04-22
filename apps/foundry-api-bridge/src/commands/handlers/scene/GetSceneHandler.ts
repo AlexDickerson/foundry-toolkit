@@ -86,7 +86,7 @@ function captureScreenshot(canvas: FoundryCanvas): SceneScreenshot | undefined {
     const vw = (globalThis as unknown as { innerWidth: number }).innerWidth;
     const vh = (globalThis as unknown as { innerHeight: number }).innerHeight;
     const scale = Math.min(vw / dims.sceneWidth, vh / dims.sceneHeight);
-    (canvas as unknown as FoundryCanvas).pan({
+    canvas.pan({
       x: dims.sceneX + dims.sceneWidth / 2,
       y: dims.sceneY + dims.sceneHeight / 2,
       scale,
@@ -95,7 +95,7 @@ function captureScreenshot(canvas: FoundryCanvas): SceneScreenshot | undefined {
 
     const overlay = addGridOverlay(canvas as unknown as OverlayCanvas);
 
-    canvas.app.renderer.render(stage as unknown);
+    canvas.app.renderer.render(stage);
     const dataUrl = view.toDataURL(MIME_TYPE, QUALITY);
     const image = dataUrl.replace(BASE64_PREFIX_PATTERN, '');
 
@@ -106,7 +106,7 @@ function captureScreenshot(canvas: FoundryCanvas): SceneScreenshot | undefined {
     // Restore viewport
     stage.position.set(saved.px, saved.py);
     stage.scale.set(saved.sx, saved.sy);
-    canvas.app.renderer.render(stage as unknown);
+    canvas.app.renderer.render(stage);
 
     return {
       image,
