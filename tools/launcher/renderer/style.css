@@ -5,6 +5,8 @@
   --muted: color-mix(in srgb, CanvasText 60%, transparent);
   --accent: #4f46e5;
   --accent-hover: #6366f1;
+  --danger: #dc2626;
+  --danger-hover: #ef4444;
 }
 
 * {
@@ -52,6 +54,16 @@ button {
 
 button:hover {
   background: var(--subtle);
+}
+
+.danger-btn {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+
+.danger-btn:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger-hover);
 }
 
 main {

@@ -2,7 +2,7 @@
 
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const { spawn, execFile } = require('node:child_process');
-const { readFile } = require('node:fs/promises');
+const { readFile, rm } = require('node:fs/promises');
 const { promisify } = require('node:util');
 const path = require('node:path');
 
@@ -94,6 +94,68 @@ function openTerminal(worktreePath) {
   spawnWindowsTerminal(worktreePath, null, path.basename(worktreePath));
 }
 
+async function forceRemoveWithFallback(worktreePath) {
+  // git's own --force handles the common "dirty tree" case.
+  let gitErr = '';
+  try {
+    await execFileAsync('git', ['worktree', 'remove', '--force', worktreePath], {
+      cwd: launcherDir,
+      windowsHide: true,
+    });
+    return { ok: true };
+  } catch (err) {
+    gitErr = (err.stderr || err.message || '').toString().trim();
+  }
+  // Fallback for Windows: `git worktree remove` often bails with "Directory
+  // not empty" when node_modules has locked handles or long paths it can't
+  // clear. Nuke the directory ourselves with retries, then prune git's
+  // admin files so the worktree registration goes away too.
+  try {
+    await rm(worktreePath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  } catch (rmErr) {
+    return {
+      ok: false,
+      error: `git worktree remove --force failed (${gitErr}); fs.rm also failed: ${rmErr.message}`,
+    };
+  }
+  try {
+    await execFileAsync('git', ['worktree', 'prune'], { cwd: launcherDir, windowsHide: true });
+    return { ok: true };
+  } catch (pruneErr) {
+    const stderr = (pruneErr.stderr || pruneErr.message || '').toString().trim();
+    return { ok: false, error: `Directory removed but 'git worktree prune' failed: ${stderr}` };
+  }
+}
+
+async function deleteWorktree(worktreePath, { force = false } = {}) {
+  // Resolve the main worktree up front so we can refuse to delete it even if
+  // the caller lies. `git worktree list` returns the main checkout first.
+  let primaryPath;
+  try {
+    const wts = await listWorktrees();
+    primaryPath = wts[0]?.path;
+  } catch (err) {
+    return { ok: false, error: `Could not list worktrees: ${err.message || err}` };
+  }
+  if (!worktreePath || worktreePath === primaryPath) {
+    return { ok: false, error: 'Refusing to delete the main worktree.' };
+  }
+  if (force) {
+    return forceRemoveWithFallback(worktreePath);
+  }
+  try {
+    await execFileAsync('git', ['worktree', 'remove', worktreePath], { cwd: launcherDir, windowsHide: true });
+    return { ok: true };
+  } catch (err) {
+    const stderr = (err.stderr || err.message || '').toString().trim();
+    // Any failure from the non-force attempt becomes a force-confirm prompt.
+    // git bails on dirty trees ("use --force"), on Windows rmdir races
+    // ("Directory not empty"), and various other states — all are safe to
+    // retry with the force path, which handles the filesystem fallback.
+    return { ok: false, needsForce: true, error: stderr || 'git worktree remove failed' };
+  }
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 960,
@@ -115,6 +177,7 @@ app.whenReady().then(() => {
   ipcMain.handle('launch', (_e, wt, script) => launch(wt, script));
   ipcMain.handle('open-folder', (_e, p) => shell.openPath(p));
   ipcMain.handle('open-terminal', (_e, p) => openTerminal(p));
+  ipcMain.handle('delete-worktree', (_e, p, opts) => deleteWorktree(p, opts));
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
