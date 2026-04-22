@@ -15,6 +15,7 @@
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint . && npm run lint --workspaces --if-present",
     "lint:fix": "eslint . --fix",
+    "knip": "knip --include files,dependencies,unresolved",
     "build": "npm run build --workspaces --if-present",
     "dev:dm-tool": "npm --workspace apps/dm-tool run dev",
     "dev:mcp": "npm --workspace apps/foundry-mcp run dev",
@@ -31,6 +32,7 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
+    "knip": "^6.6.0",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.58.2"
