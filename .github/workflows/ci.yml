@@ -25,7 +25,7 @@ jobs:
         run: npm audit --audit-level=high
 
       - name: ESLint
-        run: npm run lint
+        run: npx eslint .
 
       - name: Prettier
         run: npm run format:check
