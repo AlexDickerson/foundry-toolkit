@@ -13,9 +13,14 @@ import react from '@vitejs/plugin-react';
 // Vite transform them during build.
 const workspaceBundled = ['@foundry-toolkit/ai', '@foundry-toolkit/db', '@foundry-toolkit/shared'];
 
+// Native modules pulled in transitively by bundled workspace packages must be
+// re-externalized so their `.node` binaries resolve at runtime instead of
+// being inlined by Rollup (which breaks the `bindings` loader).
+const nativeDeps = ['better-sqlite3'];
+
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin({ exclude: workspaceBundled })],
+    plugins: [externalizeDepsPlugin({ exclude: workspaceBundled, include: nativeDeps })],
     build: {
       rollupOptions: {
         input: {
