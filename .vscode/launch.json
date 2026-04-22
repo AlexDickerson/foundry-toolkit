@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "1. Foundry + API Bridge (Docker)",
+      "type": "node-terminal",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/foundry-api-bridge",
+      "command": "bash ./local.sh up"
+    },
+    {
+      "name": "2. MCP Server",
+      "type": "node-terminal",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/foundry-mcp",
+      "command": "npm run dev"
+    },
+    {
+      "name": "3. Character Creator (Vite)",
+      "type": "node-terminal",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/character-creator",
+      "command": "npm run dev"
+    },
+    {
+      "name": "4. DM Tool (Electron)",
+      "type": "node-terminal",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/dm-tool",
+      "command": "npm run dev"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "5. All together",
+      "configurations": [
+        "1. Foundry + API Bridge (Docker)",
+        "2. MCP Server",
+        "3. Character Creator (Vite)",
+        "4. DM Tool (Electron)"
+      ],
+      "stopAll": true
+    }
+  ]
+}
