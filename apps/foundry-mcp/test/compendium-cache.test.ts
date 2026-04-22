@@ -103,6 +103,11 @@ const bestiaryDocs: CompendiumDocument[] = [
     name: 'Young Red Dragon',
     type: 'npc',
     img: '/icons/dragon.webp',
+    // Actor-only field the bridge now forwards from
+    // `prototypeToken.texture.src` so UIs can render a token thumbnail
+    // distinct from the portrait `img`. Only seeded on this actor —
+    // the other fixtures assert tokenImg stays undefined.
+    tokenImg: '/icons/dragon-token.webp',
     system: {
       details: { level: { value: 10 }, publication: { title: 'Pathfinder Bestiary' } },
       publication: { title: 'Pathfinder Bestiary' },
@@ -255,6 +260,20 @@ describe('CompendiumCache — warm + getDocument', () => {
     // Sanity — same search results regardless of warm path.
     const result = cache.search({ packIds: ['pf2e.equipment-srd'], q: 'bastard' });
     assert.equal(result?.matches[0]?.name, 'Bastard Sword');
+  });
+
+  it('passes Actor tokenImg through from the bridge payload', async () => {
+    // Actor documents carry a `prototypeToken.texture.src` URL the
+    // bridge now forwards as `tokenImg`. The cache is a dumb
+    // pass-through for it — this test guards that the field survives
+    // the dump → cache → getDocument round-trip, and stays undefined
+    // on actors/items that don't carry it.
+    const cache = new CompendiumCache(makeSendCommand());
+    await cache.warmPack('pf2e.pathfinder-bestiary');
+    const dragon = cache.getDocument('Compendium.pf2e.pathfinder-bestiary.Actor.young-red-dragon');
+    assert.equal(dragon?.tokenImg, '/icons/dragon-token.webp');
+    const goblin = cache.getDocument('Compendium.pf2e.pathfinder-bestiary.Actor.goblin-warrior');
+    assert.equal(goblin?.tokenImg, undefined);
   });
 
   it('issues a single dump-compendium-pack on the fast path', async () => {

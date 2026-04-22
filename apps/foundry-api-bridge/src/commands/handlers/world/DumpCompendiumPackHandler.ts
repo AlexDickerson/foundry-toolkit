@@ -1,5 +1,6 @@
 import type { CompendiumDocumentData, DumpCompendiumPackParams, DumpCompendiumPackResult } from '@/commands/types';
 import type { FoundryPackMetadata } from './worldTypes';
+import { extractTokenImg } from './extractTokenImg';
 
 // Foundry's CompendiumCollection exposes getDocuments() which walks
 // the pack in one async batch. That's dramatically faster than N
@@ -12,6 +13,9 @@ interface FoundryDocument {
   name: string;
   type: string;
   img: string | null;
+  // Actor-only; Item documents omit it. Typed as `unknown` so we don't
+  // over-promise — `extractTokenImg` walks it defensively.
+  prototypeToken?: unknown;
   toObject(source?: boolean): { system: Record<string, unknown> };
 }
 
@@ -47,14 +51,20 @@ export async function dumpCompendiumPackHandler(params: DumpCompendiumPackParams
   }
 
   const docs = await pack.getDocuments();
-  const documents: CompendiumDocumentData[] = docs.map((doc) => ({
-    id: doc.id,
-    uuid: doc.uuid,
-    name: doc.name,
-    type: doc.type,
-    img: doc.img ?? '',
-    system: doc.toObject(false).system,
-  }));
+  const documents: CompendiumDocumentData[] = docs.map((doc) => {
+    const tokenImg = extractTokenImg(doc);
+    const entry: CompendiumDocumentData = {
+      id: doc.id,
+      uuid: doc.uuid,
+      name: doc.name,
+      type: doc.type,
+      img: doc.img ?? '',
+      system: doc.toObject(false).system,
+    };
+    // Only attach when present so item docs stay clean on the wire.
+    if (tokenImg !== undefined) entry.tokenImg = tokenImg;
+    return entry;
+  });
 
   return {
     packId: pack.collection,

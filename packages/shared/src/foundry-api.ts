@@ -223,6 +223,10 @@ export interface CompendiumDocument {
   name: string;
   type: string;
   img: string;
+  /** Actor-only. Foundry PrototypeToken.texture.src — the token art URL,
+   *  distinct from the portrait `img`. Absent for Item documents and
+   *  Actors without a configured prototype token. */
+  tokenImg?: string;
   /** Full `system.*` slice. Shape varies by item type; consumers narrow
    *  defensively via `document.type`. */
   system: Record<string, unknown>;
