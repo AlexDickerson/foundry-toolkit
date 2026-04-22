@@ -1,0 +1,16 @@
+node_modules/
+out/
+dist/
+tagger/
+resources/
+.claude/
+apps/player-portal/
+apps/foundry-mcp/
+apps/foundry-api-bridge/
+apps/character-creator/
+apps/*/out/
+apps/*/dist/
+apps/*/server-dist/
+packages/*/dist/
+package-lock.json
+*.html
