@@ -11,6 +11,15 @@ interface Props {
 // Foundry; there's no untrusted-user input path into these fields.
 export function Background({ details }: Props): React.ReactElement {
   const bio = details.biography;
+  if (!hasAnyBackgroundContent(details)) {
+    return (
+      <section className="space-y-6" data-section="background-empty">
+        <p className="text-sm italic text-neutral-500">
+          No background details recorded for this character yet.
+        </p>
+      </section>
+    );
+  }
   return (
     <section className="space-y-6">
       <DemographicsBlock details={details} />
@@ -22,6 +31,36 @@ export function Background({ details }: Props): React.ReactElement {
       <TextBlock title="Campaign Notes" html={bio.campaignNotes} dataSection="campaign-notes" />
     </section>
   );
+}
+
+function hasAnyBackgroundContent(details: CharacterDetails): boolean {
+  const bio = details.biography;
+  const demographicValues = [
+    details.gender.value,
+    details.ethnicity.value,
+    details.nationality.value,
+    details.age.value,
+    details.height.value,
+    details.weight.value,
+    bio.birthPlace,
+  ];
+  const textValues = [
+    bio.appearance,
+    bio.backstory,
+    bio.campaignNotes,
+    bio.attitude,
+    bio.beliefs,
+    bio.likes,
+    bio.dislikes,
+    bio.catchphrases,
+    bio.allies,
+    bio.enemies,
+    bio.organizations,
+  ];
+  if (demographicValues.some((v) => v.trim() !== '')) return true;
+  if (textValues.some((v) => v.trim() !== '')) return true;
+  if (bio.edicts.length > 0 || bio.anathema.length > 0) return true;
+  return false;
 }
 
 // ─── Sub-sections ──────────────────────────────────────────────────────

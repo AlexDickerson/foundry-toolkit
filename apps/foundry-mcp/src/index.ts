@@ -7,10 +7,16 @@ import { wss, isFoundryConnected } from './bridge.js';
 import { log } from './logger.js';
 import { registerTools } from './tools/index.js';
 import { buildHttpApp } from './http/app.js';
+import { registerCompendiumCacheWarming } from './http/compendium-cache-singleton.js';
 
 // Fastify app — handles /api/*, /healthz, static SPA assets, and SPA
 // fallback for unmatched GETs. Routed from the parent http.Server below.
 const httpApp = await buildHttpApp();
+
+// Subscribe the compendium cache to module-connect events. No-op when
+// COMPENDIUM_CACHE_PACK_IDS is empty, so environments that don't want
+// the cache pay nothing.
+registerCompendiumCacheWarming();
 
 // ---------------------------------------------------------------------------
 // Session management — one transport + McpServer per MCP client

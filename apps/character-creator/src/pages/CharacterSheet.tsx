@@ -48,6 +48,10 @@ interface Props {
 export function CharacterSheet({ actorId, onBack }: Props): React.ReactElement {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [activeTab, setActiveTab] = useState<TabId>('character');
+  // Bumping this triggers a fresh `/prepared` fetch — used after buy/
+  // sell mutations from the Inventory tab so the sheet reflects the
+  // updated item list and coin totals without a full page reload.
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,25 +78,39 @@ export function CharacterSheet({ actorId, onBack }: Props): React.ReactElement {
     return (): void => {
       cancelled = true;
     };
-  }, [actorId]);
+  }, [actorId, reloadNonce]);
+
+  const reloadActor = (): void => {
+    setReloadNonce((n) => n + 1);
+  };
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
-        >
-          ← Actors
-        </button>
-      </div>
-
-      {state.kind === 'loading' && <p className="text-sm text-neutral-500">Loading character…</p>}
+      {state.kind === 'loading' && (
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm text-neutral-500">Loading character…</p>
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+          >
+            ← Actors
+          </button>
+        </div>
+      )}
 
       {state.kind === 'error' && (
         <div className="rounded border border-red-200 bg-red-50 p-4 text-sm">
-          <p className="font-medium text-red-900">Couldn&apos;t load character</p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="font-medium text-red-900">Couldn&apos;t load character</p>
+            <button
+              type="button"
+              onClick={onBack}
+              className="shrink-0 rounded border border-red-300 bg-white px-2 py-1 text-xs text-red-900 hover:bg-red-100"
+            >
+              ← Actors
+            </button>
+          </div>
           <p className="mt-1 text-red-800">{state.message}</p>
           {state.suggestion !== undefined && <p className="mt-2 text-red-700">{state.suggestion}</p>}
         </div>
@@ -100,14 +118,22 @@ export function CharacterSheet({ actorId, onBack }: Props): React.ReactElement {
 
       {state.kind === 'ready' && (
         <>
-          <SheetHeader character={state.actor} />
+          <SheetHeader character={state.actor} onBack={onBack} />
           <TabStrip tabs={TABS} active={activeTab} onChange={setActiveTab} />
           {activeTab === 'character' && <Character system={state.actor.system} />}
-          {activeTab === 'actions' && <Actions actions={state.actor.system.actions} items={state.actor.items} />}
+          {activeTab === 'actions' && (
+            <Actions
+              actions={state.actor.system.actions}
+              items={state.actor.items}
+              abilities={state.actor.system.abilities}
+            />
+          )}
           {activeTab === 'spells' && (
             <Spells items={state.actor.items} characterLevel={state.actor.system.details.level.value} />
           )}
-          {activeTab === 'inventory' && <Inventory items={state.actor.items} />}
+          {activeTab === 'inventory' && (
+            <Inventory items={state.actor.items} actorId={actorId} onActorChanged={reloadActor} />
+          )}
           {activeTab === 'feats' && <Feats items={state.actor.items} />}
           {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} />}
           {activeTab === 'progression' && (

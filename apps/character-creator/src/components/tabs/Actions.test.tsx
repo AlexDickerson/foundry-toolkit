@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup, within } from '@testing-library/react';
+import { render, cleanup, fireEvent, within } from '@testing-library/react';
 import amiri from '../../fixtures/amiri-prepared.json';
-import type { PreparedActorItem, Strike } from '../../api/types';
+import type { Ability, AbilityKey, PreparedActorItem, Strike } from '../../api/types';
 import { Actions } from './Actions';
 
 // Amiri's three strikes with their expected attack modifiers (as per
@@ -15,6 +15,7 @@ const EXPECTED_STRIKES = {
 
 const actions = (amiri as unknown as { system: { actions: Strike[] } }).system.actions;
 const items = (amiri as unknown as { items: PreparedActorItem[] }).items;
+const abilities = (amiri as unknown as { system: { abilities: Record<AbilityKey, Ability> } }).system.abilities;
 
 describe('Actions tab — strikes', () => {
   afterEach(() => {
@@ -58,6 +59,49 @@ describe('Actions tab — strikes', () => {
     const card = container.querySelector('[data-strike-slug="javelin"]');
     expect(card?.textContent).toContain('×4');
   });
+
+  // Amiri: STR +4, trained weapons, no runes, no bonus damage.
+  //   Unarmed (melee):       1d4+4 bludgeoning
+  //   Bastard Sword (melee): 1d8+4 slashing
+  //   Javelin (ranged+thrown): 1d6+4 piercing
+  it('folds STR into melee strike damage when abilities are provided', () => {
+    const { container } = render(<Actions actions={actions} items={items} abilities={abilities} />);
+    const unarmed = container.querySelector('[data-strike-slug="basic-unarmed"] [data-role="strike-damage"]');
+    const bastard = container.querySelector('[data-strike-slug="bastard-sword"] [data-role="strike-damage"]');
+    expect(unarmed?.textContent).toBe('1d4+4 bludgeoning');
+    expect(bastard?.textContent).toBe('1d8+4 slashing');
+  });
+
+  it('adds STR to a thrown ranged weapon (javelin)', () => {
+    const { container } = render(<Actions actions={actions} items={items} abilities={abilities} />);
+    const javelin = container.querySelector('[data-strike-slug="javelin"] [data-role="strike-damage"]');
+    expect(javelin?.textContent).toBe('1d6+4 piercing');
+  });
+
+  it('falls back to base-die damage when abilities are not provided', () => {
+    const { container } = render(<Actions actions={actions} items={items} />);
+    const bastard = container.querySelector('[data-strike-slug="bastard-sword"] [data-role="strike-damage"]');
+    expect(bastard?.textContent).toBe('1d8 slashing');
+  });
+
+  it('applies the striking rune by adding dice', () => {
+    const buffed: Strike[] = actions.map((s) => {
+      if (s.slug !== 'bastard-sword') return s;
+      return {
+        ...s,
+        item: {
+          ...s.item,
+          system: {
+            ...s.item.system,
+            runes: { potency: 0, striking: 1, property: [] },
+          },
+        },
+      };
+    });
+    const { container } = render(<Actions actions={buffed} items={items} abilities={abilities} />);
+    const bastard = container.querySelector('[data-strike-slug="bastard-sword"] [data-role="strike-damage"]');
+    expect(bastard?.textContent).toBe('2d8+4 slashing');
+  });
 });
 
 describe('Actions tab — action items', () => {
@@ -95,5 +139,25 @@ describe('Actions tab — action items', () => {
   it('renders empty-state when no strikes and no action items', () => {
     const { container } = render(<Actions actions={[]} items={[]} />);
     expect(container.textContent).toContain('No actions available');
+  });
+
+  it('collapses action cards by default and expands on click', () => {
+    const { container } = render(<Actions actions={actions} items={items} />);
+    const section = container.querySelector('[data-action-section="action"]') as HTMLElement;
+    const rage = within(section)
+      .getAllByText(/Rage/i)[0]
+      ?.closest('[data-action-id]') as HTMLElement | null;
+    expect(rage, 'Rage card').toBeTruthy();
+    expect(rage?.getAttribute('data-expanded')).toBe('false');
+    expect(rage?.querySelector('[data-role="action-description"]')).toBeNull();
+
+    const toggle = rage?.querySelector('[data-testid="action-card-toggle"]') as HTMLElement;
+    fireEvent.click(toggle);
+
+    expect(rage?.getAttribute('data-expanded')).toBe('true');
+    const body = rage?.querySelector('[data-role="action-description"]');
+    expect(body, 'description body').toBeTruthy();
+    // Rage's description starts with "You tap into your inner fury".
+    expect(body?.textContent).toContain('inner fury');
   });
 });

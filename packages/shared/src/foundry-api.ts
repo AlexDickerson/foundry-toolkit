@@ -107,7 +107,7 @@ export interface CompendiumSearchOptions {
    *  through so the picker surfaces them; items without any
    *  `system.ancestry` field are unaffected. */
   ancestrySlug?: string;
-  /** Max results. Clamped server-side to 1-100, defaults to 10. */
+  /** Max results. Clamped server-side to 1-10_000, defaults to 10. */
   limit?: number;
 }
 
@@ -129,8 +129,11 @@ export interface CompendiumMatch {
    *  Absent for ancestry-specific heritages and for non-heritage items.
    *  The picker uses this to render a "Versatile Heritages" section. */
   isVersatile?: boolean;
-  /** Present on matches from cached packs (e.g. pf2e.equipment-srd)
-   *  served by dm-tool's local SQLite cache. */
+  /** Present only when the search was served from foundry-mcp's
+   *  compendium document cache (or dm-tool's local SQLite cache). Lets
+   *  the shop UI render per-tile prices without issuing a follow-up
+   *  get-compendium-document call per result. Absent for uncached
+   *  packs. */
   price?: ItemPrice;
 }
 

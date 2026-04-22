@@ -38,7 +38,12 @@ export const compendiumSearchQuery = z.object({
   sources: csvParam,
   ancestrySlug: z.string().optional(),
   maxLevel: z.coerce.number().int().nonnegative().max(30).optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
+  // Hard ceiling chosen so a single request can return every item in
+  // the largest cached pack (pf2e.equipment-srd ≈ 5.6k items) without
+  // pagination. The in-memory cache's filter/sort is microseconds on
+  // this size; uncached searches already iterate the full index on
+  // every call, so the bigger cap just widens the response payload.
+  limit: z.coerce.number().int().positive().max(10_000).optional(),
 });
 
 export const listCompendiumPacksQuery = z.object({

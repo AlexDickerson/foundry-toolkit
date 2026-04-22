@@ -27,16 +27,32 @@ type DocState = { kind: 'loading' } | { kind: 'ready'; doc: CompendiumDocument }
 
 const POPOVER_WIDTH = 420;
 const POPOVER_GAP = 6;
+// Preferred height used for the "is there room below?" check. The
+// actual popover is capped via `maxHeight` on the outer element so
+// whatever the final content measures to, it can scroll internally
+// without escaping the viewport.
+const POPOVER_PREFERRED_HEIGHT = 520;
+const VIEWPORT_EDGE_MARGIN = 12;
 const HOVER_CLOSE_DELAY_MS = 140;
 const HOVER_OPEN_DELAY_MS = 300;
 
-export function useUuidHover(): {
+export interface UseUuidHoverOptions {
+  // Synchronously resolve a uuid to a CompendiumDocument *without*
+  // going through the API. Used for uuids that reference actor-local
+  // items (e.g. hydrated feat picks whose source compendium id has
+  // been stripped) so the hover still shows the item's own
+  // description instead of a failed fetch.
+  resolveLocal?: (uuid: string) => CompendiumDocument | undefined;
+}
+
+export function useUuidHover(opts?: UseUuidHoverOptions): {
   delegationHandlers: {
     onMouseOver: (e: React.MouseEvent<HTMLElement>) => void;
     onMouseOut: (e: React.MouseEvent<HTMLElement>) => void;
   };
   popover: React.ReactElement | null;
 } {
+  const resolveLocal = opts?.resolveLocal;
   const [stack, setStack] = useState<HoverLevel[]>([]);
   const [docs, setDocs] = useState<Map<string, DocState>>(new Map());
   const cacheRef = useRef<Map<string, DocState>>(new Map());
@@ -82,6 +98,14 @@ export function useUuidHover(): {
 
   const loadDoc = async (uuid: string): Promise<void> => {
     if (cacheRef.current.has(uuid)) return;
+    // Prefer a synchronous local resolution when the caller provides
+    // one. Skips the API entirely for actor-local uuids.
+    const local = resolveLocal?.(uuid);
+    if (local) {
+      cacheRef.current.set(uuid, { kind: 'ready', doc: local });
+      setDocs(new Map(cacheRef.current));
+      return;
+    }
     cacheRef.current.set(uuid, { kind: 'loading' });
     setDocs(new Map(cacheRef.current));
     try {
@@ -181,20 +205,24 @@ export function useUuidHover(): {
     handleMouseOut(e.target as Element, (e.relatedTarget as Element | null) ?? null);
   };
 
-  const positions = stack.reduce<Array<{ top: number; left: number }>>((acc, level, idx) => {
-    const maxLeft = window.innerWidth - POPOVER_WIDTH - 12;
+  const positions = stack.reduce<Array<{ top: number; left: number; maxHeight: number }>>((acc, level, idx) => {
+    const maxLeft = window.innerWidth - POPOVER_WIDTH - VIEWPORT_EDGE_MARGIN;
     if (idx === 0) {
+      const v = pickVerticalSlot(level.anchorRect);
       acc.push({
-        top: level.anchorRect.bottom + POPOVER_GAP,
-        left: Math.max(12, Math.min(level.anchorRect.left, maxLeft)),
+        top: v.top,
+        left: Math.max(VIEWPORT_EDGE_MARGIN, Math.min(level.anchorRect.left, maxLeft)),
+        maxHeight: v.maxHeight,
       });
       return acc;
     }
     const parent = acc[idx - 1];
     if (parent === undefined) {
+      const v = pickVerticalSlot(level.anchorRect);
       acc.push({
-        top: level.anchorRect.bottom + POPOVER_GAP,
-        left: Math.max(12, Math.min(level.anchorRect.left, maxLeft)),
+        top: v.top,
+        left: Math.max(VIEWPORT_EDGE_MARGIN, Math.min(level.anchorRect.left, maxLeft)),
+        maxHeight: v.maxHeight,
       });
       return acc;
     }
@@ -202,8 +230,8 @@ export function useUuidHover(): {
     // fall back to the left side so the preview stays reachable.
     const rightOfParent = parent.left + POPOVER_WIDTH + POPOVER_GAP;
     const leftOfParent = parent.left - POPOVER_WIDTH - POPOVER_GAP;
-    const left = rightOfParent <= maxLeft ? rightOfParent : Math.max(12, leftOfParent);
-    acc.push({ top: parent.top, left });
+    const left = rightOfParent <= maxLeft ? rightOfParent : Math.max(VIEWPORT_EDGE_MARGIN, leftOfParent);
+    acc.push({ top: parent.top, left, maxHeight: parent.maxHeight });
     return acc;
   }, []);
 
@@ -238,7 +266,14 @@ export function useUuidHover(): {
                 if (rel && rel.closest('[data-uuid-popover]')) return;
                 scheduleCloseToLength(0);
               }}
-              style={{ position: 'fixed', top: pos.top, left: pos.left, width: POPOVER_WIDTH }}
+              style={{
+                position: 'fixed',
+                top: pos.top,
+                left: pos.left,
+                width: POPOVER_WIDTH,
+                maxHeight: pos.maxHeight,
+                overflowY: 'auto',
+              }}
               className="z-50 rounded border border-pf-border bg-pf-bg p-4 text-left shadow-xl"
             >
               <PopoverBody state={state} />
@@ -253,6 +288,31 @@ export function useUuidHover(): {
     delegationHandlers: { onMouseOver, onMouseOut },
     popover,
   };
+}
+
+// Decide whether to open below the anchor (default) or flip above it
+// when there isn't enough room, and how tall the popover can be before
+// it should scroll internally. Falls back to the side with the most
+// room when neither fits the preferred height.
+function pickVerticalSlot(anchor: DOMRect): { top: number; maxHeight: number } {
+  const viewportH = window.innerHeight;
+  const spaceBelow = viewportH - anchor.bottom - POPOVER_GAP - VIEWPORT_EDGE_MARGIN;
+  const spaceAbove = anchor.top - POPOVER_GAP - VIEWPORT_EDGE_MARGIN;
+
+  if (spaceBelow >= POPOVER_PREFERRED_HEIGHT) {
+    return { top: anchor.bottom + POPOVER_GAP, maxHeight: POPOVER_PREFERRED_HEIGHT };
+  }
+  if (spaceAbove >= POPOVER_PREFERRED_HEIGHT) {
+    return { top: anchor.top - POPOVER_GAP - POPOVER_PREFERRED_HEIGHT, maxHeight: POPOVER_PREFERRED_HEIGHT };
+  }
+  // Neither side has preferred height — open on whichever side has
+  // more space and cap the popover to that space so the content
+  // becomes scrollable inside the viewport instead of getting clipped.
+  if (spaceBelow >= spaceAbove) {
+    return { top: anchor.bottom + POPOVER_GAP, maxHeight: Math.max(120, spaceBelow) };
+  }
+  const h = Math.max(120, spaceAbove);
+  return { top: Math.max(VIEWPORT_EDGE_MARGIN, anchor.top - POPOVER_GAP - h), maxHeight: h };
 }
 
 function PopoverBody({ state }: { state: DocState | undefined }): React.ReactElement {
@@ -305,7 +365,7 @@ function DocPreview({ doc }: { doc: CompendiumDocument }): React.ReactElement {
       </div>
       {description.length > 0 ? (
         <div
-          className="max-h-[28rem] overflow-y-auto pr-1 text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2 [&_p]:leading-relaxed"
+          className="text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2 [&_p]:leading-relaxed"
           dangerouslySetInnerHTML={{ __html: enrichDescription(description) }}
         />
       ) : (
