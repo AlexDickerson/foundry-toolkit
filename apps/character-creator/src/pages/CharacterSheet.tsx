@@ -13,6 +13,7 @@ import { Inventory } from '../components/tabs/Inventory';
 import { Proficiencies } from '../components/tabs/Proficiencies';
 import { Progression } from '../components/tabs/Progression';
 import { Spells } from '../components/tabs/Spells';
+import { useEventChannel } from '../lib/useEventChannel';
 import { fromPreparedCharacter } from '../prereqs';
 
 type State =
@@ -86,6 +87,18 @@ export function CharacterSheet({ actorId, onBack }: Props): React.ReactElement {
   const reloadActor = (): void => {
     setReloadNonce((n) => n + 1);
   };
+
+  // Live-refresh when Foundry reports a crafting-state change for this
+  // actor (formulas added/removed, daily prep expended, etc.). The
+  // subscription is always on while the sheet is mounted — the server
+  // only registers the Foundry hook once there's at least one
+  // subscriber, so the cost of an idle subscription is the SSE
+  // connection itself.
+  useEventChannel<{ actorId: string }>('crafting', (data) => {
+    if (state.kind === 'ready' && data.actorId === state.actor.id) {
+      reloadActor();
+    }
+  });
 
   return (
     <div>

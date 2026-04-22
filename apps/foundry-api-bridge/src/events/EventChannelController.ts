@@ -68,6 +68,11 @@ interface CombatForEvent {
   combatants: { map<T>(fn: (c: CombatantForEvent) => T): T[] };
 }
 
+interface FoundryActorForEvent {
+  id: string;
+  type?: string;
+}
+
 type HookCallback = (...args: unknown[]) => void;
 
 interface FoundryHooks {
@@ -86,7 +91,7 @@ interface HookHandle {
 // the server's http/schemas.ts — the server rejects SSE requests for
 // channels that don't appear there, and the module ignores
 // `set-event-subscription` for channels it doesn't switch on below.
-const KNOWN_CHANNELS = new Set(['rolls', 'chat', 'combat']);
+const KNOWN_CHANNELS = new Set(['rolls', 'chat', 'combat', 'crafting']);
 
 /**
  * Owns Foundry Hook registrations for every active event channel. The
@@ -129,6 +134,17 @@ export class EventChannelController {
           this.reg('updateChatMessage', (raw) => {
             if (!isFoundryChatMessage(raw)) return;
             this.wsClient.pushEvent('chat', { eventType: 'update', data: serializeChatMessage(raw) });
+          }),
+        );
+        break;
+
+      case 'crafting':
+        handles.push(
+          this.reg('updateActor', (...args: unknown[]) => {
+            const [rawActor, rawChange] = args;
+            if (!isFoundryActorForEvent(rawActor)) return;
+            if (!craftingChanged(rawChange)) return;
+            this.wsClient.pushEvent('crafting', { actorId: rawActor.id });
           }),
         );
         break;
@@ -333,4 +349,26 @@ function isCombatantWithParent(value: unknown): value is CombatantWithParent {
   // `combat` may be null for a combatant mid-creation; the caller
   // checks before pushing.
   return true;
+}
+
+function isFoundryActorForEvent(value: unknown): value is FoundryActorForEvent {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj['id'] === 'string';
+}
+
+// True when a `updateActor` diff touches `system.crafting.*`. Foundry
+// can deliver the diff either as a nested object (`{system: {crafting:
+// {...}}}`) or, for some update paths, with dot-notation keys like
+// `"system.crafting.formulas"` at the top level — accept both.
+// Exported for unit testing; the hook callback is the only caller.
+export function craftingChanged(change: unknown): boolean {
+  if (typeof change !== 'object' || change === null) return false;
+  const obj = change as Record<string, unknown>;
+  const system = obj['system'];
+  if (typeof system === 'object' && system !== null && 'crafting' in system) return true;
+  for (const key of Object.keys(obj)) {
+    if (key.startsWith('system.crafting')) return true;
+  }
+  return false;
 }
