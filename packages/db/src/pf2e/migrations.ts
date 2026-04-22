@@ -84,4 +84,17 @@ export function migratePf2eDb(db: Database.Database): void {
       value TEXT NOT NULL
     )
   `);
+
+  // Lazy cache of foundry-mcp compendium documents. Populated on demand by
+  // the HTTP client in apps/dm-tool/electron/compendium — one row per uuid
+  // we've actually fetched. Graceful degradation for brief mcp outages, not
+  // a pre-warm. fetched_at is epoch millis; body_json is the serialized
+  // CompendiumDocument response.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pf2e_compendium_docs (
+      uuid       TEXT PRIMARY KEY,
+      fetched_at INTEGER NOT NULL,
+      body_json  TEXT NOT NULL
+    )
+  `);
 }
