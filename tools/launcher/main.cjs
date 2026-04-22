@@ -94,6 +94,34 @@ function openTerminal(worktreePath) {
   spawnWindowsTerminal(worktreePath, null, path.basename(worktreePath));
 }
 
+async function deleteWorktree(worktreePath, { force = false } = {}) {
+  // Resolve the main worktree up front so we can refuse to delete it even if
+  // the caller lies. `git worktree list` returns the main checkout first.
+  let primaryPath;
+  try {
+    const wts = await listWorktrees();
+    primaryPath = wts[0]?.path;
+  } catch (err) {
+    return { ok: false, error: `Could not list worktrees: ${err.message || err}` };
+  }
+  if (!worktreePath || worktreePath === primaryPath) {
+    return { ok: false, error: 'Refusing to delete the main worktree.' };
+  }
+  const args = ['worktree', 'remove'];
+  if (force) args.push('--force');
+  args.push(worktreePath);
+  try {
+    await execFileAsync('git', args, { cwd: launcherDir, windowsHide: true });
+    return { ok: true };
+  } catch (err) {
+    const stderr = (err.stderr || err.message || '').toString();
+    // `git worktree remove` prints this when the tree is dirty/has untracked
+    // files; surface it so the renderer can offer a force-confirm path.
+    const needsForce = !force && /use\s+--force/i.test(stderr);
+    return { ok: false, needsForce, error: stderr.trim() || 'git worktree remove failed' };
+  }
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 960,
@@ -115,6 +143,7 @@ app.whenReady().then(() => {
   ipcMain.handle('launch', (_e, wt, script) => launch(wt, script));
   ipcMain.handle('open-folder', (_e, p) => shell.openPath(p));
   ipcMain.handle('open-terminal', (_e, p) => openTerminal(p));
+  ipcMain.handle('delete-worktree', (_e, p, opts) => deleteWorktree(p, opts));
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

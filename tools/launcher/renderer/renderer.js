@@ -19,6 +19,29 @@ function el(tag, attrs = {}, children = []) {
   return node;
 }
 
+async function handleDelete(root) {
+  if (
+    !confirm(
+      `Remove worktree "${root.name}"?\n\n${root.path}\n\nThe branch is kept; only the worktree directory is removed.`,
+    )
+  ) {
+    return;
+  }
+  let res = await window.launcher.deleteWorktree(root.path);
+  if (!res.ok && res.needsForce) {
+    const forceOk = confirm(
+      `"${root.name}" has uncommitted or untracked changes.\n\n${res.error}\n\nForce-delete anyway? This discards those changes.`,
+    );
+    if (!forceOk) return;
+    res = await window.launcher.deleteWorktree(root.path, { force: true });
+  }
+  if (!res.ok) {
+    alert(`Failed to remove worktree:\n\n${res.error}`);
+    return;
+  }
+  render();
+}
+
 function renderWorktree(root) {
   const nameEl = el('div', { className: 'worktree-name' + (root.isMain ? ' is-main' : ''), text: root.name });
   const pathEl = el('div', { className: 'worktree-path', text: root.path });
@@ -34,7 +57,18 @@ function renderWorktree(root) {
     title: 'Open Windows Terminal here',
     onclick: () => window.launcher.openTerminal(root.path),
   });
-  const actions = el('div', { className: 'worktree-actions' }, [openFolder, openTerm]);
+  const actionButtons = [openFolder, openTerm];
+  if (!root.isMain) {
+    actionButtons.push(
+      el('button', {
+        className: 'danger-btn',
+        text: 'Delete',
+        title: 'Remove this worktree (git worktree remove)',
+        onclick: () => handleDelete(root),
+      }),
+    );
+  }
+  const actions = el('div', { className: 'worktree-actions' }, actionButtons);
 
   const head = el('div', { className: 'worktree-head' }, [headInfo, actions]);
 
