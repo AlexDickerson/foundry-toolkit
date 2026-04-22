@@ -96,6 +96,19 @@ export class WebSocketClient {
     this.socket.send(JSON.stringify(response));
   }
 
+  // Fire-and-forget push of a channel event (hooks, rolls, chat, ...).
+  // Distinct from `send` (command responses) and `sendEvent` (bridge
+  // prompts that await a reply). Dropped when the socket is closed —
+  // the server re-requests subscription on reconnect, so losing a
+  // few events during a disconnect is acceptable.
+  pushEvent(channel: string, data: unknown): void {
+    if (this.socket?.readyState !== WS_OPEN) {
+      return;
+    }
+
+    this.socket.send(JSON.stringify({ kind: 'event', channel, data }));
+  }
+
   // Ship a module-initiated event and wait on the matching bridge
   // response keyed by bridgeId. Each in-flight request has a
   // generous timeout so long-running frontend prompts don't reject

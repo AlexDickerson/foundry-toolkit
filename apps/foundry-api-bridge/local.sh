@@ -12,7 +12,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-COMPOSE="docker compose -f docker-compose.local.yml"
+# Load env vars from the monorepo root .env so credentials are shared
+# across all foundry-toolkit apps instead of being duplicated per-app.
+ROOT_ENV="$SCRIPT_DIR/../../.env"
+COMPOSE="docker compose --env-file $ROOT_ENV -f docker-compose.local.yml"
 cd "$SCRIPT_DIR"
 
 usage() {
@@ -32,7 +35,8 @@ Commands:
   ps         Compose status
 
 First-time:
-  1. Copy .env.example to .env and fill in FOUNDRY_USERNAME/PASSWORD
+  1. Copy apps/foundry-api-bridge/.env.example to <repo-root>/.env
+     and fill in FOUNDRY_USERNAME/PASSWORD
   2. ./local.sh up
   3. Open http://localhost:30000 — log in, create a world, install the
      foundry-api-bridge module from /data/Data/modules
@@ -53,8 +57,8 @@ build_local() {
 }
 
 cmd_up() {
-  if [ ! -f .env ]; then
-    echo "ERROR: .env not found. Copy .env.example to .env and fill in credentials." >&2
+  if [ ! -f "$ROOT_ENV" ]; then
+    echo "ERROR: $ROOT_ENV not found. Copy apps/foundry-api-bridge/.env.example to the toolkit root as .env and fill in credentials." >&2
     exit 1
   fi
   build_local
