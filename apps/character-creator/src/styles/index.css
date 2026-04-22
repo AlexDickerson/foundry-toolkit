@@ -1,0 +1,12 @@
+@import './pf2e/fonts.css';
+@import 'tailwindcss';
+@import './pf2e/tokens.css';
+
+/* Sheet-wide base: cream parchment surface, Gelasio for long-form text.
+   Individual components override via `font-sans` / `font-serif` utilities
+   as needed. */
+body {
+  font-family: var(--font-body);
+  color: var(--color-pf-text);
+  background-color: var(--color-pf-bg);
+}

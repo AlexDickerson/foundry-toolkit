@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+*.sw?
+.vscode/*
+!.vscode/extensions.json
+
+# Secrets
+.env
+.env.local
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Test coverage
+coverage/
+
+# AI
+.claude
+.serena
+playwright-output
+.mcp.json

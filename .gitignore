@@ -1,0 +1,40 @@
+node_modules/
+*.log
+.DS_Store
+
+# Build outputs
+out/
+apps/dm-tool/out/
+apps/dm-tool/dist/
+apps/character-creator/dist/
+apps/player-portal/server-dist/
+apps/foundry-mcp/dist/
+packages/*/dist/
+
+# foundry-api-bridge: keep checked-in static assets in dist/ but ignore vite output
+apps/foundry-api-bridge/dist/*.js
+apps/foundry-api-bridge/dist/*.js.map
+
+# Personal config (dm-tool)
+apps/dm-tool/config.json
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Claude Code (worktrees, session data, plans, etc.)
+.claude/
+
+# Python artifacts (tagger/)
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+tagger/config.toml
+tagger/build/
+tagger/dist/
+tagger/*.spec
+
+# Auto-Wall binary (downloaded during CI or locally)
+auto-wall-bin/

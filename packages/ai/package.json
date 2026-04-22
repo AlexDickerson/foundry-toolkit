@@ -1,0 +1,29 @@
+{
+  "name": "@foundry-toolkit/ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PF2e GM assistant agents (chat, book classifier, encounter hook generator, loot generator). Pure TS library consumed by dm-tool via workspace reference; no Electron coupling.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./chat": "./src/chat/index.ts",
+    "./classifier": "./src/classifier/index.ts",
+    "./hooks": "./src/hooks/index.ts",
+    "./loot": "./src/loot/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "harness": "tsx harness/run.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.71",
+    "@foundry-toolkit/shared": "*",
+    "ai": "^6.0.168",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.19.2",
+    "typescript": "^6.0.3"
+  }
+}

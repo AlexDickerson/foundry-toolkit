@@ -1,0 +1,16 @@
+/*
+ * Google Fonts loader for the pf2e-derived font stacks (see tokens.css).
+ *
+ * pf2e's _fonts.scss pulls the same faces from Foundry's static tree; we
+ * load them from fonts.googleapis.com while the frontend is dev-hosted.
+ * Swap for self-hosted WOFF2 when we care about perf / privacy — the
+ * CSS variables in tokens.css won't change.
+ *
+ * Weights picked to cover our current uses:
+ *   Roboto 400/500/700 — body, chrome, stat tiles
+ *   Roboto Condensed 400/700 — tight header runs (reserved)
+ *   Roboto Mono 400/500/700 — tabular numbers
+ *   Eczar 500/600/700 — display / section headers
+ *   Gelasio 400/500/700 — long-form body copy (Background tab)
+ */
+@import url('https://fonts.googleapis.com/css2?family=Eczar:wght@500;600;700&family=Gelasio:wght@400;500;700&family=Roboto+Condensed:wght@400;700&family=Roboto+Mono:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap');

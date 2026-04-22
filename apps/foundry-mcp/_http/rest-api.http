@@ -1,0 +1,163 @@
+### foundry-mcp REST API — smoke & exploration
+###
+### Install the REST Client extension (humao.rest-client) then click
+### "Send Request" above each block. `@host` selects the target — switch
+### the commented line to point at the remote host if needed.
+###
+### To hit real actor data you need:
+###   1. `local: rebuild` task (or `./local.sh rebuild`) so the Foundry
+###      container has the updated module + server
+###   2. A world open in Foundry with at least one PF2e character actor
+###   3. `GET /api/actors` to grab the actor id, then plug it into @actorId
+
+@host = http://localhost:8765
+# @host = http://192.168.0.76:8765
+
+### Fill these in after hitting `GET /api/actors`
+@actorId = oXuyOjTRMhxqbs6n
+
+###############################################################################
+# System — existing endpoints (sanity checks that the server is alive)
+###############################################################################
+
+### Health — also shows whether the Foundry module is connected
+GET {{host}}/health
+
+###############################################################################
+# Actors — read surface
+###############################################################################
+
+### List all actors (id, name, type, img)
+GET {{host}}/api/actors
+
+### Raw actor (kept for parity; returns getRollData() reference — limited use)
+GET {{host}}/api/actors/{{actorId}}
+
+### Prepared actor — THE Phase 1 proof endpoint. After prepareData():
+###   system.attributes.ac.value         — final AC
+###   system.attributes.hp.{value,max}
+###   system.saves.{fortitude,reflex,will}.value
+###   system.skills.{acrobatics,arcana,...}.value
+###   system.perception.value
+### Items array includes each embedded item's prepared `system` too.
+GET {{host}}/api/actors/{{actorId}}/prepared
+
+### Actor's embedded items (feats, spells, gear, class, ancestry, etc.)
+GET {{host}}/api/actors/{{actorId}}/items
+
+###############################################################################
+# Statistic traces — modifier breakdowns for "why is my AC 18?" tooltips
+###############################################################################
+
+### Armor Class trace
+GET {{host}}/api/actors/{{actorId}}/trace/ac
+
+### Perception trace
+GET {{host}}/api/actors/{{actorId}}/trace/perception
+
+### Saves
+GET {{host}}/api/actors/{{actorId}}/trace/fortitude
+###
+GET {{host}}/api/actors/{{actorId}}/trace/reflex
+###
+GET {{host}}/api/actors/{{actorId}}/trace/will
+
+### Skills (any of the 16 PF2e skill slugs)
+GET {{host}}/api/actors/{{actorId}}/trace/acrobatics
+###
+GET {{host}}/api/actors/{{actorId}}/trace/stealth
+
+### Class DC (null on non-class actors)
+GET {{host}}/api/actors/{{actorId}}/trace/class
+
+###############################################################################
+# Compendium search — for ancestry/class/feat pickers
+###############################################################################
+
+### Search feats for "fleet"
+GET {{host}}/api/compendium/search?q=fleet&documentType=Item&limit=10
+
+### Search ancestries in a specific pack
+GET {{host}}/api/compendium/search?q=elf&packId=pf2e.ancestries&limit=25
+
+###############################################################################
+# Error-shape checks (negative tests)
+###############################################################################
+
+### 400 — Zod validation error (missing `q`)
+GET {{host}}/api/compendium/search
+
+### 404 — unknown route under /api (our envelope, not Fastify's default)
+GET {{host}}/api/does-not-exist
+
+### 404 — actor not found (only when Foundry IS connected; otherwise 503)
+GET {{host}}/api/actors/nonexistent_actor_id/prepared
+
+###############################################################################
+# Eval — dev-only escape hatch for ad-hoc data paths
+#
+# Requires ALLOW_EVAL=1 on the server (set in docker-compose.local.yml or
+# your .env). When off, these endpoints 404 (indistinguishable from unknown
+# routes). Script body runs in an async IIFE inside the Foundry page; must
+# explicitly `return` — JS has no implicit last-expression return. Async
+# `await` is fine. Result must be JSON-serializable (call .toObject(false)
+# on Foundry Document instances before returning them).
+###############################################################################
+
+### World counts
+POST {{host}}/api/eval
+Content-Type: application/json
+
+{
+  "script": "return { actors: game.actors.size, items: game.items.size, scenes: game.scenes.size };"
+}
+
+### Full armorClass statistic (including Modifier objects, not just trace)
+POST {{host}}/api/eval
+Content-Type: application/json
+
+{
+  "script": "const a = game.actors.get('{{actorId}}'); return a?.armorClass?.getTraceData() ?? 'actor has no armorClass';"
+}
+
+### List all skill slugs available on a PF2e character (useful for UI)
+POST {{host}}/api/eval
+Content-Type: application/json
+
+{
+  "script": "const a = game.actors.get('{{actorId}}'); return a?.skills ? Object.keys(a.skills) : 'actor has no skills';"
+}
+
+### Inspect all save slugs
+POST {{host}}/api/eval
+Content-Type: application/json
+
+{
+  "script": "const a = game.actors.get('{{actorId}}'); return a?.saves ? Object.keys(a.saves) : 'actor has no saves';"
+}
+
+### 400 — empty script (Zod validation)
+POST {{host}}/api/eval
+Content-Type: application/json
+
+{
+  "script": ""
+}
+
+###############################################################################
+# Asset proxy — browser-friendly GETs for Foundry asset paths. The SPA
+# loads actor `img` fields as relative URLs; these routes fetch the asset
+# through the WebSocket bridge and serve the decoded bytes with an
+# immutable Cache-Control header.
+###############################################################################
+
+### PF2e iconic portrait (any Foundry data path under the whitelisted
+### prefixes — /icons, /systems, /modules, /worlds, /ui — works).
+GET {{host}}/systems/pf2e/icons/iconics/portraits/amiri.webp
+
+### 503 — bridge-disconnected check (expect this when Foundry is off)
+GET {{host}}/systems/pf2e/icons/does-not-exist.webp
+
+### Ops visibility — entry count, byte total, and hit rate for the
+### in-memory LRU that sits in front of these routes.
+GET {{host}}/api/_debug/asset-cache

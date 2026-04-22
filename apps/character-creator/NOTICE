@@ -1,0 +1,21 @@
+foundry-mcp-frontend
+Copyright 2026 Alex Dickerson
+
+Licensed under MIT (see repository LICENSE).
+
+This product includes portions derived from or vendored from the
+Pathfinder 2e Foundry VTT system:
+
+    https://github.com/foundryvtt/pf2e
+    Copyright 2019 Hooking and contributors
+    Licensed under the Apache License, Version 2.0
+
+Files derived from that project retain their Apache-2.0 license. Notable
+derivations so far:
+
+  - src/i18n/en.json
+      Vendored from static/lang/en.json. Used for resolving PF2E.* i18n
+      keys returned by the foundry-mcp REST API's prepared-actor payload.
+      No modifications.
+
+Further SCSS and template derivations will be listed here as they land.

@@ -1,0 +1,36 @@
+{
+  "name": "foundry-toolkit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monorepo consolidating dm-tool, foundry-mcp, foundry-api-bridge, character-creator, and player-portal. npm-workspaces.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint . && npm run lint --workspaces --if-present",
+    "lint:fix": "eslint . --fix",
+    "build": "npm run build --workspaces --if-present",
+    "dev:dm-tool": "npm --workspace apps/dm-tool run dev",
+    "dev:mcp": "npm --workspace apps/foundry-mcp run dev",
+    "dev:character-creator": "npm --workspace apps/character-creator run dev",
+    "dev:player-portal": "npm --workspace apps/player-portal run dev",
+    "dev:api-bridge": "npm --workspace apps/foundry-api-bridge run dev",
+    "rebuild-sqlite": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.58.2"
+  }
+}

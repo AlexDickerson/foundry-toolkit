@@ -1,0 +1,27 @@
+This directory contains files derived from the Pathfinder 2e system for
+Foundry Virtual Tabletop (https://github.com/foundryvtt/pf2e), used under
+the Apache License 2.0.
+
+Files (and their upstream source):
+
+  tokens.css
+    Color palette and font-family variables transcribed from:
+      src/styles/_colors.scss
+      src/styles/_fonts.scss
+    We keep a subset — the core palette, rarity, proficiency rank, and
+    degree-of-success tokens — and expose them through Tailwind 4's
+    @theme block so utilities like `bg-pf-primary` compile against
+    var(--color-pf-primary).
+
+  fonts.css
+    Loads Google Fonts equivalents of the families referenced in
+    pf2e's _fonts.scss. pf2e bundles these via Foundry's asset tree;
+    we use Google Fonts for now and will revisit self-hosting if/when
+    the SPA splits out of the monorepo.
+
+No Pathfinder 2e / Paizo intellectual property is reproduced here —
+only the community-contributed Foundry system's styling tokens, which
+are licensed under Apache-2.0. Paizo Community Use Policy continues to
+govern game-rules content (which this directory does not contain).
+
+Upstream license: https://github.com/foundryvtt/pf2e/blob/master/LICENSE
