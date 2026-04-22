@@ -5,7 +5,14 @@
 // hide the fact we're talking JSON-RPC under the hood. If we ever move off
 // MCP or add a second transport, only this file changes.
 
+import type { ActorRef, CompendiumMatch } from '@foundry-toolkit/shared/foundry-api';
+
 import { MCP_PROTOCOL_VERSION } from './constants.js';
+
+// Re-export for backwards compatibility with existing dm-tool imports that
+// expect these types from this module. New code should import directly from
+// `@foundry-toolkit/shared/foundry-api`.
+export type { ActorRef as ActorResult, CompendiumMatch };
 
 // ---------------------------------------------------------------------------
 // Transport
@@ -119,21 +126,7 @@ export async function callTool(
 
 // ---------------------------------------------------------------------------
 // Typed tool wrappers
-//
-// Shapes mirror foundry-mcp's handler return types. We don't share type
-// definitions across repos — duplication here is a small cost for keeping
-// the two packages independently shippable.
 // ---------------------------------------------------------------------------
-
-export interface CompendiumMatch {
-  packId: string;
-  packLabel: string;
-  documentId: string;
-  uuid: string;
-  name: string;
-  type: string;
-  img: string;
-}
 
 export async function findInCompendium(
   session: McpSession,
@@ -148,15 +141,6 @@ export async function findInCompendium(
   return (result['matches'] as CompendiumMatch[] | undefined) ?? [];
 }
 
-export interface ActorResult {
-  id: string;
-  uuid: string;
-  name: string;
-  type: string;
-  img: string;
-  folder: string | null;
-}
-
 export async function createActorFromCompendium(
   session: McpSession,
   args: {
@@ -165,9 +149,9 @@ export async function createActorFromCompendium(
     name?: string;
     folder?: string;
   },
-): Promise<ActorResult> {
+): Promise<ActorRef> {
   const result = await callTool(session, 'create_actor_from_compendium', args as Record<string, unknown>);
-  return result as unknown as ActorResult;
+  return result as unknown as ActorRef;
 }
 
 export type FolderDocumentType =

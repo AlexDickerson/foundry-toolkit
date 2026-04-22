@@ -20,10 +20,12 @@ Part of the foundry-toolkit monorepo at `packages/shared` — see the root [CLAU
 Subpath exports:
 
 - `.` / `./types` — `src/types.ts`
+- `./foundry-api` — `src/foundry-api.ts` (foundry-mcp `/api/*` wire contract: `CompendiumMatch`, `ActorRef`, `PreparedActor`, `ApiError`, etc.)
 - `./foundry-markup` — `src/foundry-markup.ts`
 - `./map-stem` — `src/map-stem.ts`
 - `./MissionBriefing` — `src/MissionBriefing.tsx` (React component)
 - `./golarion-map` — `src/golarion-map/index.ts`
+- `./rpc` — `src/rpc/index.ts` (Zod schemas + `z.infer<>` types for the `/api/*` request surface; re-used by both `apps/foundry-mcp` server and `apps/character-creator` client)
 
 ## Key decisions / gotchas
 

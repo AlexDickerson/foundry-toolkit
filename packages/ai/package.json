@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
+    "@foundry-toolkit/pf2e-rules": "*",
     "@foundry-toolkit/shared": "*",
     "ai": "^6.0.168",
     "zod": "^4.3.6"

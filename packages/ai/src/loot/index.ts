@@ -14,6 +14,13 @@
 // model-invented, the rest must still be real items.
 
 import { randomUUID } from 'node:crypto';
+import {
+  budgetMultiplier,
+  creatureXp,
+  moderatePerEncounterGp,
+  threatLabel,
+  type Threat,
+} from '@foundry-toolkit/pf2e-rules';
 import type { Encounter, LootItem, LootKind, LootSource } from '@foundry-toolkit/shared/types';
 import { callAnthropic } from '../shared/anthropic.js';
 import { DEFAULT_MODEL, LOOT_MAX_TOKENS } from '../shared/constants.js';
@@ -56,60 +63,6 @@ export interface GenerateLootInput {
   shortlist: LootShortlistItem[];
 }
 
-// --- PF2e treasure + XP tables ---------------------------------------------
-
-/** Total character-treasure-per-level for a 4-player party, in gp.
- *  Source: PF2e Core Rulebook Table 10-9. The party is expected to see
- *  roughly 4 encounters' worth of treasure per level, so a moderate-threat
- *  encounter's budget is this value / 4. */
-const TREASURE_PER_LEVEL_GP: Record<number, number> = {
-  1: 175,
-  2: 300,
-  3: 500,
-  4: 850,
-  5: 1350,
-  6: 2000,
-  7: 2900,
-  8: 4000,
-  9: 5700,
-  10: 8000,
-  11: 11500,
-  12: 16500,
-  13: 25000,
-  14: 36500,
-  15: 54500,
-  16: 82500,
-  17: 128000,
-  18: 208000,
-  19: 355000,
-  20: 490000,
-};
-
-/** Relative-level → XP (PF2e Core Rulebook, Table 10-1). Creatures more than
- *  four levels below the party contribute nothing; more than four above are
- *  capped at extreme (160). */
-function creatureXp(creatureLevel: number, partyLevel: number): number {
-  const d = creatureLevel - partyLevel;
-  if (d <= -5) return 0;
-  if (d >= 5) return 200;
-  return [10, 15, 20, 30, 40, 60, 80, 120, 160][d + 4];
-}
-
-function threatLabel(totalXp: number): 'trivial' | 'low' | 'moderate' | 'severe' | 'extreme' {
-  if (totalXp <= 40) return 'trivial';
-  if (totalXp <= 60) return 'low';
-  if (totalXp <= 100) return 'moderate';
-  if (totalXp <= 140) return 'severe';
-  return 'extreme';
-}
-
-/** Multiplier against the moderate-encounter budget. Continuous rather than
- *  bucketed so tuned encounters (70 XP, 110 XP, etc.) still produce
- *  proportional treasure instead of snapping to a threshold. */
-function budgetMultiplier(totalXp: number): number {
-  return Math.max(0.25, totalXp / 80);
-}
-
 // --- Prompt ----------------------------------------------------------------
 
 function summarizeMonster(m: LootMonster): string {
@@ -121,7 +74,7 @@ function buildLootPrompt(args: {
   encounter: Encounter;
   partyLevel: number;
   totalXp: number;
-  threat: ReturnType<typeof threatLabel>;
+  threat: Threat;
   budgetGp: number;
   monsterLines: string[];
   shortlist: LootShortlistItem[];
@@ -227,8 +180,7 @@ export async function generateEncounterLoot(input: GenerateLootInput): Promise<L
   const totalXp = monsters.reduce((sum, m) => sum + creatureXp(m.level, partyLevel), 0);
   const monsterLines = monsters.map(summarizeMonster);
 
-  const moderatePerEncounterGp = (TREASURE_PER_LEVEL_GP[partyLevel] ?? TREASURE_PER_LEVEL_GP[10]) / 4;
-  const budgetGp = moderatePerEncounterGp * budgetMultiplier(totalXp);
+  const budgetGp = moderatePerEncounterGp(partyLevel) * budgetMultiplier(totalXp);
 
   const prompt = buildLootPrompt({
     encounter,

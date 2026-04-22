@@ -118,6 +118,6 @@ The Docker image for Foundry+module itself lives in [foundry-api-bridge](https:/
 - WebSocket bridge to Foundry lives at `/foundry`; the module opens the WS outbound from the GM browser.
 - REST `/api/*` exposes the same data the MCP tools see (actors, items, compendia, scenes, etc.) for the character-creator SPA.
 - OpenAI SDK used specifically for GPT-image-1 map editing (not for chat).
-- Module and frontend live in sibling workspaces (`apps/foundry-api-bridge`, `apps/character-creator`); contract between them is WS (module) + REST (frontend). No shared code.
+- Module and frontend live in sibling workspaces (`apps/foundry-api-bridge`, `apps/character-creator`); runtime contract between them stays WS (module) + REST (frontend). HTTP request/response schemas are shared via `@foundry-toolkit/shared/rpc` so server and SPA can't drift silently.
 - Server ships three ways: as a source zip (GitHub Releases, for systemd-on-Foundry-host), as a bare Node process, and as a Docker image on GHCR that bundles the character-creator SPA for single-container Fly.io deploys. The Foundry + module Docker image still lives in foundry-api-bridge; this repo's image is MCP server + SPA only.
 - The SPA bundle is pulled into the Dockerfile via `COPY --from=ghcr.io/alexdickerson/foundry-character-creator:latest` rather than bundled here — keeps the frontend on its own release cadence and avoids duplicate checkouts in CI.

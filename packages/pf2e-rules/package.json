@@ -1,0 +1,20 @@
+{
+  "name": "@foundry-toolkit/pf2e-rules",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure PF2e rules math (XP budgets, treasure tables, threat tiers). Zero runtime deps — reusable by any consumer that needs to reason about encounter balance or treasure pacing without pulling in the AI or DB layers.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./encounter": "./src/encounter.ts",
+    "./treasure": "./src/treasure.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  }
+}
