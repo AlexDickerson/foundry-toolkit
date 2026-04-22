@@ -45,6 +45,10 @@ export async function updateActorHandler(params: UpdateActorParams): Promise<Act
     updateData['system'] = params.system;
   }
 
+  if (params.flags !== undefined) {
+    updateData['flags'] = params.flags;
+  }
+
   const updatedActor = await actor.update(updateData);
 
   return {

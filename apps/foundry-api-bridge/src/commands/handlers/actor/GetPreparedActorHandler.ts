@@ -1,7 +1,7 @@
 import type { GetActorParams, PreparedActorResult, ItemSummary } from '@/commands/types';
 
 interface ToObjectable {
-  toObject(source: boolean): { system: Record<string, unknown> };
+  toObject(source: boolean): { system: Record<string, unknown>; flags?: Record<string, Record<string, unknown>> };
 }
 
 interface ActorItem extends ToObjectable {
@@ -58,13 +58,16 @@ export function getPreparedActorHandler(params: GetActorParams): Promise<Prepare
     });
   });
 
+  const snapshot = actor.toObject(false);
+
   return Promise.resolve({
     id: actor.id,
     uuid: actor.uuid,
     name: actor.name,
     type: actor.type,
     img: actor.img ?? '',
-    system: actor.toObject(false).system,
+    system: snapshot.system,
     items,
+    flags: snapshot.flags ?? {},
   });
 }
