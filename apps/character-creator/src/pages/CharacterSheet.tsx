@@ -14,6 +14,7 @@ import { Inventory } from '../components/tabs/Inventory';
 import { Proficiencies } from '../components/tabs/Proficiencies';
 import { Progression } from '../components/tabs/Progression';
 import { Spells } from '../components/tabs/Spells';
+import { useEventChannel } from '../lib/useEventChannel';
 import { fromPreparedCharacter } from '../prereqs';
 import type { ColorScheme } from '../lib/usePreferences';
 
@@ -93,6 +94,20 @@ export function CharacterSheet({ actorId, onBack, preferences }: Props): React.R
   const reloadActor = (): void => {
     setReloadNonce((n) => n + 1);
   };
+
+  // Live-refresh when Foundry reports any state change to the active
+  // actor. The subscription is always on while the sheet is mounted —
+  // the server only registers the Foundry `updateActor` hook once
+  // there's at least one subscriber, so the cost of an idle
+  // subscription is the SSE connection itself. Payload includes
+  // `changedPaths` in dot-notation so later consumers can narrow; the
+  // sheet refetches on any change because every tab reads from
+  // `/prepared`.
+  useEventChannel<{ actorId: string; changedPaths: string[] }>('actors', (data) => {
+    if (state.kind === 'ready' && data.actorId === state.actor.id) {
+      reloadActor();
+    }
+  });
 
   return (
     <div>
