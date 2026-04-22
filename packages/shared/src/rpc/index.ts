@@ -12,6 +12,7 @@ import type {
   resolvePromptBody,
   updateActorBody,
   updateActorItemBody,
+  uploadAssetBody,
 } from './schemas.js';
 
 export * from './schemas.js';
@@ -21,6 +22,7 @@ export type UpdateActorBody = z.infer<typeof updateActorBody>;
 export type AddItemFromCompendiumBody = z.infer<typeof addItemFromCompendiumBody>;
 export type UpdateActorItemBody = z.infer<typeof updateActorItemBody>;
 export type ResolvePromptBody = z.infer<typeof resolvePromptBody>;
+export type UploadAssetBody = z.infer<typeof uploadAssetBody>;
 
 // Error response shape for `/api/*` — mirrored in `foundry-api.ts` as
 // `ApiError` (same shape). Re-exported here for callers that want to

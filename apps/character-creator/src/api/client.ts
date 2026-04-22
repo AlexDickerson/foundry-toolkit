@@ -3,7 +3,9 @@ import type {
   CreateActorBody,
   UpdateActorBody,
   UpdateActorItemBody,
+  UploadAssetBody,
 } from '@foundry-toolkit/shared/rpc';
+import type { UploadAssetResult } from '@foundry-toolkit/shared/foundry-api';
 
 import type {
   ActorItemRef,
@@ -101,6 +103,8 @@ export const api = {
     request<ActorItemRef>(`/actors/${id}/items/${itemId}`, { method: 'PATCH', body: patch }),
   resolvePrompt: (bridgeId: string, value: unknown): Promise<{ ok: boolean }> =>
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),
+  uploadAsset: (body: UploadAssetBody): Promise<UploadAssetResult> =>
+    request<UploadAssetResult>('/uploads', { method: 'POST', body }),
   listCompendiumSources: (
     opts: {
       documentType?: string;

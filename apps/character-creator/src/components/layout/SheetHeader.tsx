@@ -6,6 +6,9 @@ interface Props {
    *  name row. Lets the character sheet reclaim the row the button
    *  used to occupy above the header. */
   onBack?: () => void;
+  /** When provided, renders a gear button in the right-side action
+   *  cluster that opens the sheet settings dialog. */
+  onSettingsOpen?: () => void;
 }
 
 // Rarity pill colours borrowed from pf2e's _colors.scss rarity palette
@@ -27,7 +30,7 @@ const ALLIANCE_CLASSES: Record<string, string> = {
 // Ported in spirit from pf2e's
 // static/templates/actors/character/partials/header.hbs but
 // render-only (no name/level inputs, no XP bar).
-export function SheetHeader({ character, onBack }: Props): React.ReactElement {
+export function SheetHeader({ character, onBack, onSettingsOpen }: Props): React.ReactElement {
   const { name, system, items } = character;
   const level = system.details.level.value;
   const ancestry = system.details.ancestry?.name;
@@ -52,15 +55,31 @@ export function SheetHeader({ character, onBack }: Props): React.ReactElement {
         {alliance && (
           <Badge data-badge="alliance" label={capitalise(alliance)} className={ALLIANCE_CLASSES[alliance] ?? ''} />
         )}
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            data-testid="back-to-actors"
-            className="ml-auto rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
-          >
-            ← Actors
-          </button>
+        {(onSettingsOpen || onBack) && (
+          <div className="ml-auto flex items-center gap-2 self-center">
+            {onSettingsOpen && (
+              <button
+                type="button"
+                onClick={onSettingsOpen}
+                data-testid="open-settings"
+                aria-label="Settings"
+                title="Settings"
+                className="flex h-7 w-7 items-center justify-center rounded border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+              >
+                <GearIcon />
+              </button>
+            )}
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                data-testid="back-to-actors"
+                className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+              >
+                ← Actors
+              </button>
+            )}
+          </div>
         )}
       </div>
       {subtitle && (
@@ -93,4 +112,23 @@ function Badge({
 
 function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function GearIcon(): React.ReactElement {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
 }
