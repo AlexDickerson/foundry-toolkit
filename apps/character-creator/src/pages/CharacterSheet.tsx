@@ -155,7 +155,9 @@ export function CharacterSheet({ actorId, onBack, preferences }: Props): React.R
             }}
           />
           <TabStrip tabs={TABS} active={activeTab} onChange={setActiveTab} />
-          {activeTab === 'character' && <Character system={state.actor.system} />}
+          {activeTab === 'character' && (
+            <Character system={state.actor.system} actorId={actorId} onRested={reloadActor} />
+          )}
           {activeTab === 'actions' && (
             <Actions
               actions={state.actor.system.actions}
