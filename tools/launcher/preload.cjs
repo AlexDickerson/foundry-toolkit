@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('launcher', {
   launch: (worktreePath, script) => ipcRenderer.invoke('launch', worktreePath, script),
   openFolder: (p) => ipcRenderer.invoke('open-folder', p),
   openTerminal: (p) => ipcRenderer.invoke('open-terminal', p),
+  deleteWorktree: (p, opts) => ipcRenderer.invoke('delete-worktree', p, opts),
 });
