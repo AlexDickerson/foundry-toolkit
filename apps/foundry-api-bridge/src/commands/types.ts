@@ -173,6 +173,7 @@ export interface UpdateActorParams {
   img?: string;
   folder?: string;
   system?: Record<string, unknown>;
+  flags?: Record<string, Record<string, unknown>>;
 }
 
 export interface DeleteActorParams {
@@ -463,6 +464,7 @@ export interface PreparedActorResult {
   img: string;
   system: Record<string, unknown>;
   items: ItemSummary[];
+  flags?: Record<string, Record<string, unknown>>;
 }
 
 export interface GetStatisticTraceParams {

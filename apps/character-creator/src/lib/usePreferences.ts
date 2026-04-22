@@ -1,0 +1,61 @@
+import { useCallback, useEffect, useState } from 'react';
+
+// Character sheet user preferences, persisted to localStorage so they
+// survive reloads. Currently just the color scheme; add more fields
+// alongside as the settings dialog grows.
+
+export const COLOR_SCHEMES = [
+  { id: 'classic', label: 'Classic', swatch: '#5e0000' },
+  { id: 'arcane', label: 'Arcane', swatch: '#4a1a6b' },
+  { id: 'verdant', label: 'Verdant', swatch: '#1f4e2b' },
+  { id: 'frost', label: 'Frost', swatch: '#1d4a80' },
+] as const;
+
+export type ColorScheme = (typeof COLOR_SCHEMES)[number]['id'];
+
+const STORAGE_KEY = 'character-creator:color-scheme';
+const DEFAULT_SCHEME: ColorScheme = 'classic';
+
+function isColorScheme(value: unknown): value is ColorScheme {
+  return typeof value === 'string' && COLOR_SCHEMES.some((s) => s.id === value);
+}
+
+function readStored(): ColorScheme {
+  if (typeof window === 'undefined') return DEFAULT_SCHEME;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    return isColorScheme(raw) ? raw : DEFAULT_SCHEME;
+  } catch {
+    // localStorage can throw in Safari private mode, sandboxed iframes, etc.
+    return DEFAULT_SCHEME;
+  }
+}
+
+export function usePreferences(): {
+  colorScheme: ColorScheme;
+  setColorScheme: (scheme: ColorScheme) => void;
+} {
+  const [colorScheme, setColorSchemeState] = useState<ColorScheme>(readStored);
+
+  // Reflect the scheme onto <html data-color-scheme="..."> so the CSS
+  // overrides in styles/color-schemes.css cascade into every component.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (colorScheme === DEFAULT_SCHEME) {
+      root.removeAttribute('data-color-scheme');
+    } else {
+      root.setAttribute('data-color-scheme', colorScheme);
+    }
+  }, [colorScheme]);
+
+  const setColorScheme = useCallback((scheme: ColorScheme): void => {
+    setColorSchemeState(scheme);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, scheme);
+    } catch {
+      // ignore — non-persistent fallback still works for the session
+    }
+  }, []);
+
+  return { colorScheme, setColorScheme };
+}
