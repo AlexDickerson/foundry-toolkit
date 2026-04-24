@@ -19,6 +19,8 @@ export {
   getActorHandler,
   getPreparedActorHandler,
   getStatisticTraceHandler,
+  invokeActorActionHandler,
+  KNOWN_ACTIONS,
 } from '@/commands/handlers/actor';
 
 // Journal handlers

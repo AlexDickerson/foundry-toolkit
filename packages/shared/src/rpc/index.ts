@@ -9,6 +9,7 @@ import type { z } from 'zod/v4';
 import type {
   addItemFromCompendiumBody,
   createActorBody,
+  invokeActorActionBody,
   resolvePromptBody,
   updateActorBody,
   updateActorItemBody,
@@ -23,6 +24,7 @@ export type AddItemFromCompendiumBody = z.infer<typeof addItemFromCompendiumBody
 export type UpdateActorItemBody = z.infer<typeof updateActorItemBody>;
 export type ResolvePromptBody = z.infer<typeof resolvePromptBody>;
 export type UploadAssetBody = z.infer<typeof uploadAssetBody>;
+export type InvokeActorActionBody = z.infer<typeof invokeActorActionBody>;
 
 // Error response shape for `/api/*` — mirrored in `foundry-api.ts` as
 // `ApiError` (same shape). Re-exported here for callers that want to
