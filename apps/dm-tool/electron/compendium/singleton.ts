@@ -26,6 +26,17 @@ export const MONSTER_PACK_IDS_SETTING = 'compendiumMonsterPackIds';
 let api: CompendiumApi | null = null;
 let prepared: PreparedCompendium | null = null;
 
+// Foundry-installed Actor pack ids, fetched once at init via
+// `/api/compendium/packs?documentType=Actor`. Used to intersect the
+// Settings-saved / default pack list against reality — callers never
+// send a `packIds: [...]` with a pack Foundry doesn't actually have,
+// which is what older bridges throw 404 on (fix in #45 but not every
+// install runs the patched bridge). `null` = fetch hasn't resolved
+// yet or failed; resolver passes the saved list through unchanged in
+// that window, same as the pre-intersection behavior.
+let availableActorPacks: Set<string> | null = null;
+let availableActorPacksFetch: Promise<void> | null = null;
+
 export interface InitPreparedCompendiumOptions {
   /** foundry-mcp base URL, e.g. `http://server.ad:8765`. Trailing slash
    *  is tolerated; an empty string throws. */
@@ -35,10 +46,12 @@ export interface InitPreparedCompendiumOptions {
   documentTtlMs?: number;
 }
 
-/** Read the user's monster-pack override from pf2e.db settings, falling
- *  back to the defaults when unset, malformed, or empty. Public so tests
- *  and IPC handlers can share one source of truth for the current scope. */
-export function readMonsterPackIds(): readonly string[] {
+/** Read the raw saved monster-pack list from pf2e.db settings, falling
+ *  back to defaults when unset, malformed, or empty. Callers that send
+ *  queries to the bridge should use `readMonsterPackIds()` instead —
+ *  that one additionally intersects against the packs Foundry actually
+ *  has installed so queries never include a missing pack. */
+function readSavedOrDefaultMonsterPackIds(): readonly string[] {
   const raw = getSetting(MONSTER_PACK_IDS_SETTING);
   if (!raw) return DEFAULT_MONSTER_PACK_IDS;
   try {
@@ -55,6 +68,34 @@ export function readMonsterPackIds(): readonly string[] {
   }
 }
 
+/** Return the saved monster-pack list intersected with the packs
+ *  Foundry actually has installed. Two-stage fallback when the
+ *  intersection is empty:
+ *    1. Try defaults ∩ available — so a user who ticked only packs
+ *       that have since been uninstalled still gets something.
+ *    2. Fall through to the raw saved list. This lets the bridge
+ *       either throw (old bridge) or skip missing packs (post-#45)
+ *       — no worse than the pre-intersection behavior.
+ *
+ *  When the available-packs fetch hasn't resolved yet (or failed), we
+ *  pass the saved list through unchanged — matches the pre-intersection
+ *  behavior so this layer is purely additive.
+ *
+ *  Public so tests and IPC handlers can share one source of truth. */
+export function readMonsterPackIds(): readonly string[] {
+  const saved = readSavedOrDefaultMonsterPackIds();
+  if (!availableActorPacks) return saved;
+
+  const available = availableActorPacks;
+  const intersected = saved.filter((id) => available.has(id));
+  if (intersected.length > 0) return intersected;
+
+  const defaultFallback = DEFAULT_MONSTER_PACK_IDS.filter((id) => available.has(id));
+  if (defaultFallback.length > 0) return defaultFallback;
+
+  return saved;
+}
+
 /** Persist a new monster-pack override and invalidate any memoized state
  *  that depends on the prior scope. Called from the Settings → Monsters
  *  IPC handler. */
@@ -63,10 +104,45 @@ export function writeMonsterPackIds(ids: readonly string[]): void {
   resetFacetsIndex();
 }
 
+/** Fetch the list of installed Actor packs from foundry-mcp and cache
+ *  it for the lifetime of the singleton. Failures are logged and the
+ *  cache stays `null` — callers fall through to the raw saved list. */
+export async function refreshAvailableActorPacks(): Promise<void> {
+  if (!api) return;
+  try {
+    const { packs } = await api.listCompendiumPacks({ documentType: 'Actor' });
+    availableActorPacks = new Set(packs.map((p) => p.id));
+  } catch (e) {
+    console.warn('[compendium] Could not list available Actor packs:', (e as Error).message);
+    // Leave the cache as-is. If a prior refresh succeeded we keep those
+    // results; if this was the first attempt the cache stays null and
+    // the resolver passes through.
+  }
+}
+
+/** Returns the cached available Actor packs set, or `null` if the
+ *  fetch hasn't resolved yet. Exported for tests + any consumer that
+ *  wants to render "unavailable" hints in the Settings UI. */
+export function getAvailableActorPacks(): ReadonlySet<string> | null {
+  return availableActorPacks;
+}
+
+/** Test/ops helper — drop the cached available-packs list. */
+export function resetAvailableActorPacks(): void {
+  availableActorPacks = null;
+  availableActorPacksFetch = null;
+}
+
 /** Idempotent — calling twice with the same options is a no-op, which is
  *  what we want for Electron's `app.whenReady` + reload story. If the
  *  caller wants to swap URLs mid-session, call `resetPreparedCompendium`
- *  first. */
+ *  first.
+ *
+ *  Fires a background `refreshAvailableActorPacks()` so subsequent
+ *  queries can intersect the saved pack list against reality. First
+ *  few queries may fire before the fetch resolves — they pass the
+ *  saved list through unchanged, matching the pre-intersection
+ *  behavior. In practice the fetch resolves in ~50ms. */
 export function initPreparedCompendium(opts: InitPreparedCompendiumOptions): void {
   if (prepared) return;
   if (!opts.foundryMcpUrl || opts.foundryMcpUrl.trim().length === 0) {
@@ -79,6 +155,8 @@ export function initPreparedCompendium(opts: InitPreparedCompendiumOptions): voi
   prepared = createPreparedCompendium(api, {
     resolveMonsterPackIds: readMonsterPackIds,
   });
+  availableActorPacksFetch = refreshAvailableActorPacks();
+  void availableActorPacksFetch;
 }
 
 export function getPreparedCompendium(): PreparedCompendium {
@@ -107,4 +185,5 @@ export function isPreparedCompendiumInitialized(): boolean {
 export function resetPreparedCompendium(): void {
   api = null;
   prepared = null;
+  resetAvailableActorPacks();
 }
