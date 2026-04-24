@@ -48,7 +48,24 @@ import {
 } from './projection.js';
 import type { CompendiumMatch } from './types.js';
 
-const MONSTER_PACK_IDS = ['pf2e.pathfinder-bestiary'];
+// Every stock pf2e bestiary + NPC compendium the Monster Browser / loot
+// generator / chat-tool monster lookup should see. Entries absent from
+// the user's Foundry install are simply empty at warm time — the mcp
+// cache skips them with a log warning, so a slimmer pf2e setup doesn't
+// break anything. Adventure-path bestiaries (Kingmaker, Abomination
+// Vaults, Pathfinder Society seasons, Lost Omens sourcebook bestiaries)
+// aren't in this default set — add them to mcp's COMPENDIUM_CACHE_PACK_IDS
+// and they'll be picked up by any search that omits `packIds`, but the
+// dm-tool constants here stay explicit so the Monster Browser has a
+// stable scope across installs.
+const MONSTER_PACK_IDS = [
+  'pf2e.pathfinder-bestiary',
+  'pf2e.pathfinder-bestiary-2',
+  'pf2e.pathfinder-bestiary-3',
+  'pf2e.pathfinder-monster-core',
+  'pf2e.pathfinder-nature-core',
+  'pf2e.pathfinder-npcs',
+];
 const ITEM_PACK_IDS = ['pf2e.equipment-srd'];
 
 // ---------------------------------------------------------------------------
