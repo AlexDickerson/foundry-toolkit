@@ -10,6 +10,15 @@
 //   PATCH /api/mcp/actors/:id            → merges the body's `flags` into
 //                                          the in-memory flag store and
 //                                          returns an ActorRef-shaped ack
+//   POST /api/mcp/actors/:id/actions/:action
+//                                        → no-op stub that acks `{ok: true}`;
+//                                          lets the SPA exercise action
+//                                          buttons without a live bridge
+//   GET  /api/mcp/compendium/document    → synthetic document built from
+//                                          the requested UUID's tail
+//                                          segment, so formula / feat /
+//                                          item detail panes render
+//                                          populated state
 //   POST /api/mcp/uploads                → decodes the base64 body into an
 //                                          in-memory buffer keyed by its
 //                                          relative path; later asset-
@@ -126,6 +135,56 @@ export function mockApi(fixturesDir: string): Plugin {
                 img: actor.img,
                 folder: null,
               });
+            })
+            .catch((err: unknown) => {
+              sendJson(res, 400, { error: err instanceof Error ? err.message : 'invalid body' });
+            });
+          return;
+        }
+
+        // Synthetic compendium document resolver. Derives a human name
+        // from the UUID's tail ("Compendium.pf2e.equipment-srd.Item.bomb-lesser"
+        // → "Bomb Lesser"), so formula / feat / item detail panes have
+        // *something* to show in mock mode. The real resolver runs on
+        // the live bridge in non-mock dev and in production.
+        const compendiumDocMatch = /^\/api\/mcp\/compendium\/document(?:\?.*)?$/.exec(url);
+        if (method === 'GET' && compendiumDocMatch) {
+          const uuid = new URLSearchParams(url.split('?')[1] ?? '').get('uuid') ?? '';
+          if (uuid.length === 0) {
+            sendJson(res, 400, { error: 'uuid query parameter is required' });
+            return;
+          }
+          const tail = uuid.split('.').pop() ?? uuid;
+          const name = tail
+            .split('-')
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+          sendJson(res, 200, {
+            document: {
+              id: tail,
+              uuid,
+              name,
+              type: 'consumable',
+              img: `icons/mock/${tail}.svg`,
+              system: {
+                level: { value: 1 },
+                traits: { value: ['mock', 'alchemical'], rarity: 'common' },
+                price: { value: { gp: 3 } },
+                description: { value: `<p>Mock description for <strong>${name}</strong>.</p>` },
+              },
+            },
+          });
+          return;
+        }
+
+        // Generic outbound-action passthrough. The live bridge dispatches
+        // per action; the mock just acks so the SPA's optimistic path
+        // works without a backend.
+        const actionMatch = /^\/api\/mcp\/actors\/([^/?]+)\/actions\/([^/?]+)(?:\?.*)?$/.exec(url);
+        if (method === 'POST' && actionMatch) {
+          readJsonBody(req)
+            .then(() => {
+              sendJson(res, 200, { ok: true });
             })
             .catch((err: unknown) => {
               sendJson(res, 400, { error: err instanceof Error ? err.message : 'invalid body' });
