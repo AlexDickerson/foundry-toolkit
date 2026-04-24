@@ -106,7 +106,8 @@ export type CommandType =
   | 'get-scene-background'
   | 'update-scene'
   | 'get-combat-turn-context'
-  | 'set-event-subscription';
+  | 'set-event-subscription'
+  | 'invoke-actor-action';
 
 export interface RollDiceParams {
   formula: string;
@@ -1473,6 +1474,23 @@ export interface SetEventSubscriptionResult {
   active: boolean;
 }
 
+// Generic outbound-action invocation. Routes `POST
+// /api/actors/:id/actions/:action` to a per-action handler (craft,
+// cast-spell, roll-strike, etc.). Payload is the action's parameter
+// bag, interpreted by the action handler — the router doesn't know
+// the action's shape. Keeping it generic means adding a new action
+// is a single handler registration; no new command type, no new
+// route, no SPA api method.
+export interface InvokeActorActionParams {
+  actorId: string;
+  action: string;
+  params?: Record<string, unknown>;
+}
+
+// Handlers own their result shape; surfaced as `data` on the generic
+// command response. Opaque to the router.
+export type InvokeActorActionResult = Record<string, unknown>;
+
 export type AbilityKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
 
 export const ABILITY_KEYS: readonly AbilityKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
@@ -1573,6 +1591,7 @@ export interface CommandParamsMap {
   'update-scene': UpdateSceneParams;
   'get-combat-turn-context': GetCombatTurnContextParams;
   'set-event-subscription': SetEventSubscriptionParams;
+  'invoke-actor-action': InvokeActorActionParams;
 }
 
 export interface CommandResultMap {
@@ -1669,4 +1688,5 @@ export interface CommandResultMap {
   'update-scene': UpdateSceneResult;
   'get-combat-turn-context': CombatTurnContext;
   'set-event-subscription': SetEventSubscriptionResult;
+  'invoke-actor-action': InvokeActorActionResult;
 }

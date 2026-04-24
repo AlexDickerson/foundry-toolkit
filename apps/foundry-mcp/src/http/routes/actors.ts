@@ -1,11 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { sendCommand } from '../../bridge.js';
 import {
+  actorActionParams,
   actorIdParam,
   actorItemIdParams,
   actorTraceParams,
   addItemFromCompendiumBody,
   createActorBody,
+  invokeActorActionBody,
   updateActorBody,
   updateActorItemBody,
 } from '../schemas.js';
@@ -62,5 +64,17 @@ export function registerActorRoutes(app: FastifyInstance): void {
     const { id, itemId } = actorItemIdParams.parse(req.params);
     const body = updateActorItemBody.parse(req.body);
     return sendCommand('update-actor-item', { actorId: id, itemId, ...body });
+  });
+
+  // Generic outbound-action dispatch. Routes `POST
+  // /api/actors/:id/actions/:action` to the bridge's
+  // `invoke-actor-action` command; the bridge looks `action` up in its
+  // per-action handler registry (craft, future cast-spell, etc.). The
+  // schema stays loose on purpose — `params` is an `unknown` bag so
+  // new actions land as a single handler, no new route.
+  app.post('/api/actors/:id/actions/:action', async (req) => {
+    const { id, action } = actorActionParams.parse(req.params);
+    const { params } = invokeActorActionBody.parse(req.body ?? {});
+    return sendCommand('invoke-actor-action', { actorId: id, action, params });
   });
 }

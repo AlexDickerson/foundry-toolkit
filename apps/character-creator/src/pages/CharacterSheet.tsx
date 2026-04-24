@@ -173,7 +173,7 @@ export function CharacterSheet({ actorId, onBack, preferences }: Props): React.R
           {activeTab === 'inventory' && (
             <Inventory items={state.actor.items} actorId={actorId} onActorChanged={reloadActor} />
           )}
-          {activeTab === 'crafting' && <Crafting crafting={state.actor.system.crafting} />}
+          {activeTab === 'crafting' && <Crafting actorId={actorId} crafting={state.actor.system.crafting} />}
           {activeTab === 'feats' && <Feats items={state.actor.items} />}
           {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} />}
           {activeTab === 'progression' && (

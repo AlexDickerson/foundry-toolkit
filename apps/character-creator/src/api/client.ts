@@ -120,6 +120,15 @@ export const api = {
     request<ActorItemRef>(`/actors/${id}/items/${itemId}`, { method: 'PATCH', body: patch }),
   resolvePrompt: (bridgeId: string, value: unknown): Promise<{ ok: boolean }> =>
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),
+  // Generic outbound-action dispatch. The action slug selects a
+  // bridge-side handler (craft, cast-spell, future ones); `params`
+  // is the action-specific bag (e.g. `{itemUuid, quantity}` for
+  // craft). Returns whatever the handler returns — opaque here.
+  invokeActorAction: (actorId: string, action: string, params?: Record<string, unknown>): Promise<Record<string, unknown>> =>
+    request<Record<string, unknown>>(`/actors/${actorId}/actions/${encodeURIComponent(action)}`, {
+      method: 'POST',
+      body: { params },
+    }),
   uploadAsset: (body: UploadAssetBody): Promise<UploadAssetResult> =>
     request<UploadAssetResult>('/uploads', { method: 'POST', body }),
   // Runs `body` inside an async IIFE in the Foundry page with an `actor`

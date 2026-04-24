@@ -23,6 +23,7 @@ import {
   createActorHandler,
   createActorFromCompendiumHandler,
   updateActorHandler,
+  invokeActorActionHandler,
   deleteActorHandler,
   getActorsHandler,
   getActorHandler,
@@ -199,6 +200,8 @@ function initializeWebSocket(
   commandRouter.register('create-actor-from-compendium', createActorFromCompendiumHandler);
   commandRouter.register('update-actor', updateActorHandler);
   commandRouter.register('delete-actor', deleteActorHandler);
+  // Generic outbound-action dispatch (craft, cast-spell, etc.).
+  commandRouter.register('invoke-actor-action', invokeActorActionHandler);
 
   // Journal CRUD
   commandRouter.register('create-journal', createJournalHandler);
