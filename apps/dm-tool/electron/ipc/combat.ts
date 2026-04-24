@@ -5,13 +5,8 @@ import { ipcMain } from 'electron';
 import type { Encounter, LootItem, PushEncounterResult } from '@foundry-toolkit/shared/types';
 import { generateEncounterLoot, type LootMonster } from '@foundry-toolkit/ai/loot';
 import type { DmToolConfig } from '../config.js';
-import {
-  buildLootShortlist,
-  deleteEncounter,
-  getMonsterRowByName,
-  listEncounters,
-  upsertEncounter,
-} from '@foundry-toolkit/db/pf2e';
+import { buildLootShortlist, deleteEncounter, listEncounters, upsertEncounter } from '@foundry-toolkit/db/pf2e';
+import { getPreparedCompendium } from '../compendium/singleton.js';
 import { tryParseJson } from '../util.js';
 import { pushEncounterActorsToFoundry } from '../encounter-push.js';
 
@@ -26,17 +21,28 @@ export function registerCombatHandlers(cfg: DmToolConfig): void {
         throw new Error('Anthropic API key is not set. Add one in Settings.');
       }
 
-      const monsters: LootMonster[] = [];
-      for (const c of args.encounter.combatants) {
-        if (c.kind !== 'monster' || !c.monsterName) continue;
-        const row = getMonsterRowByName(c.monsterName);
-        if (!row) continue;
-        monsters.push({
-          name: row.name,
-          level: row.level,
-          traits: tryParseJson<string[]>(row.traits, []),
-        });
-      }
+      // Pull canonical stat rows via the prepared compendium (foundry-mcp)
+      // for every monster in the encounter. Missing entries are skipped —
+      // same behaviour as the old SQLite path. Fetches in parallel so a
+      // large encounter doesn't serialise the network round-trips.
+      const prepared = getPreparedCompendium();
+      const rows = await Promise.all(
+        args.encounter.combatants.map(async (c) => {
+          if (c.kind !== 'monster' || !c.monsterName) return null;
+          return prepared.getMonsterRowByName(c.monsterName);
+        }),
+      );
+      const monsters: LootMonster[] = rows.flatMap((row) =>
+        row
+          ? [
+              {
+                name: row.name,
+                level: row.level,
+                traits: tryParseJson<string[]>(row.traits, []),
+              },
+            ]
+          : [],
+      );
 
       const shortlist = buildLootShortlist(args.partyLevel);
 

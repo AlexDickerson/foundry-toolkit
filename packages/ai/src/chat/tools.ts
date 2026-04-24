@@ -16,11 +16,13 @@ import {
 import { searchCommunity } from '../shared/community.js';
 
 export interface ChatToolDeps {
-  /** Optional local monster lookup (e.g. against a pf2e-db SQLite). Return a
-   *  string that starts with "[No" if nothing was found, to trigger AoN fallback. */
-  searchMonsters?: (query: string) => string;
+  /** Optional local monster lookup (e.g. against a foundry-mcp compendium
+   *  HTTP client, or a pf2e-db SQLite). Return a string that starts with
+   *  "[No" if nothing was found, to trigger AoN fallback. Async so callers
+   *  backing it with a network request don't need to block the call-stack. */
+  searchMonsters?: (query: string) => Promise<string>;
   /** Optional local item lookup (same contract as searchMonsters). */
-  searchItems?: (query: string) => string;
+  searchItems?: (query: string) => Promise<string>;
 }
 
 export function createChatTools(deps: ChatToolDeps = {}) {
@@ -65,10 +67,10 @@ export function createChatTools(deps: ChatToolDeps = {}) {
     execute: async ({ query }) => {
       if (deps.searchMonsters) {
         try {
-          const local = deps.searchMonsters(query);
+          const local = await deps.searchMonsters(query);
           if (!local.startsWith('[No')) return local;
         } catch {
-          /* local DB failed, fall through */
+          /* local lookup failed, fall through */
         }
       }
       return searchMonsterAoN(query);
@@ -85,10 +87,10 @@ export function createChatTools(deps: ChatToolDeps = {}) {
     execute: async ({ query }) => {
       if (deps.searchItems) {
         try {
-          const local = deps.searchItems(query);
+          const local = await deps.searchItems(query);
           if (!local.startsWith('[No')) return local;
         } catch {
-          /* local DB failed, fall through */
+          /* local lookup failed, fall through */
         }
       }
       return searchItemAoN(query);
