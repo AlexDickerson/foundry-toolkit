@@ -7,7 +7,9 @@ import type {
   CraftingFormulaEntry,
   PreparedFormulaData,
 } from '../../api/types';
+import { enrichDescription } from '../../lib/foundry-enrichers';
 import { useActorAction } from '../../lib/useActorAction';
+import { useUuidHover } from '../../lib/useUuidHover';
 import { SectionHeader } from '../common/SectionHeader';
 
 interface Props {
@@ -30,6 +32,7 @@ type Resolution =
 // this read-only phase; see the standalone-play-surface plan for the
 // outbound-actions step.
 export function Crafting({ actorId, crafting }: Props): React.ReactElement {
+  const uuidHover = useUuidHover();
   const formulas = crafting.formulas;
   const entries = useMemo(
     // Sort by label for deterministic rendering — Object.values order
@@ -41,7 +44,11 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
   const resolutions = useUuidResolutions(uuids);
 
   return (
-    <section className="space-y-6">
+    <section
+      className="space-y-6"
+      onMouseOver={uuidHover.delegationHandlers.onMouseOver}
+      onMouseOut={uuidHover.delegationHandlers.onMouseOut}
+    >
       <div>
         <SectionHeader>Formula Book</SectionHeader>
         {formulas.length === 0 ? (
@@ -70,6 +77,7 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
           </ul>
         </div>
       )}
+      {uuidHover.popover}
     </section>
   );
 }
@@ -88,10 +96,10 @@ function FormulaCard({
   const img = state.kind === 'ok' ? state.document.img : null;
   const level = state.kind === 'ok' ? readLevel(state.document) : null;
 
-  // Use the shared state-machine hook so the button cycles idle →
-  // pending → idle (or error) without reinventing the wheel. The
-  // action is safe to fire even while the formula is still resolving
-  // — the bridge handler accepts raw compendium UUIDs.
+  // One craft state machine per card — the button lives in the
+  // summary row so it's always one click from the collapsed state.
+  // Clicking it must NOT toggle the parent <details>, hence the
+  // preventDefault + stopPropagation in the handler.
   const craft = useActorAction({
     run: () => api.craft(actorId, formula.uuid, 1),
   });
@@ -99,52 +107,119 @@ function FormulaCard({
   const craftError = typeof craft.state === 'object' ? craft.state.error : null;
 
   return (
-    <li
-      className="flex items-start gap-3 rounded border border-pf-border bg-white px-3 py-2"
-      data-formula-uuid={formula.uuid}
-    >
-      {img !== null ? (
-        <img src={img} alt="" className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
-      ) : (
-        <div className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
-      )}
-      <div className="min-w-0 flex-1">
-        {state.kind === 'loading' && <span className="text-sm text-neutral-400">Loading…</span>}
-        {state.kind === 'error' && (
-          <>
-            <span className="text-sm text-red-700">Unresolved formula</span>
-            <span className="block truncate font-mono text-[10px] text-neutral-500">{formula.uuid}</span>
-          </>
-        )}
-        {state.kind === 'ok' && name !== null && (
-          <span className="block truncate text-sm font-medium text-pf-text">{name}</span>
-        )}
-        {craftError !== null && <span className="mt-1 block truncate text-[10px] text-red-700">{craftError}</span>}
-      </div>
-      <div className="flex flex-shrink-0 flex-col items-end gap-1">
-        <div className="flex items-center gap-1.5">
-          {level !== null && (
-            <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Lv {level}</span>
+    <li className="relative" data-formula-uuid={formula.uuid}>
+      <details className="group rounded border border-pf-border bg-white open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
+        <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-2 hover:bg-pf-bg-dark/40">
+          {img !== null ? (
+            <img
+              src={img}
+              alt=""
+              className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+            />
+          ) : (
+            <div className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
           )}
-          {formula.batch !== undefined && formula.batch > 1 && (
-            <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
-              ×{formula.batch}
+          <div className="min-w-0 flex-1">
+            {state.kind === 'loading' && <span className="text-sm text-neutral-400">Loading…</span>}
+            {state.kind === 'error' && (
+              <>
+                <span className="block text-sm text-red-700">Unresolved formula</span>
+                <span className="block truncate font-mono text-[10px] text-neutral-500">{formula.uuid}</span>
+              </>
+            )}
+            {state.kind === 'ok' && name !== null && (
+              <span className="block truncate text-sm font-medium text-pf-text">{name}</span>
+            )}
+            {craftError !== null && (
+              <span className="mt-1 block truncate text-[10px] text-red-700">{craftError}</span>
+            )}
+          </div>
+          <div className="flex flex-shrink-0 flex-col items-end gap-1">
+            <div className="flex items-center gap-1.5">
+              {level !== null && (
+                <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Lv {level}</span>
+              )}
+              {formula.batch !== undefined && formula.batch > 1 && (
+                <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
+                  ×{formula.batch}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                // Button sits inside <summary> — prevent the native
+                // toggle so clicking Craft doesn't also expand/collapse.
+                e.preventDefault();
+                e.stopPropagation();
+                void craft.trigger();
+              }}
+              disabled={pending}
+              className="rounded border border-pf-primary bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary hover:bg-pf-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+              data-craft-uuid={formula.uuid}
+            >
+              {pending ? 'Crafting…' : 'Craft'}
+            </button>
+          </div>
+          <span className="ml-1 self-center text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
+          <span className="ml-1 hidden self-center text-[10px] text-pf-alt-dark group-open:inline">▾</span>
+        </summary>
+        {/* Absolute-positioned body overlays the grid below rather
+            than pushing siblings down — matches the Feats tab pattern.
+            Containing block is the relative <li>, so left/right: 0
+            align body to the summary's border-box. */}
+        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
+          <FormulaDetail state={state} uuid={formula.uuid} />
+        </div>
+      </details>
+    </li>
+  );
+}
+
+function FormulaDetail({ state, uuid }: { state: Resolution; uuid: string }): React.ReactElement {
+  if (state.kind === 'loading') {
+    return <p className="italic text-neutral-400">Loading item details…</p>;
+  }
+  if (state.kind === 'error') {
+    return (
+      <>
+        <p className="text-xs text-red-700">Couldn&apos;t load this formula: {state.message}</p>
+        <p className="mt-1 font-mono text-[10px] text-neutral-500">{uuid}</p>
+      </>
+    );
+  }
+
+  const doc = state.document;
+  const traits = readTraits(doc);
+  const rarity = readRarity(doc);
+  const price = readPrice(doc);
+  const description = readDescription(doc);
+  const enriched = description.length > 0 ? enrichDescription(description) : '';
+
+  return (
+    <>
+      {(rarity !== null && rarity !== 'common') || price !== null ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-pf-alt-dark">
+          {rarity !== null && rarity !== 'common' && (
+            <span className="font-semibold uppercase tracking-widest">{rarity}</span>
+          )}
+          {price !== null && (
+            <span>
+              <span className="font-semibold uppercase tracking-widest">Price</span> {price}
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            void craft.trigger();
-          }}
-          disabled={pending}
-          className="rounded border border-pf-primary bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary hover:bg-pf-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
-          data-craft-uuid={formula.uuid}
-        >
-          {pending ? 'Crafting…' : 'Craft'}
-        </button>
-      </div>
-    </li>
+      ) : null}
+      {traits.length > 0 && <TraitChips traits={traits} />}
+      {enriched.length > 0 ? (
+        <div
+          className="mt-2 max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+          dangerouslySetInnerHTML={{ __html: enriched }}
+        />
+      ) : (
+        <p className="mt-2 italic text-neutral-400">No description.</p>
+      )}
+    </>
   );
 }
 
@@ -247,6 +322,21 @@ function Badge({ children }: { children: React.ReactNode }): React.ReactElement 
   );
 }
 
+function TraitChips({ traits }: { traits: string[] }): React.ReactElement {
+  return (
+    <ul className="mt-1 flex flex-wrap gap-1">
+      {traits.map((t) => (
+        <li
+          key={t}
+          className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
+        >
+          {humanizeSlug(t)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────
 
 // Collect every compendium UUID we need to resolve across the formula
@@ -306,6 +396,40 @@ function readLevel(doc: CompendiumDocument): number | null {
     if (typeof lvl === 'object' && lvl !== null && typeof lvl.value === 'number') return lvl.value;
   }
   return null;
+}
+
+function readTraits(doc: CompendiumDocument): string[] {
+  const system = doc.system as { traits?: { value?: unknown } };
+  const value = system?.traits?.value;
+  if (!Array.isArray(value)) return [];
+  return value.filter((t): t is string => typeof t === 'string');
+}
+
+function readRarity(doc: CompendiumDocument): string | null {
+  const system = doc.system as { traits?: { rarity?: unknown } };
+  const r = system?.traits?.rarity;
+  return typeof r === 'string' ? r : null;
+}
+
+function readDescription(doc: CompendiumDocument): string {
+  const system = doc.system as { description?: { value?: unknown } };
+  const v = system?.description?.value;
+  return typeof v === 'string' ? v : '';
+}
+
+// pf2e prices: `{ value: { pp, gp, sp, cp } }`. Render a compact
+// "X gp, Y sp" summary, skipping zero denominations. Returns null if
+// the item has no declared price.
+function readPrice(doc: CompendiumDocument): string | null {
+  const system = doc.system as { price?: { value?: Record<string, unknown> } };
+  const value = system?.price?.value;
+  if (!value || typeof value !== 'object') return null;
+  const parts: string[] = [];
+  for (const denom of ['pp', 'gp', 'sp', 'cp'] as const) {
+    const n = value[denom];
+    if (typeof n === 'number' && n > 0) parts.push(`${n.toString()} ${denom}`);
+  }
+  return parts.length > 0 ? parts.join(', ') : null;
 }
 
 function humanizeSlug(slug: string): string {
