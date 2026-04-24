@@ -9,6 +9,7 @@ export { updateActorHandler } from './UpdateActorHandler';
 export { deleteActorHandler } from './DeleteActorHandler';
 export { adjustActorResourceHandler } from './AdjustActorResourceHandler';
 export { adjustActorConditionHandler } from './AdjustActorConditionHandler';
+export { rollActorStatisticHandler } from './RollActorStatisticHandler';
 export { getActorsHandler } from './GetActorsHandler';
 export { getActorHandler } from './GetActorHandler';
 export { getPreparedActorHandler } from './GetPreparedActorHandler';

@@ -8,6 +8,7 @@ import {
   adjustActorConditionBody,
   adjustActorResourceBody,
   createActorBody,
+  rollActorStatisticBody,
   updateActorBody,
   updateActorItemBody,
 } from '../schemas.js';
@@ -87,5 +88,15 @@ export function registerActorRoutes(app: FastifyInstance): void {
     const { id } = actorIdParam.parse(req.params);
     const body = adjustActorConditionBody.parse(req.body);
     return sendCommand('adjust-actor-condition', { actorId: id, ...body });
+  });
+
+  // Click-to-roll for any PF2e `Statistic` — Perception, the three
+  // saves, any skill. Skips the modifier dialog and posts the roll
+  // card to chat via the configured rollMode (or the user's current
+  // default if omitted).
+  app.post('/api/actors/:id/rolls/statistic', async (req) => {
+    const { id } = actorIdParam.parse(req.params);
+    const body = rollActorStatisticBody.parse(req.body);
+    return sendCommand('roll-actor-statistic', { actorId: id, ...body });
   });
 }

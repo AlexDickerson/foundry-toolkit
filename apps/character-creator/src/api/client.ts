@@ -5,6 +5,9 @@ import type {
   AdjustActorConditionResponse,
   AdjustActorResourceResponse,
   CreateActorBody,
+  Pf2eRollMode,
+  Pf2eStatisticSlug,
+  RollActorStatisticResponse,
   UpdateActorBody,
   UpdateActorItemBody,
   UploadAssetBody,
@@ -146,6 +149,19 @@ export const api = {
     request<AdjustActorConditionResponse>(`/actors/${id}/conditions/adjust`, {
       method: 'POST',
       body: { condition, delta },
+    }),
+  // Click-to-roll for any PF2e `Statistic` — Perception, Fort/Ref/Will,
+  // or any skill. Chat card lands in Foundry as a side effect; the
+  // response carries `{total, formula, dice, chatMessageId?}` for
+  // optional SPA-side display.
+  rollActorStatistic: (
+    id: string,
+    statistic: Pf2eStatisticSlug,
+    rollMode?: Pf2eRollMode,
+  ): Promise<RollActorStatisticResponse> =>
+    request<RollActorStatisticResponse>(`/actors/${id}/rolls/statistic`, {
+      method: 'POST',
+      body: { statistic, ...(rollMode !== undefined ? { rollMode } : {}) },
     }),
   resolvePrompt: (bridgeId: string, value: unknown): Promise<{ ok: boolean }> =>
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),

@@ -12,6 +12,7 @@ import type {
   adjustActorResourceBody,
   createActorBody,
   resolvePromptBody,
+  rollActorStatisticBody,
   updateActorBody,
   updateActorItemBody,
   uploadAssetBody,
@@ -47,6 +48,20 @@ export interface AdjustActorConditionResponse {
   after: number;
   /** Re-read after the writes — dying's cap shifts with doomed. */
   max: number;
+}
+
+export type RollActorStatisticBody = z.infer<typeof rollActorStatisticBody>;
+export type Pf2eStatisticSlug = RollActorStatisticBody['statistic'];
+export type Pf2eRollMode = NonNullable<RollActorStatisticBody['rollMode']>;
+
+export interface RollActorStatisticResponse {
+  statistic: Pf2eStatisticSlug;
+  total: number;
+  formula: string;
+  dice: Array<{ type: string; count: number; results: number[] }>;
+  isCritical?: boolean;
+  isFumble?: boolean;
+  chatMessageId?: string;
 }
 
 // Error response shape for `/api/*` — mirrored in `foundry-api.ts` as

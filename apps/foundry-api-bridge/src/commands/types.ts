@@ -32,6 +32,7 @@ export type CommandType =
   | 'delete-actor'
   | 'adjust-actor-resource'
   | 'adjust-actor-condition'
+  | 'roll-actor-statistic'
   | 'send-chat-message'
   | 'create-journal'
   | 'update-journal'
@@ -246,6 +247,72 @@ export interface AdjustActorConditionResult {
   /** Reported at response time; max may shift (e.g. dying's cap
    *  increases with doomed) so clients shouldn't cache it. */
   max: number;
+}
+
+// PF2e `Statistic` slugs exposed for click-to-roll on the character
+// sheet: Perception, the three saves, and the full skill list.
+// Any unified `actor.getStatistic(slug)` target works; we keep the
+// set narrow so the Zod enum at the HTTP edge stays small and the
+// UI only offers things it understands.
+export type Pf2eStatisticSlug =
+  | 'perception'
+  | 'fortitude'
+  | 'reflex'
+  | 'will'
+  | 'acrobatics'
+  | 'arcana'
+  | 'athletics'
+  | 'crafting'
+  | 'deception'
+  | 'diplomacy'
+  | 'intimidation'
+  | 'medicine'
+  | 'nature'
+  | 'occultism'
+  | 'performance'
+  | 'religion'
+  | 'society'
+  | 'stealth'
+  | 'survival'
+  | 'thievery';
+
+export const PF2E_STATISTIC_SLUGS: readonly Pf2eStatisticSlug[] = [
+  'perception',
+  'fortitude',
+  'reflex',
+  'will',
+  'acrobatics',
+  'arcana',
+  'athletics',
+  'crafting',
+  'deception',
+  'diplomacy',
+  'intimidation',
+  'medicine',
+  'nature',
+  'occultism',
+  'performance',
+  'religion',
+  'society',
+  'stealth',
+  'survival',
+  'thievery',
+];
+
+export type Pf2eRollMode = 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll';
+
+export interface RollActorStatisticParams {
+  actorId: string;
+  statistic: Pf2eStatisticSlug;
+  /** Override Foundry's default roll mode for this single roll.
+   *  When omitted, the user's current chat-mode setting applies. */
+  rollMode?: Pf2eRollMode;
+}
+
+export interface RollActorStatisticResult extends RollResult {
+  statistic: Pf2eStatisticSlug;
+  /** The resolved chat message id, when `create: true` produced one. */
+  chatMessageId?: string;
 }
 
 // Actor Results
@@ -1566,6 +1633,7 @@ export interface CommandParamsMap {
   'delete-actor': DeleteActorParams;
   'adjust-actor-resource': AdjustActorResourceParams;
   'adjust-actor-condition': AdjustActorConditionParams;
+  'roll-actor-statistic': RollActorStatisticParams;
   'send-chat-message': SendChatMessageParams;
   'create-journal': CreateJournalParams;
   'update-journal': UpdateJournalParams;
@@ -1664,6 +1732,7 @@ export interface CommandResultMap {
   'delete-actor': DeleteResult;
   'adjust-actor-resource': AdjustActorResourceResult;
   'adjust-actor-condition': AdjustActorConditionResult;
+  'roll-actor-statistic': RollActorStatisticResult;
   'send-chat-message': SendChatMessageResult;
   'create-journal': JournalResult;
   'update-journal': JournalResult;
