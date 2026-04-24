@@ -84,15 +84,37 @@ function readSavedOrDefaultMonsterPackIds(): readonly string[] {
  *  Public so tests and IPC handlers can share one source of truth. */
 export function readMonsterPackIds(): readonly string[] {
   const saved = readSavedOrDefaultMonsterPackIds();
-  if (!availableActorPacks) return saved;
+  if (!availableActorPacks) {
+    console.info('[readMonsterPackIds] available=not-yet-loaded → passing saved through', {
+      saved: [...saved],
+    });
+    return saved;
+  }
 
   const available = availableActorPacks;
   const intersected = saved.filter((id) => available.has(id));
-  if (intersected.length > 0) return intersected;
+  if (intersected.length > 0) {
+    console.info('[readMonsterPackIds] stage-1 saved ∩ available', {
+      saved: [...saved],
+      availableCount: available.size,
+      intersected,
+    });
+    return intersected;
+  }
 
   const defaultFallback = DEFAULT_MONSTER_PACK_IDS.filter((id) => available.has(id));
-  if (defaultFallback.length > 0) return defaultFallback;
+  if (defaultFallback.length > 0) {
+    console.info('[readMonsterPackIds] stage-2 defaults ∩ available', {
+      saved: [...saved],
+      defaultFallback,
+    });
+    return defaultFallback;
+  }
 
+  console.warn('[readMonsterPackIds] stage-3 no overlap — returning raw saved list', {
+    saved: [...saved],
+    available: [...available],
+  });
   return saved;
 }
 
@@ -112,6 +134,10 @@ export async function refreshAvailableActorPacks(): Promise<void> {
   try {
     const { packs } = await api.listCompendiumPacks({ documentType: 'Actor' });
     availableActorPacks = new Set(packs.map((p) => p.id));
+    console.info('[refreshAvailableActorPacks] loaded', {
+      count: availableActorPacks.size,
+      ids: [...availableActorPacks],
+    });
   } catch (e) {
     console.warn('[compendium] Could not list available Actor packs:', (e as Error).message);
     // Leave the cache as-is. If a prior refresh succeeded we keep those

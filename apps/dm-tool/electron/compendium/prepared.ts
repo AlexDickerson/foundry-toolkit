@@ -183,17 +183,27 @@ async function listMonsters(
   packIds: readonly string[],
   params: MonsterSearchParams,
 ): Promise<MonsterSummary[]> {
-  // No filtering beyond document type and the user's pack selection —
-  // we want the Monster window to return every NPC in every ticked
-  // pack. Keyword/trait/level filters from `params` are deliberately
-  // ignored so the UI sees an unfiltered baseline; any narrowing is a
-  // client-side concern the browser can apply over the returned list.
-  // Sort is not a filter and stays applied.
-  const { matches } = await api.searchCompendium({
-    documentType: 'npc',
+  // DIAGNOSTIC MODE — no filters at all, not even documentType. The
+  // Monster window returns every document from every ticked pack. If a
+  // tick selection includes an Item-type pack the user will see items
+  // in the browser; that's intentional while we verify the pack-select
+  // pipeline end-to-end. Sort is not a filter and stays applied.
+  //
+  // Search args sent:
+  //   - packIds: resolver output (Settings ∩ installed in Foundry)
+  //   - limit  : 10000 (server max)
+  // Nothing else — not q, traits, maxLevel, documentType.
+  const search = {
     packIds: [...packIds],
     limit: params.limit ?? 10000,
+  };
+  console.info('[listMonsters] searchCompendium ←', {
+    packCount: search.packIds.length,
+    packIds: search.packIds,
+    limit: search.limit,
   });
+  const { matches } = await api.searchCompendium(search);
+  console.info('[listMonsters] searchCompendium → matches:', matches.length);
 
   const summaries = matches.map(monsterMatchToSummary);
 

@@ -140,7 +140,7 @@ describe('searchMonsters', () => {
 });
 
 describe('listMonsters', () => {
-  it('returns every match unfiltered (server-side filters intentionally dropped)', async () => {
+  it('returns every match unfiltered (every server-side filter dropped)', async () => {
     const search = vi.fn().mockResolvedValue({
       matches: [
         monsterMatch({ name: 'A', level: 1 }),
@@ -149,8 +149,8 @@ describe('listMonsters', () => {
       ],
     });
     const api = fakeApi({ searchCompendium: search });
-    // Caller-supplied level window is deliberately ignored — every
-    // monster in the selected packs comes back so the UI can render a
+    // Every caller-supplied filter is deliberately ignored — every
+    // document in the selected packs comes back so the UI can render a
     // complete baseline. Client-side narrowing is a browser concern.
     const out = await createPreparedCompendium(api).listMonsters({
       levels: [3, 7],
@@ -160,7 +160,6 @@ describe('listMonsters', () => {
     expect(out.map((s) => s.name)).toEqual(['A', 'B', 'C']);
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({
-        documentType: 'npc',
         limit: 10000,
         packIds: expect.arrayContaining(['pf2e.pathfinder-bestiary']),
       }),
@@ -169,6 +168,7 @@ describe('listMonsters', () => {
     expect(call).not.toHaveProperty('q');
     expect(call).not.toHaveProperty('traits');
     expect(call).not.toHaveProperty('maxLevel');
+    expect(call).not.toHaveProperty('documentType');
   });
 
   it('honors the sort request (name ascending) when supplied', async () => {
