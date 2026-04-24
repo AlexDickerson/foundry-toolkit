@@ -1,7 +1,12 @@
 // Module-function data layer over pf2e.db — the app-owned SQLite file that
 // stores settings, globe pins, party inventory, encounters, Aurus teams, hook
-// overrides, pack mappings, plus the read-only PF2e compendium tables (monsters,
-// items, NPCs) that pf2e-db consumed from a pre-built database.
+// overrides, pack mappings, and the lazy foundry-mcp document cache.
+//
+// Compendium content (monsters, items, NPCs, spells, feats …) used to live
+// alongside this state in a pre-built SQLite bundle; that surface was
+// migrated to foundry-mcp's REST API (see apps/dm-tool/electron/compendium/).
+// The only compendium data this file still owns is the lazy document cache
+// exported below, which backs graceful degradation during mcp outages.
 //
 // Module-level singleton: call openPf2eDb(path) once at startup, then use the
 // exported functions directly. Not class-based because 41 call sites across
@@ -22,19 +27,6 @@ export { listGlobePins, upsertGlobePin, deleteGlobePin, setMissionMarkdown, getM
 export { listInventory, upsertInventory, deleteInventory } from './inventory.js';
 export { listEncounters, upsertEncounter, deleteEncounter } from './combat.js';
 export { listAurusTeams, upsertAurusTeam, deleteAurusTeam } from './aurus.js';
-export {
-  searchMonsters,
-  listMonsters,
-  getMonsterFacets,
-  getMonsterRowByName,
-  getMonsterByName,
-  getMonsterPreview,
-  searchItems,
-  searchItemsBrowser,
-  getItemBrowserDetail,
-  getItemFacets,
-  buildLootShortlist,
-} from './compendium.js';
 export {
   getCachedDocument,
   getCachedDocumentAllowStale,
