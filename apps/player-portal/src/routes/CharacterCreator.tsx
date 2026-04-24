@@ -363,7 +363,7 @@ export function CharacterCreator(): React.ReactElement {
   const pickerFilters = openPicker !== null ? filtersForTarget(openPicker, draft) : undefined;
 
   return (
-    <div>
+    <main className="mx-auto max-w-3xl p-6 font-sans">
       <div className="mb-4 flex items-center gap-3">
         <button
           type="button"
@@ -537,7 +537,7 @@ export function CharacterCreator(): React.ReactElement {
       {/* Module-driven prompts (pf2e ChoiceSets) render on top of
           everything else so the wizard pauses until the user picks. */}
       {activePrompt !== null && <PromptModal prompt={activePrompt} />}
-    </div>
+    </main>
   );
 }
 

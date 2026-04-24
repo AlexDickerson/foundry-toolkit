@@ -119,7 +119,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
   });
 
   return (
-    <div>
+    <main className="mx-auto max-w-3xl p-6 font-sans">
       {state.kind === 'loading' && (
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm text-neutral-500">Loading character…</p>
@@ -207,7 +207,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
           }}
         />
       )}
-    </div>
+    </main>
   );
 }
 
