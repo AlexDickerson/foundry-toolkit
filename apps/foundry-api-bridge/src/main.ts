@@ -110,7 +110,8 @@ import {
   type SetEventSubscriptionParams,
 } from '@/commands';
 
-const MODULE_VERSION = '7.7.0';
+// Keep in sync with `package.json#version` and `dist/module.json#version`.
+const MODULE_VERSION = '1.3.0';
 
 let wsClients: WebSocketClient[] = [];
 let commandRouter: CommandRouter | null = null;

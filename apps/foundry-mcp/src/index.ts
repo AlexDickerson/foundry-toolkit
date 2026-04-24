@@ -10,8 +10,8 @@ import { registerTools } from './tools/index.js';
 import { buildHttpApp } from './http/app.js';
 import { registerCompendiumCacheWarming } from './http/compendium-cache-singleton.js';
 
-// Fastify app — handles /api/*, /healthz, static SPA assets, and SPA
-// fallback for unmatched GETs. Routed from the parent http.Server below.
+// Fastify app — handles /api/* and /healthz. Routed from the parent
+// http.Server below.
 const httpApp = await buildHttpApp();
 
 // Subscribe the compendium cache to module-connect events. No-op when
@@ -51,15 +51,14 @@ async function createSession(): Promise<StreamableHTTPServerTransport> {
 
 // ---------------------------------------------------------------------------
 // HTTP Server — routes MCP traffic and Foundry WS upgrades. Everything else
-// falls through to the Fastify app (/api/*, /healthz, SPA assets, fallback).
+// falls through to the Fastify app (/api/*, /healthz).
 // ---------------------------------------------------------------------------
 
 const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   // Strip query string for path-only matching.
   const path = (req.url ?? '').split('?')[0] ?? '';
 
-  // MCP Streamable HTTP endpoint. Previously `/` was also accepted as a
-  // convenience alias; dropped now so the SPA can live at the root path.
+  // MCP Streamable HTTP endpoint.
   if (path === '/mcp') {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
     let transport: StreamableHTTPServerTransport;
@@ -86,15 +85,6 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
     return;
   }
 
-  // Server logs (legacy).
-  if (path.startsWith('/logs')) {
-    const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
-    const n = parseInt(url.searchParams.get('n') ?? '50', 10);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(log.tail(n)));
-    return;
-  }
-
   // Rich health probe — keeps bridge/session state. `/healthz` (the
   // lightweight container probe) is handled inside the Fastify app.
   if (path === '/health') {
@@ -109,8 +99,7 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
     return;
   }
 
-  // Everything else — /api/*, /healthz, static SPA assets, SPA fallback —
-  // goes through Fastify.
+  // Everything else — /api/* and /healthz — goes through Fastify.
   httpApp.routing(req, res);
 });
 
@@ -132,6 +121,4 @@ httpServer.listen(PORT, HOST, () => {
   log.info(`  REST API:     http://${HOST}:${PORT}/api/`);
   log.info(`  Foundry WS:   ws://${HOST}:${PORT}/foundry`);
   log.info(`  Health:       http://${HOST}:${PORT}/health (rich) and /healthz (probe)`);
-  log.info(`  Logs:         http://${HOST}:${PORT}/logs`);
-  log.info(`  SPA:          http://${HOST}:${PORT}/`);
 });

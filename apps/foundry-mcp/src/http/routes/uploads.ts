@@ -5,7 +5,7 @@ import { FOUNDRY_DATA_DIR } from '../../config.js';
 import { uploadAssetBody } from '../schemas.js';
 
 // POST /api/uploads — mirrors the `upload_asset` MCP tool but over HTTP
-// so the character-creator SPA can deposit user-selected files (sheet
+// so the player-portal SPA can deposit user-selected files (sheet
 // backgrounds, portraits, etc.) into the Foundry Data directory. Once
 // written, the file is reachable through the same /systems, /modules,
 // /worlds asset prefixes the rest of the UI already fetches through —

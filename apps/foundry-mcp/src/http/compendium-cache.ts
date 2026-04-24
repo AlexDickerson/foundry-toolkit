@@ -3,7 +3,7 @@
 // search and document-fetch requests can be served without a
 // round-trip to the Foundry bridge.
 //
-// Motivation: the shop-browsing UI in foundry-character-creator was
+// Motivation: the shop-browsing UI in player-portal was
 // firing one `get-compendium-document` per search result to read
 // prices, which explodes in cost for anything beyond a narrow search.
 // Caching the whole pack collapses that into a constant-time lookup.

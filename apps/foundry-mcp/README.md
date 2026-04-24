@@ -7,13 +7,14 @@ Self-hosted MCP server that bridges Claude (or any MCP client) to a live Foundry
 ```
 MCP client ──HTTP──> foundry-mcp server ──WebSocket──> foundry-api-bridge (in GM browser)
                          (host:8765)                        (Foundry VTT v13+)
+                    ▲
                     │
-                    └──REST /api/*──> foundry-character-creator (React SPA)
+       /api/mcp/* proxy from sibling player-portal SPA
 ```
 
-- **This repo (`foundry-mcp`)** — Node.js MCP server using Streamable HTTP transport. Accepts MCP tool calls, translates them to Foundry commands, and relays them over a WebSocket to the GM's browser session. Also exposes a Fastify REST surface at `/api/*` for the character-creator UI, and handles asset uploads directly to the Foundry data directory.
-- **[foundry-api-bridge](https://github.com/AlexDickerson/foundry-api-bridge)** — Foundry VTT module that runs in the GM's browser tab. Receives commands via WebSocket, executes them against the Foundry API, returns results. Ships with its own Docker image that layers the module onto `felddy/foundryvtt`.
-- **[foundry-character-creator](https://github.com/AlexDickerson/foundry-character-creator)** — React SPA that consumes this server's `/api/*` endpoints for a Pathfinder 2e character creator/viewer.
+- **This repo (`foundry-mcp`)** — Node.js MCP server using Streamable HTTP transport. Accepts MCP tool calls, translates them to Foundry commands, and relays them over a WebSocket to the GM's browser session. Also exposes a Fastify REST surface at `/api/*` and handles asset uploads directly to the Foundry data directory.
+- **[foundry-api-bridge](../foundry-api-bridge/)** — Foundry VTT module that runs in the GM's browser tab. Receives commands via WebSocket, executes them against the Foundry API, returns results. Ships with its own Docker image that layers the module onto `felddy/foundryvtt`.
+- **[player-portal](../player-portal/)** — Sibling app that hosts the PF2e character creator/sheet SPA + live-sync server. Reverse-proxies `/api/mcp/*` here so the SPA can hit this server's REST surface same-origin.
 
 ## MCP Tools
 
@@ -50,22 +51,19 @@ MCP clients connect to `http://<host>:8765/mcp`. The Foundry module connects its
 
 ## Local development
 
-The server is runtime-independent. For a full local stack:
+The server is runtime-independent. For a full local stack (run from the monorepo root unless noted):
 
-1. Start the Foundry + module container from the [foundry-api-bridge](https://github.com/AlexDickerson/foundry-api-bridge) repo:
+1. Start the Foundry + module container from the sibling workspace:
    ```bash
-   cd ../foundry-api-bridge
+   cd apps/foundry-api-bridge
    ./local.sh up
    ```
-2. Run the server here (in this repo):
+2. Run the server:
    ```bash
-   npm install
-   npm run dev
+   npm run dev:mcp
    ```
 3. In Foundry, enable the foundry-api-bridge module and set the WebSocket URL to `ws://localhost:8765/foundry`.
-4. (Optional) Start the character-creator SPA from [foundry-character-creator](https://github.com/AlexDickerson/foundry-character-creator):
+4. (Optional) Run the player-portal SPA:
    ```bash
-   cd ../foundry-character-creator
-   npm install
-   npm run dev
+   npm run dev:player-portal
    ```

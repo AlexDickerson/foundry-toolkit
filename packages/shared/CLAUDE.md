@@ -25,7 +25,7 @@ Subpath exports:
 - `./map-stem` — `src/map-stem.ts`
 - `./MissionBriefing` — `src/MissionBriefing.tsx` (React component)
 - `./golarion-map` — `src/golarion-map/index.ts`
-- `./rpc` — `src/rpc/index.ts` (Zod schemas + `z.infer<>` types for the `/api/*` request surface; re-used by both `apps/foundry-mcp` server and `apps/character-creator` client)
+- `./rpc` — `src/rpc/index.ts` (Zod schemas + `z.infer<>` types for the `/api/*` request surface; re-used by both `apps/foundry-mcp` server and `apps/player-portal` client)
 
 ## Key decisions / gotchas
 
