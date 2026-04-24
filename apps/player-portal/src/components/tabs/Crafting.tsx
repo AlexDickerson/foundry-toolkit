@@ -11,11 +11,19 @@ import { enrichDescription } from '../../lib/foundry-enrichers';
 import { useActorAction } from '../../lib/useActorAction';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { SectionHeader } from '../common/SectionHeader';
+import { FormulaPicker } from '../crafting/FormulaPicker';
 
 interface Props {
   actorId: string;
   crafting: CraftingField;
 }
+
+// Short-lived local copy of the formula list — an add or remove
+// updates this immediately so the UI doesn't wait on the actor event
+// channel to round-trip before reflecting the change. The next
+// `/prepared` refetch (triggered by the `actors` channel update on
+// `system.crafting.formulas`) replaces it with the canonical set.
+type OptimisticFormulas = { formulas: CraftingFormulaEntry[] } | null;
 
 type Resolution =
   | { kind: 'loading' }
@@ -33,7 +41,17 @@ type Resolution =
 // outbound-actions step.
 export function Crafting({ actorId, crafting }: Props): React.ReactElement {
   const uuidHover = useUuidHover();
-  const formulas = crafting.formulas;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [optimistic, setOptimistic] = useState<OptimisticFormulas>(null);
+  // Drop the optimistic override once the prop set converges with it —
+  // means the bridge round-trip landed + `/prepared` refetched.
+  useEffect(() => {
+    if (optimistic !== null && sameFormulaSet(optimistic.formulas, crafting.formulas)) {
+      setOptimistic(null);
+    }
+  }, [crafting.formulas, optimistic]);
+
+  const formulas = optimistic?.formulas ?? crafting.formulas;
   const entries = useMemo(
     // Sort by label for deterministic rendering — Object.values order
     // is insertion-order which varies by how pf2e built the entries map.
@@ -42,6 +60,25 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
   );
   const uuids = useMemo(() => collectUuids(formulas, entries), [formulas, entries]);
   const resolutions = useUuidResolutions(uuids);
+  const knownUuids = useMemo(() => new Set(formulas.map((f) => f.uuid)), [formulas]);
+
+  const addFormula = (uuid: string): void => {
+    if (knownUuids.has(uuid)) return;
+    const next = [...formulas, { uuid }];
+    setOptimistic({ formulas: next });
+    void api.addFormula(actorId, uuid).catch(() => {
+      // Revert on failure — the canonical set wins on next refetch,
+      // but an immediate rollback keeps the UI honest until then.
+      setOptimistic({ formulas });
+    });
+  };
+  const removeFormula = (uuid: string): void => {
+    const next = formulas.filter((f) => f.uuid !== uuid);
+    setOptimistic({ formulas: next });
+    void api.removeFormula(actorId, uuid).catch(() => {
+      setOptimistic({ formulas });
+    });
+  };
 
   return (
     <section
@@ -50,7 +87,21 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
       <div>
-        <SectionHeader>Formula Book</SectionHeader>
+        <div className="mb-2 flex items-center justify-between gap-2 border-b border-pf-border pb-1">
+          <h2 className="font-serif text-base font-semibold uppercase tracking-wide text-pf-alt-dark">
+            Formula Book
+          </h2>
+          <button
+            type="button"
+            onClick={() => {
+              setPickerOpen(true);
+            }}
+            className="rounded border border-pf-primary bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary hover:bg-pf-primary/20"
+            data-testid="add-formula-button"
+          >
+            + Add Formula
+          </button>
+        </div>
         {formulas.length === 0 ? (
           <p className="text-xs italic text-neutral-400">No formulas known yet.</p>
         ) : (
@@ -61,6 +112,9 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
                 actorId={actorId}
                 formula={formula}
                 resolution={resolutions.get(formula.uuid)}
+                onRemove={() => {
+                  removeFormula(formula.uuid);
+                }}
               />
             ))}
           </ul>
@@ -78,18 +132,38 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
         </div>
       )}
       {uuidHover.popover}
+      {pickerOpen && (
+        <FormulaPicker
+          alreadyKnown={knownUuids}
+          onPick={(match) => {
+            addFormula(match.uuid);
+            setPickerOpen(false);
+          }}
+          onClose={() => {
+            setPickerOpen(false);
+          }}
+        />
+      )}
     </section>
   );
+}
+
+function sameFormulaSet(a: readonly CraftingFormulaEntry[], b: readonly CraftingFormulaEntry[]): boolean {
+  if (a.length !== b.length) return false;
+  const aSet = new Set(a.map((f) => f.uuid));
+  return b.every((f) => aSet.has(f.uuid));
 }
 
 function FormulaCard({
   actorId,
   formula,
   resolution,
+  onRemove,
 }: {
   actorId: string;
   formula: CraftingFormulaEntry;
   resolution: Resolution | undefined;
+  onRemove: () => void;
 }): React.ReactElement {
   const state = resolution ?? { kind: 'loading' as const };
   const name = state.kind === 'ok' ? state.document.name : null;
@@ -169,14 +243,22 @@ function FormulaCard({
             Containing block is the relative <li>, so left/right: 0
             align body to the summary's border-box. */}
         <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
-          <FormulaDetail state={state} uuid={formula.uuid} />
+          <FormulaDetail state={state} uuid={formula.uuid} onRemove={onRemove} />
         </div>
       </details>
     </li>
   );
 }
 
-function FormulaDetail({ state, uuid }: { state: Resolution; uuid: string }): React.ReactElement {
+function FormulaDetail({
+  state,
+  uuid,
+  onRemove,
+}: {
+  state: Resolution;
+  uuid: string;
+  onRemove: () => void;
+}): React.ReactElement {
   if (state.kind === 'loading') {
     return <p className="italic text-neutral-400">Loading item details…</p>;
   }
@@ -185,6 +267,9 @@ function FormulaDetail({ state, uuid }: { state: Resolution; uuid: string }): Re
       <>
         <p className="text-xs text-red-700">Couldn&apos;t load this formula: {state.message}</p>
         <p className="mt-1 font-mono text-[10px] text-neutral-500">{uuid}</p>
+        <div className="mt-2 flex justify-end">
+          <RemoveFormulaButton onClick={onRemove} />
+        </div>
       </>
     );
   }
@@ -219,6 +304,9 @@ function FormulaDetail({ state, uuid }: { state: Resolution; uuid: string }): Re
       ) : (
         <p className="mt-2 italic text-neutral-400">No description.</p>
       )}
+      <div className="mt-2 flex justify-end">
+        <RemoveFormulaButton onClick={onRemove} />
+      </div>
     </>
   );
 }
@@ -319,6 +407,19 @@ function Badge({ children }: { children: React.ReactNode }): React.ReactElement 
     <span className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-pf-alt-dark">
       {children}
     </span>
+  );
+}
+
+function RemoveFormulaButton({ onClick }: { onClick: () => void }): React.ReactElement {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-red-700 hover:bg-red-100"
+      data-remove-formula="true"
+    >
+      Remove
+    </button>
   );
 }
 

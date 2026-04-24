@@ -177,6 +177,41 @@ export function mockApi(fixturesDir: string): Plugin {
           return;
         }
 
+        // Synthetic compendium search so the formula picker (and any
+        // future pickers) can render results in mock mode. Matches are
+        // derived from the query string — we fabricate a few plausible
+        // consumable entries with sequential uuids.
+        const compendiumSearchMatch = /^\/api\/mcp\/compendium\/search(?:\?.*)?$/.exec(url);
+        if (method === 'GET' && compendiumSearchMatch) {
+          const params = new URLSearchParams(url.split('?')[1] ?? '');
+          const q = (params.get('q') ?? '').trim();
+          if (q.length === 0) {
+            sendJson(res, 200, { matches: [] });
+            return;
+          }
+          const slug = q.toLowerCase().replace(/\s+/g, '-');
+          const matches = Array.from({ length: 3 }, (_, i) => {
+            const suffix = i === 0 ? slug : `${slug}-${String(i + 1)}`;
+            const uuid = `Compendium.pf2e.equipment-srd.Item.${suffix}`;
+            const name = suffix
+              .split('-')
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+              .join(' ');
+            return {
+              packId: 'pf2e.equipment-srd',
+              packLabel: 'Equipment',
+              documentId: suffix,
+              uuid,
+              name,
+              type: 'consumable',
+              img: `icons/mock/${suffix}.svg`,
+              level: i + 1,
+            };
+          });
+          sendJson(res, 200, { matches });
+          return;
+        }
+
         // Generic outbound-action passthrough. The live bridge dispatches
         // per action; the mock just acks so the SPA's optimistic path
         // works without a backend.

@@ -201,6 +201,20 @@ export const api = {
   // `use-item` command, which runs the full activation pipeline.
   useItem: (id: string, itemId: string): Promise<{ ok: boolean; itemId: string; itemName: string }> =>
     api.invokeActorAction<{ ok: boolean; itemId: string; itemName: string }>(id, 'post-item-to-chat', { itemId }),
+  // Formula book management. Add/remove dedupe on the bridge, so the
+  // SPA can fire-and-forget; the `added`/`removed` flag in the
+  // response tells callers whether a write actually happened.
+  addFormula: (id: string, uuid: string): Promise<{ ok: boolean; added: boolean; uuid: string; formulaCount: number }> =>
+    api.invokeActorAction<{ ok: boolean; added: boolean; uuid: string; formulaCount: number }>(id, 'add-formula', {
+      uuid,
+    }),
+  removeFormula: (
+    id: string,
+    uuid: string,
+  ): Promise<{ ok: boolean; removed: boolean; uuid: string; formulaCount: number }> =>
+    api.invokeActorAction<{ ok: boolean; removed: boolean; uuid: string; formulaCount: number }>(id, 'remove-formula', {
+      uuid,
+    }),
   listCompendiumSources: (
     opts: {
       documentType?: string;

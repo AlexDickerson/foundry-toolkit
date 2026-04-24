@@ -107,6 +107,8 @@ describe('invokeActorActionHandler — dispatch', () => {
         'roll-strike',
         'roll-strike-damage',
         'post-item-to-chat',
+        'add-formula',
+        'remove-formula',
       ]),
     );
   });
@@ -854,5 +856,122 @@ describe('invokeActorActionHandler — post-item-to-chat', () => {
     await expect(
       invokeActorActionHandler({ actorId: 'actor1', action: 'post-item-to-chat', params: {} }),
     ).rejects.toThrow(/params\.itemId is required/);
+  });
+});
+
+describe('invokeActorActionHandler — add-formula', () => {
+  function actorWithFormulas(formulas: Array<{ uuid: string }>): MockActor {
+    return makeActor({
+      system: { crafting: { formulas, entries: {} } },
+    });
+  }
+
+  it('appends a new uuid to system.crafting.formulas and reports added=true', async () => {
+    const actor = actorWithFormulas([{ uuid: 'Compendium.pf2e.equipment-srd.Item.healing-elixir' }]);
+    setupFoundry({ actor });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'add-formula',
+      params: { uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser' },
+    });
+
+    expect(actor.update).toHaveBeenCalledWith({
+      'system.crafting.formulas': [
+        { uuid: 'Compendium.pf2e.equipment-srd.Item.healing-elixir' },
+        { uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser' },
+      ],
+    });
+    expect(result).toEqual({
+      ok: true,
+      added: true,
+      uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser',
+      formulaCount: 2,
+    });
+  });
+
+  it('is a no-op when the formula is already known', async () => {
+    const actor = actorWithFormulas([{ uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser' }]);
+    setupFoundry({ actor });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'add-formula',
+      params: { uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser' },
+    });
+
+    expect(actor.update).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ added: false, formulaCount: 1 });
+  });
+
+  it('handles an empty/missing formulas array', async () => {
+    const actor = actorWithFormulas([]);
+    setupFoundry({ actor });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'add-formula',
+      params: { uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser' },
+    });
+
+    expect(actor.update).toHaveBeenCalledWith({
+      'system.crafting.formulas': [{ uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser' }],
+    });
+    expect(result).toMatchObject({ added: true, formulaCount: 1 });
+  });
+
+  it('requires uuid', async () => {
+    setupFoundry({ actor: actorWithFormulas([]) });
+    await expect(
+      invokeActorActionHandler({ actorId: 'actor1', action: 'add-formula', params: {} }),
+    ).rejects.toThrow(/params\.uuid is required/);
+  });
+});
+
+describe('invokeActorActionHandler — remove-formula', () => {
+  function actorWithFormulas(formulas: Array<{ uuid: string }>): MockActor {
+    return makeActor({
+      system: { crafting: { formulas, entries: {} } },
+    });
+  }
+
+  it('filters the uuid out and reports removed=true', async () => {
+    const actor = actorWithFormulas([
+      { uuid: 'Compendium.pf2e.equipment-srd.Item.healing-elixir' },
+      { uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser' },
+    ]);
+    setupFoundry({ actor });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'remove-formula',
+      params: { uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser' },
+    });
+
+    expect(actor.update).toHaveBeenCalledWith({
+      'system.crafting.formulas': [{ uuid: 'Compendium.pf2e.equipment-srd.Item.healing-elixir' }],
+    });
+    expect(result).toMatchObject({ removed: true, formulaCount: 1 });
+  });
+
+  it('is a no-op when the formula is not known', async () => {
+    const actor = actorWithFormulas([{ uuid: 'Compendium.pf2e.equipment-srd.Item.healing-elixir' }]);
+    setupFoundry({ actor });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'remove-formula',
+      params: { uuid: 'Compendium.pf2e.equipment-srd.Item.bomb-lesser' },
+    });
+
+    expect(actor.update).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ removed: false, formulaCount: 1 });
+  });
+
+  it('requires uuid', async () => {
+    setupFoundry({ actor: actorWithFormulas([]) });
+    await expect(
+      invokeActorActionHandler({ actorId: 'actor1', action: 'remove-formula', params: {} }),
+    ).rejects.toThrow(/params\.uuid is required/);
   });
 });
