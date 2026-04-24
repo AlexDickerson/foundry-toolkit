@@ -140,7 +140,7 @@ describe('searchMonsters', () => {
 });
 
 describe('listMonsters', () => {
-  it('maps matches to summaries and applies the level window client-side', async () => {
+  it('returns every match unfiltered (server-side filters intentionally dropped)', async () => {
     const search = vi.fn().mockResolvedValue({
       matches: [
         monsterMatch({ name: 'A', level: 1 }),
@@ -149,15 +149,39 @@ describe('listMonsters', () => {
       ],
     });
     const api = fakeApi({ searchCompendium: search });
-    const out = await createPreparedCompendium(api).listMonsters({ levels: [3, 7] });
-    expect(out.map((s) => s.name)).toEqual(['B']);
+    // Caller-supplied level window is deliberately ignored — every
+    // monster in the selected packs comes back so the UI can render a
+    // complete baseline. Client-side narrowing is a browser concern.
+    const out = await createPreparedCompendium(api).listMonsters({
+      levels: [3, 7],
+      keywords: 'dragon',
+      traits: ['fire'],
+    });
+    expect(out.map((s) => s.name)).toEqual(['A', 'B', 'C']);
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({
         documentType: 'npc',
-        maxLevel: 7,
+        limit: 10000,
         packIds: expect.arrayContaining(['pf2e.pathfinder-bestiary']),
       }),
     );
+    const call = search.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(call).not.toHaveProperty('q');
+    expect(call).not.toHaveProperty('traits');
+    expect(call).not.toHaveProperty('maxLevel');
+  });
+
+  it('honors the sort request (name ascending) when supplied', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'C', level: 9 }),
+        monsterMatch({ name: 'A', level: 1 }),
+        monsterMatch({ name: 'B', level: 5 }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ sortBy: 'name', sortDir: 'asc' });
+    expect(out.map((s) => s.name)).toEqual(['A', 'B', 'C']);
   });
 
   it('returns empty for an empty match list', async () => {
