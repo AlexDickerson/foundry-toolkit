@@ -197,6 +197,22 @@ export interface ItemFacets {
   usageCategories: string[];
 }
 
+/** Renderer-facing compendium pack descriptor. Mirrors the subset of
+ *  foundry-mcp's `CompendiumPack` that the Settings → Monsters dialog
+ *  needs — enough to render each pack as a labeled checkbox. */
+export interface CompendiumPackSummary {
+  /** Foundry pack id, e.g. `pf2e.pathfinder-bestiary`. Canonical key
+   *  for the monster-pack override setting. */
+  id: string;
+  /** Human-readable label from Foundry's pack metadata, e.g. "Pathfinder
+   *  Bestiary". Shown as the checkbox label. */
+  label: string;
+  /** 'Actor' for bestiaries/NPCs, 'Item' for equipment/feats/etc. */
+  type: string;
+  /** Game system name. Usually `'pf2e'` for the packs this dialog lists. */
+  system?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Chat
 // ---------------------------------------------------------------------------
@@ -684,6 +700,27 @@ export interface ElectronAPI {
   monstersFacets(): Promise<MonsterFacets>;
   /** Full stat block for a single monster by name. */
   monstersGetDetail(name: string): Promise<MonsterDetail | null>;
+
+  // -----------------------------------------------------------------------
+  // Compendium configuration (Settings → Monsters)
+  // -----------------------------------------------------------------------
+
+  /** List every compendium pack foundry-mcp knows about. Optionally
+   *  narrowed by `documentType` ('Actor' for bestiaries, 'Item' for
+   *  equipment/feats/etc). Used by the Settings dialog to render a live
+   *  multi-select of the packs the user actually has installed. */
+  compendiumListPacks(documentType?: string): Promise<CompendiumPackSummary[]>;
+  /** Currently-active monster pack list — either the user's saved
+   *  override or the hardcoded defaults. */
+  compendiumGetMonsterPackIds(): Promise<string[]>;
+  /** Replace the monster pack list. Passing `[]` resets to defaults.
+   *  Returns the post-save active list so the renderer can update state
+   *  without a follow-up read. */
+  compendiumSetMonsterPackIds(ids: string[]): Promise<string[]>;
+  /** The hardcoded default monster pack list. Exposed so Settings can
+   *  offer a "Reset to default" button that shows the default tick set
+   *  without hard-coding it in the renderer. */
+  compendiumGetDefaultMonsterPackIds(): Promise<string[]>;
 
   // -----------------------------------------------------------------------
   // Globe pins

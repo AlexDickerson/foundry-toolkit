@@ -13,6 +13,7 @@ import { registerBookHandlers } from './books.js';
 import { registerChatHandlers } from './chat.js';
 import { registerMonsterHandlers } from './monsters.js';
 import { registerItemHandlers } from './items.js';
+import { registerCompendiumHandlers } from './compendium.js';
 import { registerTaggerHandlers } from './tagger.js';
 import { registerAutoWallHandlers } from './auto-wall.js';
 import { registerFoundryHandlers } from './foundry.js';
@@ -34,6 +35,7 @@ export function registerIpcHandlers(
   registerChatHandlers(getMainWindow);
   registerMonsterHandlers();
   registerItemHandlers();
+  registerCompendiumHandlers();
   registerTaggerHandlers(cfg, getMainWindow);
   registerAutoWallHandlers(cfg);
   registerFoundryHandlers(db, cfg);
