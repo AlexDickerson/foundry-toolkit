@@ -103,7 +103,7 @@ describe('createCompendiumHttpClient', () => {
     const client = createCompendiumHttpClient('http://localhost:8765');
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Not found', suggestion: 'Check the uuid' }, 404));
     await expect(client.getCompendiumDocument('bad-uuid')).rejects.toMatchObject({
-      name: 'CompendiumRequestError',
+      name: 'ApiRequestError',
       status: 404,
       message: 'Not found',
       suggestion: 'Check the uuid',
@@ -114,7 +114,7 @@ describe('createCompendiumHttpClient', () => {
     const client = createCompendiumHttpClient('http://localhost:8765');
     fetchMock.mockResolvedValueOnce(new Response('<html>oops</html>', { status: 502 }));
     await expect(client.searchCompendium({ q: 'any' })).rejects.toMatchObject({
-      name: 'CompendiumRequestError',
+      name: 'ApiRequestError',
       status: 502,
       message: 'HTTP 502',
     });

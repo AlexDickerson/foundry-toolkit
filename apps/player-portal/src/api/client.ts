@@ -19,12 +19,12 @@ import type {
 // action.
 type ActorActionParams = Record<string, unknown>;
 import type { UploadAssetResult } from '@foundry-toolkit/shared/foundry-api';
+import { buildCompendiumQuery, requestJson } from '@foundry-toolkit/shared/http';
 
 import type {
   ActorItemRef,
   ActorRef,
   ActorSummary,
-  ApiError,
   CompendiumDocument,
   CompendiumMatch,
   CompendiumPack,
@@ -33,22 +33,14 @@ import type {
   PreparedActor,
 } from './types';
 
+// Re-export the shared error so existing `instanceof ApiRequestError`
+// callsites keep importing from this module.
+export { ApiRequestError } from '@foundry-toolkit/shared/http';
+
 // Dev: Vite proxies /api → :3000 (Fastify). Fastify then proxies /api/mcp →
 // foundry-mcp (:8765) and handles /api/live/* in-process. Prod: one Fastify
 // serves the built SPA + both namespaces same-origin.
 const BASE = '/api/mcp';
-
-export class ApiRequestError extends Error {
-  readonly status: number;
-  readonly suggestion: string | undefined;
-
-  constructor(status: number, error: string, suggestion?: string) {
-    super(error);
-    this.name = 'ApiRequestError';
-    this.status = status;
-    this.suggestion = suggestion;
-  }
-}
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
@@ -60,41 +52,12 @@ export interface LongRestResponse {
   messageCount: number;
 }
 
-async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const method = opts.method ?? 'GET';
-  const init: RequestInit = {
-    method,
-    headers:
-      opts.body !== undefined
-        ? { Accept: 'application/json', 'Content-Type': 'application/json' }
-        : { Accept: 'application/json' },
-  };
-  if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
-  const res = await fetch(`${BASE}${path}`, init);
-  if (!res.ok) {
-    let body: ApiError = { error: `HTTP ${res.status.toString()}` };
-    try {
-      body = (await res.json()) as ApiError;
-    } catch {
-      // Response wasn't JSON — fall through with the status-only error.
-    }
-    throw new ApiRequestError(res.status, body.error, body.suggestion);
+function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const init: RequestInit = { method: opts.method ?? 'GET' };
+  if (opts.body !== undefined) {
+    init.body = JSON.stringify(opts.body);
   }
-  return (await res.json()) as T;
-}
-
-function buildCompendiumQuery(opts: CompendiumSearchOptions): string {
-  const params = new URLSearchParams();
-  if (opts.q !== undefined && opts.q.length > 0) params.set('q', opts.q);
-  if (opts.packIds !== undefined && opts.packIds.length > 0) params.set('packId', opts.packIds.join(','));
-  if (opts.documentType !== undefined) params.set('documentType', opts.documentType);
-  if (opts.traits !== undefined && opts.traits.length > 0) params.set('traits', opts.traits.join(','));
-  if (opts.anyTraits !== undefined && opts.anyTraits.length > 0) params.set('anyTraits', opts.anyTraits.join(','));
-  if (opts.sources !== undefined && opts.sources.length > 0) params.set('sources', opts.sources.join(','));
-  if (opts.ancestrySlug !== undefined && opts.ancestrySlug.length > 0) params.set('ancestrySlug', opts.ancestrySlug);
-  if (opts.maxLevel !== undefined) params.set('maxLevel', opts.maxLevel.toString());
-  if (opts.limit !== undefined) params.set('limit', opts.limit.toString());
-  return params.toString();
+  return requestJson<T>(`${BASE}${path}`, init);
 }
 
 export const api = {

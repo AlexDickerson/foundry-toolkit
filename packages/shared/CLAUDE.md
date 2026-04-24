@@ -22,6 +22,7 @@ Subpath exports:
 - `.` / `./types` — `src/types.ts`
 - `./foundry-api` — `src/foundry-api.ts` (foundry-mcp `/api/*` wire contract: `CompendiumMatch`, `ActorRef`, `PreparedActor`, `ApiError`, etc.)
 - `./foundry-markup` — `src/foundry-markup.ts`
+- `./http` — `src/http.ts` (`ApiRequestError`, `requestJson<T>`, `buildCompendiumQuery` — runtime helpers for hitting the foundry-mcp REST surface)
 - `./map-stem` — `src/map-stem.ts`
 - `./MissionBriefing` — `src/MissionBriefing.tsx` (React component)
 - `./golarion-map` — `src/golarion-map/index.ts`
