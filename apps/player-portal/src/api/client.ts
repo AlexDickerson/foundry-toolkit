@@ -60,18 +60,6 @@ export interface LongRestResponse {
   messageCount: number;
 }
 
-export type ActorType = 'character' | 'npc' | 'hazard' | 'loot' | 'party' | 'vehicle' | 'familiar';
-
-export interface RunActorScriptOptions {
-  actorId: string;
-  /** If set, throws before running `body` when the actor's type doesn't match. */
-  requireType?: ActorType;
-  /** JS body that runs inside an async IIFE with `actor` in scope. Must
-   *  `return` a JSON-serializable value — Foundry Documents need
-   *  `.toObject(false)` first. */
-  body: string;
-}
-
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const method = opts.method ?? 'GET';
   const init: RequestInit = {
@@ -184,84 +172,35 @@ export const api = {
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),
   uploadAsset: (body: UploadAssetBody): Promise<UploadAssetResult> =>
     request<UploadAssetResult>('/uploads', { method: 'POST', body }),
-  // Runs `body` inside an async IIFE in the Foundry page with an `actor`
-  // local pre-resolved from the given id. Fails with a clear message if the
-  // actor doesn't exist or doesn't match `requireType`. `body` must
-  // explicitly `return` — JS has no implicit last-expression return. Hits
-  // /api/eval, so the server must have ALLOW_EVAL=1 for this to work at
-  // all; promote a call site to a typed command when the eval gate
-  // becomes a problem.
-  runActorScript: <T = unknown>(opts: RunActorScriptOptions): Promise<T> => {
-    const typeCheck =
-      opts.requireType !== undefined
-        ? `if (actor.type !== ${JSON.stringify(opts.requireType)}) throw new Error('Actor is not a ' + ${JSON.stringify(opts.requireType)});`
-        : '';
-    const script = `
-      const actor = game.actors.get(${JSON.stringify(opts.actorId)});
-      if (!actor) throw new Error('Actor not found: ' + ${JSON.stringify(opts.actorId)});
-      ${typeCheck}
-      ${opts.body}
-    `;
-    return request<T>('/eval', { method: 'POST', body: { script } });
-  },
+  // Crafts a formula via the pf2e `Craft` activity. pf2e resolves the
+  // item UUID internally, so the SPA passes the formula's compendium
+  // UUID + quantity; the action fires a Crafting skill check chat
+  // card and, on success, creates the item in the actor's inventory.
+  // Actor state refresh comes via the `actors` event channel.
+  craft: (id: string, itemUuid: string, quantity = 1): Promise<{ ok: boolean }> =>
+    api.invokeActorAction<{ ok: boolean }>(id, 'craft', { itemUuid, quantity }),
+  // pf2e Rest for the Night — daily prep, HP heal, spell slot reset,
+  // resource refresh. `messageCount` echoes how many chat messages
+  // the activity produced so the SPA can display "N recovery
+  // results" if it wants to.
   longRest: (id: string): Promise<LongRestResponse> =>
-    api.runActorScript<LongRestResponse>({
-      actorId: id,
-      requireType: 'character',
-      body: `
-        const messages = await game.pf2e.actions.restForTheNight({ actors: [actor], skipDialog: true });
-        return { ok: true, messageCount: messages.length };
-      `,
-    }),
-  // Rolls a single MAP variant of a Strike. variantIndex 0/1/2 maps to
-  // first attack / second (MAP) / third (MAP2). The PF2e `StrikeData`
-  // lives at `actor.system.actions[i]` and each variant exposes its
-  // own `roll()` that bakes in the MAP penalty.
+    api.invokeActorAction<LongRestResponse>(id, 'rest-for-the-night'),
+  // Rolls a single MAP variant of a Strike. `variantIndex` 0/1/2 maps
+  // to first attack / second (−5 MAP) / third (−10 MAP). pf2e's
+  // `StrikeData.variants[i].roll()` bakes in the MAP penalty.
   rollStrike: (id: string, strikeSlug: string, variantIndex: number): Promise<{ ok: boolean }> =>
-    api.runActorScript<{ ok: boolean }>({
-      actorId: id,
-      requireType: 'character',
-      body: `
-        const strike = actor.system.actions.find(s => s.slug === ${JSON.stringify(strikeSlug)});
-        if (!strike) throw new Error('Strike not found: ' + ${JSON.stringify(strikeSlug)});
-        const variant = strike.variants?.[${variantIndex.toString()}];
-        if (!variant) throw new Error('Strike variant ${variantIndex.toString()} not available');
-        await variant.roll({});
-        return { ok: true };
-      `,
-    }),
+    api.invokeActorAction<{ ok: boolean }>(id, 'roll-strike', { strikeSlug, variantIndex }),
+  // Rolls regular or critical damage for a Strike, based on the attack
+  // outcome the SPA reads from the chat card.
   rollStrikeDamage: (id: string, strikeSlug: string, critical: boolean): Promise<{ ok: boolean }> =>
-    api.runActorScript<{ ok: boolean }>({
-      actorId: id,
-      requireType: 'character',
-      body: `
-        const strike = actor.system.actions.find(s => s.slug === ${JSON.stringify(strikeSlug)});
-        if (!strike) throw new Error('Strike not found: ' + ${JSON.stringify(strikeSlug)});
-        if (${critical.toString()}) {
-          if (typeof strike.critical !== 'function') throw new Error('Strike has no critical roll');
-          await strike.critical({});
-        } else {
-          if (typeof strike.damage !== 'function') throw new Error('Strike has no damage roll');
-          await strike.damage({});
-        }
-        return { ok: true };
-      `,
-    }),
-  // Posts an item's action card to chat — the same behaviour as the
-  // pf2e sheet's "send to chat" button on an action/reaction/free
+    api.invokeActorAction<{ ok: boolean }>(id, 'roll-strike-damage', { strikeSlug, critical }),
+  // Posts an owned item's action card to chat — mirrors the pf2e
+  // sheet's "send to chat" button on an action / reaction / free
   // action. Consumable charge consumption is left to whoever clicks
-  // the roll buttons inside the posted card.
-  useItem: (id: string, itemId: string): Promise<{ ok: boolean }> =>
-    api.runActorScript<{ ok: boolean }>({
-      actorId: id,
-      requireType: 'character',
-      body: `
-        const item = actor.items.get(${JSON.stringify(itemId)});
-        if (!item) throw new Error('Item not found: ' + ${JSON.stringify(itemId)});
-        await item.toMessage();
-        return { ok: true };
-      `,
-    }),
+  // the roll buttons inside the posted card. Distinct from the typed
+  // `use-item` command, which runs the full activation pipeline.
+  useItem: (id: string, itemId: string): Promise<{ ok: boolean; itemId: string; itemName: string }> =>
+    api.invokeActorAction<{ ok: boolean; itemId: string; itemName: string }>(id, 'post-item-to-chat', { itemId }),
   listCompendiumSources: (
     opts: {
       documentType?: string;

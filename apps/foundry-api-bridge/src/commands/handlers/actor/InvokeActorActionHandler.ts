@@ -12,7 +12,13 @@ interface FoundryActor {
   id: string;
   uuid: string;
   type: string;
-  system: Record<string, unknown>;
+  system: Record<string, unknown> & {
+    /** PF2e system caches prepared strike/action objects on the
+     *  character here. Shape is `{slug, variants: [{roll()}], damage(),
+     *  critical()}`. Loose typing because the surface's runtime-only. */
+    actions?: Pf2eStrike[];
+  };
+  items: FoundryItemCollection;
   update(data: Record<string, unknown>): Promise<FoundryActor>;
   /** PF2e-specific: bumps a condition by 1 (creates the effect at
    *  value 1 if absent). */
@@ -34,13 +40,40 @@ interface Pf2eStatistic {
   }): Promise<FoundryD20Roll | null>;
 }
 
+interface Pf2eStrikeVariant {
+  roll(args: Record<string, unknown>): Promise<unknown>;
+}
+
+interface Pf2eStrike {
+  slug: string;
+  variants?: Pf2eStrikeVariant[];
+  damage?: (args: Record<string, unknown>) => Promise<unknown>;
+  critical?: (args: Record<string, unknown>) => Promise<unknown>;
+}
+
+interface FoundryItem {
+  id: string;
+  name: string;
+  type: string;
+  toMessage(args?: Record<string, unknown>): Promise<unknown>;
+}
+
+interface FoundryItemCollection {
+  get(id: string): FoundryItem | undefined;
+}
+
 interface ActorsCollection {
   get(id: string): FoundryActor | undefined;
 }
 
+type PF2eActionFn = (options: Record<string, unknown>) => Promise<unknown> | unknown;
+
 interface FoundryGame {
   actors: ActorsCollection;
   messages?: { contents: Array<{ id: string; isRoll?: boolean }> };
+  pf2e?: {
+    actions?: Record<string, PF2eActionFn | undefined>;
+  };
 }
 
 interface FoundryGlobals {
@@ -64,6 +97,16 @@ const ACTION_HANDLERS: Record<string, ActionHandler> = {
   'adjust-resource': adjustResourceAction,
   'adjust-condition': adjustConditionAction,
   'roll-statistic': rollStatisticAction,
+  craft: craftAction,
+  'rest-for-the-night': restForTheNightAction,
+  'roll-strike': rollStrikeAction,
+  'roll-strike-damage': rollStrikeDamageAction,
+  // Simple "send the item's action card to chat" — same behaviour as
+  // the pf2e sheet's "post to chat" button. Distinct from the typed
+  // `use-item` command, which runs the full activation pipeline
+  // (activities, scaling, consumable charges) and has its own
+  // MCP/IPC consumers.
+  'post-item-to-chat': postItemToChatAction,
 };
 
 // ─── adjust-resource ───────────────────────────────────────────────────
@@ -298,6 +341,162 @@ async function rollStatisticAction(
   }
 
   return result;
+}
+
+// ─── craft ─────────────────────────────────────────────────────────────
+
+// pf2e's `game.pf2e.actions.craft` accepts `uuid` directly and
+// resolves it internally — we don't need to `fromUuid` ourselves.
+// The action fires a Crafting skill check chat card; SPA state
+// refreshes via the `actors` event channel if the roll mutates the
+// actor (on success it creates an item in inventory).
+async function craftAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  const itemUuid = params['itemUuid'];
+  if (typeof itemUuid !== 'string' || itemUuid.length === 0) {
+    throw new Error('craft: params.itemUuid is required');
+  }
+  const quantityRaw = params['quantity'];
+  const quantity = typeof quantityRaw === 'number' && quantityRaw > 0 ? Math.floor(quantityRaw) : 1;
+
+  const craftFn = getFoundry().game.pf2e?.actions?.['craft'];
+  if (typeof craftFn !== 'function') {
+    throw new Error('craft: game.pf2e.actions.craft is unavailable (pf2e system not installed?)');
+  }
+
+  await craftFn({ uuid: itemUuid, actors: [actor], quantity });
+
+  return { ok: true };
+}
+
+// ─── rest-for-the-night ────────────────────────────────────────────────
+
+// pf2e's Rest for the Night — daily preparations, HP/heal, spell
+// slot reset, resource refresh. `skipDialog` suppresses the native
+// confirmation popup so the SPA can drive it silently. Returns the
+// chat message count so the SPA can echo "N recovery results" if it
+// wants to, matching the prior eval-based shape.
+async function restForTheNightAction(
+  actor: FoundryActor,
+  _params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  if (actor.type !== 'character') {
+    throw new Error(`rest-for-the-night: actor ${actor.id} is a ${actor.type}, not a character`);
+  }
+  const restFn = getFoundry().game.pf2e?.actions?.['restForTheNight'];
+  if (typeof restFn !== 'function') {
+    throw new Error(
+      'rest-for-the-night: game.pf2e.actions.restForTheNight is unavailable (pf2e system not installed?)',
+    );
+  }
+
+  const result = (await restFn({ actors: [actor], skipDialog: true })) as unknown;
+  const messageCount = Array.isArray(result) ? result.length : 0;
+
+  return { ok: true, messageCount };
+}
+
+// ─── roll-strike ───────────────────────────────────────────────────────
+
+// Rolls a single MAP variant of a PF2e strike. `variantIndex` 0/1/2
+// maps to first attack / second (−5 MAP) / third (−10 MAP). The
+// PF2e `StrikeData` lives at `actor.system.actions[i]` and each
+// variant exposes its own `roll()` that bakes in the MAP penalty.
+async function rollStrikeAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  if (actor.type !== 'character') {
+    throw new Error(`roll-strike: actor ${actor.id} is a ${actor.type}, not a character`);
+  }
+  const strikeSlug = params['strikeSlug'];
+  if (typeof strikeSlug !== 'string' || strikeSlug.length === 0) {
+    throw new Error('roll-strike: params.strikeSlug is required');
+  }
+  const variantIndex = params['variantIndex'];
+  if (typeof variantIndex !== 'number' || !Number.isInteger(variantIndex) || variantIndex < 0) {
+    throw new Error('roll-strike: params.variantIndex must be a non-negative integer');
+  }
+
+  const strike = resolveStrike(actor, strikeSlug);
+  const variant = strike.variants?.[variantIndex];
+  if (!variant) {
+    throw new Error(`roll-strike: strike "${strikeSlug}" has no variant ${variantIndex.toString()}`);
+  }
+  await variant.roll({});
+  return { ok: true };
+}
+
+// ─── roll-strike-damage ────────────────────────────────────────────────
+
+// Rolls either regular damage or critical damage for a strike
+// (whichever was appropriate for the attack outcome). Critical vs.
+// normal is client-driven since the SPA reads the outcome from the
+// attack's chat card.
+async function rollStrikeDamageAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  if (actor.type !== 'character') {
+    throw new Error(`roll-strike-damage: actor ${actor.id} is a ${actor.type}, not a character`);
+  }
+  const strikeSlug = params['strikeSlug'];
+  if (typeof strikeSlug !== 'string' || strikeSlug.length === 0) {
+    throw new Error('roll-strike-damage: params.strikeSlug is required');
+  }
+  const critical = params['critical'] === true;
+
+  const strike = resolveStrike(actor, strikeSlug);
+  if (critical) {
+    if (typeof strike.critical !== 'function') {
+      throw new Error(`roll-strike-damage: strike "${strikeSlug}" has no critical roll`);
+    }
+    await strike.critical({});
+  } else {
+    if (typeof strike.damage !== 'function') {
+      throw new Error(`roll-strike-damage: strike "${strikeSlug}" has no damage roll`);
+    }
+    await strike.damage({});
+  }
+  return { ok: true };
+}
+
+function resolveStrike(actor: FoundryActor, slug: string): Pf2eStrike {
+  const actions = actor.system.actions;
+  if (!Array.isArray(actions)) {
+    throw new Error(`actor ${actor.id} has no system.actions — is this a pf2e character?`);
+  }
+  const strike = actions.find((s) => s.slug === slug);
+  if (!strike) {
+    throw new Error(`strike "${slug}" not found on actor ${actor.id}`);
+  }
+  return strike;
+}
+
+// ─── post-item-to-chat ─────────────────────────────────────────────────
+
+// Posts an owned item's action card to chat — mirrors the pf2e sheet's
+// "send to chat" button on an action / reaction / free action.
+// Consumable charge consumption is left to whoever clicks the roll
+// buttons inside the posted card. Distinct from the typed `use-item`
+// command, which runs the full activation pipeline (activities,
+// scaling, auto-consume) and has its own MCP/IPC consumers.
+async function postItemToChatAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  const itemId = params['itemId'];
+  if (typeof itemId !== 'string' || itemId.length === 0) {
+    throw new Error('post-item-to-chat: params.itemId is required');
+  }
+  const item = actor.items.get(itemId);
+  if (!item) {
+    throw new Error(`post-item-to-chat: item ${itemId} not found on actor ${actor.id}`);
+  }
+  await item.toMessage();
+  return { ok: true, itemId: item.id, itemName: item.name };
 }
 
 // ─── Router ────────────────────────────────────────────────────────────
