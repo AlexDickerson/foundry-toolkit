@@ -1,6 +1,8 @@
 import type {
+  ActorConditionKey,
   ActorResourceKey,
   AddItemFromCompendiumBody,
+  AdjustActorConditionResponse,
   AdjustActorResourceResponse,
   CreateActorBody,
   UpdateActorBody,
@@ -132,6 +134,18 @@ export const api = {
     request<AdjustActorResourceResponse>(`/actors/${id}/resources/adjust`, {
       method: 'POST',
       body: { resource, delta },
+    }),
+  // Signed stepper for dying / wounded / doomed. Each |delta| unit
+  // triggers one increase/decreaseCondition call on the bridge, so
+  // PF2e's cascade rules fire (dying→wounded, auto-death at cap).
+  adjustActorCondition: (
+    id: string,
+    condition: ActorConditionKey,
+    delta: number,
+  ): Promise<AdjustActorConditionResponse> =>
+    request<AdjustActorConditionResponse>(`/actors/${id}/conditions/adjust`, {
+      method: 'POST',
+      body: { condition, delta },
     }),
   resolvePrompt: (bridgeId: string, value: unknown): Promise<{ ok: boolean }> =>
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),

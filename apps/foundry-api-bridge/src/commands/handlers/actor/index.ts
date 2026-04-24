@@ -8,6 +8,7 @@ export { createActorFromCompendiumHandler } from './CreateActorFromCompendiumHan
 export { updateActorHandler } from './UpdateActorHandler';
 export { deleteActorHandler } from './DeleteActorHandler';
 export { adjustActorResourceHandler } from './AdjustActorResourceHandler';
+export { adjustActorConditionHandler } from './AdjustActorConditionHandler';
 export { getActorsHandler } from './GetActorsHandler';
 export { getActorHandler } from './GetActorHandler';
 export { getPreparedActorHandler } from './GetPreparedActorHandler';

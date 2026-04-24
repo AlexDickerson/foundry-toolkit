@@ -16,6 +16,7 @@ export {
   updateActorHandler,
   deleteActorHandler,
   adjustActorResourceHandler,
+  adjustActorConditionHandler,
   getActorsHandler,
   getActorHandler,
   getPreparedActorHandler,

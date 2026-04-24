@@ -8,6 +8,7 @@ import type { z } from 'zod/v4';
 
 import type {
   addItemFromCompendiumBody,
+  adjustActorConditionBody,
   adjustActorResourceBody,
   createActorBody,
   resolvePromptBody,
@@ -34,6 +35,18 @@ export interface AdjustActorResourceResponse {
   after: number;
   /** null when the resource has no natural cap (currently only 'hp-temp'). */
   max: number | null;
+}
+
+export type AdjustActorConditionBody = z.infer<typeof adjustActorConditionBody>;
+export type ActorConditionKey = AdjustActorConditionBody['condition'];
+
+export interface AdjustActorConditionResponse {
+  actorId: string;
+  condition: ActorConditionKey;
+  before: number;
+  after: number;
+  /** Re-read after the writes — dying's cap shifts with doomed. */
+  max: number;
 }
 
 // Error response shape for `/api/*` — mirrored in `foundry-api.ts` as

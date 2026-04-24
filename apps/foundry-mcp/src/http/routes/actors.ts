@@ -5,6 +5,7 @@ import {
   actorItemIdParams,
   actorTraceParams,
   addItemFromCompendiumBody,
+  adjustActorConditionBody,
   adjustActorResourceBody,
   createActorBody,
   updateActorBody,
@@ -74,5 +75,17 @@ export function registerActorRoutes(app: FastifyInstance): void {
     const { id } = actorIdParam.parse(req.params);
     const body = adjustActorResourceBody.parse(req.body);
     return sendCommand('adjust-actor-resource', { actorId: id, ...body });
+  });
+
+  // Stepper for PF2e persistent-count conditions (dying, wounded,
+  // doomed). Positive delta = apply N stacks via increaseCondition;
+  // negative = peel N stacks via decreaseCondition. Handler goes
+  // through PF2e's condition API rather than raw updates, so the
+  // system's cascade behaviour (dying → wounded, auto-death at cap)
+  // stays intact.
+  app.post('/api/actors/:id/conditions/adjust', async (req) => {
+    const { id } = actorIdParam.parse(req.params);
+    const body = adjustActorConditionBody.parse(req.body);
+    return sendCommand('adjust-actor-condition', { actorId: id, ...body });
   });
 }
