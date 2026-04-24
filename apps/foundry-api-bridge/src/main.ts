@@ -24,6 +24,7 @@ import {
   createActorFromCompendiumHandler,
   updateActorHandler,
   deleteActorHandler,
+  adjustActorResourceHandler,
   getActorsHandler,
   getActorHandler,
   getPreparedActorHandler,
@@ -199,6 +200,7 @@ function initializeWebSocket(
   commandRouter.register('create-actor-from-compendium', createActorFromCompendiumHandler);
   commandRouter.register('update-actor', updateActorHandler);
   commandRouter.register('delete-actor', deleteActorHandler);
+  commandRouter.register('adjust-actor-resource', adjustActorResourceHandler);
 
   // Journal CRUD
   commandRouter.register('create-journal', createJournalHandler);

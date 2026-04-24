@@ -10,14 +10,17 @@ import { SectionHeader } from '../common/SectionHeader';
 interface Props {
   system: CharacterSystem;
   actorId: string;
-  onRested: () => void;
+  /** Fired after any server-acknowledged mutation from this tab — long
+   *  rest, HP adjust, hero-point adjust — so the parent can refetch
+   *  `/prepared` and redraw. */
+  onActorChanged: () => void;
 }
 
 // Character landing tab — ability scores, headline defensive/offensive
 // stats, hero points, speeds, languages, traits. Ported in structure
 // from pf2e's static/templates/actors/character/tabs/character.hbs, but
 // read-only (no input widgets) and Tailwind-styled.
-export function Character({ system, actorId, onRested }: Props): React.ReactElement {
+export function Character({ system, actorId, onActorChanged }: Props): React.ReactElement {
   const keyAbility = system.details.keyability.value;
   const classDC = system.attributes.classDC;
   const speeds = populatedSpeeds(system.movement.speeds);
@@ -30,7 +33,7 @@ export function Character({ system, actorId, onRested }: Props): React.ReactElem
     <section className="space-y-6">
       <AbilityBlock abilities={system.abilities} keyAbility={keyAbility} />
 
-      <StatsBlock system={system} />
+      <StatsBlock system={system} actorId={actorId} onActorChanged={onActorChanged} />
 
       <ConditionsRow
         dying={system.attributes.dying}
@@ -41,8 +44,8 @@ export function Character({ system, actorId, onRested }: Props): React.ReactElem
       {system.attributes.shield.itemId !== null && <ShieldTile shield={system.attributes.shield} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ResourcesRow resources={system.resources} />
-        <LongRestButton actorId={actorId} onRested={onRested} />
+        <ResourcesRow resources={system.resources} actorId={actorId} onActorChanged={onActorChanged} />
+        <LongRestButton actorId={actorId} onRested={onActorChanged} />
       </div>
 
       <MetaRow>
@@ -145,7 +148,15 @@ function AbilityBlock({
   );
 }
 
-function StatsBlock({ system }: { system: CharacterSystem }): React.ReactElement {
+function StatsBlock({
+  system,
+  actorId,
+  onActorChanged,
+}: {
+  system: CharacterSystem;
+  actorId: string;
+  onActorChanged: () => void;
+}): React.ReactElement {
   const { ac, hp } = system.attributes;
   const { perception, initiative } = system;
   const saves = system.saves;
@@ -155,16 +166,7 @@ function StatsBlock({ system }: { system: CharacterSystem }): React.ReactElement
       <SectionHeader>Key Stats</SectionHeader>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <StatTile label="AC" value={ac.value.toString()} title={ac.breakdown} />
-        <StatTile
-          label="HP"
-          value={
-            hp.temp > 0
-              ? `${hp.value.toString()} (+${hp.temp.toString()})`
-              : `${hp.value.toString()} / ${hp.max.toString()}`
-          }
-          title={hp.breakdown}
-          data-stat="hp"
-        />
+        <HpTile hp={hp} actorId={actorId} onActorChanged={onActorChanged} />
         <StatTile
           label="Perception"
           value={formatSignedInt(perception.value)}
@@ -187,6 +189,65 @@ function StatsBlock({ system }: { system: CharacterSystem }): React.ReactElement
         <SaveTile save={saves.will} />
       </div>
     </div>
+  );
+}
+
+// Replaces the plain HP `StatTile` with a stepper. Keeps the stat-card
+// shape (label + value on top) and tucks −5 / −1 / +1 / +5 buttons
+// below so the tile still sits flush with the other stats in the grid.
+function HpTile({
+  hp,
+  actorId,
+  onActorChanged,
+}: {
+  hp: CharacterSystem['attributes']['hp'];
+  actorId: string;
+  onActorChanged: () => void;
+}): React.ReactElement {
+  const value = hp.temp > 0 ? `${hp.value.toString()} (+${hp.temp.toString()})` : `${hp.value.toString()} / ${hp.max.toString()}`;
+  const { state, trigger } = useActorAction({
+    run: (delta: number) => api.adjustActorResource(actorId, 'hp', delta),
+    onSuccess: onActorChanged,
+  });
+  const isError = typeof state === 'object';
+
+  return (
+    <div
+      className="flex flex-col items-center rounded border border-pf-border bg-white px-2 py-2"
+      title={hp.breakdown}
+      data-stat="hp"
+    >
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">HP</span>
+      <span className="mt-0.5 font-mono text-xl font-semibold tabular-nums text-pf-text">{value}</span>
+      <div className="mt-1 flex gap-0.5" data-role="hp-stepper">
+        <StepButton label="−5" disabled={state === 'pending'} onClick={() => void trigger(-5)} />
+        <StepButton label="−1" disabled={state === 'pending'} onClick={() => void trigger(-1)} />
+        <StepButton label="+1" disabled={state === 'pending'} onClick={() => void trigger(1)} />
+        <StepButton label="+5" disabled={state === 'pending'} onClick={() => void trigger(5)} />
+      </div>
+      {isError && <span className="mt-1 text-[10px] text-red-700">{state.error}</span>}
+    </div>
+  );
+}
+
+function StepButton({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded border border-neutral-300 bg-white px-1 py-0.5 font-mono text-[10px] text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+    >
+      {label}
+    </button>
   );
 }
 
@@ -242,38 +303,71 @@ function StatTile({
   );
 }
 
-function ResourcesRow({ resources }: { resources: CharacterSystem['resources'] }): React.ReactElement {
+function ResourcesRow({
+  resources,
+  actorId,
+  onActorChanged,
+}: {
+  resources: CharacterSystem['resources'];
+  actorId: string;
+  onActorChanged: () => void;
+}): React.ReactElement {
   const { heroPoints, focus, investiture, mythicPoints } = resources;
+  const adjustHero = useActorAction({
+    run: (delta: number) => api.adjustActorResource(actorId, 'hero-points', delta),
+    onSuccess: onActorChanged,
+  });
+  const adjustFocus = useActorAction({
+    run: (delta: number) => api.adjustActorResource(actorId, 'focus-points', delta),
+    onSuccess: onActorChanged,
+  });
+  const error =
+    typeof adjustHero.state === 'object'
+      ? adjustHero.state.error
+      : typeof adjustFocus.state === 'object'
+        ? adjustFocus.state.error
+        : null;
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-      <PipResource
-        label="Hero Points"
-        value={heroPoints.value}
-        max={heroPoints.max}
-        colorOn="border-rose-400 bg-rose-500"
-        data-stat="hero-points"
-      />
-      {focus.max > 0 && (
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <PipResource
-          label="Focus"
-          value={focus.value}
-          max={focus.max}
-          colorOn="border-indigo-400 bg-indigo-500"
-          title={`Cap ${focus.cap.toString()}`}
-          data-stat="focus"
+          label="Hero Points"
+          value={heroPoints.value}
+          max={heroPoints.max}
+          colorOn="border-rose-400 bg-rose-500"
+          data-stat="hero-points"
+          onAdjust={(delta) => void adjustHero.trigger(delta)}
+          pending={adjustHero.state === 'pending'}
         />
-      )}
-      {mythicPoints.max > 0 && (
-        <PipResource
-          label="Mythic"
-          value={mythicPoints.value}
-          max={mythicPoints.max}
-          colorOn="border-amber-400 bg-amber-500"
-          data-stat="mythic-points"
-        />
-      )}
-      {investiture.max > 0 && (
-        <CountResource label="Invested" value={investiture.value} max={investiture.max} data-stat="investiture" />
+        {focus.max > 0 && (
+          <PipResource
+            label="Focus"
+            value={focus.value}
+            max={focus.max}
+            colorOn="border-indigo-400 bg-indigo-500"
+            title={`Cap ${focus.cap.toString()}`}
+            data-stat="focus"
+            onAdjust={(delta) => void adjustFocus.trigger(delta)}
+            pending={adjustFocus.state === 'pending'}
+          />
+        )}
+        {mythicPoints.max > 0 && (
+          <PipResource
+            label="Mythic"
+            value={mythicPoints.value}
+            max={mythicPoints.max}
+            colorOn="border-amber-400 bg-amber-500"
+            data-stat="mythic-points"
+          />
+        )}
+        {investiture.max > 0 && (
+          <CountResource label="Invested" value={investiture.value} max={investiture.max} data-stat="investiture" />
+        )}
+      </div>
+      {error !== null && (
+        <p className="text-[11px] text-red-700" data-role="resources-error">
+          {error}
+        </p>
       )}
     </div>
   );
@@ -285,6 +379,8 @@ function PipResource({
   max,
   colorOn,
   title,
+  onAdjust,
+  pending,
   ...rest
 }: {
   label: string;
@@ -292,11 +388,18 @@ function PipResource({
   max: number;
   colorOn: string;
   title?: string;
+  /** When set, renders −/+ buttons that call `onAdjust(delta)` with
+   *  ±1. Omit to keep the resource read-only. */
+  onAdjust?: (delta: number) => void;
+  pending?: boolean;
   'data-stat'?: string;
 }): React.ReactElement {
   return (
     <div className="flex items-center gap-2" title={title} {...rest}>
       <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">{label}</span>
+      {onAdjust !== undefined && (
+        <StepButton label="−" disabled={pending ?? false} onClick={() => onAdjust(-1)} />
+      )}
       <div className="flex gap-1" aria-label={`${value.toString()} of ${max.toString()}`}>
         {Array.from({ length: max }, (_, i) => (
           <span
@@ -308,6 +411,9 @@ function PipResource({
           />
         ))}
       </div>
+      {onAdjust !== undefined && (
+        <StepButton label="+" disabled={pending ?? false} onClick={() => onAdjust(1)} />
+      )}
       <span className="font-mono text-xs tabular-nums text-neutral-500">
         {value}/{max}
       </span>

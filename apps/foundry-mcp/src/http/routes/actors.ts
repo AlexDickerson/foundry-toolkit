@@ -5,6 +5,7 @@ import {
   actorItemIdParams,
   actorTraceParams,
   addItemFromCompendiumBody,
+  adjustActorResourceBody,
   createActorBody,
   updateActorBody,
   updateActorItemBody,
@@ -62,5 +63,16 @@ export function registerActorRoutes(app: FastifyInstance): void {
     const { id, itemId } = actorItemIdParams.parse(req.params);
     const body = updateActorItemBody.parse(req.body);
     return sendCommand('update-actor-item', { actorId: id, itemId, ...body });
+  });
+
+  // Stepper for numeric resources (HP, temp HP, hero points, focus
+  // points). Body picks the field; positive delta heals / grants,
+  // negative damages / spends. The bridge clamps into [0, max] and
+  // reports `{before, after, max}` so clients don't have to
+  // refetch the prepared actor just to update a pip display.
+  app.post('/api/actors/:id/resources/adjust', async (req) => {
+    const { id } = actorIdParam.parse(req.params);
+    const body = adjustActorResourceBody.parse(req.body);
+    return sendCommand('adjust-actor-resource', { actorId: id, ...body });
   });
 }
