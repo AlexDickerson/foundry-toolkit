@@ -67,49 +67,6 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
   // round trip.
   const prereqCacheRef = useRef<Map<string, string | null>>(new Map());
 
-  // Apply sort on top of whatever order the server returned. Client-side
-  // is fine because the server already caps results (limit 50 by default
-  // from the picker), so the sort runs over a tiny array. Entries missing
-  // a level always sink to the bottom of a Level sort (in either
-  // direction) and stay alpha-asc among themselves — "unknown" shouldn't
-  // leapfrog real data just because the user flipped direction.
-  //
-  // After sorting, optionally drop entries whose prereq evaluation came
-  // back `fails`. `unknown` (unparseable) stays through.
-  const visibleMatches = useMemo(() => {
-    if (matchesState.kind !== 'ready') return [];
-    const copy = [...matchesState.data];
-    const dirMul = sort.dir === 'desc' ? -1 : 1;
-    if (sort.mode === 'level') {
-      const leveled = copy.filter((m) => m.level !== undefined);
-      const unlevelled = copy.filter((m) => m.level === undefined);
-      leveled.sort((a, b) => {
-        const lvlCmp = ((a.level ?? 0) - (b.level ?? 0)) * dirMul;
-        if (lvlCmp !== 0) return lvlCmp;
-        // Keep intra-tier ordering alpha-asc regardless of direction,
-        // so scanning a level band reads left-to-right like a glossary.
-        return a.name.localeCompare(b.name);
-      });
-      unlevelled.sort((a, b) => a.name.localeCompare(b.name));
-      return hideUnmet
-        ? [...leveled, ...unlevelled].filter((m) => evaluations.get(m.uuid) !== 'fails')
-        : [...leveled, ...unlevelled];
-    }
-    copy.sort((a, b) => a.name.localeCompare(b.name) * dirMul);
-    return hideUnmet ? copy.filter((m) => evaluations.get(m.uuid) !== 'fails') : copy;
-  }, [matchesState, sort, hideUnmet, evaluations]);
-
-  const onSortClick = (mode: SortMode): void => {
-    setSort((prev) =>
-      prev.mode === mode
-        ? // Re-clicking the active option flips direction.
-          { mode, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-        : // Switching modes resets direction to ascending so users
-          // don't carry an expectation from the other axis.
-          { mode, dir: 'asc' },
-    );
-  };
-
   // Stable filter key for the search effect dep array. Source titles
   // are sorted for order-stability so toggling a checkbox refires the
   // search with the new scope. The caller's `packIds` doesn't change
@@ -214,6 +171,49 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
     },
     [filters.documentType, callerPackIdsKey, debouncedQuery, traitsKey, filters.maxLevel],
   );
+
+  // Apply sort on top of whatever order the server returned. Client-side
+  // is fine because the server already caps results (limit 50 by default
+  // from the picker), so the sort runs over a tiny array. Entries missing
+  // a level always sink to the bottom of a Level sort (in either
+  // direction) and stay alpha-asc among themselves — "unknown" shouldn't
+  // leapfrog real data just because the user flipped direction.
+  //
+  // After sorting, optionally drop entries whose prereq evaluation came
+  // back `fails`. `unknown` (unparseable) stays through.
+  const visibleMatches = useMemo(() => {
+    if (matchesState.kind !== 'ready') return [];
+    const copy = [...matchesState.data];
+    const dirMul = sort.dir === 'desc' ? -1 : 1;
+    if (sort.mode === 'level') {
+      const leveled = copy.filter((m) => m.level !== undefined);
+      const unlevelled = copy.filter((m) => m.level === undefined);
+      leveled.sort((a, b) => {
+        const lvlCmp = ((a.level ?? 0) - (b.level ?? 0)) * dirMul;
+        if (lvlCmp !== 0) return lvlCmp;
+        // Keep intra-tier ordering alpha-asc regardless of direction,
+        // so scanning a level band reads left-to-right like a glossary.
+        return a.name.localeCompare(b.name);
+      });
+      unlevelled.sort((a, b) => a.name.localeCompare(b.name));
+      return hideUnmet
+        ? [...leveled, ...unlevelled].filter((m) => evaluations.get(m.uuid) !== 'fails')
+        : [...leveled, ...unlevelled];
+    }
+    copy.sort((a, b) => a.name.localeCompare(b.name) * dirMul);
+    return hideUnmet ? copy.filter((m) => evaluations.get(m.uuid) !== 'fails') : copy;
+  }, [matchesState, sort, hideUnmet, evaluations]);
+
+  const onSortClick = (mode: SortMode): void => {
+    setSort((prev) =>
+      prev.mode === mode
+        ? // Re-clicking the active option flips direction.
+          { mode, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : // Switching modes resets direction to ascending so users
+          // don't carry an expectation from the other axis.
+          { mode, dir: 'asc' },
+    );
+  };
 
   useEffect(() => {
     inputRef.current?.focus();
