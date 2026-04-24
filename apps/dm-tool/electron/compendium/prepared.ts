@@ -178,51 +178,37 @@ async function searchMonsters(api: CompendiumApi, packIds: readonly string[], qu
   return results.map((r, i) => formatMonsterForChat(r, i + 1)).join('\n\n');
 }
 
-/** Post-filter a list of `CompendiumMatch` rows against the client-side
- *  `MonsterSearchParams` fields the server doesn't yet understand. The
- *  match row carries `level` and `traits`; deeper filters (hp/ac/saves)
- *  can't be enforced without a full-doc fetch, so we deliberately skip
- *  them here — callers that need stat-based filtering should pull the
- *  full summary list via follow-up doc fetches. */
-function filterMatchesClientSide(matches: CompendiumMatch[], params: MonsterSearchParams): CompendiumMatch[] {
-  return matches.filter((m) => {
-    if (params.levels) {
-      const [lo, hi] = params.levels;
-      if (typeof m.level === 'number' && (m.level < lo || m.level > hi)) return false;
-    }
-    if (params.traits && params.traits.length > 0) {
-      const mTraits = m.traits ?? [];
-      for (const t of params.traits) {
-        if (!mTraits.includes(t)) return false;
-      }
-    }
-    return true;
-  });
-}
-
 async function listMonsters(
   api: CompendiumApi,
   packIds: readonly string[],
   params: MonsterSearchParams,
 ): Promise<MonsterSummary[]> {
-  // The server's `/api/compendium/search` speaks q/traits/maxLevel/limit.
-  // Anything beyond that we enforce client-side after the network hop.
+  // Fetch every document in the user's selected packs — no server-side
+  // filters at all. Narrowing happens client-side against the returned
+  // match list so text search is instant (no network round-trip per
+  // keystroke beyond the initial IPC debounce).
   const { matches } = await api.searchCompendium({
-    q: params.keywords,
-    documentType: 'npc',
     packIds: [...packIds],
-    traits: params.traits,
-    maxLevel: params.levels?.[1],
-    limit: params.limit ?? 5000,
+    limit: params.limit ?? 10000,
   });
 
-  const filtered = filterMatchesClientSide(matches, params);
+  // Text search: whitespace-tokenized; each token must appear
+  // (case-insensitive) in the monster's name OR one of its traits.
+  // Matches mcp's server-side `q` semantics so the UX is identical to
+  // the pre-migration behavior even though we run it in-process.
+  const trimmed = params.keywords?.trim().toLowerCase() ?? '';
+  const tokens = trimmed ? trimmed.split(/\s+/).filter((t) => t.length > 0) : [];
+  const filtered =
+    tokens.length === 0
+      ? matches
+      : matches.filter((m) => {
+          const name = m.name.toLowerCase();
+          const traits = (m.traits ?? []).map((t) => t.toLowerCase());
+          return tokens.every((tok) => name.includes(tok) || traits.some((t) => t.includes(tok)));
+        });
+
   const summaries = filtered.map(monsterMatchToSummary);
 
-  // Sort if requested — only name and level are cheap here; hp/ac sort
-  // would require pulling the full doc for every match. Consumers using
-  // hp/ac sort today should continue to hit the legacy SQL path until we
-  // migrate the summary shape through a cached doc lookup.
   const sortBy = params.sortBy ?? 'level';
   const sortDir = params.sortDir ?? 'asc';
   if (sortBy === 'name' || sortBy === 'level') {
