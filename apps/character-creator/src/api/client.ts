@@ -1,5 +1,7 @@
 import type {
+  ActorResourceKey,
   AddItemFromCompendiumBody,
+  AdjustActorResourceResponse,
   CreateActorBody,
   UpdateActorBody,
   UpdateActorItemBody,
@@ -118,6 +120,19 @@ export const api = {
     request<{ success: boolean }>(`/actors/${id}/items/${itemId}`, { method: 'DELETE' }),
   updateActorItem: (id: string, itemId: string, patch: UpdateActorItemBody): Promise<ActorItemRef> =>
     request<ActorItemRef>(`/actors/${id}/items/${itemId}`, { method: 'PATCH', body: patch }),
+  // Signed stepper for HP / temp HP / hero points / focus points.
+  // Positive delta = heal / grant, negative = damage / spend. Server
+  // clamps into [0, max] and returns `{before, after, max}` so the
+  // caller can update its local view without a full /prepared refetch.
+  adjustActorResource: (
+    id: string,
+    resource: ActorResourceKey,
+    delta: number,
+  ): Promise<AdjustActorResourceResponse> =>
+    request<AdjustActorResourceResponse>(`/actors/${id}/resources/adjust`, {
+      method: 'POST',
+      body: { resource, delta },
+    }),
   resolvePrompt: (bridgeId: string, value: unknown): Promise<{ ok: boolean }> =>
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),
   uploadAsset: (body: UploadAssetBody): Promise<UploadAssetResult> =>

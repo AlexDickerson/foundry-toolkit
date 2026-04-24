@@ -15,6 +15,7 @@ export {
   createActorFromCompendiumHandler,
   updateActorHandler,
   deleteActorHandler,
+  adjustActorResourceHandler,
   getActorsHandler,
   getActorHandler,
   getPreparedActorHandler,

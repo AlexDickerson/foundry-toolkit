@@ -30,6 +30,7 @@ export type CommandType =
   | 'create-actor-from-compendium'
   | 'update-actor'
   | 'delete-actor'
+  | 'adjust-actor-resource'
   | 'send-chat-message'
   | 'create-journal'
   | 'update-journal'
@@ -178,6 +179,44 @@ export interface UpdateActorParams {
 
 export interface DeleteActorParams {
   actorId: string;
+}
+
+// Adjustable numeric fields on a character/NPC that UI steppers care
+// about. Each maps to a dot-path under `actor.system`:
+//   hp            → attributes.hp.value
+//   hp-temp       → attributes.hp.temp
+//   hero-points   → resources.heroPoints.value
+//   focus-points  → resources.focus.value
+// Extend conservatively — new keys here mean new UI + new clamp rules.
+export type ActorResourceKey = 'hp' | 'hp-temp' | 'hero-points' | 'focus-points';
+
+export const ACTOR_RESOURCE_KEYS: readonly ActorResourceKey[] = [
+  'hp',
+  'hp-temp',
+  'hero-points',
+  'focus-points',
+];
+
+export interface AdjustActorResourceParams {
+  actorId: string;
+  resource: ActorResourceKey;
+  /** Signed delta applied to the current value (positive = gain,
+   *  negative = loss). Result is clamped into `[0, max]` — 'hp-temp'
+   *  has no upper clamp since temp HP's cap varies with the granting
+   *  effect. No damage-cascade side effects (dying pipe etc.): this
+   *  is a bare field write, matching how the sheet's +/- stepper
+   *  behaves. Use `actor.applyDamage` elsewhere when the full pipeline
+   *  is wanted. */
+  delta: number;
+}
+
+export interface AdjustActorResourceResult {
+  actorId: string;
+  resource: ActorResourceKey;
+  before: number;
+  after: number;
+  /** null when the resource has no natural cap (currently only 'hp-temp'). */
+  max: number | null;
 }
 
 // Actor Results
@@ -1496,6 +1535,7 @@ export interface CommandParamsMap {
   'create-actor-from-compendium': CreateActorFromCompendiumParams;
   'update-actor': UpdateActorParams;
   'delete-actor': DeleteActorParams;
+  'adjust-actor-resource': AdjustActorResourceParams;
   'send-chat-message': SendChatMessageParams;
   'create-journal': CreateJournalParams;
   'update-journal': UpdateJournalParams;
@@ -1592,6 +1632,7 @@ export interface CommandResultMap {
   'create-actor-from-compendium': ActorResult;
   'update-actor': ActorResult;
   'delete-actor': DeleteResult;
+  'adjust-actor-resource': AdjustActorResourceResult;
   'send-chat-message': SendChatMessageResult;
   'create-journal': JournalResult;
   'update-journal': JournalResult;
