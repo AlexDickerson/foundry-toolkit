@@ -183,29 +183,31 @@ async function listMonsters(
   packIds: readonly string[],
   params: MonsterSearchParams,
 ): Promise<MonsterSummary[]> {
-  // DIAGNOSTIC MODE — no filters at all, not even documentType. The
-  // Monster window returns every document from every ticked pack. If a
-  // tick selection includes an Item-type pack the user will see items
-  // in the browser; that's intentional while we verify the pack-select
-  // pipeline end-to-end. Sort is not a filter and stays applied.
-  //
-  // Search args sent:
-  //   - packIds: resolver output (Settings ∩ installed in Foundry)
-  //   - limit  : 10000 (server max)
-  // Nothing else — not q, traits, maxLevel, documentType.
-  const search = {
+  // Fetch every document in the user's selected packs — no server-side
+  // filters at all. Narrowing happens client-side against the returned
+  // match list so text search is instant (no network round-trip per
+  // keystroke beyond the initial IPC debounce).
+  const { matches } = await api.searchCompendium({
     packIds: [...packIds],
     limit: params.limit ?? 10000,
-  };
-  console.info('[listMonsters] searchCompendium ←', {
-    packCount: search.packIds.length,
-    packIds: search.packIds,
-    limit: search.limit,
   });
-  const { matches } = await api.searchCompendium(search);
-  console.info('[listMonsters] searchCompendium → matches:', matches.length);
 
-  const summaries = matches.map(monsterMatchToSummary);
+  // Text search: whitespace-tokenized; each token must appear
+  // (case-insensitive) in the monster's name OR one of its traits.
+  // Matches mcp's server-side `q` semantics so the UX is identical to
+  // the pre-migration behavior even though we run it in-process.
+  const trimmed = params.keywords?.trim().toLowerCase() ?? '';
+  const tokens = trimmed ? trimmed.split(/\s+/).filter((t) => t.length > 0) : [];
+  const filtered =
+    tokens.length === 0
+      ? matches
+      : matches.filter((m) => {
+          const name = m.name.toLowerCase();
+          const traits = (m.traits ?? []).map((t) => t.toLowerCase());
+          return tokens.every((tok) => name.includes(tok) || traits.some((t) => t.includes(tok)));
+        });
+
+  const summaries = filtered.map(monsterMatchToSummary);
 
   const sortBy = params.sortBy ?? 'level';
   const sortDir = params.sortDir ?? 'asc';

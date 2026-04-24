@@ -140,7 +140,7 @@ describe('searchMonsters', () => {
 });
 
 describe('listMonsters', () => {
-  it('returns every match unfiltered (every server-side filter dropped)', async () => {
+  it('returns every match when no keywords are supplied (no server-side filters)', async () => {
     const search = vi.fn().mockResolvedValue({
       matches: [
         monsterMatch({ name: 'A', level: 1 }),
@@ -149,12 +149,11 @@ describe('listMonsters', () => {
       ],
     });
     const api = fakeApi({ searchCompendium: search });
-    // Every caller-supplied filter is deliberately ignored — every
-    // document in the selected packs comes back so the UI can render a
-    // complete baseline. Client-side narrowing is a browser concern.
+    // Non-keyword filters are intentionally ignored. Pack selection is
+    // the only filter sent over the wire; text search happens
+    // client-side against the returned list.
     const out = await createPreparedCompendium(api).listMonsters({
       levels: [3, 7],
-      keywords: 'dragon',
       traits: ['fire'],
     });
     expect(out.map((s) => s.name)).toEqual(['A', 'B', 'C']);
@@ -169,6 +168,56 @@ describe('listMonsters', () => {
     expect(call).not.toHaveProperty('traits');
     expect(call).not.toHaveProperty('maxLevel');
     expect(call).not.toHaveProperty('documentType');
+  });
+
+  it('filters matches client-side by keyword (name substring)', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Young Red Dragon', traits: ['dragon', 'fire'] }),
+        monsterMatch({ name: 'Goblin Warrior', traits: ['humanoid', 'goblin'] }),
+        monsterMatch({ name: 'Ancient Brass Dragon', traits: ['dragon', 'fire'] }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ keywords: 'brass' });
+    expect(out.map((s) => s.name)).toEqual(['Ancient Brass Dragon']);
+    // No `q` on the wire — filter is purely client-side.
+    const call = search.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(call).not.toHaveProperty('q');
+  });
+
+  it('filters matches client-side by keyword (trait substring)', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Goblin Warrior', traits: ['humanoid', 'goblin'] }),
+        monsterMatch({ name: 'Young Red Dragon', traits: ['dragon', 'fire'] }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ keywords: 'fire' });
+    expect(out.map((s) => s.name)).toEqual(['Young Red Dragon']);
+  });
+
+  it('requires every whitespace-tokenized keyword to match (AND semantics)', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Young Red Dragon', traits: [] }),
+        monsterMatch({ name: 'Young Brass Dragon', traits: [] }),
+        monsterMatch({ name: 'Ancient Red Dragon', traits: [] }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ keywords: 'young red' });
+    expect(out.map((s) => s.name)).toEqual(['Young Red Dragon']);
+  });
+
+  it('is case-insensitive and tolerates leading/trailing whitespace', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [monsterMatch({ name: 'Young Red Dragon', traits: [] })],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ keywords: '  DRAGON  ' });
+    expect(out.map((s) => s.name)).toEqual(['Young Red Dragon']);
   });
 
   it('honors the sort request (name ascending) when supplied', async () => {
