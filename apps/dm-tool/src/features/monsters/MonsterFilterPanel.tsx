@@ -34,13 +34,6 @@ export function MonsterFilterPanel({ facets, params, onChange }: Props) {
     if (params.creatureTypes?.length) n += params.creatureTypes.length;
     if (params.traits?.length) n += params.traits.length;
     if (params.sources?.length) n += params.sources.length;
-    if (params.hpMin != null) n++;
-    if (params.hpMax != null) n++;
-    if (params.acMin != null) n++;
-    if (params.acMax != null) n++;
-    if (params.fortMin != null) n++;
-    if (params.refMin != null) n++;
-    if (params.willMin != null) n++;
     return n;
   }, [params]);
 
@@ -50,11 +43,6 @@ export function MonsterFilterPanel({ facets, params, onChange }: Props) {
     const current = (params[field] as string[] | undefined) ?? [];
     const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
     onChange({ ...params, [field]: next.length > 0 ? next : undefined });
-  };
-
-  const setNum = (field: keyof MonsterSearchParams, value: string) => {
-    const n = value === '' ? undefined : Number(value);
-    onChange({ ...params, [field]: n != null && Number.isFinite(n) ? n : undefined });
   };
 
   const sortedSizes = useMemo(() => {
@@ -221,22 +209,6 @@ export function MonsterFilterPanel({ facets, params, onChange }: Props) {
             </section>
           )}
 
-          <Separator />
-
-          {/* Stat ranges */}
-          <section>
-            <SectionHeader label="Stat Minimums" />
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-              <NumField label="HP min" value={params.hpMin} onChange={(v) => setNum('hpMin', v)} />
-              <NumField label="HP max" value={params.hpMax} onChange={(v) => setNum('hpMax', v)} />
-              <NumField label="AC min" value={params.acMin} onChange={(v) => setNum('acMin', v)} />
-              <NumField label="AC max" value={params.acMax} onChange={(v) => setNum('acMax', v)} />
-              <NumField label="Fort min" value={params.fortMin} onChange={(v) => setNum('fortMin', v)} />
-              <NumField label="Ref min" value={params.refMin} onChange={(v) => setNum('refMin', v)} />
-              <NumField label="Will min" value={params.willMin} onChange={(v) => setNum('willMin', v)} />
-            </div>
-          </section>
-
           {/* Sources */}
           {facets && facets.sources.length > 0 && (
             <section>
@@ -288,20 +260,6 @@ function CheckItem({
       <Label htmlFor={id} className="cursor-pointer text-xs capitalize">
         {label}
       </Label>
-    </div>
-  );
-}
-
-function NumField({ label, value, onChange }: { label: string; value?: number; onChange: (v: string) => void }) {
-  return (
-    <div>
-      <label className="mb-0.5 block text-[10px] text-muted-foreground">{label}</label>
-      <Input
-        type="number"
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-7 px-1.5 text-xs"
-      />
     </div>
   );
 }
