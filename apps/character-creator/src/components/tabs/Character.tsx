@@ -39,6 +39,8 @@ export function Character({ system, actorId, onActorChanged }: Props): React.Rea
         dying={system.attributes.dying}
         wounded={system.attributes.wounded}
         doomed={system.attributes.doomed}
+        actorId={actorId}
+        onActorChanged={onActorChanged}
       />
 
       {system.attributes.shield.itemId !== null && <ShieldTile shield={system.attributes.shield} />}
@@ -492,35 +494,72 @@ function ConditionsRow({
   dying,
   wounded,
   doomed,
+  actorId,
+  onActorChanged,
 }: {
   dying: CharacterSystem['attributes']['dying'];
   wounded: CharacterSystem['attributes']['wounded'];
   doomed: CharacterSystem['attributes']['doomed'];
+  actorId: string;
+  onActorChanged: () => void;
 }): React.ReactElement {
+  const adjustDying = useActorAction({
+    run: (delta: number) => api.adjustActorCondition(actorId, 'dying', delta),
+    onSuccess: onActorChanged,
+  });
+  const adjustWounded = useActorAction({
+    run: (delta: number) => api.adjustActorCondition(actorId, 'wounded', delta),
+    onSuccess: onActorChanged,
+  });
+  const adjustDoomed = useActorAction({
+    run: (delta: number) => api.adjustActorCondition(actorId, 'doomed', delta),
+    onSuccess: onActorChanged,
+  });
+  const error =
+    typeof adjustDying.state === 'object'
+      ? adjustDying.state.error
+      : typeof adjustWounded.state === 'object'
+        ? adjustWounded.state.error
+        : typeof adjustDoomed.state === 'object'
+          ? adjustDoomed.state.error
+          : null;
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2" data-section="conditions">
-      <Condition
-        label="Dying"
-        value={dying.value}
-        max={dying.max}
-        colorOn="border-red-500 bg-red-600"
-        title={`Recovery DC ${dying.recoveryDC.toString()}`}
-        data-stat="dying"
-      />
-      <Condition
-        label="Wounded"
-        value={wounded.value}
-        max={wounded.max}
-        colorOn="border-amber-500 bg-amber-600"
-        data-stat="wounded"
-      />
-      <Condition
-        label="Doomed"
-        value={doomed.value}
-        max={doomed.max}
-        colorOn="border-violet-500 bg-violet-700"
-        data-stat="doomed"
-      />
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2" data-section="conditions">
+        <Condition
+          label="Dying"
+          value={dying.value}
+          max={dying.max}
+          colorOn="border-red-500 bg-red-600"
+          title={`Recovery DC ${dying.recoveryDC.toString()}`}
+          data-stat="dying"
+          onAdjust={(delta) => void adjustDying.trigger(delta)}
+          pending={adjustDying.state === 'pending'}
+        />
+        <Condition
+          label="Wounded"
+          value={wounded.value}
+          max={wounded.max}
+          colorOn="border-amber-500 bg-amber-600"
+          data-stat="wounded"
+          onAdjust={(delta) => void adjustWounded.trigger(delta)}
+          pending={adjustWounded.state === 'pending'}
+        />
+        <Condition
+          label="Doomed"
+          value={doomed.value}
+          max={doomed.max}
+          colorOn="border-violet-500 bg-violet-700"
+          data-stat="doomed"
+          onAdjust={(delta) => void adjustDoomed.trigger(delta)}
+          pending={adjustDoomed.state === 'pending'}
+        />
+      </div>
+      {error !== null && (
+        <p className="text-[11px] text-red-700" data-role="conditions-error">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -531,6 +570,8 @@ function Condition({
   max,
   colorOn,
   title,
+  onAdjust,
+  pending,
   ...rest
 }: {
   label: string;
@@ -538,11 +579,18 @@ function Condition({
   max: number;
   colorOn: string;
   title?: string;
+  /** When set, renders −/+ buttons that call `onAdjust(delta)` with
+   *  ±1. Omit to keep the condition read-only. */
+  onAdjust?: (delta: number) => void;
+  pending?: boolean;
   'data-stat'?: string;
 }): React.ReactElement {
   return (
     <div className="flex items-center gap-2" title={title} {...rest}>
       <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">{label}</span>
+      {onAdjust !== undefined && (
+        <StepButton label="−" disabled={pending ?? false} onClick={() => onAdjust(-1)} />
+      )}
       <div className="flex gap-1" aria-label={`${value.toString()} of ${max.toString()}`}>
         {Array.from({ length: max }, (_, i) => (
           <span
@@ -554,6 +602,9 @@ function Condition({
           />
         ))}
       </div>
+      {onAdjust !== undefined && (
+        <StepButton label="+" disabled={pending ?? false} onClick={() => onAdjust(1)} />
+      )}
       <span className="font-mono text-xs tabular-nums text-neutral-500">
         {value}/{max}
       </span>

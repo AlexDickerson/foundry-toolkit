@@ -31,6 +31,7 @@ export type CommandType =
   | 'update-actor'
   | 'delete-actor'
   | 'adjust-actor-resource'
+  | 'adjust-actor-condition'
   | 'send-chat-message'
   | 'create-journal'
   | 'update-journal'
@@ -217,6 +218,34 @@ export interface AdjustActorResourceResult {
   after: number;
   /** null when the resource has no natural cap (currently only 'hp-temp'). */
   max: number | null;
+}
+
+// PF2e persistent-count conditions. Unlike HP / hero points these aren't
+// raw numeric fields — they're tracked via active effects with their
+// own lifecycle (dying → wounded cascade, auto-death at dying max).
+// The handler goes through `actor.increaseCondition` / `decreaseCondition`
+// to keep that lifecycle intact.
+export type ActorConditionKey = 'dying' | 'wounded' | 'doomed';
+
+export const ACTOR_CONDITION_KEYS: readonly ActorConditionKey[] = ['dying', 'wounded', 'doomed'];
+
+export interface AdjustActorConditionParams {
+  actorId: string;
+  condition: ActorConditionKey;
+  /** Signed count applied via repeated increase/decreaseCondition
+   *  calls. +2 calls increase twice; -3 calls decrease three times.
+   *  The PF2e condition code handles floor/ceiling and cascades. */
+  delta: number;
+}
+
+export interface AdjustActorConditionResult {
+  actorId: string;
+  condition: ActorConditionKey;
+  before: number;
+  after: number;
+  /** Reported at response time; max may shift (e.g. dying's cap
+   *  increases with doomed) so clients shouldn't cache it. */
+  max: number;
 }
 
 // Actor Results
@@ -1536,6 +1565,7 @@ export interface CommandParamsMap {
   'update-actor': UpdateActorParams;
   'delete-actor': DeleteActorParams;
   'adjust-actor-resource': AdjustActorResourceParams;
+  'adjust-actor-condition': AdjustActorConditionParams;
   'send-chat-message': SendChatMessageParams;
   'create-journal': CreateJournalParams;
   'update-journal': UpdateJournalParams;
@@ -1633,6 +1663,7 @@ export interface CommandResultMap {
   'update-actor': ActorResult;
   'delete-actor': DeleteResult;
   'adjust-actor-resource': AdjustActorResourceResult;
+  'adjust-actor-condition': AdjustActorConditionResult;
   'send-chat-message': SendChatMessageResult;
   'create-journal': JournalResult;
   'update-journal': JournalResult;

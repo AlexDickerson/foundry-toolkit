@@ -167,6 +167,21 @@ export const adjustActorResourceBody = z.object({
   delta: z.number().int().min(-10_000).max(10_000),
 });
 
+// PF2e persistent conditions that carry a stack count. Handler goes
+// through `actor.increaseCondition` / `decreaseCondition` (not raw
+// updates) so the system's cascade rules fire — dying crossing its
+// cap kills the character, dying decreasing past 0 leaves a wounded
+// stack behind.
+export const ACTOR_CONDITION_KEYS = ['dying', 'wounded', 'doomed'] as const;
+
+export const adjustActorConditionBody = z.object({
+  condition: z.enum(ACTOR_CONDITION_KEYS),
+  // Each unit of |delta| maps to one increase/decrease call. Kept
+  // small because nobody clicks +10 dying in practice, and small
+  // deltas keep the lifecycle cascade predictable.
+  delta: z.number().int().min(-10).max(10),
+});
+
 // Item-on-actor operations for the wizard's piecemeal picks
 // (ancestry, heritage, class, background, deity). Copies the source
 // document out of the compendium, strips its `_id`, and attaches it
