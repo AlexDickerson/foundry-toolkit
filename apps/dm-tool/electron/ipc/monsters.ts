@@ -1,19 +1,20 @@
 import { ipcMain } from 'electron';
 import type { MonsterSearchParams } from '@foundry-toolkit/shared/types';
-import { listMonsters, getMonsterFacets } from '@foundry-toolkit/db/pf2e';
 import { getPreparedCompendium } from '../compendium/singleton.js';
 
+// Every monster IPC now routes through the foundry-mcp-backed prepared
+// compendium. `getPreparedCompendium()` resolves at invocation time so
+// a renderer-issued query racing the startup init surfaces a clear
+// error instead of a stale reference.
 export function registerMonsterHandlers(): void {
   ipcMain.handle('monstersSearch', (_e, params: MonsterSearchParams) => {
-    return listMonsters(params ?? {});
+    return getPreparedCompendium().listMonsters(params ?? {});
   });
 
   ipcMain.handle('monstersFacets', () => {
-    return getMonsterFacets();
+    return getPreparedCompendium().getMonsterFacets();
   });
 
-  // monstersGetDetail — single-name lookup for the Monster Detail pane.
-  // Now backed by foundry-mcp via the prepared-compendium facade.
   ipcMain.handle('monstersGetDetail', (_e, name: string) => {
     return getPreparedCompendium().getMonsterByName(name);
   });
