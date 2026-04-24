@@ -151,13 +151,16 @@ describe('listMonsters', () => {
     const api = fakeApi({ searchCompendium: search });
     const out = await createPreparedCompendium(api).listMonsters({ levels: [3, 7] });
     expect(out.map((s) => s.name)).toEqual(['B']);
+    // DIAGNOSTIC: packIds dropped from the listMonsters wire call — see
+    // the TODO in prepared.ts. Restore the packIds assertion once the
+    // bridge fix is deployed and we bring the filter back.
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({
         documentType: 'npc',
         maxLevel: 7,
-        packIds: expect.arrayContaining(['pf2e.pathfinder-bestiary']),
       }),
     );
+    expect(search.mock.calls[0]?.[0]).not.toHaveProperty('packIds');
   });
 
   it('returns empty for an empty match list', async () => {

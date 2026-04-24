@@ -202,15 +202,21 @@ function filterMatchesClientSide(matches: CompendiumMatch[], params: MonsterSear
 
 async function listMonsters(
   api: CompendiumApi,
-  packIds: readonly string[],
+  _packIds: readonly string[],
   params: MonsterSearchParams,
 ): Promise<MonsterSummary[]> {
-  // The server's `/api/compendium/search` speaks q/traits/maxLevel/limit.
-  // Anything beyond that we enforce client-side after the network hop.
+  // DIAGNOSTIC: `packIds` intentionally dropped so mcp searches every
+  // Actor-type pack Foundry has, regardless of Settings → Monsters.
+  // Root cause: older bridges throw 404 when any pack in the list is
+  // missing (fix in #45 but needs a bridge redeploy). Without packIds
+  // the bridge iterates `game.packs` directly and naturally skips
+  // missing ones.
+  // TODO: restore `packIds: [...packIds]` once the bridge fix is
+  // deployed, or replace with a client-side intersection against
+  // `compendiumListPacks('Actor')` cached at init.
   const { matches } = await api.searchCompendium({
     q: params.keywords,
     documentType: 'npc',
-    packIds: [...packIds],
     traits: params.traits,
     maxLevel: params.levels?.[1],
     limit: params.limit ?? 5000,
