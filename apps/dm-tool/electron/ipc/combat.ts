@@ -5,7 +5,7 @@ import { ipcMain } from 'electron';
 import type { Encounter, LootItem, PushEncounterResult } from '@foundry-toolkit/shared/types';
 import { generateEncounterLoot, type LootMonster } from '@foundry-toolkit/ai/loot';
 import type { DmToolConfig } from '../config.js';
-import { buildLootShortlist, deleteEncounter, listEncounters, upsertEncounter } from '@foundry-toolkit/db/pf2e';
+import { deleteEncounter, listEncounters, upsertEncounter } from '@foundry-toolkit/db/pf2e';
 import { getPreparedCompendium } from '../compendium/singleton.js';
 import { tryParseJson } from '../util.js';
 import { pushEncounterActorsToFoundry } from '../encounter-push.js';
@@ -44,7 +44,11 @@ export function registerCombatHandlers(cfg: DmToolConfig): void {
           : [],
       );
 
-      const shortlist = buildLootShortlist(args.partyLevel);
+      // buildLootShortlist pulls a random-80 level-range sample via
+      // `api.searchCompendium({ minLevel, maxLevel, limit: 500 })` and
+      // shuffles client-side. The prepared layer owns both the network
+      // fetch and the shuffle — see electron/compendium/prepared.ts.
+      const shortlist = await prepared.buildLootShortlist(args.partyLevel);
 
       return generateEncounterLoot({
         apiKey: args.apiKey,
