@@ -1,15 +1,8 @@
 # =============================================================================
-# foundry-mcp — unified server + SPA image
+# foundry-mcp — server image
 # Stage 1: compile TypeScript in a build image with dev deps.
-# Stage 2: slim runtime image that bundles the prebuilt SPA static assets
-#          (pulled from the sibling foundry-character-creator GHCR image).
+# Stage 2: slim runtime image with the compiled server + production deps only.
 # =============================================================================
-
-# SPA source image. Declared BEFORE the first FROM so it's in global scope
-# and usable in subsequent `FROM ${SPA_IMAGE}` lines. Overridable via
-# `--build-arg SPA_IMAGE=...` — see .github/workflows/docker.yml for the
-# CI fallback behaviour when the sibling image isn't reachable.
-ARG SPA_IMAGE=ghcr.io/alexdickerson/foundry-character-creator:latest
 
 # -- Build: compile TypeScript --
 FROM node:20-alpine AS build
@@ -29,14 +22,7 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 
-# -- Static SPA assets --
-# Sibling repo publishes the built SPA as an image with index.html +
-# assets/ under /usr/share/nginx/html. We just need the files; we don't run
-# this image, we COPY --from it.
-FROM ${SPA_IMAGE} AS spa
-
-
-# -- Runtime: node 20 alpine with compiled JS + SPA + production node_modules --
+# -- Runtime: node 20 alpine with compiled JS + production node_modules --
 FROM node:20-alpine AS runtime
 
 WORKDIR /app
@@ -45,15 +31,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV HOST=0.0.0.0
-ENV STATIC_ROOT=/app/public
 
 # Compiled server + production dependency tree.
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-
-# SPA static bundle published by the sibling repo.
-COPY --from=spa /usr/share/nginx/html /app/public
 
 # wget is in busybox — used by the Docker HEALTHCHECK below.
 EXPOSE 8080

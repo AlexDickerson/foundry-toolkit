@@ -1,6 +1,6 @@
 # foundry-toolkit
 
-Monorepo consolidating the Foundry VTT companion tools. Previously five separate repos; collapsed into one npm-workspaces monorepo.
+Monorepo consolidating four Foundry VTT companion tools into one npm-workspaces project.
 
 ## Layout
 
@@ -18,6 +18,7 @@ foundry-toolkit/
 ├── packages/
 │   ├── ai/                   PF2e GM assistant agents (chat, hooks, loot, classifier)
 │   ├── db/                   Data layer (pf2e.db, BookDb, MapDb)
+│   ├── pf2e-rules/           Pure PF2e rules math (XP budgets, treasure tables)
 │   └── shared/               Types + shared UI
 ├── resources/                dm-tool Electron icons
 ├── tagger/                   Python map-indexing subtool (built separately)
@@ -28,10 +29,11 @@ foundry-toolkit/
 
 ## Scripts (root)
 
-- `npm install` — installs everything + rebuilds better-sqlite3 for Electron
+- `npm install` — installs everything + rebuilds better-sqlite3 for dm-tool's Electron ABI
 - `npm run typecheck` — type-check all workspaces
 - `npm run test` — run all workspace test suites
 - `npm run lint` — root ESLint + per-workspace lint scripts
+- `npm run knip` — dead-code/unused-deps scan across the workspaces listed in `knip.json`
 - `npm run build` — build all workspaces
 - `npm run dev:dm-tool` — launch dm-tool Electron dev
 - `npm run dev:mcp` — launch foundry-mcp server
@@ -42,10 +44,10 @@ foundry-toolkit/
 
 See each workspace's README / CLAUDE.md for app-specific details.
 
-## Deferred from consolidation
+## CI and deployment
 
-- **CI**: per-repo GitHub Actions workflows were not ported. Minimal CI TBD.
-- **Deployments**: Fly.io (foundry-mcp), electron-builder (dm-tool), GHCR images (api-bridge, player-portal) all still reference the old repos. Re-point when productionizing.
+- **CI**: a minimal lint/typecheck/test/knip pipeline runs in [.github/workflows/ci.yml](.github/workflows/ci.yml). Per-app workflows (Docker publish, Fly deploy) from the pre-consolidation repos were not ported.
+- **Deployments**: Fly.io (foundry-mcp), electron-builder (dm-tool), GHCR images (api-bridge, player-portal) all still reference the old per-repo identifiers. Re-point when productionizing.
 - **Branches**: feature branches stay in the source repos until explicitly carried over.
 
 ## License

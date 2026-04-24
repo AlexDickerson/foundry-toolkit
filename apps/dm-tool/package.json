@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "package": "electron-vite build && electron-builder --win",
     "package:dir": "electron-vite build && electron-builder --win --dir",
-    "package:ci": "electron-vite build && electron-builder --win --publish never"
+    "package:ci": "electron-vite build && electron-builder --win --publish never",
+    "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
   "build": {
     "appId": "com.alexdickerson.dm-tool",

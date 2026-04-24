@@ -8,6 +8,7 @@ coverage/
 
 # Build outputs
 out/
+/dist/
 apps/dm-tool/out/
 apps/dm-tool/dist/
 apps/player-portal/dist/

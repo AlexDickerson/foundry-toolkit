@@ -19,6 +19,40 @@
     "apps/player-portal": {
       "ignoreDependencies": ["@eslint/js"]
     },
+    "packages/ai": {
+      "entry": [
+        "src/index.ts",
+        "src/chat/index.ts",
+        "src/classifier/index.ts",
+        "src/hooks/index.ts",
+        "src/loot/index.ts",
+        "harness/run.ts"
+      ],
+      "project": ["src/**/*.ts", "harness/**/*.ts"]
+    },
+    "packages/db": {
+      "entry": ["src/index.ts", "src/pf2e/index.ts", "src/books/index.ts", "src/maps/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/pf2e-rules": {
+      "entry": ["src/index.ts", "src/encounter.ts", "src/treasure.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/shared": {
+      "entry": [
+        "src/types.ts",
+        "src/env.ts",
+        "src/env-auto.ts",
+        "src/foundry-api.ts",
+        "src/foundry-markup.ts",
+        "src/map-stem.ts",
+        "src/MissionBriefing.tsx",
+        "src/golarion-map/index.ts",
+        "src/rpc/index.ts",
+        "src/**/*.test.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
     "tools/launcher": {
       "entry": ["preload.cjs", "renderer/renderer.js"],
       "project": ["**/*.{cjs,js}"]

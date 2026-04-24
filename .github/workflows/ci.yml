@@ -41,7 +41,9 @@ jobs:
           npm run test --workspace apps/dm-tool
           npm run test --workspace apps/player-portal
           npm run test --workspace apps/foundry-api-bridge
+          npm run test --workspace apps/foundry-mcp
           npm run test --workspace packages/shared
+          npm run test --workspace packages/pf2e-rules
 
   electronegativity:
     runs-on: ubuntu-latest
