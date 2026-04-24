@@ -126,7 +126,15 @@ export async function findInCompendiumHandler(params: FindInCompendiumParams): P
     for (const id of requestedPackIds) {
       const pack = game.packs.get(id);
       if (!pack) {
-        throw new Error(`Compendium pack not found: ${id}`);
+        // A missing pack in a multi-pack request contributes zero matches
+        // rather than aborting the whole search. Callers commonly pass
+        // the union of stock bestiaries (bestiary-1 + bestiary-2 +
+        // monster-core + nature-core …) and want results from whichever
+        // are installed. Callers that need to verify a specific pack
+        // exists should use `list-compendium-packs`. Logged at warn so
+        // ops can spot a typo'd packId without the request failing.
+        console.warn(`[find-in-compendium] Skipping missing pack: ${id}`);
+        continue;
       }
       if (params.documentType !== undefined && pack.metadata.type !== params.documentType) {
         // A single pack being of the wrong type is a no-op contribution;
