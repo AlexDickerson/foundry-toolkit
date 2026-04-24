@@ -3,6 +3,7 @@ import { api, ApiRequestError } from '../../api/client';
 import type { CompendiumDocument, CompendiumMatch, CompendiumSearchOptions, CompendiumSource } from '../../api/types';
 import { enrichDescription } from '../../lib/foundry-enrichers';
 import { useDebounce } from '../../lib/useDebounce';
+import { type RemoteDataState, useRemoteData } from '../../lib/useRemoteData';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { evaluateDocument } from '../../prereqs';
 import type { CharacterContext, Evaluation } from '../../prereqs';
@@ -34,16 +35,6 @@ interface Props {
   onClose: () => void;
 }
 
-type FetchState =
-  | { kind: 'loading' }
-  | { kind: 'ready'; matches: CompendiumMatch[] }
-  | { kind: 'error'; message: string };
-
-type SourcesState =
-  | { kind: 'loading' }
-  | { kind: 'ready'; sources: CompendiumSource[] }
-  | { kind: 'error'; message: string };
-
 type DetailState =
   | { kind: 'idle' }
   | { kind: 'loading'; uuid: string }
@@ -56,10 +47,8 @@ type DetailState =
 // skill / general feat slots.
 export function FeatPicker({ title, filters, characterContext, onPick, onClose }: Props): React.ReactElement {
   const [query, setQuery] = useState('');
-  const [state, setState] = useState<FetchState>({ kind: 'loading' });
   const [sort, setSort] = useState<SortState>({ mode: 'alpha', dir: 'asc' });
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
-  const [sources, setSources] = useState<SourcesState>({ kind: 'loading' });
   const [detailTarget, setDetailTarget] = useState<CompendiumMatch | null>(null);
   const [detail, setDetail] = useState<DetailState>({ kind: 'idle' });
   const [evaluations, setEvaluations] = useState<Map<string, Evaluation>>(new Map());
@@ -77,49 +66,6 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
   // resolved), so the detail pane's links show up without a per-open
   // round trip.
   const prereqCacheRef = useRef<Map<string, string | null>>(new Map());
-
-  // Apply sort on top of whatever order the server returned. Client-side
-  // is fine because the server already caps results (limit 50 by default
-  // from the picker), so the sort runs over a tiny array. Entries missing
-  // a level always sink to the bottom of a Level sort (in either
-  // direction) and stay alpha-asc among themselves — "unknown" shouldn't
-  // leapfrog real data just because the user flipped direction.
-  //
-  // After sorting, optionally drop entries whose prereq evaluation came
-  // back `fails`. `unknown` (unparseable) stays through.
-  const visibleMatches = useMemo(() => {
-    if (state.kind !== 'ready') return [];
-    const copy = [...state.matches];
-    const dirMul = sort.dir === 'desc' ? -1 : 1;
-    if (sort.mode === 'level') {
-      const leveled = copy.filter((m) => m.level !== undefined);
-      const unlevelled = copy.filter((m) => m.level === undefined);
-      leveled.sort((a, b) => {
-        const lvlCmp = ((a.level ?? 0) - (b.level ?? 0)) * dirMul;
-        if (lvlCmp !== 0) return lvlCmp;
-        // Keep intra-tier ordering alpha-asc regardless of direction,
-        // so scanning a level band reads left-to-right like a glossary.
-        return a.name.localeCompare(b.name);
-      });
-      unlevelled.sort((a, b) => a.name.localeCompare(b.name));
-      return hideUnmet
-        ? [...leveled, ...unlevelled].filter((m) => evaluations.get(m.uuid) !== 'fails')
-        : [...leveled, ...unlevelled];
-    }
-    copy.sort((a, b) => a.name.localeCompare(b.name) * dirMul);
-    return hideUnmet ? copy.filter((m) => evaluations.get(m.uuid) !== 'fails') : copy;
-  }, [state, sort, hideUnmet, evaluations]);
-
-  const onSortClick = (mode: SortMode): void => {
-    setSort((prev) =>
-      prev.mode === mode
-        ? // Re-clicking the active option flips direction.
-          { mode, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-        : // Switching modes resets direction to ascending so users
-          // don't carry an expectation from the other axis.
-          { mode, dir: 'asc' },
-    );
-  };
 
   // Stable filter key for the search effect dep array. Source titles
   // are sorted for order-stability so toggling a checkbox refires the
@@ -148,29 +94,26 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
     ],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    // Deliberately not flipping state back to 'loading' here — that
-    // would trigger an extra render (react-hooks/set-state-in-effect)
-    // and flash the empty-list state between keystrokes. Instead the
-    // previous `ready` matches stay visible until the next response
-    // lands, giving a calm "narrow-in-place" feel to the picker.
-    const opts: CompendiumSearchOptions = {
-      q: debouncedQuery,
-      limit: 50,
-    };
-    if (filters.packIds !== undefined && filters.packIds.length > 0) opts.packIds = filters.packIds;
-    if (selectedSources.length > 0) opts.sources = selectedSources;
-    if (filters.documentType !== undefined) opts.documentType = filters.documentType;
-    if (filters.traits !== undefined) opts.traits = filters.traits;
-    if (filters.anyTraits !== undefined) opts.anyTraits = filters.anyTraits;
-    if (filters.maxLevel !== undefined) opts.maxLevel = filters.maxLevel;
-    if (filters.ancestrySlug !== undefined) opts.ancestrySlug = filters.ancestrySlug;
-    api
-      .searchCompendium(opts)
-      .then((result) => {
-        if (cancelled) return;
-        setState({ kind: 'ready', matches: result.matches });
+  // Live match list. `useRemoteData` keeps the previous `ready` data
+  // visible across re-fetches so the list narrows in place without
+  // flashing an empty state between keystrokes.
+  const matchesState = useRemoteData<CompendiumMatch[]>(
+    async () => {
+      const opts: CompendiumSearchOptions = { q: debouncedQuery, limit: 50 };
+      if (filters.packIds !== undefined && filters.packIds.length > 0) opts.packIds = filters.packIds;
+      if (selectedSources.length > 0) opts.sources = selectedSources;
+      if (filters.documentType !== undefined) opts.documentType = filters.documentType;
+      if (filters.traits !== undefined) opts.traits = filters.traits;
+      if (filters.anyTraits !== undefined) opts.anyTraits = filters.anyTraits;
+      if (filters.maxLevel !== undefined) opts.maxLevel = filters.maxLevel;
+      if (filters.ancestrySlug !== undefined) opts.ancestrySlug = filters.ancestrySlug;
+      const result = await api.searchCompendium(opts);
+      return result.matches;
+    },
+    // filterKey captures every filter field used inside the fetcher.
+    [debouncedQuery, filterKey],
+    {
+      onSuccess: (matches, isCancelled) => {
         // Background prefetch the full document for each match so the
         // detail pane opens instantly on click. Each worker also
         // resolves that document's prereqs against the compendium and
@@ -180,12 +123,12 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
         // 50 results come back.
         const ctx = characterContext;
         void prefetchDocuments(
-          result.matches,
+          matches,
           docCacheRef.current,
           prereqCacheRef.current,
           ctx
             ? (uuid, doc) => {
-                if (cancelled) return;
+                if (isCancelled()) return;
                 const evaluation = evaluateDocument(doc, ctx);
                 setEvaluations((prev) => {
                   if (prev.get(uuid) === evaluation) return prev;
@@ -195,59 +138,82 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
                 });
               }
             : undefined,
-          () => cancelled,
+          isCancelled,
         );
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const message = err instanceof ApiRequestError ? err.message : err instanceof Error ? err.message : String(err);
-        setState({ kind: 'error', message });
-      });
-    return (): void => {
-      cancelled = true;
-    };
-    // filterKey captures every filter field; exhaustive-deps is happy.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQuery, filterKey]);
+      },
+    },
+  );
 
-  // Keep the source-book counts in lockstep with the current search
-  // filters (text query, traits, maxLevel). The source filter itself
-  // is NOT passed in — we want counts for every source regardless of
-  // which ones the user has ticked, so the dropdown reads as "how many
+  // Source-book counts stay in lockstep with the current search filters
+  // (text query, traits, maxLevel). The source filter itself is NOT
+  // passed in — we want counts for every source regardless of which
+  // ones the user has ticked, so the dropdown reads as "how many
   // matches each source would contribute" (classic multi-select facet
   // behaviour). Packs + documentType stay since those are caller-side
   // invariants.
   const traitsKey = (filters.traits ?? []).join('|');
-  useEffect(() => {
-    let cancelled = false;
-    const opts: {
-      documentType?: string;
-      packIds?: string[];
-      q?: string;
-      traits?: string[];
-      maxLevel?: number;
-    } = {};
-    if (filters.documentType !== undefined) opts.documentType = filters.documentType;
-    if (filters.packIds !== undefined && filters.packIds.length > 0) opts.packIds = filters.packIds;
-    if (debouncedQuery.length > 0) opts.q = debouncedQuery;
-    if (filters.traits !== undefined && filters.traits.length > 0) opts.traits = filters.traits;
-    if (filters.maxLevel !== undefined) opts.maxLevel = filters.maxLevel;
-    api
-      .listCompendiumSources(opts)
-      .then((result) => {
-        if (cancelled) return;
-        setSources({ kind: 'ready', sources: result.sources });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : String(err);
-        setSources({ kind: 'error', message });
+  const sourcesState = useRemoteData<CompendiumSource[]>(
+    async () => {
+      const opts: {
+        documentType?: string;
+        packIds?: string[];
+        q?: string;
+        traits?: string[];
+        maxLevel?: number;
+      } = {};
+      if (filters.documentType !== undefined) opts.documentType = filters.documentType;
+      if (filters.packIds !== undefined && filters.packIds.length > 0) opts.packIds = filters.packIds;
+      if (debouncedQuery.length > 0) opts.q = debouncedQuery;
+      if (filters.traits !== undefined && filters.traits.length > 0) opts.traits = filters.traits;
+      if (filters.maxLevel !== undefined) opts.maxLevel = filters.maxLevel;
+      const result = await api.listCompendiumSources(opts);
+      return result.sources;
+    },
+    [filters.documentType, callerPackIdsKey, debouncedQuery, traitsKey, filters.maxLevel],
+  );
+
+  // Apply sort on top of whatever order the server returned. Client-side
+  // is fine because the server already caps results (limit 50 by default
+  // from the picker), so the sort runs over a tiny array. Entries missing
+  // a level always sink to the bottom of a Level sort (in either
+  // direction) and stay alpha-asc among themselves — "unknown" shouldn't
+  // leapfrog real data just because the user flipped direction.
+  //
+  // After sorting, optionally drop entries whose prereq evaluation came
+  // back `fails`. `unknown` (unparseable) stays through.
+  const visibleMatches = useMemo(() => {
+    if (matchesState.kind !== 'ready') return [];
+    const copy = [...matchesState.data];
+    const dirMul = sort.dir === 'desc' ? -1 : 1;
+    if (sort.mode === 'level') {
+      const leveled = copy.filter((m) => m.level !== undefined);
+      const unlevelled = copy.filter((m) => m.level === undefined);
+      leveled.sort((a, b) => {
+        const lvlCmp = ((a.level ?? 0) - (b.level ?? 0)) * dirMul;
+        if (lvlCmp !== 0) return lvlCmp;
+        // Keep intra-tier ordering alpha-asc regardless of direction,
+        // so scanning a level band reads left-to-right like a glossary.
+        return a.name.localeCompare(b.name);
       });
-    return (): void => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.documentType, callerPackIdsKey, debouncedQuery, traitsKey, filters.maxLevel]);
+      unlevelled.sort((a, b) => a.name.localeCompare(b.name));
+      return hideUnmet
+        ? [...leveled, ...unlevelled].filter((m) => evaluations.get(m.uuid) !== 'fails')
+        : [...leveled, ...unlevelled];
+    }
+    copy.sort((a, b) => a.name.localeCompare(b.name) * dirMul);
+    return hideUnmet ? copy.filter((m) => evaluations.get(m.uuid) !== 'fails') : copy;
+  }, [matchesState, sort, hideUnmet, evaluations]);
+
+  const onSortClick = (mode: SortMode): void => {
+    setSort((prev) =>
+      prev.mode === mode
+        ? // Re-clicking the active option flips direction.
+          { mode, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : // Switching modes resets direction to ascending so users
+          // don't carry an expectation from the other axis.
+          { mode, dir: 'asc' },
+    );
+  };
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -367,7 +333,7 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
           />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <SourcePicker sources={sources} selected={selectedSources} onChange={setSelectedSources} />
+              <SourcePicker sources={sourcesState} selected={selectedSources} onChange={setSelectedSources} />
               <UnmetToggle hide={hideUnmet} onChange={setHideUnmet} />
               <FilterSummary filters={filters} />
             </div>
@@ -380,12 +346,14 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
             className={['overflow-y-auto', detailOpen ? 'w-80 shrink-0 border-r border-pf-border' : 'flex-1'].join(' ')}
             data-testid="feat-picker-results"
           >
-            {state.kind === 'loading' && <p className="p-4 text-sm italic text-pf-alt">Searching…</p>}
-            {state.kind === 'error' && <p className="p-4 text-sm text-pf-primary">Search failed: {state.message}</p>}
-            {state.kind === 'ready' && visibleMatches.length === 0 && (
+            {matchesState.kind === 'loading' && <p className="p-4 text-sm italic text-pf-alt">Searching…</p>}
+            {matchesState.kind === 'error' && (
+              <p className="p-4 text-sm text-pf-primary">Search failed: {matchesState.message}</p>
+            )}
+            {matchesState.kind === 'ready' && visibleMatches.length === 0 && (
               <p className="p-4 text-sm italic text-pf-alt">No matches. Loosen the filters or search term.</p>
             )}
-            {state.kind === 'ready' && visibleMatches.length > 0 && (
+            {matchesState.kind === 'ready' && visibleMatches.length > 0 && (
               <MatchList
                 matches={visibleMatches}
                 evaluations={evaluations}
@@ -498,7 +466,7 @@ function SourcePicker({
   selected,
   onChange,
 }: {
-  sources: SourcesState;
+  sources: RemoteDataState<CompendiumSource[]>;
   selected: string[];
   onChange: (next: string[]) => void;
 }): React.ReactElement {
@@ -527,8 +495,8 @@ function SourcePicker({
   const filtered = useMemo(() => {
     if (sources.kind !== 'ready') return [];
     const needle = filter.trim().toLowerCase();
-    if (!needle) return sources.sources;
-    return sources.sources.filter((s) => s.title.toLowerCase().includes(needle));
+    if (!needle) return sources.data;
+    return sources.data.filter((s) => s.title.toLowerCase().includes(needle));
   }, [sources, filter]);
 
   const toggle = (title: string): void => {
