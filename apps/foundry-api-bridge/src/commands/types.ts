@@ -30,9 +30,7 @@ export type CommandType =
   | 'create-actor-from-compendium'
   | 'update-actor'
   | 'delete-actor'
-  | 'adjust-actor-resource'
-  | 'adjust-actor-condition'
-  | 'roll-actor-statistic'
+  | 'invoke-actor-action'
   | 'send-chat-message'
   | 'create-journal'
   | 'update-journal'
@@ -183,137 +181,27 @@ export interface DeleteActorParams {
   actorId: string;
 }
 
-// Adjustable numeric fields on a character/NPC that UI steppers care
-// about. Each maps to a dot-path under `actor.system`:
-//   hp            → attributes.hp.value
-//   hp-temp       → attributes.hp.temp
-//   hero-points   → resources.heroPoints.value
-//   focus-points  → resources.focus.value
-// Extend conservatively — new keys here mean new UI + new clamp rules.
-export type ActorResourceKey = 'hp' | 'hp-temp' | 'hero-points' | 'focus-points';
-
-export const ACTOR_RESOURCE_KEYS: readonly ActorResourceKey[] = [
-  'hp',
-  'hp-temp',
-  'hero-points',
-  'focus-points',
-];
-
-export interface AdjustActorResourceParams {
+// Generic outbound-action dispatch. Routes `POST
+// /api/actors/:id/actions/:action` to a per-action handler on the
+// bridge (adjust-resource, adjust-condition, roll-statistic, future
+// craft / strike / etc.). Payload is the action's parameter bag,
+// interpreted by the action handler — the router doesn't know the
+// shape. Adding a new action is one entry in the handler's registry;
+// no new command type, no new route, no new SPA api method.
+//
+// Param + response shapes for each action live in
+// `@foundry-toolkit/shared/rpc` so the SPA and the handler can't
+// drift silently. The bridge re-uses those types; it doesn't
+// duplicate them here.
+export interface InvokeActorActionParams {
   actorId: string;
-  resource: ActorResourceKey;
-  /** Signed delta applied to the current value (positive = gain,
-   *  negative = loss). Result is clamped into `[0, max]` — 'hp-temp'
-   *  has no upper clamp since temp HP's cap varies with the granting
-   *  effect. No damage-cascade side effects (dying pipe etc.): this
-   *  is a bare field write, matching how the sheet's +/- stepper
-   *  behaves. Use `actor.applyDamage` elsewhere when the full pipeline
-   *  is wanted. */
-  delta: number;
+  action: string;
+  params?: Record<string, unknown>;
 }
 
-export interface AdjustActorResourceResult {
-  actorId: string;
-  resource: ActorResourceKey;
-  before: number;
-  after: number;
-  /** null when the resource has no natural cap (currently only 'hp-temp'). */
-  max: number | null;
-}
-
-// PF2e persistent-count conditions. Unlike HP / hero points these aren't
-// raw numeric fields — they're tracked via active effects with their
-// own lifecycle (dying → wounded cascade, auto-death at dying max).
-// The handler goes through `actor.increaseCondition` / `decreaseCondition`
-// to keep that lifecycle intact.
-export type ActorConditionKey = 'dying' | 'wounded' | 'doomed';
-
-export const ACTOR_CONDITION_KEYS: readonly ActorConditionKey[] = ['dying', 'wounded', 'doomed'];
-
-export interface AdjustActorConditionParams {
-  actorId: string;
-  condition: ActorConditionKey;
-  /** Signed count applied via repeated increase/decreaseCondition
-   *  calls. +2 calls increase twice; -3 calls decrease three times.
-   *  The PF2e condition code handles floor/ceiling and cascades. */
-  delta: number;
-}
-
-export interface AdjustActorConditionResult {
-  actorId: string;
-  condition: ActorConditionKey;
-  before: number;
-  after: number;
-  /** Reported at response time; max may shift (e.g. dying's cap
-   *  increases with doomed) so clients shouldn't cache it. */
-  max: number;
-}
-
-// PF2e `Statistic` slugs exposed for click-to-roll on the character
-// sheet: Perception, the three saves, and the full skill list.
-// Any unified `actor.getStatistic(slug)` target works; we keep the
-// set narrow so the Zod enum at the HTTP edge stays small and the
-// UI only offers things it understands.
-export type Pf2eStatisticSlug =
-  | 'perception'
-  | 'fortitude'
-  | 'reflex'
-  | 'will'
-  | 'acrobatics'
-  | 'arcana'
-  | 'athletics'
-  | 'crafting'
-  | 'deception'
-  | 'diplomacy'
-  | 'intimidation'
-  | 'medicine'
-  | 'nature'
-  | 'occultism'
-  | 'performance'
-  | 'religion'
-  | 'society'
-  | 'stealth'
-  | 'survival'
-  | 'thievery';
-
-export const PF2E_STATISTIC_SLUGS: readonly Pf2eStatisticSlug[] = [
-  'perception',
-  'fortitude',
-  'reflex',
-  'will',
-  'acrobatics',
-  'arcana',
-  'athletics',
-  'crafting',
-  'deception',
-  'diplomacy',
-  'intimidation',
-  'medicine',
-  'nature',
-  'occultism',
-  'performance',
-  'religion',
-  'society',
-  'stealth',
-  'survival',
-  'thievery',
-];
-
-export type Pf2eRollMode = 'publicroll' | 'gmroll' | 'blindroll' | 'selfroll';
-
-export interface RollActorStatisticParams {
-  actorId: string;
-  statistic: Pf2eStatisticSlug;
-  /** Override Foundry's default roll mode for this single roll.
-   *  When omitted, the user's current chat-mode setting applies. */
-  rollMode?: Pf2eRollMode;
-}
-
-export interface RollActorStatisticResult extends RollResult {
-  statistic: Pf2eStatisticSlug;
-  /** The resolved chat message id, when `create: true` produced one. */
-  chatMessageId?: string;
-}
+// Handlers own their result shape; surfaced as `data` on the generic
+// command response. Opaque to the router.
+export type InvokeActorActionResult = Record<string, unknown>;
 
 // Actor Results
 export interface ActorResult {
@@ -1631,9 +1519,7 @@ export interface CommandParamsMap {
   'create-actor-from-compendium': CreateActorFromCompendiumParams;
   'update-actor': UpdateActorParams;
   'delete-actor': DeleteActorParams;
-  'adjust-actor-resource': AdjustActorResourceParams;
-  'adjust-actor-condition': AdjustActorConditionParams;
-  'roll-actor-statistic': RollActorStatisticParams;
+  'invoke-actor-action': InvokeActorActionParams;
   'send-chat-message': SendChatMessageParams;
   'create-journal': CreateJournalParams;
   'update-journal': UpdateJournalParams;
@@ -1730,9 +1616,7 @@ export interface CommandResultMap {
   'create-actor-from-compendium': ActorResult;
   'update-actor': ActorResult;
   'delete-actor': DeleteResult;
-  'adjust-actor-resource': AdjustActorResourceResult;
-  'adjust-actor-condition': AdjustActorConditionResult;
-  'roll-actor-statistic': RollActorStatisticResult;
+  'invoke-actor-action': InvokeActorActionResult;
   'send-chat-message': SendChatMessageResult;
   'create-journal': JournalResult;
   'update-journal': JournalResult;

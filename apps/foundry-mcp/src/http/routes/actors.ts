@@ -1,14 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { sendCommand } from '../../bridge.js';
 import {
+  actorActionParams,
   actorIdParam,
   actorItemIdParams,
   actorTraceParams,
   addItemFromCompendiumBody,
-  adjustActorConditionBody,
-  adjustActorResourceBody,
   createActorBody,
-  rollActorStatisticBody,
+  invokeActorActionBody,
   updateActorBody,
   updateActorItemBody,
 } from '../schemas.js';
@@ -67,36 +66,17 @@ export function registerActorRoutes(app: FastifyInstance): void {
     return sendCommand('update-actor-item', { actorId: id, itemId, ...body });
   });
 
-  // Stepper for numeric resources (HP, temp HP, hero points, focus
-  // points). Body picks the field; positive delta heals / grants,
-  // negative damages / spends. The bridge clamps into [0, max] and
-  // reports `{before, after, max}` so clients don't have to
-  // refetch the prepared actor just to update a pip display.
-  app.post('/api/actors/:id/resources/adjust', async (req) => {
-    const { id } = actorIdParam.parse(req.params);
-    const body = adjustActorResourceBody.parse(req.body);
-    return sendCommand('adjust-actor-resource', { actorId: id, ...body });
-  });
-
-  // Stepper for PF2e persistent-count conditions (dying, wounded,
-  // doomed). Positive delta = apply N stacks via increaseCondition;
-  // negative = peel N stacks via decreaseCondition. Handler goes
-  // through PF2e's condition API rather than raw updates, so the
-  // system's cascade behaviour (dying → wounded, auto-death at cap)
-  // stays intact.
-  app.post('/api/actors/:id/conditions/adjust', async (req) => {
-    const { id } = actorIdParam.parse(req.params);
-    const body = adjustActorConditionBody.parse(req.body);
-    return sendCommand('adjust-actor-condition', { actorId: id, ...body });
-  });
-
-  // Click-to-roll for any PF2e `Statistic` — Perception, the three
-  // saves, any skill. Skips the modifier dialog and posts the roll
-  // card to chat via the configured rollMode (or the user's current
-  // default if omitted).
-  app.post('/api/actors/:id/rolls/statistic', async (req) => {
-    const { id } = actorIdParam.parse(req.params);
-    const body = rollActorStatisticBody.parse(req.body);
-    return sendCommand('roll-actor-statistic', { actorId: id, ...body });
+  // Generic outbound-action dispatch. Routes `POST
+  // /api/actors/:id/actions/:action` to the bridge's
+  // `invoke-actor-action` command; the bridge looks `action` up in its
+  // per-action handler registry (adjust-resource, adjust-condition,
+  // roll-statistic, future craft/rest/strike/etc.). The body schema
+  // stays loose on purpose — `params` is an `unknown` bag so new
+  // actions land as a single handler entry, no new route, no new
+  // command type.
+  app.post('/api/actors/:id/actions/:action', async (req) => {
+    const { id, action } = actorActionParams.parse(req.params);
+    const { params } = invokeActorActionBody.parse(req.body ?? {});
+    return sendCommand('invoke-actor-action', { actorId: id, action, params });
   });
 }

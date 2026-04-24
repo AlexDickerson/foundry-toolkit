@@ -12,6 +12,12 @@ import type {
   UpdateActorItemBody,
   UploadAssetBody,
 } from '@foundry-toolkit/shared/rpc';
+
+// Payload shape for the generic outbound-action endpoint. Each action
+// slug has its own `params` shape; callers use `invokeActorAction`
+// directly or one of the thin wrappers below that type-narrow per
+// action.
+type ActorActionParams = Record<string, unknown>;
 import type { UploadAssetResult } from '@foundry-toolkit/shared/foundry-api';
 
 import type {
@@ -126,6 +132,21 @@ export const api = {
     request<{ success: boolean }>(`/actors/${id}/items/${itemId}`, { method: 'DELETE' }),
   updateActorItem: (id: string, itemId: string, patch: UpdateActorItemBody): Promise<ActorItemRef> =>
     request<ActorItemRef>(`/actors/${id}/items/${itemId}`, { method: 'PATCH', body: patch }),
+  // Generic outbound-action dispatch. Every play-surface action (HP
+  // steppers, condition steppers, statistic rolls, future craft /
+  // rest-for-night / strike) routes through one endpoint —
+  // `POST /api/mcp/actors/:id/actions/:action` — with `params` as the
+  // action-specific bag. Returns whatever shape the handler returns;
+  // callers type-narrow at the call site via the wrappers below.
+  invokeActorAction: <T = Record<string, unknown>>(
+    id: string,
+    action: string,
+    params?: ActorActionParams,
+  ): Promise<T> =>
+    request<T>(`/actors/${id}/actions/${encodeURIComponent(action)}`, {
+      method: 'POST',
+      body: { params },
+    }),
   // Signed stepper for HP / temp HP / hero points / focus points.
   // Positive delta = heal / grant, negative = damage / spend. Server
   // clamps into [0, max] and returns `{before, after, max}` so the
@@ -135,10 +156,7 @@ export const api = {
     resource: ActorResourceKey,
     delta: number,
   ): Promise<AdjustActorResourceResponse> =>
-    request<AdjustActorResourceResponse>(`/actors/${id}/resources/adjust`, {
-      method: 'POST',
-      body: { resource, delta },
-    }),
+    api.invokeActorAction<AdjustActorResourceResponse>(id, 'adjust-resource', { resource, delta }),
   // Signed stepper for dying / wounded / doomed. Each |delta| unit
   // triggers one increase/decreaseCondition call on the bridge, so
   // PF2e's cascade rules fire (dying→wounded, auto-death at cap).
@@ -147,10 +165,7 @@ export const api = {
     condition: ActorConditionKey,
     delta: number,
   ): Promise<AdjustActorConditionResponse> =>
-    request<AdjustActorConditionResponse>(`/actors/${id}/conditions/adjust`, {
-      method: 'POST',
-      body: { condition, delta },
-    }),
+    api.invokeActorAction<AdjustActorConditionResponse>(id, 'adjust-condition', { condition, delta }),
   // Click-to-roll for any PF2e `Statistic` — Perception, Fort/Ref/Will,
   // or any skill. Chat card lands in Foundry as a side effect; the
   // response carries `{total, formula, dice, chatMessageId?}` for
@@ -160,10 +175,11 @@ export const api = {
     statistic: Pf2eStatisticSlug,
     rollMode?: Pf2eRollMode,
   ): Promise<RollActorStatisticResponse> =>
-    request<RollActorStatisticResponse>(`/actors/${id}/rolls/statistic`, {
-      method: 'POST',
-      body: { statistic, ...(rollMode !== undefined ? { rollMode } : {}) },
-    }),
+    api.invokeActorAction<RollActorStatisticResponse>(
+      id,
+      'roll-statistic',
+      rollMode !== undefined ? { statistic, rollMode } : { statistic },
+    ),
   resolvePrompt: (bridgeId: string, value: unknown): Promise<{ ok: boolean }> =>
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),
   uploadAsset: (body: UploadAssetBody): Promise<UploadAssetResult> =>

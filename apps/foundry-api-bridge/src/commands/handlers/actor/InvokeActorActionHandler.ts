@@ -1,0 +1,336 @@
+import type { InvokeActorActionParams, InvokeActorActionResult } from '@/commands/types';
+import { extractDiceResults } from './actorTypes';
+import type { FoundryD20Roll } from './actorTypes';
+
+// Minimal Foundry type snippets. Kept local to the handler because
+// the pf2e runtime surface isn't covered by the bundled foundry-vtt
+// types and we narrow defensively from `unknown` anyway. Each action
+// reads what it needs; the shared fields (id, system, update) sit on
+// `FoundryActor` so the router can hand one object to every handler.
+
+interface FoundryActor {
+  id: string;
+  uuid: string;
+  type: string;
+  system: Record<string, unknown>;
+  update(data: Record<string, unknown>): Promise<FoundryActor>;
+  /** PF2e-specific: bumps a condition by 1 (creates the effect at
+   *  value 1 if absent). */
+  increaseCondition?: (slug: string) => Promise<unknown>;
+  /** PF2e-specific: drops a condition value by 1; removes the
+   *  effect when it hits 0. */
+  decreaseCondition?: (slug: string) => Promise<unknown>;
+  /** PF2e-specific: unified `Statistic` accessor — perception, saves,
+   *  every skill. Returns null when the statistic isn't defined
+   *  (e.g. loot actors). */
+  getStatistic?: (slug: string) => Pf2eStatistic | null;
+}
+
+interface Pf2eStatistic {
+  roll(args: {
+    skipDialog?: boolean;
+    createMessage?: boolean;
+    rollMode?: string;
+  }): Promise<FoundryD20Roll | null>;
+}
+
+interface ActorsCollection {
+  get(id: string): FoundryActor | undefined;
+}
+
+interface FoundryGame {
+  actors: ActorsCollection;
+  messages?: { contents: Array<{ id: string; isRoll?: boolean }> };
+}
+
+interface FoundryGlobals {
+  game: FoundryGame;
+}
+
+function getFoundry(): FoundryGlobals {
+  return globalThis as unknown as FoundryGlobals;
+}
+
+// Per-action handler signature. Receives the resolved actor + the
+// untyped params bag from the request; returns whatever structured
+// result makes sense for the action (opaque to the router).
+type ActionHandler = (actor: FoundryActor, params: Record<string, unknown>) => Promise<InvokeActorActionResult>;
+
+// ─── Action registry ───────────────────────────────────────────────────
+
+// Dispatch table. Adding a new outbound action is a single entry —
+// no new command type, no new HTTP route, no SPA api method.
+const ACTION_HANDLERS: Record<string, ActionHandler> = {
+  'adjust-resource': adjustResourceAction,
+  'adjust-condition': adjustConditionAction,
+  'roll-statistic': rollStatisticAction,
+};
+
+// ─── adjust-resource ───────────────────────────────────────────────────
+
+// Signed stepper against an actor's numeric resource. Writes the
+// clamped result straight to the field via `actor.update()` — no
+// damage pipeline, no IWR, no dying cascade. Matches the plain
+// behaviour of the pf2e sheet's +/- buttons; callers that want full
+// damage semantics should use a dedicated apply-damage action (not
+// yet registered here).
+
+type ResourceKey = 'hp' | 'hp-temp' | 'hero-points' | 'focus-points';
+
+const RESOURCE_KEYS: readonly ResourceKey[] = ['hp', 'hp-temp', 'hero-points', 'focus-points'];
+
+interface ResourceConfig {
+  /** Dot-path passed to `actor.update()`. */
+  path: string;
+  /** Steps under `actor.system` used to read the current value. */
+  valuePath: readonly string[];
+  /** Steps under `actor.system` used to read the max, or null when
+   *  the resource has no natural cap (e.g. temp HP). */
+  maxPath: readonly string[] | null;
+}
+
+const RESOURCES: Record<ResourceKey, ResourceConfig> = {
+  hp: {
+    path: 'system.attributes.hp.value',
+    valuePath: ['attributes', 'hp', 'value'],
+    maxPath: ['attributes', 'hp', 'max'],
+  },
+  'hp-temp': {
+    path: 'system.attributes.hp.temp',
+    valuePath: ['attributes', 'hp', 'temp'],
+    maxPath: null,
+  },
+  'hero-points': {
+    path: 'system.resources.heroPoints.value',
+    valuePath: ['resources', 'heroPoints', 'value'],
+    maxPath: ['resources', 'heroPoints', 'max'],
+  },
+  'focus-points': {
+    path: 'system.resources.focus.value',
+    valuePath: ['resources', 'focus', 'value'],
+    maxPath: ['resources', 'focus', 'max'],
+  },
+};
+
+function isResourceKey(v: unknown): v is ResourceKey {
+  return typeof v === 'string' && (RESOURCE_KEYS as readonly string[]).includes(v);
+}
+
+async function adjustResourceAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  const resource = params['resource'];
+  if (!isResourceKey(resource)) {
+    throw new Error(`adjust-resource: params.resource must be one of ${RESOURCE_KEYS.join(', ')}`);
+  }
+  const delta = params['delta'];
+  if (typeof delta !== 'number' || !Number.isInteger(delta)) {
+    throw new Error('adjust-resource: params.delta must be an integer');
+  }
+
+  const config = RESOURCES[resource];
+  const before = readNumber(actor.system, config.valuePath);
+  const max = config.maxPath !== null ? readNumber(actor.system, config.maxPath) : null;
+  const upperBound = max ?? Number.POSITIVE_INFINITY;
+  const after = Math.max(0, Math.min(upperBound, before + delta));
+
+  if (after !== before) {
+    await actor.update({ [config.path]: after });
+  }
+
+  return { actorId: actor.id, resource, before, after, max };
+}
+
+// ─── adjust-condition ──────────────────────────────────────────────────
+
+// Signed stepper for the three persistent PF2e conditions. Deltas are
+// applied via repeated `increase`/`decreaseCondition` calls so the
+// system's lifecycle fires — dying crossing max kills the character,
+// decreasing dying past 0 leaves a wounded stack, etc.
+
+type ConditionKey = 'dying' | 'wounded' | 'doomed';
+
+const CONDITION_KEYS: readonly ConditionKey[] = ['dying', 'wounded', 'doomed'];
+
+const CONDITION_VALUE_PATH: Record<ConditionKey, readonly string[]> = {
+  dying: ['attributes', 'dying', 'value'],
+  wounded: ['attributes', 'wounded', 'value'],
+  doomed: ['attributes', 'doomed', 'value'],
+};
+
+const CONDITION_MAX_PATH: Record<ConditionKey, readonly string[]> = {
+  dying: ['attributes', 'dying', 'max'],
+  wounded: ['attributes', 'wounded', 'max'],
+  doomed: ['attributes', 'doomed', 'max'],
+};
+
+function isConditionKey(v: unknown): v is ConditionKey {
+  return typeof v === 'string' && (CONDITION_KEYS as readonly string[]).includes(v);
+}
+
+async function adjustConditionAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  const condition = params['condition'];
+  if (!isConditionKey(condition)) {
+    throw new Error(`adjust-condition: params.condition must be one of ${CONDITION_KEYS.join(', ')}`);
+  }
+  const delta = params['delta'];
+  if (typeof delta !== 'number' || !Number.isInteger(delta)) {
+    throw new Error('adjust-condition: params.delta must be an integer');
+  }
+
+  if (typeof actor.increaseCondition !== 'function' || typeof actor.decreaseCondition !== 'function') {
+    throw new Error(
+      `adjust-condition: actor ${actor.id} doesn't expose PF2e condition methods — is this a pf2e system actor?`,
+    );
+  }
+
+  const before = readNumber(actor.system, CONDITION_VALUE_PATH[condition]);
+
+  if (delta > 0) {
+    for (let i = 0; i < delta; i++) {
+      await actor.increaseCondition(condition);
+    }
+  } else if (delta < 0) {
+    for (let i = 0; i < -delta; i++) {
+      await actor.decreaseCondition(condition);
+    }
+  }
+
+  // Max can shift in the same call (dying's cap moves with doomed),
+  // so re-read after the writes.
+  const after = readNumber(actor.system, CONDITION_VALUE_PATH[condition]);
+  const max = readNumber(actor.system, CONDITION_MAX_PATH[condition]);
+
+  return { actorId: actor.id, condition, before, after, max };
+}
+
+// ─── roll-statistic ────────────────────────────────────────────────────
+
+// Click-to-roll for any PF2e `Statistic` — Perception, saves, skills.
+// Uses the unified `actor.getStatistic(slug).roll()` path so one
+// handler covers every check the character sheet can surface. Chat
+// dialog is skipped — if we want a modifier prompt later we'll
+// surface an SPA-side picker and pass the resolved DC/traits through
+// explicitly. `createMessage` is true so the roll card lands in the
+// Foundry chat log for players watching.
+
+const STATISTIC_SLUGS: readonly string[] = [
+  'perception',
+  'fortitude',
+  'reflex',
+  'will',
+  'acrobatics',
+  'arcana',
+  'athletics',
+  'crafting',
+  'deception',
+  'diplomacy',
+  'intimidation',
+  'medicine',
+  'nature',
+  'occultism',
+  'performance',
+  'religion',
+  'society',
+  'stealth',
+  'survival',
+  'thievery',
+];
+
+const ROLL_MODES: readonly string[] = ['publicroll', 'gmroll', 'blindroll', 'selfroll'];
+
+async function rollStatisticAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  const statistic = params['statistic'];
+  if (typeof statistic !== 'string' || !STATISTIC_SLUGS.includes(statistic)) {
+    throw new Error(`roll-statistic: params.statistic must be one of ${STATISTIC_SLUGS.join(', ')}`);
+  }
+  const rollMode = params['rollMode'];
+  if (rollMode !== undefined && (typeof rollMode !== 'string' || !ROLL_MODES.includes(rollMode))) {
+    throw new Error(`roll-statistic: params.rollMode must be one of ${ROLL_MODES.join(', ')} when present`);
+  }
+
+  if (typeof actor.getStatistic !== 'function') {
+    throw new Error(
+      `roll-statistic: actor ${actor.id} doesn't expose getStatistic — is this a pf2e system actor?`,
+    );
+  }
+
+  const stat = actor.getStatistic(statistic);
+  if (!stat) {
+    throw new Error(`roll-statistic: statistic "${statistic}" not available on actor ${actor.id}`);
+  }
+
+  // `exactOptionalPropertyTypes` makes `rollMode: undefined` invalid on
+  // the target type — only include the key when we have a value.
+  const rollArgs: { skipDialog: boolean; createMessage: boolean; rollMode?: string } = {
+    skipDialog: true,
+    createMessage: true,
+  };
+  if (typeof rollMode === 'string') rollArgs.rollMode = rollMode;
+  const roll = await stat.roll(rollArgs);
+
+  if (!roll) {
+    throw new Error(`roll-statistic: roll for "${statistic}" returned no result (cancelled?)`);
+  }
+
+  const dice = extractDiceResults(roll.terms);
+  const result: InvokeActorActionResult = {
+    statistic,
+    total: roll.total,
+    formula: roll.formula,
+    dice,
+  };
+  if (roll.isCritical) result['isCritical'] = true;
+  if (roll.isFumble) result['isFumble'] = true;
+
+  // Best-effort: match the just-created chat message so callers can
+  // cite it (e.g. a live sheet can highlight the row).
+  const lastMessage = getFoundry().game.messages?.contents.at(-1);
+  if (lastMessage?.isRoll === true) {
+    result['chatMessageId'] = lastMessage.id;
+  }
+
+  return result;
+}
+
+// ─── Router ────────────────────────────────────────────────────────────
+
+export async function invokeActorActionHandler(
+  params: InvokeActorActionParams,
+): Promise<InvokeActorActionResult> {
+  const { actorId, action } = params;
+  const actor = getFoundry().game.actors.get(actorId);
+  if (!actor) {
+    throw new Error(`Actor not found: ${actorId}`);
+  }
+
+  const handler = ACTION_HANDLERS[action];
+  if (!handler) {
+    const known = Object.keys(ACTION_HANDLERS).join(', ');
+    throw new Error(`Unknown action: ${action} (known: ${known})`);
+  }
+
+  return handler(actor, params.params ?? {});
+}
+
+// Exported for tests; the registry is otherwise an implementation
+// detail of the dispatch.
+export const KNOWN_ACTIONS = Object.freeze(Object.keys(ACTION_HANDLERS));
+
+// ─── Helpers ───────────────────────────────────────────────────────────
+
+function readNumber(root: Record<string, unknown>, path: readonly string[]): number {
+  let cursor: unknown = root;
+  for (const key of path) {
+    if (cursor === null || typeof cursor !== 'object') return 0;
+    cursor = (cursor as Record<string, unknown>)[key];
+  }
+  return typeof cursor === 'number' && Number.isFinite(cursor) ? cursor : 0;
+}

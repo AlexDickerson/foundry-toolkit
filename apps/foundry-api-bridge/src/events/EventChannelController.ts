@@ -185,7 +185,7 @@ export class EventChannelController {
             if (!isFoundryActorForEvent(rawActor)) return;
             const changedPaths = extractChangedPaths(rawChange);
             if (changedPaths.length === 0) return;
-            this.wsClient.pushEvent('actors', { actorId: rawActor.id, changedPaths });
+            this.publisher.pushEvent('actors', { actorId: rawActor.id, changedPaths });
           }),
         );
         break;

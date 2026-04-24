@@ -16,6 +16,26 @@ export const actorTraceParams = z.object({
   slug: z.string().min(1),
 });
 
+// URL params for the generic outbound-action endpoint. The `action`
+// slug is validated as a non-empty identifier but not enumerated
+// here — the bridge-side dispatch table is the authority on which
+// actions are actually handled, and we want new actions to land as a
+// single handler registration without touching the shared schema.
+export const actorActionParams = z.object({
+  id: z.string().min(1),
+  action: z.string().min(1).max(64),
+});
+
+// Body for `POST /api/actors/:id/actions/:action`. `params` is the
+// action-specific parameter bag; schema is `z.record(z.unknown())`
+// because each action interprets its own shape (adjust-resource reads
+// `{resource, delta}`, roll-statistic reads `{statistic, rollMode?}`,
+// and so on). The bridge handler narrows at runtime using the
+// action-specific schemas below.
+export const invokeActorActionBody = z.object({
+  params: z.record(z.string(), z.unknown()).optional(),
+});
+
 // `traits` / `packId` accept either ?foo=a,b,c or repeated
 // ?foo=a&foo=b. Fastify's default querystring parser (qs) gives us a
 // string[] for the latter and a string for the former; we normalise
