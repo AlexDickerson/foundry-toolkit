@@ -8,11 +8,19 @@ interface MockRoll {
   isFumble: boolean;
 }
 
+interface MockItem {
+  id: string;
+  name: string;
+  type: string;
+  toMessage: jest.Mock;
+}
+
 interface MockActor {
   id: string;
   uuid: string;
   type: string;
   system: Record<string, unknown>;
+  items: { get: jest.Mock };
   update: jest.Mock;
   increaseCondition?: jest.Mock;
   decreaseCondition?: jest.Mock;
@@ -22,6 +30,7 @@ interface MockActor {
 function setupFoundry(opts: {
   actor: MockActor | null;
   messages?: Array<{ id: string; isRoll?: boolean }>;
+  pf2eActions?: Record<string, jest.Mock>;
 }): void {
   const actors = new Map<string, MockActor>();
   if (opts.actor) actors.set(opts.actor.id, opts.actor);
@@ -31,6 +40,7 @@ function setupFoundry(opts: {
       get: (id: string): MockActor | undefined => actors.get(id),
     },
     messages: { contents: opts.messages ?? [] },
+    pf2e: { actions: opts.pf2eActions ?? {} },
   };
 }
 
@@ -62,10 +72,21 @@ function makeActor(overrides: Partial<MockActor> = {}): MockActor {
         focus: { value: 0, max: 2 },
       },
     },
+    items: { get: jest.fn() },
     update: jest.fn().mockResolvedValue(undefined),
     increaseCondition: jest.fn().mockResolvedValue(undefined),
     decreaseCondition: jest.fn().mockResolvedValue(undefined),
     getStatistic: jest.fn().mockReturnValue({ roll: jest.fn().mockResolvedValue(makeRoll()) }),
+    ...overrides,
+  };
+}
+
+function makeItem(overrides: Partial<MockItem> = {}): MockItem {
+  return {
+    id: 'item1',
+    name: 'Potion of Healing',
+    type: 'consumable',
+    toMessage: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -75,9 +96,18 @@ afterEach(() => {
 });
 
 describe('invokeActorActionHandler — dispatch', () => {
-  it('exposes adjust-resource, adjust-condition, roll-statistic in KNOWN_ACTIONS', () => {
+  it('exposes every registered action slug in KNOWN_ACTIONS', () => {
     expect(KNOWN_ACTIONS).toEqual(
-      expect.arrayContaining(['adjust-resource', 'adjust-condition', 'roll-statistic']),
+      expect.arrayContaining([
+        'adjust-resource',
+        'adjust-condition',
+        'roll-statistic',
+        'craft',
+        'rest-for-the-night',
+        'roll-strike',
+        'roll-strike-damage',
+        'post-item-to-chat',
+      ]),
     );
   });
 
@@ -497,5 +527,332 @@ describe('invokeActorActionHandler — roll-statistic', () => {
         params: { statistic: 'perception', rollMode: 'whisper' },
       }),
     ).rejects.toThrow(/params\.rollMode must be one of/);
+  });
+});
+
+describe('invokeActorActionHandler — craft', () => {
+  it('invokes game.pf2e.actions.craft with uuid + actors + quantity', async () => {
+    const craftMock = jest.fn().mockResolvedValue(undefined);
+    const actor = makeActor();
+    setupFoundry({ actor, pf2eActions: { craft: craftMock } });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'craft',
+      params: { itemUuid: 'Compendium.pf2e.equipment-srd.Item.abc', quantity: 3 },
+    });
+
+    expect(craftMock).toHaveBeenCalledWith({
+      uuid: 'Compendium.pf2e.equipment-srd.Item.abc',
+      actors: [actor],
+      quantity: 3,
+    });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('defaults quantity to 1 when omitted / invalid', async () => {
+    const craftMock = jest.fn().mockResolvedValue(undefined);
+    setupFoundry({ actor: makeActor(), pf2eActions: { craft: craftMock } });
+
+    for (const quantity of [undefined, -5, 'two', 0]) {
+      craftMock.mockClear();
+      await invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'craft',
+        params: { itemUuid: 'Compendium.pf2e.equipment-srd.Item.abc', quantity },
+      });
+      expect(craftMock.mock.calls[0]?.[0]).toMatchObject({ quantity: 1 });
+    }
+  });
+
+  it('floors non-integer positive quantities', async () => {
+    const craftMock = jest.fn().mockResolvedValue(undefined);
+    setupFoundry({ actor: makeActor(), pf2eActions: { craft: craftMock } });
+
+    await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'craft',
+      params: { itemUuid: 'Compendium.pf2e.equipment-srd.Item.abc', quantity: 2.7 },
+    });
+    expect(craftMock.mock.calls[0]?.[0]).toMatchObject({ quantity: 2 });
+  });
+
+  it('requires itemUuid', async () => {
+    setupFoundry({ actor: makeActor(), pf2eActions: { craft: jest.fn() } });
+    await expect(
+      invokeActorActionHandler({ actorId: 'actor1', action: 'craft', params: {} }),
+    ).rejects.toThrow(/params\.itemUuid is required/);
+  });
+
+  it('errors when pf2e system is not installed', async () => {
+    const actor = makeActor();
+    (globalThis as unknown as Record<string, unknown>)['game'] = {
+      actors: { get: () => actor },
+      // No pf2e.actions at all.
+    };
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'craft',
+        params: { itemUuid: 'Compendium.pf2e.equipment-srd.Item.abc' },
+      }),
+    ).rejects.toThrow(/pf2e system not installed/);
+  });
+});
+
+describe('invokeActorActionHandler — rest-for-the-night', () => {
+  it('calls game.pf2e.actions.restForTheNight with the actor and skipDialog', async () => {
+    const restMock = jest.fn().mockResolvedValue([]);
+    const actor = makeActor();
+    setupFoundry({ actor, pf2eActions: { restForTheNight: restMock } });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'rest-for-the-night',
+      params: {},
+    });
+
+    expect(restMock).toHaveBeenCalledWith({ actors: [actor], skipDialog: true });
+    expect(result).toEqual({ ok: true, messageCount: 0 });
+  });
+
+  it('reports the returned chat message count', async () => {
+    const restMock = jest.fn().mockResolvedValue([{ id: 'm1' }, { id: 'm2' }, { id: 'm3' }]);
+    setupFoundry({ actor: makeActor(), pf2eActions: { restForTheNight: restMock } });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'rest-for-the-night',
+      params: {},
+    });
+    expect(result).toMatchObject({ messageCount: 3 });
+  });
+
+  it('refuses to rest a non-character actor', async () => {
+    setupFoundry({
+      actor: makeActor({ type: 'npc' }),
+      pf2eActions: { restForTheNight: jest.fn() },
+    });
+    await expect(
+      invokeActorActionHandler({ actorId: 'actor1', action: 'rest-for-the-night', params: {} }),
+    ).rejects.toThrow(/is a npc, not a character/);
+  });
+
+  it('errors when pf2e system is not installed', async () => {
+    const actor = makeActor();
+    (globalThis as unknown as Record<string, unknown>)['game'] = {
+      actors: { get: () => actor },
+    };
+    await expect(
+      invokeActorActionHandler({ actorId: 'actor1', action: 'rest-for-the-night', params: {} }),
+    ).rejects.toThrow(/pf2e system not installed/);
+  });
+});
+
+describe('invokeActorActionHandler — roll-strike', () => {
+  function makeStrikeActor(): MockActor {
+    const variantRoll = jest.fn().mockResolvedValue(undefined);
+    return makeActor({
+      system: {
+        actions: [
+          {
+            slug: 'longsword',
+            variants: [{ roll: variantRoll }, { roll: variantRoll }, { roll: variantRoll }],
+            damage: jest.fn().mockResolvedValue(undefined),
+            critical: jest.fn().mockResolvedValue(undefined),
+          },
+          {
+            slug: 'bow-composite',
+            variants: [{ roll: variantRoll }],
+          },
+        ],
+      },
+    });
+  }
+
+  it('finds the strike by slug and rolls the requested variant', async () => {
+    const actor = makeStrikeActor();
+    setupFoundry({ actor });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'roll-strike',
+      params: { strikeSlug: 'longsword', variantIndex: 1 },
+    });
+
+    const strike = (actor.system as { actions: Array<{ variants: Array<{ roll: jest.Mock }> }> }).actions[0]!;
+    expect(strike.variants[1]!.roll).toHaveBeenCalledWith({});
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('throws when the strike slug is unknown', async () => {
+    setupFoundry({ actor: makeStrikeActor() });
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'roll-strike',
+        params: { strikeSlug: 'greatclub', variantIndex: 0 },
+      }),
+    ).rejects.toThrow(/strike "greatclub" not found/);
+  });
+
+  it('throws when the variant index is out of range', async () => {
+    setupFoundry({ actor: makeStrikeActor() });
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'roll-strike',
+        params: { strikeSlug: 'bow-composite', variantIndex: 2 },
+      }),
+    ).rejects.toThrow(/has no variant 2/);
+  });
+
+  it('rejects non-character actors', async () => {
+    setupFoundry({ actor: makeActor({ type: 'npc' }) });
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'roll-strike',
+        params: { strikeSlug: 'longsword', variantIndex: 0 },
+      }),
+    ).rejects.toThrow(/not a character/);
+  });
+
+  it('rejects missing strikeSlug and non-integer variantIndex', async () => {
+    setupFoundry({ actor: makeStrikeActor() });
+    await expect(
+      invokeActorActionHandler({ actorId: 'actor1', action: 'roll-strike', params: { variantIndex: 0 } }),
+    ).rejects.toThrow(/strikeSlug is required/);
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'roll-strike',
+        params: { strikeSlug: 'longsword', variantIndex: 1.5 },
+      }),
+    ).rejects.toThrow(/variantIndex must be a non-negative integer/);
+  });
+
+  it('throws when the actor has no system.actions array', async () => {
+    setupFoundry({ actor: makeActor() });
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'roll-strike',
+        params: { strikeSlug: 'longsword', variantIndex: 0 },
+      }),
+    ).rejects.toThrow(/no system\.actions/);
+  });
+});
+
+describe('invokeActorActionHandler — roll-strike-damage', () => {
+  function makeStrikeActor(): MockActor {
+    return makeActor({
+      system: {
+        actions: [
+          {
+            slug: 'longsword',
+            damage: jest.fn().mockResolvedValue(undefined),
+            critical: jest.fn().mockResolvedValue(undefined),
+          },
+        ],
+      },
+    });
+  }
+
+  it('rolls normal damage when critical is false/omitted', async () => {
+    const actor = makeStrikeActor();
+    setupFoundry({ actor });
+
+    await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'roll-strike-damage',
+      params: { strikeSlug: 'longsword' },
+    });
+
+    const strike = (actor.system as { actions: Array<{ damage: jest.Mock; critical: jest.Mock }> }).actions[0]!;
+    expect(strike.damage).toHaveBeenCalledWith({});
+    expect(strike.critical).not.toHaveBeenCalled();
+  });
+
+  it('rolls critical damage when critical is true', async () => {
+    const actor = makeStrikeActor();
+    setupFoundry({ actor });
+
+    await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'roll-strike-damage',
+      params: { strikeSlug: 'longsword', critical: true },
+    });
+
+    const strike = (actor.system as { actions: Array<{ damage: jest.Mock; critical: jest.Mock }> }).actions[0]!;
+    expect(strike.critical).toHaveBeenCalledWith({});
+    expect(strike.damage).not.toHaveBeenCalled();
+  });
+
+  it('throws when the strike has no damage/critical function for the requested mode', async () => {
+    const bareActor = makeActor({
+      system: {
+        actions: [{ slug: 'longsword' }],
+      },
+    });
+    setupFoundry({ actor: bareActor });
+
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'roll-strike-damage',
+        params: { strikeSlug: 'longsword' },
+      }),
+    ).rejects.toThrow(/has no damage roll/);
+
+    delete (globalThis as unknown as Record<string, unknown>)['game'];
+    setupFoundry({ actor: bareActor });
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'roll-strike-damage',
+        params: { strikeSlug: 'longsword', critical: true },
+      }),
+    ).rejects.toThrow(/has no critical roll/);
+  });
+});
+
+describe('invokeActorActionHandler — post-item-to-chat', () => {
+  it('calls item.toMessage() and returns {ok, itemId, itemName}', async () => {
+    const item = makeItem({ id: 'item-xyz', name: 'Sword of Truth' });
+    const actor = makeActor();
+    actor.items.get.mockReturnValue(item);
+    setupFoundry({ actor });
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor1',
+      action: 'post-item-to-chat',
+      params: { itemId: 'item-xyz' },
+    });
+
+    expect(actor.items.get).toHaveBeenCalledWith('item-xyz');
+    expect(item.toMessage).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ ok: true, itemId: 'item-xyz', itemName: 'Sword of Truth' });
+  });
+
+  it('throws when the item is not on the actor', async () => {
+    const actor = makeActor();
+    actor.items.get.mockReturnValue(undefined);
+    setupFoundry({ actor });
+
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor1',
+        action: 'post-item-to-chat',
+        params: { itemId: 'ghost' },
+      }),
+    ).rejects.toThrow(/item ghost not found/);
+  });
+
+  it('requires itemId', async () => {
+    setupFoundry({ actor: makeActor() });
+    await expect(
+      invokeActorActionHandler({ actorId: 'actor1', action: 'post-item-to-chat', params: {} }),
+    ).rejects.toThrow(/params\.itemId is required/);
   });
 });
