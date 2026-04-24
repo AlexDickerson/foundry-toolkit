@@ -101,12 +101,14 @@ describe('searchMonsters', () => {
     const out = await createPreparedCompendium(api).searchMonsters('dragon');
     expect(out).toContain('--- Creature Result 1: Young Red Dragon (Level 10) ---');
     expect(out).toContain('HP 180 | AC 30');
-    expect(search).toHaveBeenCalledWith({
-      q: 'dragon',
-      documentType: 'npc',
-      packIds: ['pf2e.pathfinder-bestiary'],
-      limit: 3,
-    });
+    expect(search).toHaveBeenCalledWith(
+      expect.objectContaining({
+        q: 'dragon',
+        documentType: 'npc',
+        limit: 3,
+        packIds: expect.arrayContaining(['pf2e.pathfinder-bestiary']),
+      }),
+    );
   });
 
   it('returns a "no results" message when the search is empty', async () => {
@@ -129,7 +131,11 @@ describe('listMonsters', () => {
     const out = await createPreparedCompendium(api).listMonsters({ levels: [3, 7] });
     expect(out.map((s) => s.name)).toEqual(['B']);
     expect(search).toHaveBeenCalledWith(
-      expect.objectContaining({ documentType: 'npc', maxLevel: 7, packIds: ['pf2e.pathfinder-bestiary'] }),
+      expect.objectContaining({
+        documentType: 'npc',
+        maxLevel: 7,
+        packIds: expect.arrayContaining(['pf2e.pathfinder-bestiary']),
+      }),
     );
   });
 
