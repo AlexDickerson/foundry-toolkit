@@ -153,6 +153,20 @@ export const updateActorBody = z.object({
   flags: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
 });
 
+// Steppable numeric fields on an actor. Kept narrow — each key maps
+// to a known path under `actor.system` on the module side, with
+// resource-specific clamping. New keys require a matching branch
+// in the bridge handler (AdjustActorResourceHandler.ts).
+export const ACTOR_RESOURCE_KEYS = ['hp', 'hp-temp', 'hero-points', 'focus-points'] as const;
+
+export const adjustActorResourceBody = z.object({
+  resource: z.enum(ACTOR_RESOURCE_KEYS),
+  // Signed integer delta. Bound is wide enough for "heal to full"
+  // on any reasonable HP pool; the handler clamps to [0, max] so
+  // oversized requests are harmless.
+  delta: z.number().int().min(-10_000).max(10_000),
+});
+
 // Item-on-actor operations for the wizard's piecemeal picks
 // (ancestry, heritage, class, background, deity). Copies the source
 // document out of the compendium, strips its `_id`, and attaches it

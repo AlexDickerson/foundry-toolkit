@@ -8,6 +8,7 @@ import type { z } from 'zod/v4';
 
 import type {
   addItemFromCompendiumBody,
+  adjustActorResourceBody,
   createActorBody,
   resolvePromptBody,
   updateActorBody,
@@ -23,6 +24,17 @@ export type AddItemFromCompendiumBody = z.infer<typeof addItemFromCompendiumBody
 export type UpdateActorItemBody = z.infer<typeof updateActorItemBody>;
 export type ResolvePromptBody = z.infer<typeof resolvePromptBody>;
 export type UploadAssetBody = z.infer<typeof uploadAssetBody>;
+export type AdjustActorResourceBody = z.infer<typeof adjustActorResourceBody>;
+export type ActorResourceKey = AdjustActorResourceBody['resource'];
+
+export interface AdjustActorResourceResponse {
+  actorId: string;
+  resource: ActorResourceKey;
+  before: number;
+  after: number;
+  /** null when the resource has no natural cap (currently only 'hp-temp'). */
+  max: number | null;
+}
 
 // Error response shape for `/api/*` — mirrored in `foundry-api.ts` as
 // `ApiError` (same shape). Re-exported here for callers that want to
