@@ -55,7 +55,9 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
       .searchCompendium({
         q: debounced,
         documentType: 'Item',
-        packIds: PHYSICAL_ITEM_PACKS,
+        // Copy to a mutable array — `CompendiumSearchOptions.packIds`
+        // is typed `string[]`, not `readonly string[]`.
+        packIds: [...PHYSICAL_ITEM_PACKS],
         limit: 50,
       })
       .then(({ matches: fetched }) => {
