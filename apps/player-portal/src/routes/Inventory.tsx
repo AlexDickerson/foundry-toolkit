@@ -34,7 +34,7 @@ function formatCp(cp: number | undefined): string {
 }
 
 export function Inventory() {
-  const { data, status, lastUpdated } = useLiveStream<InventorySnapshot>('/api/inventory/stream');
+  const { data, status, lastUpdated } = useLiveStream<InventorySnapshot>('/api/live/inventory/stream');
 
   const grouped = useMemo(() => {
     const map = new Map<PartyInventoryItem['category'], PartyInventoryItem[]>();

@@ -14,12 +14,12 @@ const DEFAULT_PUBLIC_URL = 'http://server.ad:30002';
 
 export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => Electron.BrowserWindow | null): void {
   /** Best-effort POST of the current pin snapshot to the player portal's
-   *  /api/globe endpoint. Silent no-op if sidecarUrl/secret aren't
+   *  /api/live/globe endpoint. Silent no-op if sidecarUrl/secret aren't
    *  configured. Network/5xx errors log and swallow — the SQLite write
    *  has already succeeded and the next successful push will reconcile. */
   async function pushSnapshot(): Promise<void> {
     const payload = await buildExportPayload();
-    await pushToSidecar(cfg, '/api/globe', { pins: payload.pins, updatedAt: new Date().toISOString() }, 'globe');
+    await pushToSidecar(cfg, '/api/live/globe', { pins: payload.pins, updatedAt: new Date().toISOString() }, 'globe');
   }
 
   /** Collect every pin and, for mission pins with an Obsidian vault
@@ -237,7 +237,7 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
     return true;
   });
 
-  /** Push the current pin snapshot to the player portal's /api/globe.
+  /** Push the current pin snapshot to the player portal's /api/live/globe.
    *  Replaces the old build-data.json + scp + docker-compose dance —
    *  since the portal now treats pins as a live-sync dataset (same as
    *  inventory + aurus), all a "deploy" needs to do is POST the latest
@@ -263,7 +263,7 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
       const payload = await buildExportPayload();
 
       sendProgress({ stage: 'docker', message: 'Pushing to player portal...' });
-      const res = await fetch(`${cfg.sidecarUrl.replace(/\/+$/, '')}/api/globe`, {
+      const res = await fetch(`${cfg.sidecarUrl.replace(/\/+$/, '')}/api/live/globe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

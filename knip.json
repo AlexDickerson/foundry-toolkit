@@ -16,7 +16,7 @@
       "project": ["src/**/*.ts"],
       "ignore": ["src/config/index.ts"]
     },
-    "apps/character-creator": {
+    "apps/player-portal": {
       "ignoreDependencies": ["@eslint/js"]
     },
     "tools/launcher": {

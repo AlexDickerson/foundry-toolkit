@@ -13,7 +13,7 @@ import { pushToSidecar } from '../sidecar-client.js';
 async function pushSnapshot(cfg: DmToolConfig): Promise<void> {
   await pushToSidecar(
     cfg,
-    '/api/inventory',
+    '/api/live/inventory',
     { items: listInventory(), updatedAt: new Date().toISOString() },
     'inventory',
   );

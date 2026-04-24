@@ -30,7 +30,7 @@ Workspace deps (raw TS, transpiled by electron-vite): `@foundry-toolkit/ai`, `@f
 - `electron/ipc/` — full IPC surface; `setup-ipc.ts` handles first-run before the main DB is configured.
 - `electron/config.ts` — bootstrap config loader + DB-backed config.
 - `electron/book-scanner.ts` — phase-1 filesystem walk for the book catalog; phase-2 cover extraction is lazy.
-- `electron/sidecar-client.ts` — HTTP client to player-portal's Fastify `/api/*` (ex-sidecar).
+- `electron/sidecar-client.ts` — HTTP client to player-portal's Fastify `/api/live/*` (ex-sidecar).
 - `src/` — React renderer (`src/main.tsx` entry).
 
 ## Key decisions / gotchas

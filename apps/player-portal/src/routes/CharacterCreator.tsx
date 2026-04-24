@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { AbilityKey, CompendiumMatch, CompendiumSearchOptions } from '../api/types';
 import { ABILITY_KEYS } from '../api/types';
@@ -190,17 +191,19 @@ const STATIC_PICKER_FILTERS: Record<
   deity: { packIds: ['pf2e.deities'], documentType: 'Item' },
 };
 
-interface Props {
-  onBack: () => void;
-  onFinish: (actorId: string) => void;
-}
-
 // Actor lifecycle: wizard opens → creating → ready (actor exists in
 // Foundry, piecemeal patches flow through). Failed creation blocks
 // the UI with a retry button.
 type CreatorState = { kind: 'creating' } | { kind: 'ready'; actorId: string } | { kind: 'error'; message: string };
 
-export function CharacterCreator({ onBack, onFinish }: Props): React.ReactElement {
+export function CharacterCreator(): React.ReactElement {
+  const navigate = useNavigate();
+  const onBack = (): void => {
+    void navigate('/characters');
+  };
+  const onFinish = (actorId: string): void => {
+    void navigate(`/characters/${actorId}`);
+  };
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [openPicker, setOpenPicker] = useState<PickerTarget | null>(null);
   const [creator, setCreator] = useState<CreatorState>({ kind: 'creating' });

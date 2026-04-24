@@ -18,9 +18,9 @@ const MAX_BACKOFF_MS = 30_000;
 
 /** Subscribe to a sidecar WebSocket stream with reconnect-on-close.
  *
- *  - `path` is the stream path (e.g. "/api/inventory/stream").
- *  - The base URL is same-origin; nginx proxies /api/ to the sidecar. For
- *    local dev against a sidecar on a different origin, the caller can
+ *  - `path` is the stream path (e.g. "/api/live/inventory/stream").
+ *  - The base URL is same-origin; the Fastify server owns /api/live/*. For
+ *    local dev against a server on a different origin, the caller can
  *    pass an absolute ws(s):// URL via `overrideUrl`.
  */
 export function useLiveStream<T>(path: string, overrideUrl?: string): LiveState<T> {

@@ -8,7 +8,12 @@ import { deleteAurusTeam, listAurusTeams, upsertAurusTeam } from '@foundry-toolk
 import { pushToSidecar } from '../sidecar-client.js';
 
 async function pushSnapshot(cfg: DmToolConfig): Promise<void> {
-  await pushToSidecar(cfg, '/api/aurus', { teams: listAurusTeams(), updatedAt: new Date().toISOString() }, 'aurus');
+  await pushToSidecar(
+    cfg,
+    '/api/live/aurus',
+    { teams: listAurusTeams(), updatedAt: new Date().toISOString() },
+    'aurus',
+  );
 }
 
 export function registerAurusHandlers(cfg: DmToolConfig): void {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiRequestError } from '../api/client';
 import type { PreparedActor, PreparedCharacter } from '../api/types';
-import { SheetHeader } from '../components/layout/SheetHeader';
+import { SheetHeader } from '../components/sheet/SheetHeader';
 import { SettingsDialog } from '../components/settings/SettingsDialog';
 import { TabStrip } from '../components/common/TabStrip';
 import type { Tab } from '../components/common/TabStrip';
@@ -16,7 +17,7 @@ import { Progression } from '../components/tabs/Progression';
 import { Spells } from '../components/tabs/Spells';
 import { useEventChannel } from '../lib/useEventChannel';
 import { fromPreparedCharacter } from '../prereqs';
-import type { ColorScheme } from '../lib/usePreferences';
+import { usePreferences } from '../lib/usePreferences';
 
 type State =
   | { kind: 'loading' }
@@ -46,16 +47,24 @@ const TABS: readonly Tab<TabId>[] = [
   { id: 'background', label: 'Background' },
 ];
 
-interface Props {
-  actorId: string;
-  onBack: () => void;
-  preferences: {
-    colorScheme: ColorScheme;
-    setColorScheme: (scheme: ColorScheme) => void;
+export function CharacterSheet(): React.ReactElement {
+  const { actorId } = useParams<{ actorId: string }>();
+  const navigate = useNavigate();
+  const preferences = usePreferences();
+  if (!actorId) return <Navigate to="/characters" replace />;
+  const onBack = (): void => {
+    void navigate('/characters');
   };
+  return <CharacterSheetInner actorId={actorId} onBack={onBack} preferences={preferences} />;
 }
 
-export function CharacterSheet({ actorId, onBack, preferences }: Props): React.ReactElement {
+interface InnerProps {
+  actorId: string;
+  onBack: () => void;
+  preferences: ReturnType<typeof usePreferences>;
+}
+
+function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): React.ReactElement {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [activeTab, setActiveTab] = useState<TabId>('character');
   const [settingsOpen, setSettingsOpen] = useState(false);
