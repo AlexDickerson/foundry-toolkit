@@ -11,6 +11,7 @@ import type {
   adjustActorConditionBody,
   adjustActorResourceBody,
   createActorBody,
+  invokeActorActionBody,
   resolvePromptBody,
   rollActorStatisticBody,
   updateActorBody,
@@ -26,8 +27,16 @@ export type AddItemFromCompendiumBody = z.infer<typeof addItemFromCompendiumBody
 export type UpdateActorItemBody = z.infer<typeof updateActorItemBody>;
 export type ResolvePromptBody = z.infer<typeof resolvePromptBody>;
 export type UploadAssetBody = z.infer<typeof uploadAssetBody>;
-export type AdjustActorResourceBody = z.infer<typeof adjustActorResourceBody>;
-export type ActorResourceKey = AdjustActorResourceBody['resource'];
+export type InvokeActorActionBody = z.infer<typeof invokeActorActionBody>;
+
+// Action-specific param/response shapes. Each action routes through
+// `POST /api/actors/:id/actions/:action` with `params` shaped like the
+// `*Params` type below; the bridge handler parses the matching shared
+// schema (e.g. `adjustActorResourceBody`) and returns the matching
+// response. Kept here (not per-component) so server + SPA can't drift
+// silently when a new key or response field gets added.
+export type AdjustActorResourceParams = z.infer<typeof adjustActorResourceBody>;
+export type ActorResourceKey = AdjustActorResourceParams['resource'];
 
 export interface AdjustActorResourceResponse {
   actorId: string;
@@ -38,8 +47,8 @@ export interface AdjustActorResourceResponse {
   max: number | null;
 }
 
-export type AdjustActorConditionBody = z.infer<typeof adjustActorConditionBody>;
-export type ActorConditionKey = AdjustActorConditionBody['condition'];
+export type AdjustActorConditionParams = z.infer<typeof adjustActorConditionBody>;
+export type ActorConditionKey = AdjustActorConditionParams['condition'];
 
 export interface AdjustActorConditionResponse {
   actorId: string;
@@ -50,9 +59,9 @@ export interface AdjustActorConditionResponse {
   max: number;
 }
 
-export type RollActorStatisticBody = z.infer<typeof rollActorStatisticBody>;
-export type Pf2eStatisticSlug = RollActorStatisticBody['statistic'];
-export type Pf2eRollMode = NonNullable<RollActorStatisticBody['rollMode']>;
+export type RollActorStatisticParams = z.infer<typeof rollActorStatisticBody>;
+export type Pf2eStatisticSlug = RollActorStatisticParams['statistic'];
+export type Pf2eRollMode = NonNullable<RollActorStatisticParams['rollMode']>;
 
 export interface RollActorStatisticResponse {
   statistic: Pf2eStatisticSlug;

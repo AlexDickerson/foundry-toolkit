@@ -24,9 +24,7 @@ import {
   createActorFromCompendiumHandler,
   updateActorHandler,
   deleteActorHandler,
-  adjustActorResourceHandler,
-  adjustActorConditionHandler,
-  rollActorStatisticHandler,
+  invokeActorActionHandler,
   getActorsHandler,
   getActorHandler,
   getPreparedActorHandler,
@@ -202,9 +200,12 @@ function initializeWebSocket(
   commandRouter.register('create-actor-from-compendium', createActorFromCompendiumHandler);
   commandRouter.register('update-actor', updateActorHandler);
   commandRouter.register('delete-actor', deleteActorHandler);
-  commandRouter.register('adjust-actor-resource', adjustActorResourceHandler);
-  commandRouter.register('adjust-actor-condition', adjustActorConditionHandler);
-  commandRouter.register('roll-actor-statistic', rollActorStatisticHandler);
+  // Generic outbound-action dispatch. One command type, many actions
+  // (adjust-resource, adjust-condition, roll-statistic, future
+  // craft / rest / strike / …). Adding a new action is a single
+  // entry in the registry inside InvokeActorActionHandler — no new
+  // command type, no new HTTP route, no SPA api method.
+  commandRouter.register('invoke-actor-action', invokeActorActionHandler);
 
   // Journal CRUD
   commandRouter.register('create-journal', createJournalHandler);
