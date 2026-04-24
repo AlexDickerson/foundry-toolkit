@@ -132,12 +132,31 @@ describe('findInCompendiumHandler', () => {
     expect(result.matches[0]?.packId).toBe('pack.b');
   });
 
-  it('throws when an explicit packId is not found', async () => {
+  it('returns empty matches when the only requested pack is missing', async () => {
     setGame([]);
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-    await expect(findInCompendiumHandler({ name: 'anything', packId: 'missing.pack' })).rejects.toThrow(
-      'Compendium pack not found: missing.pack',
-    );
+    const result = await findInCompendiumHandler({ name: 'anything', packId: 'missing.pack' });
+
+    expect(result.matches).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('missing.pack'));
+    warn.mockRestore();
+  });
+
+  it('skips missing packs in a multi-pack request and searches the rest', async () => {
+    const p1 = createPack('real.pack', [{ _id: '1', name: 'Goblin', type: 'npc' }]);
+    setGame([p1]);
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await findInCompendiumHandler({
+      name: 'goblin',
+      packId: ['missing.pack', 'real.pack', 'also-missing.pack'],
+    });
+
+    expect(result.matches.map((m) => m.name)).toEqual(['Goblin']);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('missing.pack'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('also-missing.pack'));
+    warn.mockRestore();
   });
 
   it('filters by documentType', async () => {
