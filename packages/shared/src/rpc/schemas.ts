@@ -182,6 +182,39 @@ export const adjustActorConditionBody = z.object({
   delta: z.number().int().min(-10).max(10),
 });
 
+// Slugs resolvable by PF2e's unified `actor.getStatistic()` accessor:
+// Perception, the three saves, and every skill. Mirrored on the bridge
+// side — any additions need the UI to know what it's offering anyway.
+export const PF2E_STATISTIC_SLUGS = [
+  'perception',
+  'fortitude',
+  'reflex',
+  'will',
+  'acrobatics',
+  'arcana',
+  'athletics',
+  'crafting',
+  'deception',
+  'diplomacy',
+  'intimidation',
+  'medicine',
+  'nature',
+  'occultism',
+  'performance',
+  'religion',
+  'society',
+  'stealth',
+  'survival',
+  'thievery',
+] as const;
+
+export const PF2E_ROLL_MODES = ['publicroll', 'gmroll', 'blindroll', 'selfroll'] as const;
+
+export const rollActorStatisticBody = z.object({
+  statistic: z.enum(PF2E_STATISTIC_SLUGS),
+  rollMode: z.enum(PF2E_ROLL_MODES).optional(),
+});
+
 // Item-on-actor operations for the wizard's piecemeal picks
 // (ancestry, heritage, class, background, deity). Copies the source
 // document out of the compendium, strips its `_id`, and attaches it

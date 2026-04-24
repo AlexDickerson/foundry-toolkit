@@ -26,6 +26,7 @@ import {
   deleteActorHandler,
   adjustActorResourceHandler,
   adjustActorConditionHandler,
+  rollActorStatisticHandler,
   getActorsHandler,
   getActorHandler,
   getPreparedActorHandler,
@@ -203,6 +204,7 @@ function initializeWebSocket(
   commandRouter.register('delete-actor', deleteActorHandler);
   commandRouter.register('adjust-actor-resource', adjustActorResourceHandler);
   commandRouter.register('adjust-actor-condition', adjustActorConditionHandler);
+  commandRouter.register('roll-actor-statistic', rollActorStatisticHandler);
 
   // Journal CRUD
   commandRouter.register('create-journal', createJournalHandler);

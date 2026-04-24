@@ -3,7 +3,7 @@ import type { AbilityKey, CharacterSystem, IWREntry, Save, Shield, Speed } from 
 import { ABILITY_KEYS } from '../../api/types';
 import { t } from '../../i18n/t';
 import { formatSignedInt } from '../../lib/format';
-import { useActorAction } from '../../lib/useActorAction';
+import { useActorAction, type ActorActionState } from '../../lib/useActorAction';
 import { RankChip } from '../common/RankChip';
 import { SectionHeader } from '../common/SectionHeader';
 
@@ -163,6 +163,21 @@ function StatsBlock({
   const { perception, initiative } = system;
   const saves = system.saves;
 
+  const rollPerception = useActorAction({
+    run: () => api.rollActorStatistic(actorId, 'perception'),
+  });
+  const rollFortitude = useActorAction({
+    run: () => api.rollActorStatistic(actorId, 'fortitude'),
+  });
+  const rollReflex = useActorAction({
+    run: () => api.rollActorStatistic(actorId, 'reflex'),
+  });
+  const rollWill = useActorAction({
+    run: () => api.rollActorStatistic(actorId, 'will'),
+  });
+  const error =
+    firstError(rollPerception.state, rollFortitude.state, rollReflex.state, rollWill.state);
+
   return (
     <div>
       <SectionHeader>Key Stats</SectionHeader>
@@ -175,6 +190,8 @@ function StatsBlock({
           title={perception.breakdown}
           rank={perception.rank}
           data-stat="perception"
+          onRoll={() => void rollPerception.trigger()}
+          pending={rollPerception.state === 'pending'}
         />
         <StatTile
           label="Initiative"
@@ -186,12 +203,36 @@ function StatsBlock({
       </div>
 
       <div className="mt-2 grid grid-cols-3 gap-2">
-        <SaveTile save={saves.fortitude} />
-        <SaveTile save={saves.reflex} />
-        <SaveTile save={saves.will} />
+        <SaveTile
+          save={saves.fortitude}
+          onRoll={() => void rollFortitude.trigger()}
+          pending={rollFortitude.state === 'pending'}
+        />
+        <SaveTile
+          save={saves.reflex}
+          onRoll={() => void rollReflex.trigger()}
+          pending={rollReflex.state === 'pending'}
+        />
+        <SaveTile
+          save={saves.will}
+          onRoll={() => void rollWill.trigger()}
+          pending={rollWill.state === 'pending'}
+        />
       </div>
+      {error !== null && (
+        <p className="mt-1 text-[11px] text-red-700" data-role="stats-roll-error">
+          {error}
+        </p>
+      )}
     </div>
   );
+}
+
+function firstError(...states: ActorActionState[]): string | null {
+  for (const s of states) {
+    if (typeof s === 'object') return s.error;
+  }
+  return null;
 }
 
 // Replaces the plain HP `StatTile` with a stepper. Keeps the stat-card
@@ -267,7 +308,15 @@ function classDCTile(system: CharacterSystem): React.ReactElement {
   );
 }
 
-function SaveTile({ save }: { save: Save }): React.ReactElement {
+function SaveTile({
+  save,
+  onRoll,
+  pending,
+}: {
+  save: Save;
+  onRoll: () => void;
+  pending: boolean;
+}): React.ReactElement {
   return (
     <StatTile
       label={t(save.label)}
@@ -275,6 +324,8 @@ function SaveTile({ save }: { save: Save }): React.ReactElement {
       title={save.breakdown}
       rank={save.rank}
       data-stat={`save-${save.slug}`}
+      onRoll={onRoll}
+      pending={pending}
     />
   );
 }
@@ -284,24 +335,53 @@ function StatTile({
   value,
   title,
   rank,
+  onRoll,
+  pending,
   ...rest
 }: {
   label: string;
   value: string;
   title?: string;
   rank?: import('../../api/types').ProficiencyRank;
+  /** When set, the tile becomes a clickable button that fires a
+   *  roll. Omit to keep it as a display-only stat card. */
+  onRoll?: () => void;
+  pending?: boolean;
   'data-stat'?: string;
 }): React.ReactElement {
+  const contents = (
+    <>
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">{label}</span>
+      <span className="mt-0.5 font-mono text-xl font-semibold tabular-nums text-pf-text">
+        {pending === true ? '…' : value}
+      </span>
+      {rank !== undefined && <RankChip rank={rank} className="mt-1" />}
+    </>
+  );
+
+  if (onRoll === undefined) {
+    return (
+      <div
+        className="flex flex-col items-center rounded border border-pf-border bg-white px-3 py-2"
+        title={title}
+        {...rest}
+      >
+        {contents}
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="flex flex-col items-center rounded border border-pf-border bg-white px-3 py-2"
+    <button
+      type="button"
+      onClick={onRoll}
+      disabled={pending === true}
       title={title}
+      className="flex flex-col items-center rounded border border-pf-border bg-white px-3 py-2 hover:border-pf-tertiary-dark hover:bg-pf-tertiary/40 disabled:opacity-60 disabled:hover:bg-white"
       {...rest}
     >
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">{label}</span>
-      <span className="mt-0.5 font-mono text-xl font-semibold tabular-nums text-pf-text">{value}</span>
-      {rank !== undefined && <RankChip rank={rank} className="mt-1" />}
-    </div>
+      {contents}
+    </button>
   );
 }
 

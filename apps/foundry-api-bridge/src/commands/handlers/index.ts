@@ -17,6 +17,7 @@ export {
   deleteActorHandler,
   adjustActorResourceHandler,
   adjustActorConditionHandler,
+  rollActorStatisticHandler,
   getActorsHandler,
   getActorHandler,
   getPreparedActorHandler,
