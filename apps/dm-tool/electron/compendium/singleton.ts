@@ -14,8 +14,14 @@
 // rest of the app (maps, books, chat without rules, etc.) keep working
 // against a local-only configuration.
 
+import { getSetting, setSetting } from '@foundry-toolkit/db/pf2e';
+import { resetFacetsIndex } from './facets-index.js';
 import { createCompendiumApi, type CompendiumApi } from './index.js';
-import { createPreparedCompendium, type PreparedCompendium } from './prepared.js';
+import { createPreparedCompendium, DEFAULT_MONSTER_PACK_IDS, type PreparedCompendium } from './prepared.js';
+
+/** pf2e.db settings key for the Settings → Monsters pack override.
+ *  Stored as `JSON.stringify(string[])`. Absent = use defaults. */
+export const MONSTER_PACK_IDS_SETTING = 'compendiumMonsterPackIds';
 
 let api: CompendiumApi | null = null;
 let prepared: PreparedCompendium | null = null;
@@ -27,6 +33,34 @@ export interface InitPreparedCompendiumOptions {
   /** Override the 30-day TTL used by the underlying document cache. Rarely
    *  needed — exposed so tests can exercise the cache-expiry path. */
   documentTtlMs?: number;
+}
+
+/** Read the user's monster-pack override from pf2e.db settings, falling
+ *  back to the defaults when unset, malformed, or empty. Public so tests
+ *  and IPC handlers can share one source of truth for the current scope. */
+export function readMonsterPackIds(): readonly string[] {
+  const raw = getSetting(MONSTER_PACK_IDS_SETTING);
+  if (!raw) return DEFAULT_MONSTER_PACK_IDS;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return DEFAULT_MONSTER_PACK_IDS;
+    const ids = parsed.filter((p): p is string => typeof p === 'string' && p.length > 0);
+    // Treat an explicit empty array as "user cleared the list" — fall back
+    // to defaults rather than return an empty search scope that would make
+    // the Monster Browser silently empty.
+    if (ids.length === 0) return DEFAULT_MONSTER_PACK_IDS;
+    return ids;
+  } catch {
+    return DEFAULT_MONSTER_PACK_IDS;
+  }
+}
+
+/** Persist a new monster-pack override and invalidate any memoized state
+ *  that depends on the prior scope. Called from the Settings → Monsters
+ *  IPC handler. */
+export function writeMonsterPackIds(ids: readonly string[]): void {
+  setSetting(MONSTER_PACK_IDS_SETTING, JSON.stringify(ids));
+  resetFacetsIndex();
 }
 
 /** Idempotent — calling twice with the same options is a no-op, which is
@@ -42,7 +76,9 @@ export function initPreparedCompendium(opts: InitPreparedCompendiumOptions): voi
     baseUrl: opts.foundryMcpUrl,
     documentTtlMs: opts.documentTtlMs,
   });
-  prepared = createPreparedCompendium(api);
+  prepared = createPreparedCompendium(api, {
+    resolveMonsterPackIds: readMonsterPackIds,
+  });
 }
 
 export function getPreparedCompendium(): PreparedCompendium {

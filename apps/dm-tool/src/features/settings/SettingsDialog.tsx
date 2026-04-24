@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ClipboardCopy, FolderOpen, Plus, RefreshCw, RotateCcw, Settings, X } from 'lucide-react';
 import { PathField } from '../../components/PathField';
 import { cn } from '../../lib/utils';
+import { MonsterPacksSettings } from './MonsterPacksSettings';
 import {
   Dialog,
   DialogContent,
@@ -579,7 +580,7 @@ export function SettingsDialog({
                 </div>
               )}
 
-              {tab === 'monsters' && <p className="text-xs text-muted-foreground">No monster settings yet.</p>}
+              {tab === 'monsters' && <MonsterPacksSettings />}
 
               {tab === 'items' && <p className="text-xs text-muted-foreground">No item settings yet.</p>}
 

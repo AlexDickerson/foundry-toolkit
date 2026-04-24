@@ -116,6 +116,27 @@ describe('searchMonsters', () => {
     const out = await createPreparedCompendium(api).searchMonsters('xyz');
     expect(out).toBe('[No creatures found for "xyz"]');
   });
+
+  it('honors a resolveMonsterPackIds override on each call', async () => {
+    const search = vi.fn().mockResolvedValue({ matches: [] });
+    const api = fakeApi({ searchCompendium: search });
+    // Simulate a Settings → Monsters override: first call sees one pack,
+    // second call sees two (e.g. the user ticked another box between
+    // calls). The resolver must fire per call, not at factory time.
+    let current: readonly string[] = ['pf2e.pathfinder-bestiary'];
+    const prepared = createPreparedCompendium(api, {
+      resolveMonsterPackIds: () => current,
+    });
+
+    await prepared.searchMonsters('a');
+    expect(search).toHaveBeenLastCalledWith(expect.objectContaining({ packIds: ['pf2e.pathfinder-bestiary'] }));
+
+    current = ['pf2e.pathfinder-bestiary', 'pf2e.pathfinder-bestiary-2'];
+    await prepared.searchMonsters('b');
+    expect(search).toHaveBeenLastCalledWith(
+      expect.objectContaining({ packIds: ['pf2e.pathfinder-bestiary', 'pf2e.pathfinder-bestiary-2'] }),
+    );
+  });
 });
 
 describe('listMonsters', () => {

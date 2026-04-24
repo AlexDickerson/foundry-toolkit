@@ -19,6 +19,7 @@ import type {
   ChatChunk,
   ChatMessage,
   ChatModel,
+  CompendiumPackSummary,
   ConfigPaths,
   ElectronAPI,
   Facets,
@@ -138,6 +139,14 @@ const api: ElectronAPI = {
     ipcRenderer.invoke('monstersSearch', params),
   monstersFacets: (): Promise<MonsterFacets> => ipcRenderer.invoke('monstersFacets'),
   monstersGetDetail: (name: string): Promise<MonsterDetail | null> => ipcRenderer.invoke('monstersGetDetail', name),
+
+  // Compendium configuration (Settings → Monsters)
+  compendiumListPacks: (documentType?: string): Promise<CompendiumPackSummary[]> =>
+    ipcRenderer.invoke('compendiumListPacks', documentType),
+  compendiumGetMonsterPackIds: (): Promise<string[]> => ipcRenderer.invoke('compendiumGetMonsterPackIds'),
+  compendiumSetMonsterPackIds: (ids: string[]): Promise<string[]> =>
+    ipcRenderer.invoke('compendiumSetMonsterPackIds', ids),
+  compendiumGetDefaultMonsterPackIds: (): Promise<string[]> => ipcRenderer.invoke('compendiumGetDefaultMonsterPackIds'),
 
   // Globe pins
   globePinsList: (): Promise<GlobePin[]> => ipcRenderer.invoke('globePinsList'),

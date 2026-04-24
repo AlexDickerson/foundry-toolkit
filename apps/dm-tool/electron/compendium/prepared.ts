@@ -48,17 +48,17 @@ import {
 } from './projection.js';
 import type { CompendiumMatch } from './types.js';
 
-// Every stock pf2e bestiary + NPC compendium the Monster Browser / loot
-// generator / chat-tool monster lookup should see. Entries absent from
-// the user's Foundry install are simply empty at warm time — the mcp
-// cache skips them with a log warning, so a slimmer pf2e setup doesn't
-// break anything. Adventure-path bestiaries (Kingmaker, Abomination
-// Vaults, Pathfinder Society seasons, Lost Omens sourcebook bestiaries)
-// aren't in this default set — add them to mcp's COMPENDIUM_CACHE_PACK_IDS
-// and they'll be picked up by any search that omits `packIds`, but the
-// dm-tool constants here stay explicit so the Monster Browser has a
-// stable scope across installs.
-const MONSTER_PACK_IDS = [
+// Default pack scope used when the user hasn't customized monster packs
+// in Settings → Monsters. Every stock pf2e bestiary + NPC compendium the
+// Monster Browser, loot generator, and chat-tool monster lookup should
+// see. Entries absent from a given Foundry install are simply empty at
+// warm time — the mcp cache skips them with a log warning, so a slimmer
+// pf2e setup doesn't break anything. Adventure-path bestiaries (Kingmaker,
+// Abomination Vaults, Pathfinder Society seasons, Lost Omens sourcebook
+// bestiaries) aren't in this default list — GMs who want them should
+// pick them from Settings → Monsters → Compendium packs (stored as
+// `compendiumMonsterPackIds` in pf2e.db).
+export const DEFAULT_MONSTER_PACK_IDS: readonly string[] = [
   'pf2e.pathfinder-bestiary',
   'pf2e.pathfinder-bestiary-2',
   'pf2e.pathfinder-bestiary-3',
@@ -66,6 +66,11 @@ const MONSTER_PACK_IDS = [
   'pf2e.pathfinder-nature-core',
   'pf2e.pathfinder-npcs',
 ];
+
+// Item-pack scope stays a constant for now — the Item Browser's entire
+// surface is `pf2e.equipment-srd` and tuning this hasn't been a
+// reported pain point. Flip this to a resolver + setting when that
+// changes.
 const ITEM_PACK_IDS = ['pf2e.equipment-srd'];
 
 // ---------------------------------------------------------------------------
@@ -92,16 +97,27 @@ export interface PreparedCompendium {
   buildLootShortlist(partyLevel: number): Promise<LootShortlistItem[]>;
 }
 
-export function createPreparedCompendium(api: CompendiumApi): PreparedCompendium {
+export interface PreparedCompendiumOptions {
+  /** Resolver called at each monster-facing query to decide which
+   *  compendium packs to search. Invoked once per outer call so changes
+   *  (e.g. via Settings → Monsters) take effect immediately — no
+   *  cache-priming or re-init required beyond a facets-index reset.
+   *  Defaults to `DEFAULT_MONSTER_PACK_IDS` when omitted. */
+  resolveMonsterPackIds?: () => readonly string[];
+}
+
+export function createPreparedCompendium(api: CompendiumApi, opts?: PreparedCompendiumOptions): PreparedCompendium {
+  const getMonsterPacks = opts?.resolveMonsterPackIds ?? (() => DEFAULT_MONSTER_PACK_IDS);
+
   return {
-    searchMonsters: (q) => searchMonsters(api, q),
+    searchMonsters: (q) => searchMonsters(api, getMonsterPacks(), q),
     searchItems: (q) => searchItems(api, q),
 
-    listMonsters: (p) => listMonsters(api, p),
-    getMonsterFacets: () => getMonsterFacetsIndex(api, { packIds: MONSTER_PACK_IDS }),
-    getMonsterByName: (name) => getMonsterByName(api, name),
-    getMonsterPreview: (input) => getMonsterPreview(api, input),
-    getMonsterRowByName: (name) => getMonsterRowByName(api, name),
+    listMonsters: (p) => listMonsters(api, getMonsterPacks(), p),
+    getMonsterFacets: () => getMonsterFacetsIndex(api, { packIds: [...getMonsterPacks()] }),
+    getMonsterByName: (name) => getMonsterByName(api, getMonsterPacks(), name),
+    getMonsterPreview: (input) => getMonsterPreview(api, getMonsterPacks(), input),
+    getMonsterRowByName: (name) => getMonsterRowByName(api, getMonsterPacks(), name),
 
     searchItemsBrowser: (p) => searchItemsBrowser(api, p),
     getItemFacets: () => getItemFacetsIndex(api, { packIds: ITEM_PACK_IDS }),
@@ -138,11 +154,11 @@ function formatMonsterForChat(r: MonsterResult, idx: number): string {
     .join('\n');
 }
 
-async function searchMonsters(api: CompendiumApi, query: string): Promise<string> {
+async function searchMonsters(api: CompendiumApi, packIds: readonly string[], query: string): Promise<string> {
   const { matches } = await api.searchCompendium({
     q: query,
     documentType: 'npc',
-    packIds: MONSTER_PACK_IDS,
+    packIds: [...packIds],
     limit: 3,
   });
 
@@ -184,13 +200,17 @@ function filterMatchesClientSide(matches: CompendiumMatch[], params: MonsterSear
   });
 }
 
-async function listMonsters(api: CompendiumApi, params: MonsterSearchParams): Promise<MonsterSummary[]> {
+async function listMonsters(
+  api: CompendiumApi,
+  packIds: readonly string[],
+  params: MonsterSearchParams,
+): Promise<MonsterSummary[]> {
   // The server's `/api/compendium/search` speaks q/traits/maxLevel/limit.
   // Anything beyond that we enforce client-side after the network hop.
   const { matches } = await api.searchCompendium({
     q: params.keywords,
     documentType: 'npc',
-    packIds: MONSTER_PACK_IDS,
+    packIds: [...packIds],
     traits: params.traits,
     maxLevel: params.levels?.[1],
     limit: params.limit ?? 5000,
@@ -222,13 +242,14 @@ async function listMonsters(api: CompendiumApi, params: MonsterSearchParams): Pr
 
 async function fetchMonsterDocByName<T>(
   api: CompendiumApi,
+  packIds: readonly string[],
   name: string,
   map: (d: import('./types.js').CompendiumDocument) => T,
 ): Promise<T | null> {
   const { matches } = await api.searchCompendium({
     q: name,
     documentType: 'npc',
-    packIds: MONSTER_PACK_IDS,
+    packIds: [...packIds],
     limit: 5,
   });
   // Prefer an exact case-insensitive name match over the top fuzzy hit;
@@ -240,25 +261,29 @@ async function fetchMonsterDocByName<T>(
   return map(document);
 }
 
-function getMonsterByName(api: CompendiumApi, name: string): Promise<MonsterDetail | null> {
-  return fetchMonsterDocByName(api, name, monsterDocToDetail);
+function getMonsterByName(api: CompendiumApi, packIds: readonly string[], name: string): Promise<MonsterDetail | null> {
+  return fetchMonsterDocByName(api, packIds, name, monsterDocToDetail);
 }
 
-function getMonsterRowByName(api: CompendiumApi, name: string): Promise<MonsterRow | null> {
-  return fetchMonsterDocByName(api, name, monsterDocToRow);
+function getMonsterRowByName(api: CompendiumApi, packIds: readonly string[], name: string): Promise<MonsterRow | null> {
+  return fetchMonsterDocByName(api, packIds, name, monsterDocToRow);
 }
 
 /** Hover preview. The legacy implementation keyed on an AoN URL; the
  *  projection layer drops AoN enrichment, so we treat the input as a
  *  creature name. If the caller accidentally passes a URL we strip it
  *  back to a sensible name (last path segment, spaces restored). */
-function getMonsterPreview(api: CompendiumApi, input: string): Promise<MonsterResult | null> {
+function getMonsterPreview(
+  api: CompendiumApi,
+  packIds: readonly string[],
+  input: string,
+): Promise<MonsterResult | null> {
   let name = input;
   if (input.includes('://') || input.startsWith('/')) {
     const trailing = input.replace(/\/$/, '').split('/').pop() ?? '';
     name = decodeURIComponent(trailing).replace(/[-_]/g, ' ');
   }
-  return fetchMonsterDocByName(api, name, monsterDocToResult);
+  return fetchMonsterDocByName(api, packIds, name, monsterDocToResult);
 }
 
 // ---------------------------------------------------------------------------
