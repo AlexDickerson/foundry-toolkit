@@ -107,6 +107,8 @@ const ACTION_HANDLERS: Record<string, ActionHandler> = {
   // (activities, scaling, consumable charges) and has its own
   // MCP/IPC consumers.
   'post-item-to-chat': postItemToChatAction,
+  'add-formula': addFormulaAction,
+  'remove-formula': removeFormulaAction,
 };
 
 // ─── adjust-resource ───────────────────────────────────────────────────
@@ -497,6 +499,67 @@ async function postItemToChatAction(
   }
   await item.toMessage();
   return { ok: true, itemId: item.id, itemName: item.name };
+}
+
+// ─── add-formula ───────────────────────────────────────────────────────
+
+// Appends a compendium UUID to `system.crafting.formulas`. Dedupes so
+// clicking Add twice on the same item is a no-op, not a duplicate. The
+// pf2e sheet's `+ Add Formula` button does the same thing. Returns the
+// post-update formula count so the SPA can echo "N formulas known"
+// without a full refetch.
+async function addFormulaAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  const uuid = params['uuid'];
+  if (typeof uuid !== 'string' || uuid.length === 0) {
+    throw new Error('add-formula: params.uuid is required');
+  }
+
+  const formulas = readFormulas(actor);
+  const alreadyKnown = formulas.some((f) => f.uuid === uuid);
+  if (alreadyKnown) {
+    return { ok: true, added: false, uuid, formulaCount: formulas.length };
+  }
+  const next = [...formulas, { uuid }];
+  await actor.update({ 'system.crafting.formulas': next });
+  return { ok: true, added: true, uuid, formulaCount: next.length };
+}
+
+// ─── remove-formula ────────────────────────────────────────────────────
+
+// Removes a formula by its compendium UUID. No-op when the formula
+// isn't known — lets the SPA fire-and-forget without a pre-check.
+async function removeFormulaAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  const uuid = params['uuid'];
+  if (typeof uuid !== 'string' || uuid.length === 0) {
+    throw new Error('remove-formula: params.uuid is required');
+  }
+
+  const formulas = readFormulas(actor);
+  const next = formulas.filter((f) => f.uuid !== uuid);
+  if (next.length === formulas.length) {
+    return { ok: true, removed: false, uuid, formulaCount: formulas.length };
+  }
+  await actor.update({ 'system.crafting.formulas': next });
+  return { ok: true, removed: true, uuid, formulaCount: next.length };
+}
+
+interface CraftingFormulaEntry {
+  uuid: string;
+}
+
+function readFormulas(actor: FoundryActor): CraftingFormulaEntry[] {
+  const crafting = (actor.system as { crafting?: { formulas?: unknown } }).crafting;
+  const formulas = crafting?.formulas;
+  if (!Array.isArray(formulas)) return [];
+  return formulas.filter((f): f is CraftingFormulaEntry => {
+    return typeof f === 'object' && f !== null && typeof (f as { uuid?: unknown }).uuid === 'string';
+  });
 }
 
 // ─── Router ────────────────────────────────────────────────────────────
