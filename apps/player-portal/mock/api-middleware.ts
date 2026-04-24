@@ -1,28 +1,27 @@
-// Dev-only Vite middleware that stands in for the Foundry bridge + asset
+// Dev-only Vite middleware that stands in for the MCP proxy + Foundry asset
 // proxy. Enabled via `vite --mode mock` (npm run dev:mock). Lets the SPA
-// boot and render without Foundry or the MCP bridge running.
+// boot and render without Foundry or foundry-mcp running.
 //
 // Supported routes:
-//   GET  /api/actors                     → summary list built from every
+//   GET  /api/mcp/actors                 → summary list built from every
 //                                          *-prepared.json in src/fixtures
-//   GET  /api/actors/:id/prepared        → the matching fixture (plus
-//                                          any in-memory flag overrides)
-//                                          or 404
-//   PATCH /api/actors/:id                → merges the body's `flags` into
+//   GET  /api/mcp/actors/:id/prepared    → the matching fixture (plus any
+//                                          in-memory flag overrides) or 404
+//   PATCH /api/mcp/actors/:id            → merges the body's `flags` into
 //                                          the in-memory flag store and
 //                                          returns an ActorRef-shaped ack
-//   POST /api/uploads                    → decodes the base64 body into
-//                                          an in-memory buffer keyed by
-//                                          its relative path; later
-//                                          asset-prefix GETs return it
-//   GET  /icons | /systems | /modules | /worlds | /assets + image ext
+//   POST /api/mcp/uploads                → decodes the base64 body into an
+//                                          in-memory buffer keyed by its
+//                                          relative path; later asset-
+//                                          prefix GETs return it
+//   GET  /icons | /systems | /modules | /worlds + image ext
 //                                        → uploaded buffer for an exact
 //                                          path match, else a grey SVG
 //                                          placeholder
 //
-// Anything else on /api/* falls through; we'll add routes as the UI needs
-// them. Not used in production — this middleware is only registered when
-// the Vite mode is "mock".
+// Anything else on /api/* (including /api/live/*) falls through. Not used
+// in production — this middleware is only registered when the Vite mode
+// is "mock".
 
 import type { Plugin, ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -45,7 +44,9 @@ interface ActorSummary {
   img: string;
 }
 
-const ASSET_PREFIXES = ['/icons/', '/systems/', '/modules/', '/worlds/', '/assets/'];
+// `/assets/` is intentionally excluded — Vite's built SPA chunks live
+// there and intercepting them would break the client.
+const ASSET_PREFIXES = ['/icons/', '/systems/', '/modules/', '/worlds/'];
 const IMAGE_EXTENSIONS = ['.webp', '.png', '.jpg', '.jpeg', '.svg', '.gif'];
 
 const PLACEHOLDER_SVG =
@@ -72,7 +73,7 @@ export function mockApi(fixturesDir: string): Plugin {
         const url = req.url ?? '';
         const method = req.method ?? 'GET';
 
-        if (method === 'GET' && (url === '/api/actors' || url.startsWith('/api/actors?'))) {
+        if (method === 'GET' && (url === '/api/mcp/actors' || url.startsWith('/api/mcp/actors?'))) {
           const list: ActorSummary[] = fixtures.map((f) => ({
             id: f.id,
             name: f.name,
@@ -82,7 +83,7 @@ export function mockApi(fixturesDir: string): Plugin {
           sendJson(res, 200, list); return;
         }
 
-        const preparedMatch = /^\/api\/actors\/([^/?]+)\/prepared(?:\?.*)?$/.exec(url);
+        const preparedMatch = /^\/api\/mcp\/actors\/([^/?]+)\/prepared(?:\?.*)?$/.exec(url);
         if (method === 'GET' && preparedMatch) {
           const id = preparedMatch[1] ?? '';
           const actor = fixtures.find((f) => f.id === id);
@@ -99,7 +100,7 @@ export function mockApi(fixturesDir: string): Plugin {
           sendJson(res, 200, merged); return;
         }
 
-        const actorPatchMatch = /^\/api\/actors\/([^/?]+)(?:\?.*)?$/.exec(url);
+        const actorPatchMatch = /^\/api\/mcp\/actors\/([^/?]+)(?:\?.*)?$/.exec(url);
         if (method === 'PATCH' && actorPatchMatch) {
           const id = actorPatchMatch[1] ?? '';
           const actor = fixtures.find((f) => f.id === id);
@@ -132,7 +133,7 @@ export function mockApi(fixturesDir: string): Plugin {
           return;
         }
 
-        if (method === 'POST' && url === '/api/uploads') {
+        if (method === 'POST' && url === '/api/mcp/uploads') {
           readJsonBody(req)
             .then((body) => {
               const parsed = body as { path?: string; dataBase64?: string };

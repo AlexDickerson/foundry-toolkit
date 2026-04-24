@@ -1,5 +1,5 @@
 // Player-facing read-only Golarion globe. Pins stream live from the
-// portal's /api/globe endpoint (pushed by the DM tool on every edit).
+// portal's /api/live/globe endpoint (pushed by the DM tool on every edit).
 // Mission pins open a parchment briefing overlay on click; note pins
 // show a label popup.
 
@@ -51,7 +51,7 @@ export function Globe() {
 
   // Live-stream pin data from the portal server. The DM pushes on every
   // edit; we re-render whenever a new snapshot arrives.
-  const live = useLiveStream<GlobeSnapshot>('/api/globe/stream');
+  const live = useLiveStream<GlobeSnapshot>('/api/live/globe/stream');
   useEffect(() => {
     if (!live.data) return;
     setPins(live.data.pins);

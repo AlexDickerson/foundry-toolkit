@@ -1,6 +1,6 @@
 # foundry-toolkit
 
-Monorepo consolidating five Foundry VTT companion tools. npm-workspaces, no Turborepo/Nx/pnpm. See [README.md](./README.md) for the layout tree and top-level scripts.
+Monorepo consolidating four Foundry VTT companion tools. npm-workspaces, no Turborepo/Nx/pnpm. See [README.md](./README.md) for the layout tree and top-level scripts.
 
 ## Tech stack
 
@@ -11,14 +11,14 @@ Monorepo consolidating five Foundry VTT companion tools. npm-workspaces, no Turb
 
 ## Workspaces
 
-- `apps/*` — five apps (dm-tool, foundry-mcp, foundry-api-bridge, character-creator, player-portal).
+- `apps/*` — four apps (dm-tool, foundry-mcp, foundry-api-bridge, player-portal).
 - `packages/*` — four internal libs (ai, db, pf2e-rules, shared).
 
 Internal dependency graph:
 
 - `shared` + `pf2e-rules` → `ai` → `db` → `dm-tool`
-- `shared` → `player-portal`
-- `shared` → `character-creator`, `foundry-mcp` (wire contract types + Zod schemas via `@foundry-toolkit/shared/foundry-api` and `@foundry-toolkit/shared/rpc`).
+- `shared` → `player-portal` (includes the PF2e character creator/sheet surface; uses `@foundry-toolkit/shared/foundry-api` + `@foundry-toolkit/shared/rpc` for the MCP wire contract).
+- `shared` → `foundry-mcp` (wire contract types + Zod schemas).
 - `foundry-api-bridge` is standalone (no workspace deps).
 
 Every workspace has its own `CLAUDE.md` covering app-specific details.
@@ -27,15 +27,15 @@ Every workspace has its own `CLAUDE.md` covering app-specific details.
 
 - `npm install` — installs all workspaces; `postinstall` rebuilds `better-sqlite3` for Electron's ABI.
 - `npm run rebuild-sqlite` — manual escape hatch if the native module ever gets out of sync.
-- `npm run dev:dm-tool` / `dev:mcp` / `dev:character-creator` / `dev:player-portal` / `dev:api-bridge` — each targets one workspace.
+- `npm run dev:dm-tool` / `dev:mcp` / `dev:player-portal` / `dev:player-portal:mock` / `dev:api-bridge` — each targets one workspace.
 - `npm run typecheck` / `test` / `build` / `format` / `format:check` — fan out via `--workspaces --if-present`.
 - `npm run lint` — runs the root ESLint pass **and** each workspace's own lint script.
 
 ## Root ESLint scope
 
-`eslint.config.js` explicitly ignores `apps/player-portal`, `apps/foundry-mcp`, `apps/foundry-api-bridge`, `apps/character-creator`, plus all `dist/`, `out/`, `server-dist/`, `tagger/`, `resources/`, and `.claude/`. The root ESLint pass therefore only covers **`apps/dm-tool` + `packages/*`**. The four excluded apps lint via their own workspace scripts.
+`eslint.config.js` explicitly ignores `apps/player-portal`, `apps/foundry-mcp`, `apps/foundry-api-bridge`, plus all `dist/`, `out/`, `server-dist/`, `tagger/`, `resources/`, and `.claude/`. The root ESLint pass therefore only covers **`apps/dm-tool` + `packages/*`**. The three excluded apps lint via their own workspace scripts.
 
-If monorepo CI ever flags lint in ported/vendored code (pf2e SCSS, forked Foundry module), scope CI — don't edit the source files.
+If monorepo CI ever flags lint in ported/vendored code (pf2e SCSS in player-portal, forked Foundry module), scope CI — don't edit the source files.
 
 ## Git workflow
 
@@ -48,5 +48,5 @@ If monorepo CI ever flags lint in ported/vendored code (pf2e SCSS, forked Foundr
 
 - `tagger/` is a Python subtool with its own build system; `auto-wall-bin/` holds a prebuilt binary. Neither is an npm workspace. `apps/dm-tool`'s electron-builder config references `../../tagger/dist/map-tagger.exe` and `../../auto-wall-bin/Auto-Wall.exe` as `extraResources` — both must exist at packaging time.
 - `.env` at the monorepo root holds Foundry credentials, `OPENAI_API_KEY`, and `ALLOW_EVAL`. Never commit it.
-- Deployments (Fly.io for `foundry-mcp`, electron-builder for `dm-tool`, GHCR images for `foundry-api-bridge` and `character-creator`) and CI workflows were **deferred** during consolidation — per-app Dockerfile and fly.toml references still point at the pre-consolidation GHCR repos. Re-point when productionizing.
-- The SPA → MCP rebuild cascade is manual right now: merges to `character-creator` don't auto-rebuild the `foundry-mcp` Docker image that bundles it. Trigger `gh workflow run Docker` on `foundry-mcp` after SPA merges if you need the live app updated.
+- Deployments (Fly.io for `foundry-mcp`, electron-builder for `dm-tool`, GHCR images for `foundry-api-bridge` and `player-portal`) and CI workflows were **deferred** during consolidation — per-app Dockerfile and fly.toml references still point at the pre-consolidation GHCR repos. Re-point when productionizing.
+- The old SPA → MCP rebuild cascade is gone: the character creator now lives inside `player-portal`'s own Fastify server, which proxies `/api/mcp/*` → `foundry-mcp`. `foundry-mcp` no longer bundles an SPA.

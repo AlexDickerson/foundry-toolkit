@@ -27,7 +27,7 @@ function formatInline(text: string): ReactNode {
   const tokens = text.split(/(\[\[[^\]]+\]\]|\*\*[^*\n]+\*\*)/g);
   return tokens.map((t, i) => {
     const wl = /^\[\[([^\]]+)\]\]$/.exec(t);
-    if (wl) {
+    if (wl && wl[1] !== undefined) {
       const body = wl[1];
       const pipe = body.indexOf('|');
       const label = pipe >= 0 ? body.slice(pipe + 1) : body;

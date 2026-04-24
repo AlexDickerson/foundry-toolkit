@@ -10,7 +10,7 @@ coverage/
 out/
 apps/dm-tool/out/
 apps/dm-tool/dist/
-apps/character-creator/dist/
+apps/player-portal/dist/
 apps/player-portal/server-dist/
 apps/foundry-mcp/dist/
 packages/*/dist/

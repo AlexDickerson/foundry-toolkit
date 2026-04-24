@@ -19,7 +19,7 @@ export function useEventChannel<T>(channel: string, onMessage: (data: T) => void
   handlerRef.current = onMessage;
 
   useEffect(() => {
-    const es = new EventSource(`/api/events/${channel}/stream`);
+    const es = new EventSource(`/api/mcp/events/${channel}/stream`);
 
     es.onmessage = (ev): void => {
       try {

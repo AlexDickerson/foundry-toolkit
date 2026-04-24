@@ -27,9 +27,10 @@ import type {
   PreparedActor,
 } from './types';
 
-// Dev: Vite proxies /api → :8765. Prod: served same-origin or via a reverse
-// proxy that preserves /api. Either way, paths are relative.
-const BASE = '/api';
+// Dev: Vite proxies /api → :3000 (Fastify). Fastify then proxies /api/mcp →
+// foundry-mcp (:8765) and handles /api/live/* in-process. Prod: one Fastify
+// serves the built SPA + both namespaces same-origin.
+const BASE = '/api/mcp';
 
 export class ApiRequestError extends Error {
   readonly status: number;
