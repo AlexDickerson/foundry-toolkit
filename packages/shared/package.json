@@ -11,6 +11,7 @@
     "./env-auto": "./src/env-auto.ts",
     "./foundry-api": "./src/foundry-api.ts",
     "./foundry-markup": "./src/foundry-markup.ts",
+    "./http": "./src/http.ts",
     "./map-stem": "./src/map-stem.ts",
     "./MissionBriefing": "./src/MissionBriefing.tsx",
     "./golarion-map": "./src/golarion-map/index.ts",

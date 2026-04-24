@@ -126,7 +126,7 @@ describe('createCompendiumApi', () => {
     });
 
     await expect(api.getCompendiumDocument('never-seen')).rejects.toMatchObject({
-      name: 'CompendiumRequestError',
+      name: 'ApiRequestError',
       status: 502,
     });
   });
