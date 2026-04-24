@@ -7,7 +7,6 @@ import type { VisionMediaType } from '@foundry-toolkit/ai/hooks';
 import type { MapDb } from '@foundry-toolkit/db/maps';
 import type { DmToolConfig } from '../config.js';
 import type { ConfigPaths, MapDetail, PickPathArgs } from '@foundry-toolkit/shared/types';
-import { getMonsterPreview } from '@foundry-toolkit/db/pf2e';
 import { fetchAonPreview } from '../aon-preview.js';
 import { appendAdditionalHooks, getAdditionalHooks } from '../hooks-store.js';
 import { THUMBNAIL_SUFFIX } from '../constants.js';
@@ -93,49 +92,12 @@ export function registerConfigHandlers(db: MapDb, cfg: DmToolConfig): void {
 
   ipcMain.handle('aonPreview', async (_e, urlPath: string) => {
     if (typeof urlPath !== 'string') return null;
-
-    // Try local DB first for creature URLs.
-    if (urlPath.includes('Monsters.aspx')) {
-      try {
-        const fullUrl = `https://2e.aonprd.com${urlPath}`;
-        const local = getMonsterPreview(fullUrl);
-        if (local) {
-          return {
-            type: 'creature' as const,
-            name: local.name,
-            level: local.level,
-            hp: local.hp,
-            ac: local.ac,
-            fortitude: local.fort,
-            reflex: local.ref,
-            will: local.will,
-            perception: local.perception,
-            speed: local.speed,
-            size: local.size,
-            traits: local.traits,
-            abilities: [],
-            immunities: local.immunities ? local.immunities.split(', ') : [],
-            weaknesses: local.weaknesses,
-            rarity: local.rarity.toLowerCase(),
-            summary: local.description.slice(0, 200),
-            strength: local.str,
-            dexterity: local.dex,
-            constitution: local.con,
-            intelligence: local.int,
-            wisdom: local.wis,
-            charisma: local.cha,
-            statBlock:
-              local.abilities +
-              '\n---\n' +
-              (local.melee ? `Melee ${local.melee}` : '') +
-              (local.ranged ? `\nRanged ${local.ranged}` : ''),
-          };
-        }
-      } catch {
-        /* fall through to AoN */
-      }
-    }
-
+    // Compendium migration: the previous local-DB fast-path keyed on
+    // the AoN URL, which foundry-mcp doesn't expose as a searchable
+    // field. Route every hover through the AoN fetch — per-hover
+    // latency is worse, but the compendium browser already covers
+    // structured stat-block reads, and AoN content is the authoritative
+    // hover preview source.
     return fetchAonPreview(urlPath);
   });
 
