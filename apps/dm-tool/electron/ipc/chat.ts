@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
 import type { ChatMessage, ChatModel } from '@foundry-toolkit/shared/types';
 import { streamChat } from '@foundry-toolkit/ai/chat';
-import { searchMonsters, searchItems } from '@foundry-toolkit/db/pf2e';
+import { getPreparedCompendium } from '../compendium/singleton.js';
 
 /** Max characters of page text to send as tool context. ~2K tokens. */
 const TOOL_CONTEXT_LIMIT = 8000;
@@ -24,13 +24,21 @@ export function registerChatHandlers(getMainWindow: () => Electron.BrowserWindow
       };
 
       try {
+        // Route the chat agent's monster/item tool lookups through the
+        // foundry-mcp-backed prepared compendium. Each call is resolved
+        // at invocation time rather than captured up front so an IPC
+        // racing the compendium init surfaces a clear error.
+        const prepared = getPreparedCompendium();
         await streamChat({
           apiKey: args.apiKey,
           messages: args.messages ?? [],
           model: args.model,
           rulesMode: args.rulesMode,
           toolContext: args.toolContext,
-          toolDeps: { searchMonsters, searchItems },
+          toolDeps: {
+            searchMonsters: (q) => prepared.searchMonsters(q),
+            searchItems: (q) => prepared.searchItems(q),
+          },
           onChunk: sendChunk,
         });
       } catch (err: unknown) {

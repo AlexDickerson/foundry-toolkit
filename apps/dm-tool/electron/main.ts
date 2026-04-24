@@ -23,7 +23,7 @@ import { registerIpcHandlers } from './ipc/index.js';
 import { registerSetupIpcHandlers } from './setup-ipc.js';
 import { scanBookRoot } from './book-scanner.js';
 import { closePf2eDb, getPf2eDb, openPf2eDb } from '@foundry-toolkit/db/pf2e';
-import { initPreparedCompendium } from './compendium/singleton.js';
+import { getPreparedCompendium, initPreparedCompendium } from './compendium/singleton.js';
 
 // `map-file://` and `book-file://` must be registered as privileged
 // schemes BEFORE app.ready fires, otherwise the CSP rules in index.html
@@ -367,6 +367,22 @@ async function startup(): Promise<void> {
     setImmediate(() => {
       try {
         initPreparedCompendium({ foundryMcpUrl: mcpUrl });
+        // Fire-and-forget facet warm-up. The browser sidebars on the
+        // Monsters and Items tabs call these on first open; prefetching
+        // them here means the first click renders instantly instead of
+        // paying the cold-cache round-trip. A rejected promise isn't
+        // fatal — the UI will retry on first open and surface the error
+        // there if the network stays down.
+        void getPreparedCompendium()
+          .getMonsterFacets()
+          .catch((e: unknown) => {
+            console.warn('Monster facets warm-up failed:', (e as Error).message);
+          });
+        void getPreparedCompendium()
+          .getItemFacets()
+          .catch((e: unknown) => {
+            console.warn('Item facets warm-up failed:', (e as Error).message);
+          });
       } catch (e) {
         console.error('Failed to initialise prepared compendium:', (e as Error).message);
       }
