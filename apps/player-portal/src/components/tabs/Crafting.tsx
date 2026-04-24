@@ -7,9 +7,11 @@ import type {
   CraftingFormulaEntry,
   PreparedFormulaData,
 } from '../../api/types';
+import { useActorAction } from '../../lib/useActorAction';
 import { SectionHeader } from '../common/SectionHeader';
 
 interface Props {
+  actorId: string;
   crafting: CraftingField;
 }
 
@@ -27,7 +29,7 @@ type Resolution =
 // code changes. Daily-prep mutations (prep/expend slots) aren't part of
 // this read-only phase; see the standalone-play-surface plan for the
 // outbound-actions step.
-export function Crafting({ crafting }: Props): React.ReactElement {
+export function Crafting({ actorId, crafting }: Props): React.ReactElement {
   const formulas = crafting.formulas;
   const entries = useMemo(
     // Sort by label for deterministic rendering — Object.values order
@@ -47,7 +49,12 @@ export function Crafting({ crafting }: Props): React.ReactElement {
         ) : (
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {formulas.map((formula) => (
-              <FormulaCard key={formula.uuid} formula={formula} resolution={resolutions.get(formula.uuid)} />
+              <FormulaCard
+                key={formula.uuid}
+                actorId={actorId}
+                formula={formula}
+                resolution={resolutions.get(formula.uuid)}
+              />
             ))}
           </ul>
         )}
@@ -68,9 +75,11 @@ export function Crafting({ crafting }: Props): React.ReactElement {
 }
 
 function FormulaCard({
+  actorId,
   formula,
   resolution,
 }: {
+  actorId: string;
   formula: CraftingFormulaEntry;
   resolution: Resolution | undefined;
 }): React.ReactElement {
@@ -78,6 +87,16 @@ function FormulaCard({
   const name = state.kind === 'ok' ? state.document.name : null;
   const img = state.kind === 'ok' ? state.document.img : null;
   const level = state.kind === 'ok' ? readLevel(state.document) : null;
+
+  // Use the shared state-machine hook so the button cycles idle →
+  // pending → idle (or error) without reinventing the wheel. The
+  // action is safe to fire even while the formula is still resolving
+  // — the bridge handler accepts raw compendium UUIDs.
+  const craft = useActorAction({
+    run: () => api.craft(actorId, formula.uuid, 1),
+  });
+  const pending = craft.state === 'pending';
+  const craftError = typeof craft.state === 'object' ? craft.state.error : null;
 
   return (
     <li
@@ -100,14 +119,30 @@ function FormulaCard({
         {state.kind === 'ok' && name !== null && (
           <span className="block truncate text-sm font-medium text-pf-text">{name}</span>
         )}
+        {craftError !== null && <span className="mt-1 block truncate text-[10px] text-red-700">{craftError}</span>}
       </div>
-      <div className="flex flex-shrink-0 flex-col items-end gap-0.5">
-        {level !== null && (
-          <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Lv {level}</span>
-        )}
-        {formula.batch !== undefined && formula.batch > 1 && (
-          <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">×{formula.batch}</span>
-        )}
+      <div className="flex flex-shrink-0 flex-col items-end gap-1">
+        <div className="flex items-center gap-1.5">
+          {level !== null && (
+            <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Lv {level}</span>
+          )}
+          {formula.batch !== undefined && formula.batch > 1 && (
+            <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
+              ×{formula.batch}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            void craft.trigger();
+          }}
+          disabled={pending}
+          className="rounded border border-pf-primary bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary hover:bg-pf-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+          data-craft-uuid={formula.uuid}
+        >
+          {pending ? 'Crafting…' : 'Craft'}
+        </button>
       </div>
     </li>
   );
