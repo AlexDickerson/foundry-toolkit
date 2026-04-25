@@ -67,8 +67,8 @@ const VERT_SRC = `
   varying   vec2 v_uv;
 
   void main() {
-    // Clip-space position; z = -1.0 (near plane) keeps clouds in front of
-    // globe geometry without needing to manage depth state explicitly.
+    // Full-screen quad in clip space; z = -1.0 (near plane) is irrelevant
+    // since depth test and depth writes are disabled in render().
     gl_Position = vec4(a_pos, -1.0, 1.0);
     // NDC [-1, 1] → UV [0, 1]
     v_uv = (a_pos + 1.0) * 0.5;
@@ -79,8 +79,8 @@ const VERT_SRC = `
  *
  *  Two layers of fractional Brownian motion are sampled at slowly-drifting UV
  *  coordinates, blended together, and threshold-clipped with smoothstep to
- *  produce soft cloud patches.  Output is premultiplied alpha because MapLibre
- *  already enables the ONE / ONE_MINUS_SRC_ALPHA blend equation. */
+ *  produce soft cloud patches.  Output is standard (non-premultiplied) alpha;
+ *  the render() method sets up SRC_ALPHA / ONE_MINUS_SRC_ALPHA blending. */
 const FRAG_SRC = `
   precision highp float;
 
@@ -141,9 +141,9 @@ const FRAG_SRC = `
     float cloud = mix(n1, n2, 0.4);
     cloud = smoothstep(0.38, 0.65, cloud);
 
-    // Premultiplied alpha: MapLibre uses ONE / ONE_MINUS_SRC_ALPHA blending
+    // Standard (non-premultiplied) alpha — we set up SRC_ALPHA blend ourselves
     float alpha = cloud * u_opacity;
-    gl_FragColor = vec4(u_color * alpha, alpha);
+    gl_FragColor = vec4(u_color, alpha);
   }
 `;
 
@@ -223,7 +223,10 @@ export function createCloudsLayer(options?: CloudsOptions): CustomLayerInterface
   return {
     id: 'golarion-clouds',
     type: 'custom',
-    renderingMode: '2d',
+    // '3d' so this layer renders in the same pass as the globe tiles, after
+    // them, rather than in the pre-globe '2d' pass where it would be buried
+    // under the terrain.
+    renderingMode: '3d',
 
     onAdd(map: MaplibreMap, gl: WebGLRenderingContext | WebGL2RenderingContext): void {
       _map = map;
@@ -258,13 +261,15 @@ export function createCloudsLayer(options?: CloudsOptions): CustomLayerInterface
       const g = _gl;
       const t = performance.now() / 1000;
 
-      // Disable depth test so the full-screen quad isn't clipped by globe
-      // geometry already in the depth buffer.
-      const wasDepthTest = g.isEnabled(g.DEPTH_TEST);
-      g.disable(g.DEPTH_TEST);
+      // renderingMode '3d' gives us a clean GL slate — set up everything.
+      // Alpha blend (standard, non-premultiplied) over the already-drawn globe.
+      g.enable(g.BLEND);
+      g.blendFunc(g.SRC_ALPHA, g.ONE_MINUS_SRC_ALPHA);
 
-      // MapLibre has already set the blend equation to
-      // ONE / ONE_MINUS_SRC_ALPHA (premultiplied alpha) — we rely on that.
+      // No depth test or depth writes — this is a pure screen-space overlay;
+      // we don't want to interact with the globe's depth buffer at all.
+      g.disable(g.DEPTH_TEST);
+      g.depthMask(false);
 
       g.useProgram(_program);
       g.bindBuffer(g.ARRAY_BUFFER, _buf);
@@ -281,9 +286,7 @@ export function createCloudsLayer(options?: CloudsOptions): CustomLayerInterface
 
       g.disableVertexAttribArray(_aPos);
       g.bindBuffer(g.ARRAY_BUFFER, null);
-
-      // Restore depth state so subsequent MapLibre layers are unaffected
-      if (wasDepthTest) g.enable(g.DEPTH_TEST);
+      g.depthMask(true);
 
       // Keep the animation running; MapLibre will call render() again
       _map?.triggerRepaint();
