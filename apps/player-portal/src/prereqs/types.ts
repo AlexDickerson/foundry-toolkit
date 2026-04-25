@@ -12,6 +12,8 @@ import type { AbilityKey, ProficiencyRank } from '../api/types';
 // Nothing else should need to touch prereq logic.
 export type Predicate =
   | { kind: 'skill-rank'; skill: string; min: ProficiencyRank }
+  | { kind: 'skill-rank-any'; min: ProficiencyRank }
+  | { kind: 'skill-rank-any-of'; skills: string[]; min: ProficiencyRank }
   | { kind: 'feat'; name: string }
   | { kind: 'ancestry'; slug: string }
   | { kind: 'class'; slug: string }

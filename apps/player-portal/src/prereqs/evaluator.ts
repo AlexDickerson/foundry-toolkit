@@ -11,6 +11,22 @@ export function evaluatePredicate(pred: Predicate, ctx: CharacterContext): Evalu
       if (rank === undefined) return 'unknown';
       return rank >= pred.min ? 'meets' : 'fails';
     }
+    case 'skill-rank-any': {
+      if (ctx.skillRanks.size === 0) return 'unknown';
+      for (const rank of ctx.skillRanks.values()) {
+        if (rank >= pred.min) return 'meets';
+      }
+      return 'fails';
+    }
+    case 'skill-rank-any-of': {
+      let anyUnknown = false;
+      for (const skill of pred.skills) {
+        const rank = ctx.skillRanks.get(skill.toLowerCase());
+        if (rank === undefined) { anyUnknown = true; continue; }
+        if (rank >= pred.min) return 'meets';
+      }
+      return anyUnknown ? 'unknown' : 'fails';
+    }
     case 'level':
       return ctx.level >= pred.min ? 'meets' : 'fails';
     case 'ability': {

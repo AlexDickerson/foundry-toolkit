@@ -34,7 +34,18 @@ const ABILITY_KEY: Record<string, Predicate & { kind: 'ability' } extends { abil
   charisma: 'cha',
 } as const;
 
+// "trained in at least one skill" / "trained in any skill"
+const SKILL_RANK_ANY_RE = /^\s*(trained|expert|master|legendary)\s+in\s+(?:at\s+least\s+one|any)\s+skill\s*$/i;
+// Captures "rank in <rest>" so we can detect or-lists before comma-splitting mangles them
+const SKILL_RANK_IN_RE = /^\s*(trained|expert|master|legendary)\s+in\s+(.+?)\s*$/i;
+
 export function parsePrerequisite(raw: string): Predicate[] {
+  // Try whole-string patterns first — some prereqs contain commas or "or" as
+  // part of the predicate itself (e.g. "expert in Arcana, Nature, or Religion"),
+  // so we must not split on commas before we've had a chance to detect them.
+  const whole = parseWholePhrase(raw.trim());
+  if (whole !== null) return [whole];
+
   // pf2e sometimes jams multiple predicates into a single entry with
   // semicolons or commas. Split on those, trim, and parse each half.
   return raw
@@ -42,6 +53,39 @@ export function parsePrerequisite(raw: string): Predicate[] {
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
     .map(parsePhrase);
+}
+
+function parseWholePhrase(phrase: string): Predicate | null {
+  // "trained in at least one skill" / "trained in any skill"
+  const anySkill = SKILL_RANK_ANY_RE.exec(phrase);
+  if (anySkill?.[1]) {
+    const rank = RANK_WORDS[anySkill[1].toLowerCase()];
+    if (rank !== undefined) return { kind: 'skill-rank-any', min: rank };
+  }
+
+  // "rank in Skill1 or Skill2" / "rank in Skill1, Skill2, or Skill3"
+  // Only fires when "or" is present; otherwise single-skill handling below
+  // correctly catches it via parsePhrase → SKILL_RANK_RE.
+  const rankIn = SKILL_RANK_IN_RE.exec(phrase);
+  if (rankIn?.[1] && rankIn[2] && /\bor\b/i.test(rankIn[2])) {
+    const rank = RANK_WORDS[rankIn[1].toLowerCase()];
+    if (rank !== undefined) {
+      const skills = parseSkillOrList(rankIn[2]);
+      if (skills.length >= 2) return { kind: 'skill-rank-any-of', skills, min: rank };
+    }
+  }
+
+  return null;
+}
+
+// Splits "Arcana, Nature, Occultism, or Religion" or "Occultism or Religion"
+// into ["arcana", "nature", "occultism", "religion"].
+function parseSkillOrList(raw: string): string[] {
+  return raw
+    .replace(/,\s*or\s+/gi, ' or ')
+    .split(/\s+or\s+|,\s*/i)
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length > 0 && /^[a-z]/i.test(s));
 }
 
 function parsePhrase(phrase: string): Predicate {
