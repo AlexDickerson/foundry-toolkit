@@ -2,7 +2,13 @@
 // only; players aren't meant to see the stat blocks or HP totals in here.
 
 import { ipcMain } from 'electron';
-import type { Encounter, LootItem, PartyMember, PushEncounterResult } from '@foundry-toolkit/shared/types';
+import type {
+  ActorSpellcasting,
+  Encounter,
+  LootItem,
+  PartyMember,
+  PushEncounterResult,
+} from '@foundry-toolkit/shared/types';
 import { generateEncounterLoot, type LootMonster } from '@foundry-toolkit/ai/loot';
 import type { DmToolConfig } from '../config.js';
 import { deleteEncounter, listEncounters, upsertEncounter } from '@foundry-toolkit/db/pf2e';
@@ -80,4 +86,38 @@ export function registerCombatHandlers(cfg: DmToolConfig): void {
     }
     return res.json() as Promise<PartyMember[]>;
   });
+
+  ipcMain.handle('getActorSpellcasting', async (_e, actorId: string): Promise<ActorSpellcasting | null> => {
+    if (!cfg.foundryMcpUrl) return null;
+    const base = cfg.foundryMcpUrl.replace(/\/$/, '');
+    const res = await fetch(`${base}/api/actors/${encodeURIComponent(actorId)}/actions/get-spellcasting`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ params: {} }),
+    });
+    if (!res.ok) {
+      console.warn(`getActorSpellcasting: HTTP ${res.status.toString()} for actor ${actorId}`);
+      return null;
+    }
+    return res.json() as Promise<ActorSpellcasting>;
+  });
+
+  ipcMain.handle(
+    'castActorSpell',
+    async (_e, args: { actorId: string; entryId: string; spellId: string; rank: number }): Promise<{ ok: boolean }> => {
+      if (!cfg.foundryMcpUrl) throw new Error('foundryMcpUrl not configured');
+      const { actorId, entryId, spellId, rank } = args;
+      const base = cfg.foundryMcpUrl.replace(/\/$/, '');
+      const res = await fetch(`${base}/api/actors/${encodeURIComponent(actorId)}/actions/cast-spell`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ params: { entryId, spellId, rank } }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`cast-spell failed: HTTP ${res.status.toString()} — ${text}`);
+      }
+      return res.json() as Promise<{ ok: boolean }>;
+    },
+  );
 }

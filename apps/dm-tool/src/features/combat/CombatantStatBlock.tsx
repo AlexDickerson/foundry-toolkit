@@ -1,13 +1,21 @@
 // Compact stat block pinned to the right of the combat tab. Renders the
 // current actor — monsters load their stat block from the DB and compose
-// CombatHpBanner with CreatureDetailPane; PCs show name + HP only (no stat
-// block available in the tool).
+// CombatHpBanner with CreatureDetailPane; PCs show name + HP + their spells
+// (when a Foundry actor id is available).
 
-import { useEffect, useState } from 'react';
-import { ShieldAlert } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Loader2, ShieldAlert, Wand2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import type { Combatant, MonsterDetail } from '@foundry-toolkit/shared/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import type {
+  ActorSpellcasting,
+  CombatSpellEntry,
+  CombatSpellSummary,
+  Combatant,
+  MonsterDetail,
+} from '@foundry-toolkit/shared/types';
 import { CombatHpBanner } from './CombatHpBanner';
 import { CreatureDetailPane } from '../creatures/CreatureDetailPane';
 
@@ -120,23 +128,231 @@ export function CombatantStatBlock({ combatant, round }: Props) {
 
 function PcBody({ combatant }: { combatant: Combatant }) {
   return (
-    <div className="flex flex-1 flex-col gap-3 p-4 text-xs text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <ShieldAlert className="h-3.5 w-3.5" />
-        <span>
-          Initiative mod {combatant.initiativeMod >= 0 ? '+' : ''}
-          {combatant.initiativeMod}
-          {combatant.initiative != null && (
-            <>
-              {' · rolled '}
-              <span className="font-medium text-foreground">{combatant.initiative}</span>
-            </>
-          )}
-        </span>
+    <ScrollArea className="min-h-0 flex-1">
+      <div className="flex flex-col gap-3 p-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-3.5 w-3.5" />
+          <span>
+            Initiative mod {combatant.initiativeMod >= 0 ? '+' : ''}
+            {combatant.initiativeMod}
+            {combatant.initiative != null && (
+              <>
+                {' · rolled '}
+                <span className="font-medium text-foreground">{combatant.initiative}</span>
+              </>
+            )}
+          </span>
+        </div>
+        {combatant.foundryActorId ? (
+          <SpellsSection actorId={combatant.foundryActorId} />
+        ) : (
+          <p className="text-[11px] italic">Add via party picker to enable spell casting.</p>
+        )}
       </div>
-      <p className="text-[11px] italic">
-        PCs don&rsquo;t have a stored stat block — consult the player&rsquo;s character sheet.
-      </p>
+    </ScrollArea>
+  );
+}
+
+// ─── Spells section ──────────────────────────────────────────────────────────
+
+function SpellsSection({ actorId }: { actorId: string }) {
+  const [spellcasting, setSpellcasting] = useState<ActorSpellcasting | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [castingSpellId, setCastingSpellId] = useState<string | null>(null);
+  const [castError, setCastError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.getActorSpellcasting(actorId);
+      setSpellcasting(data);
+    } catch (e) {
+      console.error('getActorSpellcasting failed:', e);
+      setSpellcasting(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [actorId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const handleCast = useCallback(
+    async (entry: CombatSpellEntry, spell: CombatSpellSummary, rank: number) => {
+      if (castingSpellId !== null) return;
+      setCastingSpellId(spell.id);
+      setCastError(null);
+      try {
+        await api.castActorSpell({ actorId, entryId: entry.id, spellId: spell.id, rank });
+        // Refresh slot state after cast.
+        await load();
+      } catch (e) {
+        console.error('castActorSpell failed:', e);
+        setCastError((e as Error).message ?? 'Cast failed');
+      } finally {
+        setCastingSpellId(null);
+      }
+    },
+    [actorId, castingSpellId, load],
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Loading spells…
+      </div>
+    );
+  }
+
+  if (!spellcasting || spellcasting.entries.length === 0) {
+    return <p className="text-[11px] italic">No spellcasting entries found.</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {castError && <p className="text-[10px] text-destructive">{castError}</p>}
+      {spellcasting.entries.map((entry) => (
+        <SpellEntryBlock
+          key={entry.id}
+          entry={entry}
+          castingSpellId={castingSpellId}
+          onCast={(spell, rank) => void handleCast(entry, spell, rank)}
+        />
+      ))}
     </div>
+  );
+}
+
+function SpellEntryBlock({
+  entry,
+  castingSpellId,
+  onCast,
+}: {
+  entry: CombatSpellEntry;
+  castingSpellId: string | null;
+  onCast: (spell: CombatSpellSummary, rank: number) => void;
+}) {
+  if (entry.spells.length === 0) return null;
+
+  const cantrips = entry.spells.filter((s) => s.isCantrip);
+  const regular = entry.spells.filter((s) => !s.isCantrip);
+
+  const byRank = new Map<number, CombatSpellSummary[]>();
+  for (const spell of regular) {
+    const arr = byRank.get(spell.rank) ?? [];
+    arr.push(spell);
+    byRank.set(spell.rank, arr);
+  }
+  const ranks = [...byRank.keys()].sort((a, b) => a - b);
+
+  const slotByRank = new Map<number, { value: number; max: number }>();
+  if (entry.slots) {
+    for (const s of entry.slots) {
+      slotByRank.set(s.rank, { value: s.value, max: s.max });
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-1.5">
+        <Wand2 className="h-3 w-3 text-primary" />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground">{entry.name}</span>
+        <span className="text-[9px] uppercase text-muted-foreground">
+          {entry.tradition !== '' ? entry.tradition : entry.mode}
+        </span>
+        {entry.mode === 'focus' && entry.focusPoints && (
+          <FocusDots value={entry.focusPoints.value} max={entry.focusPoints.max} />
+        )}
+      </div>
+
+      {cantrips.length > 0 && (
+        <div className="mb-1">
+          <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Cantrips</span>
+          {cantrips.map((spell) => (
+            <SpellRow
+              key={spell.id}
+              spell={spell}
+              slotState={null}
+              isCasting={castingSpellId === spell.id}
+              onCast={() => onCast(spell, spell.rank)}
+            />
+          ))}
+        </div>
+      )}
+
+      {ranks.map((rank) => {
+        const spells = byRank.get(rank) ?? [];
+        const slotState = slotByRank.get(rank) ?? null;
+        return (
+          <div key={rank} className="mb-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Rank {rank}</span>
+              {slotState !== null && (
+                <span className="text-[9px] tabular-nums text-muted-foreground">
+                  {slotState.value}/{slotState.max}
+                </span>
+              )}
+            </div>
+            {spells.map((spell) => (
+              <SpellRow
+                key={spell.id}
+                spell={spell}
+                slotState={slotState}
+                isCasting={castingSpellId === spell.id}
+                onCast={() => onCast(spell, rank)}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SpellRow({
+  spell,
+  slotState,
+  isCasting,
+  onCast,
+}: {
+  spell: CombatSpellSummary;
+  slotState: { value: number; max: number } | null;
+  isCasting: boolean;
+  onCast: () => void;
+}) {
+  const noSlotsLeft = slotState !== null && !spell.isCantrip && slotState.value <= 0;
+  const isExpended = spell.expended === true;
+  const disabled = isCasting || noSlotsLeft || isExpended;
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-1.5 rounded px-1 py-0.5 text-[10px]',
+        isExpended && 'opacity-50',
+      )}
+    >
+      {spell.actions && <span className="shrink-0 text-[9px] text-muted-foreground">[{spell.actions}]</span>}
+      <span className={cn('flex-1 truncate', isExpended ? 'line-through text-muted-foreground' : 'text-foreground')}>
+        {spell.name}
+      </span>
+      <Button size="sm" variant="outline" disabled={disabled} onClick={onCast} className="h-5 px-1.5 text-[9px]">
+        {isCasting ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : 'Cast'}
+      </Button>
+    </div>
+  );
+}
+
+function FocusDots({ value, max }: { value: number; max: number }) {
+  return (
+    <span className="flex items-center gap-0.5" title={`Focus: ${value.toString()}/${max.toString()}`}>
+      {Array.from({ length: max }, (_, i) => (
+        <span
+          key={i}
+          className={cn('h-2 w-2 rounded-full border border-primary', i < value ? 'bg-primary' : 'bg-transparent')}
+        />
+      ))}
+    </span>
   );
 }

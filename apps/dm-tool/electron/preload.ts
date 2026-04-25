@@ -8,6 +8,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
+  ActorSpellcasting,
   AonPreviewData,
   AurusTeam,
   Encounter,
@@ -183,6 +184,14 @@ const api: ElectronAPI = {
   pushEncounterToFoundry: (encounterId: string): Promise<PushEncounterResult> =>
     ipcRenderer.invoke('pushEncounterToFoundry', encounterId),
   listPartyMembers: (): Promise<PartyMember[]> => ipcRenderer.invoke('listPartyMembers'),
+  getActorSpellcasting: (actorId: string): Promise<ActorSpellcasting | null> =>
+    ipcRenderer.invoke('getActorSpellcasting', actorId),
+  castActorSpell: (args: {
+    actorId: string;
+    entryId: string;
+    spellId: string;
+    rank: number;
+  }): Promise<{ ok: boolean }> => ipcRenderer.invoke('castActorSpell', args),
 
   // Auto-Wall
   autoWallAvailable: (): Promise<boolean> => ipcRenderer.invoke('autoWallAvailable'),
