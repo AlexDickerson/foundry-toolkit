@@ -22,6 +22,9 @@ interface FoundryActor extends ToObjectable {
   type: string;
   img: string | undefined;
   items: ActorItemsCollection;
+  // actor.system is the live post-prepareData object; used selectively to
+  // pick up derived fields that toObject(false) may not include.
+  system: { resources?: unknown };
 }
 
 interface ActorsCollection {
@@ -59,6 +62,12 @@ export function getPreparedActorHandler(params: GetActorParams): Promise<Prepare
   });
 
   const snapshot = actor.toObject(false);
+  // PF2e recomputes investiture.value (and potentially other resource
+  // counters) in prepareDerivedData. Those mutations live on actor.system
+  // and are not always reflected in the toObject(false) snapshot, which may
+  // serialise from _source for schema-backed fields. Overlay resources from
+  // the live prepared object so callers see the correct derived values.
+  snapshot.system['resources'] = actor.system.resources;
 
   return Promise.resolve({
     id: actor.id,
