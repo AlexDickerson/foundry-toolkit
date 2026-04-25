@@ -9,20 +9,20 @@ import { mergeLimbOptions } from './limb.js';
 describe('mergeLimbOptions — defaults', () => {
   it('returns all defaults when called with no argument', () => {
     const opts = mergeLimbOptions();
-    expect(opts.opacity).toBe(0.3);
-    expect(opts.exponent).toBe(1.5);
+    expect(opts.opacity).toBe(0.5);
+    expect(opts.exponent).toBe(1.0);
   });
 
   it('returns all defaults when called with an empty object', () => {
     const opts = mergeLimbOptions({});
-    expect(opts.opacity).toBe(0.3);
-    expect(opts.exponent).toBe(1.5);
+    expect(opts.opacity).toBe(0.5);
+    expect(opts.exponent).toBe(1.0);
   });
 
   it('returns all defaults when called with undefined', () => {
     const opts = mergeLimbOptions(undefined);
-    expect(opts.opacity).toBe(0.3);
-    expect(opts.exponent).toBe(1.5);
+    expect(opts.opacity).toBe(0.5);
+    expect(opts.exponent).toBe(1.0);
   });
 });
 
@@ -30,15 +30,15 @@ describe('mergeLimbOptions — defaults', () => {
 
 describe('mergeLimbOptions — partial overrides', () => {
   it('applies opacity override while keeping exponent default', () => {
-    const opts = mergeLimbOptions({ opacity: 0.5 });
-    expect(opts.opacity).toBe(0.5);
-    expect(opts.exponent).toBe(1.5);
+    const opts = mergeLimbOptions({ opacity: 0.7 });
+    expect(opts.opacity).toBe(0.7);
+    expect(opts.exponent).toBe(1.0);
   });
 
   it('applies exponent override while keeping opacity default', () => {
     const opts = mergeLimbOptions({ exponent: 3.0 });
     expect(opts.exponent).toBe(3.0);
-    expect(opts.opacity).toBe(0.3);
+    expect(opts.opacity).toBe(0.5);
   });
 });
 

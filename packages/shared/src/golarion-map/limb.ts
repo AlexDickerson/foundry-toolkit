@@ -33,13 +33,13 @@ import type { CustomLayerInterface, CustomRenderMethodInput, Map as MaplibreMap 
  *  the defaults produce a subtle effect that is clearly perceptible as
  *  curvature without visibly obscuring the map surface. */
 export interface LimbOptions {
-  /** Peak opacity of the dark overlay at the silhouette edge (0–1). Default: 0.3 */
+  /** Peak opacity of the dark overlay at the silhouette edge (0–1). Default: 0.5 */
   opacity?: number;
   /**
    * Exponent of the power curve applied after the (1 − cos θ) term.
    * Higher values concentrate the darkening more tightly at the very edge;
    * lower values spread it further across the disc.
-   * Default: 1.5 (moderate concentration — visible in the outer ~20% of the radius).
+   * Default: 1.0 — effect is visible across the outer ~30% of the radius.
    */
   exponent?: number;
 }
@@ -56,8 +56,8 @@ export interface ResolvedLimbOptions {
 /** Merge caller-supplied options with per-field defaults. */
 export function mergeLimbOptions(options?: LimbOptions): ResolvedLimbOptions {
   return {
-    opacity: options?.opacity ?? 0.3,
-    exponent: options?.exponent ?? 1.5,
+    opacity: options?.opacity ?? 0.5,
+    exponent: options?.exponent ?? 1.0,
   };
 }
 
@@ -91,8 +91,10 @@ void main() {
  *   cos θ      = sqrt(1 − r²)   (orthographic surface normal angle)
  *   darkening  = (1 − cos θ)^exponent
  *
- * A short smoothstep near r = 1 prevents a hard cut-off at the silhouette.
- * Fragments at r ≥ 1 are discarded so nothing renders in the void.
+ * Zero at the disc centre, increases continuously, maximum at r → 1.
+ * Fragments at r ≥ 1 are discarded. The halo layer handles the soft
+ * silhouette transition outside the disc, so no extra edge feather is
+ * needed here — adding one suppresses the peak darkening at the rim.
  */
 const FRAG_SRC = /* glsl */ `#version 300 es
 precision mediump float;
@@ -119,17 +121,12 @@ void main() {
 
   // Physically-motivated limb darkening:
   //   cos θ = component of surface normal along the view direction (ortho approx)
-  //   darkening = (1 − cos θ)^exponent  →  0 at centre, 1 at the very edge
+  //   darkening = (1 − cos θ)^exponent  →  0 at centre, peaks at r = 1
   float cos_theta = sqrt(max(0.0, 1.0 - r * r));
   float darkening = pow(1.0 - cos_theta, u_exponent);
 
-  // Soft feather in the outermost ~5 % of the radius to avoid a hard
-  // silhouette line where the overlay meets the void.
-  float edge_fade = smoothstep(1.0, 0.95, r);
-
-  // Output as a black overlay; blended with SRC_ALPHA / ONE_MINUS_SRC_ALPHA
-  // this darkens underlying pixels proportionally.
-  fragColor = vec4(0.0, 0.0, 0.0, darkening * u_opacity * edge_fade);
+  // Black overlay: SRC_ALPHA / ONE_MINUS_SRC_ALPHA blend darkens the tiles beneath.
+  fragColor = vec4(0.0, 0.0, 0.0, darkening * u_opacity);
 }`;
 
 // ---------------------------------------------------------------------------
