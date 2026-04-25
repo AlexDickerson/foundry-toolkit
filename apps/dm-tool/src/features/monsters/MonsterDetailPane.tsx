@@ -1,8 +1,10 @@
+import * as HoverCard from '@radix-ui/react-hover-card';
 import { Info, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { MonsterDetail } from '@foundry-toolkit/shared/types';
 import { CreatureDetailPane } from '../creatures/CreatureDetailPane';
+import { resolveMonsterArtAssets } from './monster-art';
 
 const RARITY_BADGE: Record<string, string> = {
   common: 'bg-zinc-600 text-zinc-100',
@@ -20,11 +22,13 @@ interface Props {
 
 export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: Props) {
   const [loreOpen, setLoreOpen] = useState(false);
+  const artAssets = resolveMonsterArtAssets(detail.tokenUrl, detail.imageUrl);
 
   return (
     <>
       {/* Header: identity chrome — name, badges, traits, lore toggle, close */}
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
+        <ArtHoverCard name={detail.name} portraitSrc={artAssets.portraitSrc} artSrc={artAssets.artSrc} />
         <h2 className="shrink-0 text-sm font-semibold">{detail.name}</h2>
         <span className="shrink-0 rounded bg-accent px-1.5 py-0.5 text-[11px] font-medium tabular-nums">
           Lvl {detail.level}
@@ -90,5 +94,47 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
         </div>
       )}
     </>
+  );
+}
+
+/** Small inline portrait; hovering reveals the full monster art. */
+function ArtHoverCard({
+  name,
+  portraitSrc,
+  artSrc,
+}: {
+  name: string;
+  portraitSrc: string | null;
+  artSrc: string | null;
+}) {
+  const portrait = portraitSrc ? (
+    <img src={portraitSrc} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+  ) : (
+    <div className="h-8 w-8 shrink-0 rounded bg-muted" />
+  );
+
+  if (!artSrc) {
+    return portrait;
+  }
+
+  return (
+    <HoverCard.Root openDelay={400} closeDelay={200}>
+      <HoverCard.Trigger asChild>
+        <span className="shrink-0 cursor-default">{portrait}</span>
+      </HoverCard.Trigger>
+      <HoverCard.Portal>
+        <HoverCard.Content
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          avoidCollisions
+          collisionPadding={8}
+          className="z-50 overflow-hidden rounded-md border border-border bg-popover shadow-lg"
+          style={{ width: '240px' }}
+        >
+          <img src={artSrc} alt={name} className="w-full object-contain" />
+        </HoverCard.Content>
+      </HoverCard.Portal>
+    </HoverCard.Root>
   );
 }
