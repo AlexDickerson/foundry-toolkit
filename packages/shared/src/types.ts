@@ -456,6 +456,8 @@ export interface GlobePin {
   label: string;
   /** game-icons.net icon name (e.g. "crossed-swords"). Empty string = default dot. */
   icon: string;
+  /** CSS hex fill color for the pin's circle (e.g. "#e03c31"). Empty/absent = default golden. */
+  iconColor?: string;
   /** Zoom level at which the pin was placed. Icons shrink when zoomed out past this. */
   zoom: number;
   /** Relative path to the Obsidian note within the vault (e.g. "Golarion/My Pin a1b2c3d4.md"). Empty = no note yet. */

@@ -29,7 +29,7 @@ export function pinsToGeoJson(pins: GlobePin[], map: MlMap): FeatureCollection {
       properties: {
         id: p.id,
         label: p.label,
-        icon: resolvePinIcon(map, p.icon),
+        icon: resolvePinIcon(map, p.icon, p.iconColor),
         placedZoom: p.zoom,
         displaySize: pinDisplaySize(zoom, p.zoom),
         kind: p.kind,

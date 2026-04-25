@@ -17,6 +17,7 @@ import {
   createStarsLayer,
   ensureDefaultImage,
   ensureIconImage,
+  parseIconKey,
   pinsToGeoJson,
   startAutoRotate,
 } from '@foundry-toolkit/shared/golarion-map';
@@ -96,8 +97,13 @@ export function Globe() {
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     map.on('styleimagemissing', (e: { id: string }) => {
-      if (e.id === 'gi-default') ensureDefaultImage(map);
-      else if (e.id.startsWith('gi-')) ensureIconImage(map, e.id.slice(3));
+      const parsed = parseIconKey(e.id);
+      if (!parsed) return;
+      if (parsed.name === 'default') {
+        ensureDefaultImage(map, parsed.color);
+      } else {
+        ensureIconImage(map, parsed.name, parsed.color);
+      }
     });
 
     map.on('load', () => {

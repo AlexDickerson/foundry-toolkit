@@ -7,15 +7,17 @@ import type { GlobePin } from '@foundry-toolkit/shared/types';
 import { getPf2eDb } from './connection.js';
 
 export function listGlobePins(): GlobePin[] {
-  return getPf2eDb().prepare('SELECT id, lng, lat, label, icon, zoom, note, kind FROM globe_pins').all() as GlobePin[];
+  return getPf2eDb()
+    .prepare('SELECT id, lng, lat, label, icon, zoom, note, kind, icon_color AS iconColor FROM globe_pins')
+    .all() as GlobePin[];
 }
 
 export function upsertGlobePin(pin: GlobePin): void {
   getPf2eDb()
     .prepare(
-      'INSERT INTO globe_pins (id, lng, lat, label, icon, zoom, note, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET lng=excluded.lng, lat=excluded.lat, label=excluded.label, icon=excluded.icon, zoom=excluded.zoom, note=excluded.note, kind=excluded.kind',
+      'INSERT INTO globe_pins (id, lng, lat, label, icon, zoom, note, kind, icon_color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET lng=excluded.lng, lat=excluded.lat, label=excluded.label, icon=excluded.icon, zoom=excluded.zoom, note=excluded.note, kind=excluded.kind, icon_color=excluded.icon_color',
     )
-    .run(pin.id, pin.lng, pin.lat, pin.label, pin.icon, pin.zoom, pin.note, pin.kind);
+    .run(pin.id, pin.lng, pin.lat, pin.label, pin.icon, pin.zoom, pin.note, pin.kind, pin.iconColor ?? '');
 }
 
 /** Cache the Obsidian mission note's markdown onto its pin row. Called
