@@ -1,4 +1,4 @@
-import type { FeatCategory, ProficiencyRank } from '../api/types';
+import type { FeatCategory, FeatItem, ProficiencyRank } from '../api/types';
 
 // PF2e proficiency-rank labels and palette.
 // Labels match the en.json `PF2E.ProficiencyLevel{0..4}` keys; we duplicate
@@ -63,6 +63,7 @@ export const DEFENSE_LABEL_KEY: Record<string, string> = {
 export const FEAT_CATEGORY_ORDER: readonly FeatCategory[] = [
   'ancestry',
   'class',
+  'archetype',
   'classfeature',
   'skill',
   'general',
@@ -73,9 +74,18 @@ export const FEAT_CATEGORY_ORDER: readonly FeatCategory[] = [
 export const FEAT_CATEGORY_LABEL: Record<string, string> = {
   ancestry: 'Ancestry Feats',
   class: 'Class Feats',
+  archetype: 'Archetype Feats',
   classfeature: 'Class Features',
   skill: 'Skill Feats',
   general: 'General Feats',
   bonus: 'Bonus Feats',
   pfsboon: 'PFS Boons',
 };
+
+// Archetype feats carry `category: 'class'` in the PF2e system but also
+// have the `archetype` trait. Check the trait first so they land in their
+// own section rather than being lumped with class feats.
+export function resolveFeatCategory(feat: FeatItem): string {
+  if (feat.system.traits.value.includes('archetype')) return 'archetype';
+  return feat.system.category;
+}

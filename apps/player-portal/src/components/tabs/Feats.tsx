@@ -1,7 +1,7 @@
 import type { FeatCategory, FeatItem, PreparedActorItem } from '../../api/types';
 import { isFeatItem } from '../../api/types';
 import { enrichDescription } from '../../lib/foundry-enrichers';
-import { FEAT_CATEGORY_LABEL, FEAT_CATEGORY_ORDER } from '../../lib/pf2e-maps';
+import { FEAT_CATEGORY_LABEL, FEAT_CATEGORY_ORDER, resolveFeatCategory } from '../../lib/pf2e-maps';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { SectionHeader } from '../common/SectionHeader';
 
@@ -132,9 +132,10 @@ function TraitChips({ traits }: { traits: string[] }): React.ReactElement {
 function groupByCategory(feats: FeatItem[]): Map<string, FeatItem[]> {
   const out = new Map<string, FeatItem[]>();
   for (const feat of feats) {
-    const arr = out.get(feat.system.category) ?? [];
+    const key = resolveFeatCategory(feat);
+    const arr = out.get(key) ?? [];
     arr.push(feat);
-    out.set(feat.system.category, arr);
+    out.set(key, arr);
   }
   // Sort within each group by level asc, then name.
   for (const [, arr] of out) {
