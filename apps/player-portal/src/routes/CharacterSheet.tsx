@@ -178,7 +178,12 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
           )}
           {activeTab === 'inventory' && (
             <>
-              <Inventory items={state.actor.items} actorId={actorId} onActorChanged={reloadActor} />
+              <Inventory
+                items={state.actor.items}
+                actorId={actorId}
+                onActorChanged={reloadActor}
+                investiture={state.actor.system.resources.investiture}
+              />
               <div className="mt-10 border-t border-pf-border pt-6">
                 <SectionHeader>Crafting</SectionHeader>
                 <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
