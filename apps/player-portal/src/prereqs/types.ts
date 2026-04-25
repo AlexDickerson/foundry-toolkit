@@ -49,7 +49,12 @@ export interface CharacterContext {
    *  against a lower-cased set. */
   features: Set<string>;
   /** Normalised slugs (hyphens→spaces, lower-cased) of lore skills the
-   *  character has proficiency in, at any rank.  Used by skill-rank-any-lore
-   *  and skill-rank-any-of-or-lore predicates. */
-  loreSkillSlugs: Set<string>;
+   *  character has at any rank, built from a COMPLETE actor payload.
+   *
+   *  - `Set<string>` (possibly empty): definitive — an absent lore skill
+   *    genuinely isn't owned by this character.
+   *  - `undefined`: incomplete context (sparse tests, partial data) —
+   *    treat any absent lore skill as 'unknown' rather than 'fails'.
+   */
+  loreSkillSlugs: Set<string> | undefined;
 }

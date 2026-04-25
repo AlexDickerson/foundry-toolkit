@@ -10,7 +10,9 @@ function makeCtx(overrides: Partial<CharacterContext> = {}): CharacterContext {
     skillRanks: new Map(),
     abilityMods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
     features: new Set(),
-    loreSkillSlugs: new Set(),
+    // undefined = incomplete/sparse context; absent lore skills treated as 'unknown'.
+    // Pass new Set() (possibly empty) to opt into definitive lore evaluation.
+    loreSkillSlugs: undefined,
     ...overrides,
   };
 }
@@ -496,13 +498,16 @@ describe('Master or Apprentice: "master in Crafting, Performance, or a Lore skil
   });
 
   it('fails when character has no lore skills and neither crafting nor performance at master', () => {
-    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 2], ['performance', 0]]) });
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 2], ['performance', 0]]),
+      loreSkillSlugs: new Set(), // definitive: no lore skills
+    });
     expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
   });
 
   it('unknown when specific skills are missing from the map (lore check also fails)', () => {
     const ctx = makeCtx({ skillRanks: skillMap([['herbalism lore', 2]]), loreSkillSlugs: new Set(['herbalism lore']) });
-    // crafting and performance missing → anyUnknown; lore rank too low → unknown
+    // crafting and performance missing from map (not lore keys) → anyUnknown; lore rank too low → unknown
     expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('unknown');
   });
 });
@@ -572,8 +577,13 @@ describe('"trained in Lore" / "expert in Lore" — bare Lore wildcard', () => {
     expect(evaluateAll(parsePrerequisite('trained in Lore'), ctx)).toBe('fails');
   });
 
-  it('Experienced Professional: unknown when character has no lore skills at all', () => {
+  it('Experienced Professional: fails when lore data is complete but character has no lore skills', () => {
     const ctx = makeCtx({ skillRanks: skillMap([['athletics', 1]]), loreSkillSlugs: new Set() });
+    expect(evaluateAll(parsePrerequisite('trained in Lore'), ctx)).toBe('fails');
+  });
+
+  it('Experienced Professional: unknown when lore skill data unavailable (sparse context)', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['athletics', 1]]) }); // loreSkillSlugs = undefined
     expect(evaluateAll(parsePrerequisite('trained in Lore'), ctx)).toBe('unknown');
   });
 
@@ -681,6 +691,106 @@ describe('Armor Assist: "trained in Athletics or Warfare Lore"', () => {
 
   it('fails when untrained in both', () => {
     const ctx = makeCtx({ skillRanks: skillMap([['athletics', 0], ['warfare lore', 0]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Seasoned — "trained in Alcohol Lore, Cooking Lore, or Crafting"
+// Mixes specific lore skills with a standard skill in an OR list.
+// ---------------------------------------------------------------------------
+
+describe('Seasoned: "trained in Alcohol Lore, Cooking Lore, or Crafting"', () => {
+  const PREREQ = 'trained in Alcohol Lore, Cooking Lore, or Crafting';
+
+  it('parses to skill-rank-any-of with all three options', () => {
+    expect(parsePrerequisite(PREREQ)).toEqual([
+      { kind: 'skill-rank-any-of', skills: ['alcohol lore', 'cooking lore', 'crafting'], min: 1 },
+    ]);
+  });
+
+  it('passes when trained in Crafting (standard skill)', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 1]]),
+      loreSkillSlugs: new Set(),
+    });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when trained in Cooking Lore only', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 0], ['cooking lore', 1]]),
+      loreSkillSlugs: new Set(['cooking lore']),
+    });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when trained in Alcohol Lore only', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 0], ['alcohol lore', 1]]),
+      loreSkillSlugs: new Set(['alcohol lore']),
+    });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('fails when untrained in Crafting and no lore skills (definitive data)', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 0]]),
+      loreSkillSlugs: new Set(), // character has no lore skills
+    });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('unknown when untrained in Crafting and lore data unavailable', () => {
+    // loreSkillSlugs = undefined → can't rule out Alcohol/Cooking Lore
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 0]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('unknown');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Prepare Elemental Medicine — "trained in Crafting, Herbalism Lore, or Medicine"
+// Same shape as Temperature Adjustment at master; verifies trained rank.
+// ---------------------------------------------------------------------------
+
+describe('Prepare Elemental Medicine: "trained in Crafting, Herbalism Lore, or Medicine"', () => {
+  const PREREQ = 'trained in Crafting, Herbalism Lore, or Medicine';
+
+  it('parses to skill-rank-any-of with min 1', () => {
+    expect(parsePrerequisite(PREREQ)).toEqual([
+      { kind: 'skill-rank-any-of', skills: ['crafting', 'herbalism lore', 'medicine'], min: 1 },
+    ]);
+  });
+
+  it('passes when trained in Crafting', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 1], ['medicine', 0]]),
+      loreSkillSlugs: new Set(),
+    });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when trained in Herbalism Lore', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 0], ['herbalism lore', 1], ['medicine', 0]]),
+      loreSkillSlugs: new Set(['herbalism lore']),
+    });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when trained in Medicine', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 0], ['medicine', 1]]),
+      loreSkillSlugs: new Set(),
+    });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('fails when untrained in all three (definitive lore data)', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 0], ['medicine', 0]]),
+      loreSkillSlugs: new Set(), // no lore skills
+    });
     expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
   });
 });
