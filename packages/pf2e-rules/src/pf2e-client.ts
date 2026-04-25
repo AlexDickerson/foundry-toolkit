@@ -41,6 +41,16 @@ export interface DispatchResponse {
  */
 export type DispatchFn = (req: DispatchRequest) => Promise<DispatchResponse>;
 
+// ─── InvokeActionFn ─────────────────────────────────────────────────────────
+
+/**
+ * Function that calls POST /api/actors/:id/actions/:action with a params bag.
+ *
+ * In player-portal, pass `api.invokeActorAction`.
+ * In tests, pass a vi.fn() / jest.fn() spy.
+ */
+export type InvokeActionFn = (actorId: string, action: string, params?: Record<string, unknown>) => Promise<unknown>;
+
 // ─── Client factory ─────────────────────────────────────────────────────────
 
 /**
@@ -63,7 +73,7 @@ export type DispatchFn = (req: DispatchRequest) => Promise<DispatchResponse>;
  * const mockDispatch = vi.fn().mockResolvedValue({ result: null });
  * const pf2e = createPf2eClient(mockDispatch);
  */
-export function createPf2eClient(dispatch: DispatchFn) {
+export function createPf2eClient(dispatch: DispatchFn, invokeAction?: InvokeActionFn) {
   return {
     /**
      * Wrappers bound to a CharacterPF2e actor by id.
@@ -161,6 +171,39 @@ export function createPf2eClient(dispatch: DispatchFn) {
             method: `system.actions[@slug:${strikeSlug}].rollDamage`,
             args: [opts],
           });
+        },
+      };
+    },
+
+    /**
+     * Wrappers bound to a spellcasting entry on a CharacterPF2e actor.
+     *
+     * Uses the `invokeActorAction` transport (POST /api/actors/:id/actions/
+     * cast-spell) rather than the generic dispatcher, because spellcasting
+     * entries are embedded actor items and cannot be reached via the
+     * dispatcher's collection lookup path.
+     *
+     * Requires `invokeAction` to be passed to `createPf2eClient`.
+     *
+     * @param actorId  - Foundry document id of the CharacterPF2e actor.
+     * @param entryId  - Foundry item id of the SpellcastingEntryPF2e item.
+     */
+    spellEntry(actorId: string, entryId: string) {
+      return {
+        /**
+         * Cast a spell from this spellcasting entry.
+         *
+         * Calls: `POST /api/actors/:actorId/actions/cast-spell`
+         *   params: `{ entryId, spellId, rank }`
+         *
+         * @param spellId - Foundry item id of the spell on the actor.
+         * @param rank    - Rank to cast at (0 = cantrip, 1–10 = spell rank).
+         */
+        cast(spellId: string, rank: number): Promise<unknown> {
+          if (!invokeAction) {
+            throw new Error('pf2eClient.spellEntry.cast: invokeAction function not provided to createPf2eClient');
+          }
+          return invokeAction(actorId, 'cast-spell', { entryId, spellId, rank });
         },
       };
     },
