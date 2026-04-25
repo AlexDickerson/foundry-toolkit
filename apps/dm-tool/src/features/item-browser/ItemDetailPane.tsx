@@ -48,6 +48,21 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
       {detail && (
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-4 p-4">
+            {/* Item icon */}
+            {detail.img && (
+              <div className="flex justify-center">
+                <img
+                  src={detail.img}
+                  alt=""
+                  className="h-24 w-24 rounded-md object-contain"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.parentElement!.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+
             {/* Level + type + rarity row */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-baseline gap-1.5">

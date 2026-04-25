@@ -709,6 +709,20 @@ describe('itemDocToBrowserRow', () => {
     expect(row.isRemastered).toBe(true);
     // Rarity trait should not leak into the public traits array
     expect(row.traits).not.toContain('UNCOMMON');
+    // img is passed through from doc.img (raw path; IPC layer rewrites to proxy URL)
+    expect(row.img).toBe('systems/pf2e/icons/equipment/consumables/potions/potion-minor.webp');
+  });
+
+  it('returns null img for a default-icon placeholder', () => {
+    const doc = potionOfHealingDoc();
+    doc.img = 'systems/pf2e/icons/default-icons/consumable.svg';
+    expect(itemDocToBrowserRow(doc).img).toBeNull();
+  });
+
+  it('returns null img when img is absent', () => {
+    const doc = potionOfHealingDoc();
+    doc.img = '';
+    expect(itemDocToBrowserRow(doc).img).toBeNull();
   });
 });
 
@@ -756,6 +770,20 @@ describe('itemMatchToBrowserRow', () => {
     expect(row.rarity).toBe('UNCOMMON');
     expect(row.price).toBe('4 gp');
     expect(row.isMagical).toBe(true);
+  });
+
+  it('passes through a non-default img path', () => {
+    const m = { ...itemMatch(), img: 'systems/pf2e/icons/equipment/consumables/potions/potion-minor.webp' };
+    expect(itemMatchToBrowserRow(m).img).toBe('systems/pf2e/icons/equipment/consumables/potions/potion-minor.webp');
+  });
+
+  it('returns null img for an empty string (the fixture default)', () => {
+    expect(itemMatchToBrowserRow(itemMatch()).img).toBeNull();
+  });
+
+  it('returns null img for a default-icon path', () => {
+    const m = { ...itemMatch(), img: 'systems/pf2e/icons/default-icons/consumable.svg' };
+    expect(itemMatchToBrowserRow(m).img).toBeNull();
   });
 });
 

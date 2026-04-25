@@ -1016,6 +1016,7 @@ export function itemDocToBrowserRow(doc: CompendiumDocument): ItemBrowserRow {
     isMagical: isMagical(system),
     hasVariants: variants.length > 0,
     isRemastered: isRemastered(system),
+    img: pickPortraitUrl(doc),
   };
 }
 
@@ -1051,6 +1052,7 @@ export function itemMatchToBrowserRow(m: CompendiumMatch): ItemBrowserRow {
     isMagical: allTraits.includes('magical') || allTraits.includes('invested'),
     hasVariants: false,
     isRemastered: null,
+    img: m.img && !isDefaultIcon(m.img) ? m.img : null,
   };
 }
 
