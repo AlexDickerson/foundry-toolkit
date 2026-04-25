@@ -440,16 +440,29 @@ function monsterSkills(system: Record<string, unknown>): string {
   return parts.join(', ');
 }
 
+/** Return null for Foundry's generic placeholder icons — they're not
+ *  real portraits and aren't worth fetching or displaying. */
+function isDefaultIcon(path: string): boolean {
+  return path.includes('/default-icons/');
+}
+
+/** Return the portrait path, or null if it's a default placeholder. */
+function pickPortraitUrl(doc: CompendiumDocument): string | null {
+  const img = doc.img;
+  if (!img || isDefaultIcon(img)) return null;
+  return img;
+}
+
 /** Prefer a doc-level tokenImg when the mcp bridge populates it; fall
  *  back to the portrait. See the prototypeToken bridge PR. */
 function pickTokenUrl(doc: CompendiumDocument): string | null {
   const maybe = (doc as { tokenImg?: unknown }).tokenImg;
-  if (typeof maybe === 'string' && maybe.length > 0) return maybe;
+  if (typeof maybe === 'string' && maybe.length > 0 && !isDefaultIcon(maybe)) return maybe;
   // TODO(compendium-migration): once bridge PR landing prototypeToken
   // merges, this fallback can be removed — `tokenImg` will always be
   // present on actor docs and we'll surface null when it's genuinely
   // missing (unlike the portrait, which every doc has).
-  return doc.img || null;
+  return pickPortraitUrl(doc);
 }
 
 // ---------------------------------------------------------------------------
@@ -544,7 +557,7 @@ export function monsterDocToRow(doc: CompendiumDocument): MonsterRow {
     actions: r.abilities,
     description: r.description,
     aon_url: r.aon_url,
-    image_file: doc.img || null,
+    image_file: pickPortraitUrl(doc),
     token_file: pickTokenUrl(doc),
   };
 }
@@ -581,7 +594,7 @@ export function monsterDocToDetail(doc: CompendiumDocument): MonsterDetail {
     abilities: r.abilities,
     description: r.description,
     aonUrl: r.aon_url,
-    imageUrl: doc.img || null,
+    imageUrl: pickPortraitUrl(doc),
     tokenUrl: pickTokenUrl(doc),
   };
 }

@@ -364,6 +364,17 @@ describe('monsterDocToDetail', () => {
     expect(out.tokenUrl).toBe('systems/pf2e/icons/tokens/young-red-dragon-token.webp');
     expect(out.skills).toContain('Athletics +22');
   });
+
+  it('returns null imageUrl and tokenUrl for default-icons placeholders', () => {
+    const doc: CompendiumDocument = {
+      ...youngRedDragonDoc(),
+      img: 'systems/pf2e/icons/default-icons/npc.svg',
+      ...{ tokenImg: 'systems/pf2e/icons/default-icons/npc.svg' },
+    };
+    const out = monsterDocToDetail(doc);
+    expect(out.imageUrl).toBeNull();
+    expect(out.tokenUrl).toBeNull();
+  });
 });
 
 describe('monsterDocToSummary / monsterMatchToSummary', () => {
