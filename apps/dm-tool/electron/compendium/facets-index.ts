@@ -75,11 +75,17 @@ function aggregateMonsterFacets(matches: CompendiumMatch[]): MonsterFacets {
       if (m.level < minLevel) minLevel = m.level;
       if (m.level > maxLevel) maxLevel = m.level;
     }
+    // Rarity is stored in system.traits.rarity (a scalar) by the MCP server,
+    // not in the traits value array. Read the dedicated field first; fall back
+    // to scanning traits for legacy / alternative data sources.
+    if (m.rarity) {
+      rarities.add(m.rarity.toLowerCase());
+    }
     const mTraits = m.traits ?? [];
     for (const t of mTraits) {
       const lower = t.toLowerCase();
       if (RARITY_TRAITS.has(lower)) {
-        rarities.add(lower);
+        rarities.add(lower); // fallback: rarity string present in traits array
       } else if (SIZE_TRAITS.has(lower)) {
         sizes.add(lower);
       } else if (KNOWN_CREATURE_TYPES.includes(lower)) {
