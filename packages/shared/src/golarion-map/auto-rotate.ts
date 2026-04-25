@@ -1,9 +1,9 @@
 // Golarion globe auto-rotation helper.
 // Advances the map center longitude each animation frame so the globe
 // appears to spin slowly under a stationary viewer. Rotation stops
-// permanently on the first user interaction (drag, zoom, pitch, wheel,
-// click, touch) and can also be cancelled manually via the returned
-// teardown function.
+// permanently the first time the user manually drags the globe
+// (drag, rotate, or pitch gesture) and can also be cancelled via the
+// returned teardown function. Scroll/wheel zooms do not stop rotation.
 //
 // Use `jumpTo` (not `easeTo`) for per-frame nudges — it's cheaper and
 // avoids fighting its own animation queue.
@@ -73,10 +73,12 @@ export function startAutoRotate(map: Map, options?: AutoRotateOptions): () => vo
   let cancelled = false;
   let delayTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const canvas = map.getCanvas();
-
   // ---- Interaction listeners -----------------------------------------------
 
+  // Only stop on manual drag gestures (left-click drag, right-click rotate,
+  // two-finger pitch). Scroll/wheel events zoom the map but should not
+  // interrupt the auto-rotation.
+  //
   // MapLibre *start events carry `originalEvent` only when the action was
   // user-initiated. Programmatic changes (e.g. our own jumpTo calls) do not
   // set originalEvent, so we ignore those to avoid self-cancelling.
@@ -86,21 +88,12 @@ export function startAutoRotate(map: Map, options?: AutoRotateOptions): () => vo
     }
   }
 
-  // DOM events on the canvas fire only on real user input — no filtering needed.
-  function onDomInteraction(): void {
-    cancel('interaction');
-  }
-
   // ---- Cancel / teardown --------------------------------------------------
 
   function removeListeners(): void {
     map.off('dragstart', onMapStart);
     map.off('rotatestart', onMapStart);
     map.off('pitchstart', onMapStart);
-    map.off('zoomstart', onMapStart);
-    canvas.removeEventListener('wheel', onDomInteraction);
-    canvas.removeEventListener('mousedown', onDomInteraction);
-    canvas.removeEventListener('touchstart', onDomInteraction);
   }
 
   function cancel(reason: 'interaction' | 'manual'): void {
@@ -146,15 +139,12 @@ export function startAutoRotate(map: Map, options?: AutoRotateOptions): () => vo
     rafId = requestAnimationFrame(frame);
   }
 
-  // Register interaction listeners immediately so any user touch before the
-  // delay elapses also cancels the pending start.
+  // Register drag listeners immediately so a drag before the delay elapses
+  // also cancels the pending start. Scroll/wheel is intentionally excluded —
+  // zooming should not interrupt auto-rotation.
   map.on('dragstart', onMapStart);
   map.on('rotatestart', onMapStart);
   map.on('pitchstart', onMapStart);
-  map.on('zoomstart', onMapStart);
-  canvas.addEventListener('wheel', onDomInteraction, { passive: true });
-  canvas.addEventListener('mousedown', onDomInteraction);
-  canvas.addEventListener('touchstart', onDomInteraction, { passive: true });
 
   if (opts.startDelayMs > 0) {
     delayTimer = setTimeout(startLoop, opts.startDelayMs);
