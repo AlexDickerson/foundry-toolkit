@@ -250,3 +250,139 @@ describe('rank ordering edge cases', () => {
     expect(evaluateAll(parsePrerequisite('master in any skill'), ctx)).toBe('meets');
   });
 });
+
+// ---------------------------------------------------------------------------
+// A Home in Every Port — "Charisma +3" (ability modifier notation)
+// ---------------------------------------------------------------------------
+
+describe('A Home in Every Port: "Charisma +3"', () => {
+  const PREREQ = 'Charisma +3';
+
+  it('parses to ability predicate with score threshold 16 (10 + 2*3)', () => {
+    expect(parsePrerequisite(PREREQ)).toEqual([{ kind: 'ability', ability: 'cha', min: 16 }]);
+  });
+
+  it('passes when character has Charisma mod +3 (score 16)', () => {
+    const ctx = makeCtx({ abilityMods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 3 } });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when character has Charisma mod +4 (exceeds threshold)', () => {
+    const ctx = makeCtx({ abilityMods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 4 } });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('fails when character has Charisma mod +2 (score 14, one short)', () => {
+    const ctx = makeCtx({ abilityMods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 2 } });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('fails when character has Charisma mod 0', () => {
+    const ctx = makeCtx({ abilityMods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 } });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('"Strength +2" parses correctly to min score 14', () => {
+    expect(parsePrerequisite('Strength +2')).toEqual([{ kind: 'ability', ability: 'str', min: 14 }]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Bloodsense — "master in Perception" (Perception lives outside sys.skills)
+// ---------------------------------------------------------------------------
+
+describe('Bloodsense: "master in Perception"', () => {
+  const PREREQ = 'master in Perception';
+
+  it('passes when character is master in Perception', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['perception', 3]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when character is legendary in Perception (exceeds master)', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['perception', 4]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('fails when character is expert in Perception', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['perception', 2]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('fails when character is untrained in Perception', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['perception', 0]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Caravan Leader — "Pick Up the Pace" (feat name prerequisite)
+// ---------------------------------------------------------------------------
+
+describe('Caravan Leader: "Pick Up the Pace" feat prereq', () => {
+  const PREREQ = 'Pick Up the Pace';
+
+  it('parses to a feat predicate', () => {
+    expect(parsePrerequisite(PREREQ)).toEqual([{ kind: 'feat', name: 'Pick Up the Pace' }]);
+  });
+
+  it('passes when character has the feat', () => {
+    const ctx = makeCtx({ features: new Set(['pick up the pace']) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('fails when character does not have the feat', () => {
+    const ctx = makeCtx({ features: new Set() });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('fails when character has other feats but not this one', () => {
+    const ctx = makeCtx({ features: new Set(['fleet', 'assurance']) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('feat name lookup is case-insensitive (evaluator lowercases the name)', () => {
+    // The evaluator calls pred.name.toLowerCase() before the Set lookup,
+    // so "Pick Up the Pace" and "pick up the pace" both resolve to 'meets'
+    // when the character has the feat stored in lowercase.
+    const ctx = makeCtx({ features: new Set(['pick up the pace']) });
+    expect(evaluateAll(parsePrerequisite('Pick Up the Pace'), ctx)).toBe('meets');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Doublespeak — "master at Deception" (uses "at" instead of "in")
+// ---------------------------------------------------------------------------
+
+describe('Doublespeak: "master at Deception"', () => {
+  const PREREQ = 'master at Deception';
+
+  it('parses correctly despite "at" keyword', () => {
+    expect(parsePrerequisite(PREREQ)).toEqual([{ kind: 'skill-rank', skill: 'deception', min: 3 }]);
+  });
+
+  it('passes when character is master in Deception', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['deception', 3]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when character is legendary in Deception', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['deception', 4]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('fails when character is expert in Deception', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['deception', 2]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('fails when character is trained in Deception', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['deception', 1]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('"expert at Arcana" also works', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['arcana', 2]]) });
+    expect(evaluateAll(parsePrerequisite('expert at Arcana'), ctx)).toBe('meets');
+  });
+});

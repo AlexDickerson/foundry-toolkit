@@ -11,6 +11,9 @@ export function fromPreparedCharacter(actor: PreparedCharacter): CharacterContex
   for (const [slug, stat] of Object.entries(sys.skills)) {
     skillRanks.set(slug.toLowerCase(), stat.rank);
   }
+  // Perception is a separate stat in pf2e (not in sys.skills) but is used in
+  // prereqs like "master in Perception".
+  skillRanks.set('perception', sys.perception.rank);
 
   const abilityMods: Record<AbilityKey, number> = {
     str: sys.abilities.str.mod,

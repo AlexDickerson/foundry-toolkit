@@ -19,12 +19,14 @@ const RANK_WORDS: Record<string, ProficiencyRank> = {
   legendary: 4,
 };
 
-// "trained in Athletics" / "expert in Medicine"
-const SKILL_RANK_RE = /^\s*(trained|expert|master|legendary)\s+in\s+([A-Za-z][A-Za-z\s-]*?)\s*$/i;
+// "trained in Athletics" / "expert in Medicine" / "master at Deception"
+const SKILL_RANK_RE = /^\s*(trained|expert|master|legendary)\s+(?:in|at)\s+([A-Za-z][A-Za-z\s-]*?)\s*$/i;
 // "5th level" / "Level 5" / "level 5"
 const LEVEL_RE = /^\s*(?:(\d+)(?:st|nd|rd|th)?\s+level|level\s+(\d+))\s*$/i;
-// "Strength 14" / "Wisdom 16+"
+// "Strength 14" / "Wisdom 16+" (score)
 const ABILITY_RE = /^\s*(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+(\d+)\+?\s*$/i;
+// "Charisma +3" (modifier). Stored as score = 10 + 2*mod so the existing ability evaluator applies.
+const ABILITY_MOD_RE = /^\s*(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+\+(\d+)\s*$/i;
 const ABILITY_KEY: Record<string, Predicate & { kind: 'ability' } extends { ability: infer A } ? A : never> = {
   strength: 'str',
   dexterity: 'dex',
@@ -34,10 +36,10 @@ const ABILITY_KEY: Record<string, Predicate & { kind: 'ability' } extends { abil
   charisma: 'cha',
 } as const;
 
-// "trained in at least one skill" / "trained in any skill"
-const SKILL_RANK_ANY_RE = /^\s*(trained|expert|master|legendary)\s+in\s+(?:at\s+least\s+one|any)\s+skill\s*$/i;
-// Captures "rank in <rest>" so we can detect or-lists before comma-splitting mangles them
-const SKILL_RANK_IN_RE = /^\s*(trained|expert|master|legendary)\s+in\s+(.+?)\s*$/i;
+// "trained in at least one skill" / "trained in any skill" / "trained at any skill"
+const SKILL_RANK_ANY_RE = /^\s*(trained|expert|master|legendary)\s+(?:in|at)\s+(?:at\s+least\s+one|any)\s+skill\s*$/i;
+// Captures "rank in/at <rest>" so we can detect or-lists before comma-splitting mangles them
+const SKILL_RANK_IN_RE = /^\s*(trained|expert|master|legendary)\s+(?:in|at)\s+(.+?)\s*$/i;
 
 export function parsePrerequisite(raw: string): Predicate[] {
   // Try whole-string patterns first — some prereqs contain commas or "or" as
@@ -106,6 +108,15 @@ function parsePhrase(phrase: string): Predicate {
     }
   }
 
+  const abilMod = ABILITY_MOD_RE.exec(phrase);
+  if (abilMod && abilMod[1] && abilMod[2]) {
+    const ability = ABILITY_KEY[abilMod[1].toLowerCase()];
+    const mod = Number.parseInt(abilMod[2], 10);
+    if (ability && Number.isFinite(mod)) {
+      return { kind: 'ability', ability, min: 10 + 2 * mod };
+    }
+  }
+
   const abil = ABILITY_RE.exec(phrase);
   if (abil && abil[1] && abil[2]) {
     const ability = ABILITY_KEY[abil[1].toLowerCase()];
@@ -113,6 +124,13 @@ function parsePhrase(phrase: string): Predicate {
     if (ability && Number.isFinite(min)) {
       return { kind: 'ability', ability, min };
     }
+  }
+
+  // Title-cased phrases that match no other pattern are treated as feat/feature
+  // names. The evaluator returns 'meets' if the character owns the item, 'fails'
+  // if not — upgrading these from 'unknown' to a real gate.
+  if (/^[A-Z][A-Za-z\s'-]*$/.test(phrase.trim())) {
+    return { kind: 'feat', name: phrase.trim() };
   }
 
   return { kind: 'unsupported', raw: phrase };
