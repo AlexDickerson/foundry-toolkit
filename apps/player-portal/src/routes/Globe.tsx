@@ -12,6 +12,8 @@ import {
   PIN_SOURCE,
   buildMapStyle,
   createCloudsLayer,
+  createHaloLayer,
+  createLimbDarkeningLayer,
   createStarsLayer,
   ensureDefaultImage,
   ensureIconImage,
@@ -83,9 +85,11 @@ export function Globe() {
     map.on('style.load', () => {
       map.setProjection({ type: 'globe' });
       startAutoRotate(map, { startDelayMs: 500 });
+      // Limb darkening: subtle black overlay concentrated at the silhouette edge,
+      // providing the spherical-curvature depth cue. Added before clouds so the
+      // darkening is visible beneath any cloud cover.
+      map.addLayer(createLimbDarkeningLayer());
       // Ambient cloud wash — player-portal only; not in dm-tool.
-      // Added after style.load so it sits above terrain/labels but below the
-      // pin icon layer, which is added in the 'load' handler below.
       map.addLayer(createCloudsLayer());
     });
 
@@ -112,6 +116,12 @@ export function Globe() {
         type: 'geojson',
         data: pinsToGeoJson(pinsRef.current, map),
       });
+
+      // Atmospheric halo: soft glow ring at the globe silhouette, giving the
+      // depth cue that makes the globe read as a sphere rather than a flat disc.
+      // Added after the cloud layer (style.load) and before pin icons so the
+      // halo is visible at the limb without obscuring map markers.
+      map.addLayer(createHaloLayer());
 
       map.addLayer({
         id: PIN_LAYER,
