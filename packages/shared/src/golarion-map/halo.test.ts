@@ -9,23 +9,23 @@ import { mergeHaloOptions } from './halo.js';
 describe('mergeHaloOptions — defaults', () => {
   it('returns all defaults when called with no argument', () => {
     const opts = mergeHaloOptions();
-    expect(opts.widthPx).toBe(35);
+    expect(opts.widthPx).toBe(18);
     expect(opts.innerFeatherPx).toBe(8);
     expect(opts.color).toEqual([0.18, 0.52, 1.0]);
-    expect(opts.opacity).toBe(0.6);
+    expect(opts.opacity).toBe(0.45);
   });
 
   it('returns all defaults when called with an empty object', () => {
     const opts = mergeHaloOptions({});
-    expect(opts.widthPx).toBe(35);
+    expect(opts.widthPx).toBe(18);
     expect(opts.innerFeatherPx).toBe(8);
     expect(opts.color).toEqual([0.18, 0.52, 1.0]);
-    expect(opts.opacity).toBe(0.6);
+    expect(opts.opacity).toBe(0.45);
   });
 
   it('returns all defaults when called with undefined', () => {
     const opts = mergeHaloOptions(undefined);
-    expect(opts.widthPx).toBe(35);
+    expect(opts.widthPx).toBe(18);
     expect(opts.innerFeatherPx).toBe(8);
   });
 });
@@ -37,20 +37,20 @@ describe('mergeHaloOptions — partial overrides', () => {
     const opts = mergeHaloOptions({ widthPx: 60 });
     expect(opts.widthPx).toBe(60);
     expect(opts.innerFeatherPx).toBe(8);
-    expect(opts.opacity).toBe(0.6);
+    expect(opts.opacity).toBe(0.45);
     expect(opts.color).toEqual([0.18, 0.52, 1.0]);
   });
 
   it('applies innerFeatherPx override while keeping other defaults', () => {
     const opts = mergeHaloOptions({ innerFeatherPx: 15 });
     expect(opts.innerFeatherPx).toBe(15);
-    expect(opts.widthPx).toBe(35);
+    expect(opts.widthPx).toBe(18);
   });
 
   it('applies opacity override while keeping other defaults', () => {
     const opts = mergeHaloOptions({ opacity: 0.5 });
     expect(opts.opacity).toBe(0.5);
-    expect(opts.widthPx).toBe(35);
+    expect(opts.widthPx).toBe(18);
     expect(opts.innerFeatherPx).toBe(8);
     expect(opts.color).toEqual([0.18, 0.52, 1.0]);
   });
@@ -59,8 +59,8 @@ describe('mergeHaloOptions — partial overrides', () => {
     const color: [number, number, number] = [0.3, 0.7, 1.0];
     const opts = mergeHaloOptions({ color });
     expect(opts.color).toEqual([0.3, 0.7, 1.0]);
-    expect(opts.opacity).toBe(0.6);
-    expect(opts.widthPx).toBe(35);
+    expect(opts.opacity).toBe(0.45);
+    expect(opts.widthPx).toBe(18);
   });
 });
 

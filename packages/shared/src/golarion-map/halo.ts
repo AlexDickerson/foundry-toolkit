@@ -28,7 +28,7 @@ import type { CustomLayerInterface, CustomRenderMethodInput, Map as MaplibreMap 
  *  defaults produce a clearly visible atmospheric rim that reads as planetary
  *  curvature without obscuring the map surface. */
 export interface HaloOptions {
-  /** Width of the glow band outside the globe silhouette, in CSS pixels. Default: 35 */
+  /** Width of the glow band outside the globe silhouette, in CSS pixels. Default: 18 */
   widthPx?: number;
   /** How far inside the silhouette the alpha tapers to zero, in CSS pixels.
    *  A small value (default: 8) provides anti-aliasing at the limb without
@@ -37,7 +37,7 @@ export interface HaloOptions {
   /** Halo colour as linear RGB [R, G, B] in the 0–1 range.
    *  Default: atmospheric blue [0.18, 0.52, 1.0]. */
   color?: [number, number, number];
-  /** Peak opacity of the halo at the silhouette edge. Default: 0.6 */
+  /** Peak opacity of the halo at the silhouette edge. Default: 0.45 */
   opacity?: number;
 }
 
@@ -55,10 +55,10 @@ export interface ResolvedHaloOptions {
 /** Merge caller-supplied options with per-field defaults. */
 export function mergeHaloOptions(options?: HaloOptions): ResolvedHaloOptions {
   return {
-    widthPx: options?.widthPx ?? 35,
+    widthPx: options?.widthPx ?? 18,
     innerFeatherPx: options?.innerFeatherPx ?? 8,
     color: options?.color ?? [0.18, 0.52, 1.0],
-    opacity: options?.opacity ?? 0.6,
+    opacity: options?.opacity ?? 0.45,
   };
 }
 
