@@ -1,9 +1,9 @@
-// Unit tests for the monster IPC helpers that don't require a live
-// Electron environment. `toMonsterFileUrl` is the pure URL-rewrite
-// function used before returning MonsterDetail to the renderer.
+// Unit tests for the monster image-URL rewrite helper.
+// Imports from the Electron-free utility module so these tests run
+// in the headless CI environment without a real Electron binary.
 
 import { describe, expect, it } from 'vitest';
-import { toMonsterFileUrl } from './monsters';
+import { toMonsterFileUrl } from '../compendium/image-url';
 
 describe('toMonsterFileUrl', () => {
   it('converts a Foundry relative path to a monster-file URL', () => {
