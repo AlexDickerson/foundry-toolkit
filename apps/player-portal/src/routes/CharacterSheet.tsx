@@ -18,6 +18,7 @@ import { Spells } from '../components/tabs/Spells';
 import { useEventChannel } from '../lib/useEventChannel';
 import { fromPreparedCharacter } from '../prereqs';
 import { usePreferences } from '../lib/usePreferences';
+import { PromptQueue } from '../components/dialog/PromptQueue';
 
 type State =
   | { kind: 'loading' }
@@ -207,6 +208,9 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
           }}
         />
       )}
+      {/* Relay dialogs from Foundry — mounted unconditionally so it
+          subscribes to the prompt stream as long as the sheet is open. */}
+      <PromptQueue />
     </main>
   );
 }
