@@ -178,6 +178,71 @@ async function searchMonsters(api: CompendiumApi, packIds: readonly string[], qu
   return results.map((r, i) => formatMonsterForChat(r, i + 1)).join('\n\n');
 }
 
+/** Apply all facet filters that are not expressed in the server-side
+ *  searchCompendium call. The mcp wire contract does not yet support level
+ *  ranges, rarity, size, creature type, trait lists, sources, or stat-range
+ *  filters — so we fetch the full match list and narrow in-process.
+ *
+ *  String comparisons are case-insensitive so UI-facing filter values
+ *  (e.g. 'Uncommon', 'HUMANOID') match whatever case the server returns.
+ *
+ *  Stat fields (hp/ac/fort/ref/will) default to 0 when absent from the match
+ *  (cache-cold path). A stat-range filter therefore excludes cache-cold entries
+ *  that don't meet the threshold — this is intentional: we can't verify the
+ *  stat for an uncached monster.
+ */
+function filterMonsterMatchesClientSide(matches: CompendiumMatch[], params: MonsterSearchParams): CompendiumMatch[] {
+  return matches.filter((m) => {
+    // Level range
+    if (params.levels != null) {
+      const [min, max] = params.levels;
+      const lvl = m.level ?? 0;
+      if (lvl < min || lvl > max) return false;
+    }
+
+    // Rarity — facets surface lowercase values; compare case-insensitively
+    if (params.rarities && params.rarities.length > 0) {
+      const matchRarity = (m.rarity ?? 'common').toLowerCase();
+      if (!params.rarities.some((r) => r.toLowerCase() === matchRarity)) return false;
+    }
+
+    // Size
+    if (params.sizes && params.sizes.length > 0) {
+      const matchSize = (m.size ?? '').toLowerCase();
+      if (!matchSize || !params.sizes.some((s) => s.toLowerCase() === matchSize)) return false;
+    }
+
+    // Creature type
+    if (params.creatureTypes && params.creatureTypes.length > 0) {
+      const matchType = (m.creatureType ?? '').toLowerCase();
+      if (!matchType || !params.creatureTypes.some((ct) => ct.toLowerCase() === matchType)) return false;
+    }
+
+    // Traits — ALL selected traits must appear on the monster
+    if (params.traits && params.traits.length > 0) {
+      const mTraits = (m.traits ?? []).map((t) => t.toLowerCase());
+      if (!params.traits.every((t) => mTraits.includes(t.toLowerCase()))) return false;
+    }
+
+    // Source — publication title
+    if (params.sources && params.sources.length > 0) {
+      const matchSource = (m.source ?? '').toLowerCase();
+      if (!matchSource || !params.sources.some((s) => s.toLowerCase() === matchSource)) return false;
+    }
+
+    // Numeric stat ranges
+    if (params.hpMin != null && (m.hp ?? 0) < params.hpMin) return false;
+    if (params.hpMax != null && (m.hp ?? 0) > params.hpMax) return false;
+    if (params.acMin != null && (m.ac ?? 0) < params.acMin) return false;
+    if (params.acMax != null && (m.ac ?? 0) > params.acMax) return false;
+    if (params.fortMin != null && (m.fort ?? 0) < params.fortMin) return false;
+    if (params.refMin != null && (m.ref ?? 0) < params.refMin) return false;
+    if (params.willMin != null && (m.will ?? 0) < params.willMin) return false;
+
+    return true;
+  });
+}
+
 async function listMonsters(
   api: CompendiumApi,
   packIds: readonly string[],
@@ -207,16 +272,21 @@ async function listMonsters(
           return tokens.every((tok) => name.includes(tok) || traits.some((t) => t.includes(tok)));
         });
 
-  const summaries = filtered.map(monsterMatchToSummary);
+  // Apply all client-side facet filters that aren't expressed in the
+  // server-side wire call (level range, rarity, size, creature type,
+  // traits, source, and numeric stat ranges).
+  const facetFiltered = filterMonsterMatchesClientSide(filtered, params);
+
+  const summaries = facetFiltered.map(monsterMatchToSummary);
 
   // Warn when the mcp server's cache wasn't warm for these packs — stats
   // (hp/ac/saves) will be 0 on every grid chip until the cache warms and
   // the user triggers a fresh query. This typically resolves within seconds
   // of Foundry connecting; it's a transient state, not an error.
-  const statslesCount = filtered.filter((m) => m.hp === undefined).length;
+  const statslesCount = facetFiltered.filter((m) => m.hp === undefined).length;
   if (statslesCount > 0) {
     console.warn(
-      `[compendium] ${statslesCount.toString()} of ${filtered.length.toString()} monster matches missing stats (hp/ac/saves). ` +
+      `[compendium] ${statslesCount.toString()} of ${facetFiltered.length.toString()} monster matches missing stats (hp/ac/saves). ` +
         `mcp cache may still be warming for the requested packs — grid chips will show 0 until the cache is ready.`,
       { packIds },
     );
@@ -224,17 +294,15 @@ async function listMonsters(
 
   const sortBy = params.sortBy ?? 'level';
   const sortDir = params.sortDir ?? 'asc';
-  if (sortBy === 'name' || sortBy === 'level') {
-    summaries.sort((a, b) => {
-      const av = sortBy === 'name' ? a.name : a.level;
-      const bv = sortBy === 'name' ? b.name : b.level;
-      if (typeof av === 'string' && typeof bv === 'string') {
-        return sortDir === 'desc' ? bv.localeCompare(av) : av.localeCompare(bv);
-      }
-      const diff = (av as number) - (bv as number);
-      return sortDir === 'desc' ? -diff : diff;
-    });
-  }
+  summaries.sort((a, b) => {
+    const av = sortBy === 'name' ? a.name : sortBy === 'hp' ? a.hp : sortBy === 'ac' ? a.ac : a.level;
+    const bv = sortBy === 'name' ? b.name : sortBy === 'hp' ? b.hp : sortBy === 'ac' ? b.ac : b.level;
+    if (typeof av === 'string' && typeof bv === 'string') {
+      return sortDir === 'desc' ? bv.localeCompare(av) : av.localeCompare(bv);
+    }
+    const diff = (av as number) - (bv as number);
+    return sortDir === 'desc' ? -diff : diff;
+  });
 
   return summaries;
 }
