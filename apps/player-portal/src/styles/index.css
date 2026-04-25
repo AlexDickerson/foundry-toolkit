@@ -21,6 +21,7 @@
 }
 
 [data-portal-theme='dark'] {
+  /* Portal nav/page surface tokens */
   --portal-bg: #0d111e;
   --portal-surface: #141928;
   --portal-surface-hover: #1b2236;
@@ -30,6 +31,35 @@
   --portal-accent: var(--color-pf-tertiary-dark); /* #cbb77a parchment gold */
   --portal-accent-subtle: rgba(203, 183, 122, 0.12);
   --portal-accent-border: rgba(203, 183, 122, 0.4);
+
+  /* PF2e token overrides — extend dark mode to CharactersLayout, the
+   * character sheet, and the character creator. CharactersLayout uses
+   * var(--color-pf-bg/text) inline; sheet/creator use bg-pf-* / text-pf-*
+   * Tailwind utilities. All cascade from this ancestor div. */
+
+  /* Surfaces */
+  --color-pf-bg: #0d111e;
+  --color-pf-bg-dark: #141928;
+  --color-pf-sub: #8a8fa5;
+  --color-pf-text: #e8e4dc;
+  --color-pf-text-muted: #8a8fa5;
+  --color-pf-border: #252e45;
+
+  /* Palette — brightened so these remain legible as text/accents on dark
+   * surfaces (text-pf-primary links, text-pf-secondary templated text,
+   * text-pf-alt-dark section headers). bg-pf-primary/secondary buttons
+   * keep their own white text so contrast is unaffected there. */
+  --color-pf-primary: #b50000;
+  --color-pf-primary-dark: #8a0000;
+  --color-pf-primary-light: #d01010;
+  --color-pf-secondary: #3b56d4;
+  --color-pf-secondary-dark: #2a3fb5;
+  --color-pf-secondary-light: #5a70e8;
+  --color-pf-alt: #a89070;
+  --color-pf-alt-dark: #c4b098; /* was #443730 — section headers need light text */
+  --color-pf-alt-light: #d4c0a8;
+  /* Tertiary (gold) and rarity/proficiency/success colors stay unchanged —
+   * they're light or semantic and already work on dark backgrounds. */
 }
 
 /* Custom Tailwind utilities for portal theming. Using @utility (not @theme)
