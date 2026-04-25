@@ -3,6 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- base href="/" ensures Foundry asset paths like `icons/foo.webp`
+         (no leading slash, as stored in Foundry) resolve to /icons/foo.webp
+         regardless of which SPA route the browser is currently on (e.g.
+         /characters/:actorId). Without this, the browser would resolve them
+         relative to the current path segment, producing /characters/icons/...
+         which is not handled by any proxy prefix. -->
+    <base href="/" />
     <title>Player Portal</title>
     <style>
       html,

@@ -8,7 +8,7 @@ type Node = string | { [k: string]: Node };
 
 function lookup(key: string): string {
   const parts = key.split('.');
-  let node: Node = en as Node;
+  let node: Node = en;
   for (const part of parts) {
     if (typeof node !== 'object' || !(part in node)) {
       return key;
