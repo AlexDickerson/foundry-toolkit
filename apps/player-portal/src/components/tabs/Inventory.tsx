@@ -735,7 +735,7 @@ function GridTile({
           right-0 (spans exactly the <details> width) rather than a
           fixed pixel value so it always tracks the tile. */}
       <details className="group relative rounded border border-pf-border bg-pf-bg open:z-10 open:min-w-[18rem] open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
-        <summary className="flex cursor-pointer list-none flex-col items-center gap-1 p-2 text-center hover:bg-pf-bg-dark/40">
+        <summary className="flex cursor-pointer list-none flex-col items-start gap-1 p-2 hover:bg-pf-bg-dark/40">
           <div className="relative">
             <img src={item.img} alt="" className="h-14 w-14 rounded border border-pf-border bg-pf-bg-dark" />
             {item.system.quantity > 1 && (
@@ -747,7 +747,7 @@ function GridTile({
           <span className="line-clamp-2 text-[11px] font-medium leading-tight text-pf-text" title={item.name}>
             {item.name}
           </span>
-          <div className="flex min-h-[16px] flex-wrap justify-center gap-1">
+          <div className="flex min-h-[16px] flex-wrap gap-1">
             <EquippedBadge item={item} />
           </div>
           {sellContext && <SellButton item={item} context={sellContext} />}
