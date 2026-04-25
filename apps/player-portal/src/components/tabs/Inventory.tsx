@@ -730,9 +730,11 @@ function GridTile({
 }): React.ReactElement {
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
-      {/* Border lives on <details> (not <summary>) so open:rounded-b-none
-          + panel border-t-0 form one continuous card shape. */}
-      <details className="group relative rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
+      {/* open:min-w-[18rem] expands the tile rightward to match the panel
+          so both share the same right border edge. Panel uses left-0
+          right-0 (spans exactly the <details> width) rather than a
+          fixed pixel value so it always tracks the tile. */}
+      <details className="group relative rounded border border-pf-border bg-pf-bg open:min-w-[18rem] open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
         <summary className="flex cursor-pointer list-none flex-col items-center gap-1 p-2 text-center hover:bg-pf-bg-dark/40">
           <div className="relative">
             <img src={item.img} alt="" className="h-14 w-14 rounded border border-pf-border bg-pf-bg-dark" />
@@ -750,10 +752,7 @@ function GridTile({
           </div>
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
-        {/* min-w-[18rem] keeps descriptions readable on narrow tiles;
-            the panel may overhang to the right which is fine. No mt-1 —
-            border-t-0 seals directly against the <details> bottom edge. */}
-        <div className="absolute left-0 top-full z-20 min-w-[18rem] rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 text-left text-sm text-pf-text shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 text-left text-sm text-pf-text shadow-lg">
           <ItemDescription item={item} />
         </div>
       </details>
