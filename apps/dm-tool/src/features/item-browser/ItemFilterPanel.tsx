@@ -17,18 +17,18 @@ interface ItemFilterPanelProps {
 
 const RARITY_OPTS = ['COMMON', 'UNCOMMON', 'RARE', 'UNIQUE'] as const;
 
-const RARITY_COLORS: Record<string, string> = {
-  COMMON: 'border-border bg-background hover:bg-accent',
-  UNCOMMON: 'border-orange-600/40 bg-orange-950/30 hover:bg-orange-950/50 text-orange-300',
-  RARE: 'border-blue-600/40 bg-blue-950/30 hover:bg-blue-950/50 text-blue-300',
-  UNIQUE: 'border-purple-600/40 bg-purple-950/30 hover:bg-purple-950/50 text-purple-300',
+const RARITY_BORDER: Record<string, string> = {
+  COMMON: 'border-zinc-500',
+  UNCOMMON: 'border-amber-500',
+  RARE: 'border-blue-500',
+  UNIQUE: 'border-purple-500',
 };
 
-const RARITY_ACTIVE: Record<string, string> = {
-  COMMON: 'border-primary bg-primary text-primary-foreground',
-  UNCOMMON: 'border-orange-500 bg-orange-600 text-white',
-  RARE: 'border-blue-500 bg-blue-600 text-white',
-  UNIQUE: 'border-purple-500 bg-purple-600 text-white',
+const RARITY_FILL: Record<string, string> = {
+  COMMON: 'bg-zinc-500 text-white',
+  UNCOMMON: 'bg-amber-600 text-white',
+  RARE: 'bg-blue-600 text-white',
+  UNIQUE: 'bg-purple-600 text-white',
 };
 
 export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelProps) {
@@ -121,7 +121,10 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
                     onClick={() => toggleRarity(r)}
                     className={cn(
                       'rounded-md border px-2 py-1 text-xs capitalize transition-colors',
-                      active ? RARITY_ACTIVE[r] : RARITY_COLORS[r],
+                      RARITY_BORDER[r] ?? 'border-border',
+                      active
+                        ? (RARITY_FILL[r] ?? 'bg-primary text-primary-foreground')
+                        : 'bg-background hover:bg-accent',
                     )}
                   >
                     {r.toLowerCase()}
