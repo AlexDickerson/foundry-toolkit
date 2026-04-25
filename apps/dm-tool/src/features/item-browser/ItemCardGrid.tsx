@@ -112,11 +112,24 @@ export function ItemCardGrid({ groups, selectedId, onSelect, loading }: Props) {
                         )}
                         style={{ height: CARD_H }}
                       >
-                        {/* Name + group count */}
+                        {/* Name + icon + group count */}
                         <div className="flex items-start justify-between gap-1">
-                          <span className="min-w-0 truncate font-medium leading-tight">
-                            {isGroup ? displayName(item.name) : item.name}
-                          </span>
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            {item.img && (
+                              <img
+                                src={item.img}
+                                alt=""
+                                className="h-7 w-7 shrink-0 rounded object-contain"
+                                loading="lazy"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            )}
+                            <span className="min-w-0 truncate font-medium leading-tight">
+                              {isGroup ? displayName(item.name) : item.name}
+                            </span>
+                          </div>
                           {isGroup && (
                             <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums leading-none text-primary">
                               {group.siblings.length}

@@ -34,7 +34,7 @@ export function registerIpcHandlers(
   registerBookHandlers(bookDb, cfg, getMainWindow);
   registerChatHandlers(getMainWindow);
   registerMonsterHandlers(cfg.foundryMcpUrl);
-  registerItemHandlers();
+  registerItemHandlers(cfg.foundryMcpUrl);
   registerCompendiumHandlers();
   registerTaggerHandlers(cfg, getMainWindow);
   registerAutoWallHandlers(cfg);

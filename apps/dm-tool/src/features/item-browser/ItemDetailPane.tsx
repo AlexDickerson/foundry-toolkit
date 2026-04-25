@@ -48,52 +48,51 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
       {detail && (
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-4 p-4">
-            {/* Level + type + rarity row */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-lg font-bold tabular-nums text-foreground">
-                  {detail.level != null ? `Level ${detail.level}` : 'Level —'}
+            {/* Stacked metadata (left) + icon (right) */}
+            <div className="flex items-start gap-3">
+              <div className="flex flex-1 flex-col gap-1.5">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-lg font-bold tabular-nums text-foreground">
+                    {detail.level != null ? `Level ${detail.level}` : 'Level —'}
+                  </span>
+                  {detail.itemType && (
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      {formatItemType(detail.itemType)}
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={cn(
+                    'self-start rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize leading-none',
+                    RARITY_CHIP[detail.rarity] || RARITY_CHIP.COMMON,
+                  )}
+                >
+                  {detail.rarity.toLowerCase()}
                 </span>
-                {detail.itemType && (
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {formatItemType(detail.itemType)}
+                {detail.isMagical && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
+                    <Sparkles className="h-3 w-3" />
+                    Magical
+                  </span>
+                )}
+                {detail.isRemastered === false && (
+                  <span className="self-start rounded border border-yellow-700/40 bg-yellow-950/30 px-1.5 py-0.5 text-[10px] font-medium leading-none text-yellow-400">
+                    Legacy
                   </span>
                 )}
               </div>
-              <span
-                className={cn(
-                  'rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize leading-none',
-                  RARITY_CHIP[detail.rarity] || RARITY_CHIP.COMMON,
-                )}
-              >
-                {detail.rarity.toLowerCase()}
-              </span>
-              {detail.isMagical && (
-                <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
-                  <Sparkles className="h-3 w-3" />
-                  Magical
-                </span>
-              )}
-              {detail.isRemastered === false && (
-                <span className="rounded border border-yellow-700/40 bg-yellow-950/30 px-1.5 py-0.5 text-[10px] font-medium leading-none text-yellow-400">
-                  Legacy
-                </span>
+              {detail.img && (
+                <img
+                  src={detail.img}
+                  alt=""
+                  className="h-24 w-24 shrink-0 rounded-md object-contain"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
               )}
             </div>
-
-            {/* Traits */}
-            {detail.traits.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {detail.traits.map((t) => (
-                  <span
-                    key={t}
-                    className="rounded border border-border bg-accent/60 px-1.5 py-0.5 text-[10px] leading-none text-foreground/80"
-                  >
-                    {t.toLowerCase()}
-                  </span>
-                ))}
-              </div>
-            )}
 
             <Separator />
 
@@ -195,6 +194,23 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
                   <ExternalLink className="h-3 w-3" />
                   View on Archives of Nethys
                 </button>
+              </>
+            )}
+
+            {/* Traits */}
+            {detail.traits.length > 0 && (
+              <>
+                <Separator />
+                <div className="flex flex-wrap gap-1">
+                  {detail.traits.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded border border-border bg-accent/60 px-1.5 py-0.5 text-[10px] leading-none text-foreground/80"
+                    >
+                      {t.toLowerCase()}
+                    </span>
+                  ))}
+                </div>
               </>
             )}
           </div>

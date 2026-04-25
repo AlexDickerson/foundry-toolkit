@@ -173,6 +173,10 @@ export interface ItemBrowserRow {
   hasVariants: boolean;
   /** true = ORC/remastered, false = OGL/legacy, null = unknown. */
   isRemastered: boolean | null;
+  /** Renderer-ready URL for the item's Foundry icon (already routed through
+   *  the asset proxy or monster-file:// protocol by the IPC layer). Null
+   *  when the icon is missing or is a default-icon placeholder. */
+  img?: string | null;
 }
 
 export interface ItemVariant {
