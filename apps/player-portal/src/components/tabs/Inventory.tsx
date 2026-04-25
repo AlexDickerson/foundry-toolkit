@@ -744,7 +744,7 @@ function GridTile({
               </span>
             )}
           </div>
-          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-pf-text" title={item.name}>
+          <span className="line-clamp-2 min-h-[2.5em] text-[11px] font-medium leading-tight text-pf-text" title={item.name}>
             {item.name}
           </span>
           <div className="flex min-h-[16px] flex-wrap gap-1">
