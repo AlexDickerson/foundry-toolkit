@@ -53,13 +53,10 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
         {detail.description && (
           <button
             type="button"
-            onClick={() => setLoreOpen((prev) => !prev)}
-            aria-pressed={loreOpen}
-            aria-label={loreOpen ? 'Hide lore' : 'Show lore'}
-            className={cn(
-              'flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors',
-              loreOpen ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-            )}
+            aria-label="Show lore"
+            onMouseEnter={() => setLoreOpen(true)}
+            onMouseLeave={() => setLoreOpen(false)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <Info className="h-4 w-4" />
           </button>
@@ -76,7 +73,7 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
       {loading ? (
         <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">Loading…</div>
       ) : (
-        <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 flex-1">
           {/* Left stat column */}
           <div className="flex w-16 shrink-0 flex-col items-center gap-3 border-r border-border py-3 text-[10px]">
             <StatCell label="AC" value={String(detail.ac)} />
@@ -95,11 +92,6 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
           {/* Right content */}
           <ScrollArea className="min-h-0 min-w-0 flex-1">
             <div className="space-y-4 p-4">
-              {/* Lore — visible only when the info chip is active */}
-              {loreOpen && detail.description && (
-                <p className="text-xs leading-relaxed text-muted-foreground">{detail.description}</p>
-              )}
-
               {/* Speed, Skills, Immunities/Weaknesses/Resistances */}
               <div className="space-y-1 text-xs">
                 <Stat label="Speed" value={detail.speed} />
@@ -174,6 +166,17 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
               )}
             </div>
           </ScrollArea>
+
+          {/* Lore overlay — covers the full content area on info-chip hover */}
+          {loreOpen && detail.description && (
+            <div
+              className="absolute inset-0 z-10 overflow-y-auto bg-background/50 px-5 py-4 backdrop-blur-sm"
+              onMouseEnter={() => setLoreOpen(true)}
+              onMouseLeave={() => setLoreOpen(false)}
+            >
+              <p className="text-xs leading-relaxed text-foreground/90">{detail.description}</p>
+            </div>
+          )}
         </div>
       )}
 
