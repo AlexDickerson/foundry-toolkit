@@ -73,6 +73,12 @@ export function startAutoRotate(map: Map, options?: AutoRotateOptions): () => vo
   let cancelled = false;
   let delayTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // virtualLng advances every frame regardless of whether a zoom animation is
+  // in progress. We only apply it to the map when !isZooming(), so zoom easing
+  // runs undisturbed. When zoom settles the globe snaps to virtualLng — at
+  // 6°/s and a 300ms ease that's <2°, imperceptible at this rotation speed.
+  let virtualLng = map.getCenter().lng;
+
   // ---- Interaction listeners -----------------------------------------------
 
   // Only stop on manual drag gestures (left-click drag, right-click rotate,
@@ -125,15 +131,15 @@ export function startAutoRotate(map: Map, options?: AutoRotateOptions): () => vo
     const dt = (timestamp - lastTimestamp) / 1000; // seconds
     lastTimestamp = timestamp;
 
-    // Skip the center update while MapLibre is running a zoom animation
-    // (e.g. scroll-to-zoom ease). jumpTo cancels ongoing animations, which
-    // makes scrolling feel sluggish without this guard. lastTimestamp is still
-    // advanced so there is no stutter when the zoom settles.
+    // Always advance virtualLng so the rotation clock never stops.
+    const sign = opts.direction === 'east' ? 1 : -1;
+    virtualLng = normalizeLng(virtualLng + opts.degreesPerSecond * dt * sign);
+
+    // Skip jumpTo while MapLibre is running a zoom ease — jumpTo cancels
+    // in-progress animations. When isZooming() clears the globe applies
+    // virtualLng directly, catching up the accumulated delta in one frame.
     if (!map.isZooming()) {
-      const center = map.getCenter();
-      const sign = opts.direction === 'east' ? 1 : -1;
-      const newLng = normalizeLng(center.lng + opts.degreesPerSecond * dt * sign);
-      map.jumpTo({ center: [newLng, center.lat] });
+      map.jumpTo({ center: [virtualLng, map.getCenter().lat] });
     }
 
     rafId = requestAnimationFrame(frame);
