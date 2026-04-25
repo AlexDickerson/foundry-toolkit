@@ -1,6 +1,16 @@
+import { type MouseEvent, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { Encounter } from '@foundry-toolkit/shared/types';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   encounters: Encounter[];
@@ -12,6 +22,28 @@ interface Props {
 }
 
 export function EncounterList({ encounters, activeId, loading, onSelect, onCreate, onDelete }: Props) {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  const pendingEncounter = pendingDeleteId != null ? (encounters.find((e) => e.id === pendingDeleteId) ?? null) : null;
+
+  function handleDeleteRequest(ev: MouseEvent<HTMLButtonElement>, id: string, name: string): void {
+    ev.stopPropagation();
+    console.info('[EncounterList] delete confirm shown — encounter id:', id, 'name:', name);
+    setPendingDeleteId(id);
+  }
+
+  function handleConfirm(): void {
+    if (pendingDeleteId == null) return;
+    console.info('[EncounterList] delete confirmed — encounter id:', pendingDeleteId);
+    onDelete(pendingDeleteId);
+    setPendingDeleteId(null);
+  }
+
+  function handleDismiss(): void {
+    console.info('[EncounterList] delete dismissed — encounter id:', pendingDeleteId);
+    setPendingDeleteId(null);
+  }
+
   return (
     <>
       <div
@@ -65,10 +97,7 @@ export function EncounterList({ encounters, activeId, loading, onSelect, onCreat
               </div>
               <button
                 type="button"
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  if (window.confirm(`Delete encounter "${e.name}"?`)) onDelete(e.id);
-                }}
+                onClick={(ev) => handleDeleteRequest(ev, e.id, e.name)}
                 aria-label={`Delete ${e.name}`}
                 className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/15 hover:text-destructive group-hover:opacity-100"
               >
@@ -78,6 +107,30 @@ export function EncounterList({ encounters, activeId, loading, onSelect, onCreat
           ))
         )}
       </div>
+
+      <Dialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(open) => {
+          if (!open) handleDismiss();
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete encounter</DialogTitle>
+            <DialogDescription>
+              Delete &ldquo;{pendingEncounter?.name ?? ''}&rdquo;? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={handleDismiss}>
+              Cancel
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleConfirm}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
