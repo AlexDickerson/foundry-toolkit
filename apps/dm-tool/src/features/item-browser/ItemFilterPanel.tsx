@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { ItemFacets, ItemSearchParams } from '@foundry-toolkit/shared/types';
 
@@ -60,14 +60,6 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
     onChange({ ...params, isMagical: params.isMagical === value ? null : value });
   };
 
-  const setLevelRange = (values: number[]) => {
-    onChange({
-      ...params,
-      levelMin: values[0] === 0 ? undefined : values[0],
-      levelMax: values[1] === 28 ? undefined : values[1],
-    });
-  };
-
   const activeCount = useMemo(() => {
     let n = 0;
     if (params.rarities?.length) n += params.rarities.length;
@@ -108,6 +100,36 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
       <Separator variant="ornate" />
       <ScrollArea className="flex-1">
         <div className="space-y-4 p-3">
+          {/* Level range */}
+          <div>
+            <SectionLabel>Level</SectionLabel>
+            <div className="mt-1.5 flex items-center gap-2">
+              <Input
+                type="number"
+                placeholder="0"
+                value={params.levelMin ?? ''}
+                onChange={(e) => {
+                  const min = e.target.value === '' ? undefined : Number(e.target.value);
+                  onChange({ ...params, levelMin: min });
+                }}
+                className="h-7 w-16 px-1.5 text-xs"
+              />
+              <span className="text-xs text-muted-foreground">to</span>
+              <Input
+                type="number"
+                placeholder="28"
+                value={params.levelMax ?? ''}
+                onChange={(e) => {
+                  const max = e.target.value === '' ? undefined : Number(e.target.value);
+                  onChange({ ...params, levelMax: max });
+                }}
+                className="h-7 w-16 px-1.5 text-xs"
+              />
+            </div>
+          </div>
+
+          <Separator />
+
           {/* Rarity pills */}
           <div>
             <SectionLabel>Rarity</SectionLabel>
@@ -132,26 +154,6 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
                 );
               })}
             </div>
-          </div>
-
-          <Separator />
-
-          {/* Level range */}
-          <div>
-            <div className="flex items-center justify-between">
-              <SectionLabel>Level</SectionLabel>
-              <span className="text-[10px] tabular-nums text-muted-foreground">
-                {params.levelMin ?? 0} – {params.levelMax ?? 28}
-              </span>
-            </div>
-            <Slider
-              className="mt-2"
-              min={0}
-              max={28}
-              step={1}
-              value={[params.levelMin ?? 0, params.levelMax ?? 28]}
-              onValueChange={setLevelRange}
-            />
           </div>
 
           <Separator />
