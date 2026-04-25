@@ -17,9 +17,18 @@
     "./golarion-map": "./src/golarion-map/index.ts",
     "./rpc": "./src/rpc/index.ts",
     "./tokens": "./src/tokens/index.ts",
-    "./tokens/pf2e.css": "./src/tokens/pf2e.css",
-    "./tokens/fonts.css": "./src/tokens/fonts.css",
-    "./tokens/color-schemes.css": "./src/tokens/color-schemes.css"
+    "./tokens/pf2e.css": {
+      "style": "./src/tokens/pf2e.css",
+      "default": "./src/tokens/pf2e.css"
+    },
+    "./tokens/fonts.css": {
+      "style": "./src/tokens/fonts.css",
+      "default": "./src/tokens/fonts.css"
+    },
+    "./tokens/color-schemes.css": {
+      "style": "./src/tokens/color-schemes.css",
+      "default": "./src/tokens/color-schemes.css"
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
