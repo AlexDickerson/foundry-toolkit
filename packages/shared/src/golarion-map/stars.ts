@@ -111,14 +111,21 @@ uniform float u_size_amplitude;
 uniform float u_opacity;
 
 out float v_alpha;
+out float v_size_ratio;
 
 void main() {
   // Screen-space: ignore the projection matrix entirely.
   gl_Position = vec4(a_pos, 0.0, 1.0);
 
-  // Size pulses independently of brightness using its own per-star phase.
+  // Pin gl_PointSize to the maximum this star can ever reach so it never
+  // changes between frames — gl_PointSize is integer-snapped by the GPU and
+  // animating it produces visible stepping.  The smooth size variation is
+  // handled entirely in the fragment shader via v_size_ratio.
+  gl_PointSize = a_size * (1.0 + u_size_amplitude) + 1.0;
+
+  // Fraction of the sprite the gaussian should fill this frame [0, 1].
   float size_wave = sin(u_time * u_twinkle_speed + a_size_phase) * u_size_amplitude;
-  gl_PointSize = a_size * (1.0 + size_wave);
+  v_size_ratio = (1.0 + size_wave) / (1.0 + u_size_amplitude);
 
   // base + sin wave, then scaled by per-star brightness so dim stars stay
   // dim even at peak twinkle and bright stars are fully lit.
@@ -133,15 +140,17 @@ precision mediump float;
 uniform vec3 u_color;
 
 in float v_alpha;
+in float v_size_ratio;
 out vec4 fragColor;
 
 void main() {
-  vec2 coord = gl_PointCoord - vec2(0.5);
-  float dist2 = dot(coord, coord); // dist² — avoids a sqrt
+  // Divide by v_size_ratio so the gaussian tightens when the star is small
+  // and fills the sprite when the star is at peak size — smooth float math,
+  // no integer snapping.
+  vec2 coord = (gl_PointCoord - vec2(0.5)) / v_size_ratio;
+  float dist2 = dot(coord, coord);
 
   // Gaussian falloff: bright core, exponential decay outward.
-  // No hard edge — the function reaches ~0.018 at the sprite boundary
-  // so there's nothing to discard and no circular outline visible.
   float soft = exp(-dist2 * 16.0);
   fragColor = vec4(u_color, v_alpha * soft);
 }`;
