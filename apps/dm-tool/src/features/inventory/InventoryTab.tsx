@@ -66,13 +66,10 @@ export function InventoryTab() {
     }
   }, [editing, refresh]);
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      await api.inventoryDelete(id);
-      await refresh();
-    },
-    [refresh],
-  );
+  const handleDelete = useCallback(async (id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+    await api.inventoryDelete(id);
+  }, []);
 
   const totalBulk = useMemo(() => items.reduce((sum, i) => sum + (i.bulk ?? 0) * i.qty, 0), [items]);
   const totalValue = useMemo(() => items.reduce((sum, i) => sum + (i.valueCp ?? 0) * i.qty, 0), [items]);
