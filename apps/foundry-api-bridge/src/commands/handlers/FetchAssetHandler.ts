@@ -61,7 +61,15 @@ export async function fetchAssetHandler(params: FetchAssetParams): Promise<Fetch
   let bytes: string;
   try {
     const buffer = await response.arrayBuffer();
-    bytes = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    // Spread-into-fromCharCode hits the JS max-argument limit for images
+    // larger than ~65 KB. Process in 8 KB chunks instead.
+    const uint8 = new Uint8Array(buffer);
+    const CHUNK = 8192;
+    let binary = '';
+    for (let i = 0; i < uint8.length; i += CHUNK) {
+      binary += String.fromCharCode(...uint8.subarray(i, i + CHUNK));
+    }
+    bytes = btoa(binary);
   } catch (err) {
     return {
       ok: false,
