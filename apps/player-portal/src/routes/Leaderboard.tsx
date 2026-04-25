@@ -61,7 +61,7 @@ export function Leaderboard() {
                 className={[
                   'grid items-center gap-4 rounded-lg border px-4 py-3.5 [grid-template-columns:50px_1fr_auto]',
                   team.isPlayerParty
-                    ? 'border-portal-accent/40 bg-portal-accent-subtle'
+                    ? 'border-portal-accent-dim bg-portal-accent-subtle'
                     : 'border-portal-border bg-portal-surface',
                 ].join(' ')}
               >

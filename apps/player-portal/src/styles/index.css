@@ -4,9 +4,10 @@
 @import './color-schemes.css';
 
 /* Portal surface tokens — light (default) and dark variants.
- * Applied to the Layout root div via [data-portal-theme]. Tailwind
- * utilities bg-portal-*, text-portal-*, border-portal-* etc. reference
- * these via the @theme entries below. */
+ * Applied to the Layout root div via [data-portal-theme="dark"]. The
+ * @utility rules below reference these variables directly at runtime,
+ * which is why we use @utility rather than @theme: @theme is for static
+ * compile-time values only and cannot chain through runtime var() refs. */
 :root {
   --portal-bg: var(--color-pf-bg); /* #f8f4f1 cream parchment */
   --portal-surface: var(--color-pf-bg-dark); /* #e6dfd7 */
@@ -16,6 +17,7 @@
   --portal-text-muted: var(--color-pf-text-muted); /* #605856 */
   --portal-accent: var(--color-pf-primary); /* #5e0000 heraldic red */
   --portal-accent-subtle: rgba(94, 0, 0, 0.08);
+  --portal-accent-border: rgba(94, 0, 0, 0.25);
 }
 
 [data-portal-theme='dark'] {
@@ -27,17 +29,42 @@
   --portal-text-muted: #8a8fa5;
   --portal-accent: var(--color-pf-tertiary-dark); /* #cbb77a parchment gold */
   --portal-accent-subtle: rgba(203, 183, 122, 0.12);
+  --portal-accent-border: rgba(203, 183, 122, 0.4);
 }
 
-@theme {
-  --color-portal-bg: var(--portal-bg);
-  --color-portal-surface: var(--portal-surface);
-  --color-portal-surface-hover: var(--portal-surface-hover);
-  --color-portal-border: var(--portal-border);
-  --color-portal-text: var(--portal-text);
-  --color-portal-text-muted: var(--portal-text-muted);
-  --color-portal-accent: var(--portal-accent);
-  --color-portal-accent-subtle: var(--portal-accent-subtle);
+/* Custom Tailwind utilities for portal theming. Using @utility (not @theme)
+ * so that the CSS variable references are resolved at runtime against the
+ * [data-portal-theme] cascade, not at compile time. All variants
+ * (hover:, focus:, etc.) work automatically on @utility classes. */
+@utility bg-portal-bg {
+  background-color: var(--portal-bg);
+}
+@utility bg-portal-surface {
+  background-color: var(--portal-surface);
+}
+@utility bg-portal-surface-hover {
+  background-color: var(--portal-surface-hover);
+}
+@utility bg-portal-accent-subtle {
+  background-color: var(--portal-accent-subtle);
+}
+@utility text-portal-text {
+  color: var(--portal-text);
+}
+@utility text-portal-text-muted {
+  color: var(--portal-text-muted);
+}
+@utility text-portal-accent {
+  color: var(--portal-accent);
+}
+@utility border-portal-border {
+  border-color: var(--portal-border);
+}
+@utility border-portal-accent {
+  border-color: var(--portal-accent);
+}
+@utility border-portal-accent-dim {
+  border-color: var(--portal-accent-border);
 }
 
 /* Reserve scrollbar-gutter space always so the page doesn't horizontally
