@@ -107,7 +107,8 @@ export type CommandType =
   | 'get-scene-background'
   | 'update-scene'
   | 'get-combat-turn-context'
-  | 'set-event-subscription';
+  | 'set-event-subscription'
+  | 'fetch-asset';
 
 export interface RollDiceParams {
   formula: string;
@@ -1597,6 +1598,7 @@ export interface CommandParamsMap {
   'update-scene': UpdateSceneParams;
   'get-combat-turn-context': GetCombatTurnContextParams;
   'set-event-subscription': SetEventSubscriptionParams;
+  'fetch-asset': { path: string };
 }
 
 export interface CommandResultMap {
@@ -1694,4 +1696,5 @@ export interface CommandResultMap {
   'update-scene': UpdateSceneResult;
   'get-combat-turn-context': CombatTurnContext;
   'set-event-subscription': SetEventSubscriptionResult;
+  'fetch-asset': { ok: boolean; contentType?: string; bytes?: string; status?: number; error?: string };
 }

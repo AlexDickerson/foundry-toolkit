@@ -15,6 +15,7 @@ import {
   CommandRouter,
   rollDiceHandler,
   sendChatMessageHandler,
+  fetchAssetHandler,
   rollSkillHandler,
   rollSaveHandler,
   rollAbilityHandler,
@@ -161,6 +162,7 @@ function initializeWebSocket(
   commandRouter = new CommandRouter();
 
   // Pull queries
+  commandRouter.register('fetch-asset', fetchAssetHandler);
   commandRouter.register('get-world-info', getWorldInfoHandler);
   commandRouter.register('get-actors', getActorsHandler);
   commandRouter.register('get-actor', getActorHandler);
