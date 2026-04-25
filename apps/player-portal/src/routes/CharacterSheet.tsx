@@ -126,7 +126,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
           <button
             type="button"
             onClick={onBack}
-            className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+            className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
           >
             ← Actors
           </button>
