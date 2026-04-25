@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { PreparedCharacter } from '../../api/types';
 import { formatAncestryLine } from '../../lib/format';
 
@@ -46,49 +47,82 @@ export function SheetHeader({ character, onBack, onSettingsOpen }: Props): React
   const identity = formatAncestryLine(heritage, ancestry);
   const subtitle = [`Level ${level.toString()}`, cls, background, identity].filter(Boolean).join(' · ');
 
+  // Foundry asset paths are relative (e.g. "systems/pf2e/icons/...") — prepend
+  // "/" so they resolve through the Vite/Fastify asset proxy.
+  const portraitSrc = !character.img ? '' : character.img.startsWith('/') ? character.img : `/${character.img}`;
+
   return (
-    <header className="mb-4">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h1 className="font-serif text-2xl font-semibold text-pf-text">{name}</h1>
-        {rarity && rarity !== 'common' && (
-          <Badge data-badge="rarity" label={capitalise(rarity)} className={RARITY_CLASSES[rarity] ?? ''} />
-        )}
-        {alliance && (
-          <Badge data-badge="alliance" label={capitalise(alliance)} className={ALLIANCE_CLASSES[alliance] ?? ''} />
-        )}
-        {(onSettingsOpen || onBack) && (
-          <div className="ml-auto flex items-center gap-2 self-center">
-            {onSettingsOpen && (
-              <button
-                type="button"
-                onClick={onSettingsOpen}
-                data-testid="open-settings"
-                aria-label="Settings"
-                title="Settings"
-                className="flex h-7 w-7 items-center justify-center rounded border border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg"
-              >
-                <GearIcon />
-              </button>
-            )}
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                data-testid="back-to-actors"
-                className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg"
-              >
-                ← Actors
-              </button>
-            )}
-          </div>
+    <header className="mb-4 flex items-start gap-3">
+      <CharacterPortrait src={portraitSrc} name={name} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="font-serif text-2xl font-semibold text-pf-text">{name}</h1>
+          {rarity && rarity !== 'common' && (
+            <Badge data-badge="rarity" label={capitalise(rarity)} className={RARITY_CLASSES[rarity] ?? ''} />
+          )}
+          {alliance && (
+            <Badge data-badge="alliance" label={capitalise(alliance)} className={ALLIANCE_CLASSES[alliance] ?? ''} />
+          )}
+          {(onSettingsOpen || onBack) && (
+            <div className="ml-auto flex items-center gap-2 self-center">
+              {onSettingsOpen && (
+                <button
+                  type="button"
+                  onClick={onSettingsOpen}
+                  data-testid="open-settings"
+                  aria-label="Settings"
+                  title="Settings"
+                  className="flex h-7 w-7 items-center justify-center rounded border border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg"
+                >
+                  <GearIcon />
+                </button>
+              )}
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  data-testid="back-to-actors"
+                  className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg"
+                >
+                  ← Actors
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {subtitle && (
+          <p className="mt-0.5 font-sans text-sm text-pf-alt" data-section="identity">
+            {subtitle}
+          </p>
         )}
       </div>
-      {subtitle && (
-        <p className="mt-0.5 font-sans text-sm text-pf-alt" data-section="identity">
-          {subtitle}
-        </p>
-      )}
     </header>
+  );
+}
+
+function CharacterPortrait({ src, name }: { src: string; name: string }): React.ReactElement {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div
+        data-testid="character-portrait-placeholder"
+        aria-hidden
+        className="flex h-24 w-20 flex-shrink-0 items-center justify-center rounded border border-pf-border bg-pf-bg-dark text-pf-alt"
+      >
+        <PersonIcon />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={`${name} portrait`}
+      data-testid="character-portrait"
+      onError={(): void => setFailed(true)}
+      className="h-24 w-20 flex-shrink-0 rounded border border-pf-border object-cover object-top"
+    />
   );
 }
 
@@ -130,6 +164,25 @@ function GearIcon(): React.ReactElement {
     >
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function PersonIcon(): React.ReactElement {
+  return (
+    <svg
+      width="32"
+      height="32"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
     </svg>
   );
 }
