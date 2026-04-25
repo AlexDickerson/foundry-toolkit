@@ -816,6 +816,10 @@ export interface ElectronAPI {
   encountersList(): Promise<Encounter[]>;
   encountersUpsert(encounter: Encounter): Promise<void>;
   encountersDelete(id: string): Promise<void>;
+  /** Subscribe to live initiative updates pushed from Foundry via the
+   *  combat SSE channel. Fires when a combatant's initiative changes in
+   *  Foundry (e.g. a player rolls initiative). Returns an unsubscribe fn. */
+  onCombatantInitiativeUpdate(callback: (event: CombatantInitiativeEvent) => void): () => void;
   /** Generate loot for an encounter via Anthropic. Returns the new loot
    *  list; the renderer is responsible for persisting it onto the
    *  encounter via encountersUpsert. */
@@ -957,8 +961,10 @@ export interface Combatant {
   notes?: string;
   /** Foundry actor document id. Set only when the PC was added from the party
    *  picker (where we have the live actor id). Absent for manually-entered PCs
-   *  and monsters. Required by the spell cast + slot display features and the
-   *  live HP sync via the `actors` SSE channel. */
+   *  and monsters. Required by the spell cast + slot display features, the
+   *  live HP sync via the `actors` SSE channel, and to match incoming
+   *  `updateCombatant` SSE events so the tracker updates automatically when
+   *  a player rolls initiative in Foundry. */
   foundryActorId?: string;
 }
 
@@ -971,6 +977,18 @@ export interface ActorUpdate {
   actorId: string;
   changedPaths: string[];
   system: Record<string, unknown>;
+}
+
+/** Payload pushed over IPC when Foundry fires an updateCombatant hook that
+ *  sets a new initiative value. The dm-tool main process subscribes to the
+ *  foundry-mcp `combat` SSE channel and forwards these to the renderer. */
+export interface CombatantInitiativeEvent {
+  /** Foundry combat encounter id (for debugging/logging). */
+  encounterId: string;
+  /** Foundry actor id — matches `Combatant.foundryActorId`. */
+  actorId: string;
+  /** The newly-rolled initiative total. */
+  initiative: number;
 }
 
 /** One monster combatant successfully turned into a Foundry actor. */

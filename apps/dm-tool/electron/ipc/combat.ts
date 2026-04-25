@@ -15,8 +15,9 @@ import { deleteEncounter, listEncounters, upsertEncounter } from '@foundry-toolk
 import { getPreparedCompendium } from '../compendium/singleton.js';
 import { tryParseJson } from '../util.js';
 import { pushEncounterActorsToFoundry } from '../encounter-push.js';
+import { startCombatEventStream } from '../foundry-events.js';
 
-export function registerCombatHandlers(cfg: DmToolConfig): void {
+export function registerCombatHandlers(cfg: DmToolConfig, getMainWindow: () => Electron.BrowserWindow | null): void {
   ipcMain.handle('encountersList', (): Encounter[] => listEncounters());
   ipcMain.handle('encountersUpsert', (_e, enc: Encounter): void => upsertEncounter(enc));
   ipcMain.handle('encountersDelete', (_e, id: string): void => deleteEncounter(id));
@@ -126,4 +127,9 @@ export function registerCombatHandlers(cfg: DmToolConfig): void {
     }
     console.info(`pushActorHp: pushed hp=${hp.toString()} for ${actorId}`);
   });
+
+  if (cfg.foundryMcpUrl) {
+    startCombatEventStream(cfg.foundryMcpUrl, getMainWindow);
+    console.info('foundry-events: started combat SSE stream');
+  }
 }

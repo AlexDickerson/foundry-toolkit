@@ -44,5 +44,5 @@ export function registerIpcHandlers(
   registerGlobeHandlers(cfg, getMainWindow);
   registerInventoryHandlers(cfg);
   registerAurusHandlers(cfg);
-  registerCombatHandlers(cfg);
+  registerCombatHandlers(cfg, getMainWindow);
 }

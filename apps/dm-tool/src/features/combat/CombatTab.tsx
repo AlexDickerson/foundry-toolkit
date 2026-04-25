@@ -15,7 +15,7 @@ import { EncounterList } from './EncounterList';
 import { InitiativeTracker } from './InitiativeTracker';
 import { CombatantStatBlock } from './CombatantStatBlock';
 import { LootPanel } from './LootPanel';
-import { sortedCombatants } from './util';
+import { applyFoundryInitiativeUpdate, sortedCombatants } from './util';
 import { useFoundryHpSync } from './useFoundryHpSync';
 
 interface CombatTabProps {
@@ -40,6 +40,30 @@ export function CombatTab({ partyLevel, anthropicApiKey }: CombatTabProps) {
       .catch((e) => console.error('encountersList failed:', e))
       .finally(() => setLoading(false));
   }, [refresh]);
+
+  // Subscribe to Foundry initiative-change events pushed from the main
+  // process. When a combatant's initiative is updated in Foundry (e.g. a
+  // player rolls initiative), find the matching combatant by foundryActorId,
+  // stamp the new value, and persist to SQLite — no manual refresh needed.
+  useEffect(() => {
+    return api.onCombatantInitiativeUpdate((event) => {
+      setEncounters((prev) => {
+        const next = applyFoundryInitiativeUpdate(prev, event.actorId, event.initiative);
+        if (next === prev) return prev;
+        for (const enc of next) {
+          const orig = prev.find((e) => e.id === enc.id);
+          if (orig !== enc) {
+            void api
+              .encountersUpsert(enc)
+              .catch((e) =>
+                console.error(`encountersUpsert failed after initiative update for actor ${event.actorId}:`, e),
+              );
+          }
+        }
+        return next;
+      });
+    });
+  }, []);
 
   const saveEncounter = useCallback(
     async (next: Encounter): Promise<void> => {

@@ -135,15 +135,7 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
    *  foundryActorId, then displayName) so a UI bug or double-click can't
    *  add a duplicate. */
   const addPcs = useCallback(
-    (
-      pcs: ReadonlyArray<{
-        name: string;
-        initiativeMod: number;
-        hp?: number;
-        maxHp: number;
-        foundryActorId?: string;
-      }>,
-    ) => {
+    (pcs: ReadonlyArray<PcInput>) => {
       const fresh = pcs.filter(
         (pc) => !isAlreadyInEncounter(encounter.combatants, { id: pc.foundryActorId ?? '', name: pc.name }),
       );
@@ -156,7 +148,7 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
         initiative: null,
         hp: pc.hp ?? pc.maxHp,
         maxHp: pc.maxHp,
-        ...(pc.foundryActorId !== undefined ? { foundryActorId: pc.foundryActorId } : {}),
+        foundryActorId: pc.foundryActorId,
       }));
       return update({ combatants: [...encounter.combatants, ...newCombatants] });
     },
