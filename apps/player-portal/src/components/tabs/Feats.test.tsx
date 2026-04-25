@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import amiri from '../../fixtures/amiri-prepared.json';
-import type { PreparedActorItem } from '../../api/types';
+import type { FeatItem, PreparedActorItem } from '../../api/types';
 import { Feats } from './Feats';
+import { resolveFeatCategory } from '../../lib/pf2e-maps';
 
 // Amiri's expected feats grouped by category, from the live fixture.
 // Shape: { category: [featName, featName, ...] }
@@ -76,5 +77,62 @@ describe('Feats tab', () => {
     }
     // PFS Boons stays hidden when empty.
     expect(container.querySelector('[data-feat-category="pfsboon"]')).toBeNull();
+    // Archetype stays hidden when empty (not a canonical always-show category).
+    expect(container.querySelector('[data-feat-category="archetype"]')).toBeNull();
+  });
+
+  it('routes an archetype feat to its own section, not Class Feats', () => {
+    const archetypeFeat: FeatItem = makeFeat({ category: 'class', traits: ['archetype'], name: 'Crafter Dedication' });
+    const classFeat: FeatItem = makeFeat({ category: 'class', traits: [], name: 'Power Attack' });
+    const { container } = render(<Feats items={[archetypeFeat, classFeat]} />);
+
+    const archetypeSection = container.querySelector('[data-feat-category="archetype"]');
+    expect(archetypeSection, 'archetype section exists').toBeTruthy();
+    expect(archetypeSection?.textContent).toContain('Crafter Dedication');
+    expect(archetypeSection?.textContent).not.toContain('Power Attack');
+
+    const classSection = container.querySelector('[data-feat-category="class"]');
+    expect(classSection?.textContent).toContain('Power Attack');
+    expect(classSection?.textContent).not.toContain('Crafter Dedication');
+  });
+});
+
+// ─── resolveFeatCategory predicate ─────────────────────────────────────
+
+function makeFeat({ category, traits, name }: { category: string; traits: string[]; name?: string }): FeatItem {
+  return {
+    id: name ?? category,
+    name: name ?? category,
+    type: 'feat',
+    img: '',
+    system: {
+      slug: null,
+      level: { value: 1 },
+      category,
+      traits: { value: traits, rarity: 'common' },
+      description: { value: '' },
+    },
+  };
+}
+
+describe('resolveFeatCategory', () => {
+  it('routes a pure class feat to "class"', () => {
+    expect(resolveFeatCategory(makeFeat({ category: 'class', traits: ['fighter'] }))).toBe('class');
+  });
+
+  it('routes an archetype feat (category: class, trait: archetype) to "archetype"', () => {
+    expect(resolveFeatCategory(makeFeat({ category: 'class', traits: ['archetype', 'dedication'] }))).toBe('archetype');
+  });
+
+  it('routes an ancestry feat to "ancestry"', () => {
+    expect(resolveFeatCategory(makeFeat({ category: 'ancestry', traits: ['human'] }))).toBe('ancestry');
+  });
+
+  it('routes a general feat to "general"', () => {
+    expect(resolveFeatCategory(makeFeat({ category: 'general', traits: ['general'] }))).toBe('general');
+  });
+
+  it('routes a skill feat to "skill"', () => {
+    expect(resolveFeatCategory(makeFeat({ category: 'skill', traits: ['skill', 'acrobatics'] }))).toBe('skill');
   });
 });
