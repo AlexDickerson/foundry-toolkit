@@ -234,7 +234,18 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
               )}
               <ShopGearMenu shopMode={shopMode} />
             </div>
+            <div className="flex items-center gap-4">
+            {investiture !== undefined && investiture.max > 0 && (
+              <div className="flex items-center gap-2" data-stat="investiture">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">Invested</span>
+                <span className="font-mono text-sm tabular-nums text-pf-text">
+                  {investiture.value}
+                  <span className="text-pf-text-muted">/{investiture.max}</span>
+                </span>
+              </div>
+            )}
             {effectiveShopView === 'inventory' && <ViewToggle view={view} onChange={setView} />}
+          </div>
           </div>
           {effectiveShopView === 'shop' && canTransact ? (
             <ItemShopPicker items={items} onBuy={handleBuy} pending={pendingBuys} />
