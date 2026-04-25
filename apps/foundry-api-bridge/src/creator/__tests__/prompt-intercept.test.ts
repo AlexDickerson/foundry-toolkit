@@ -3,12 +3,12 @@ import type { WebSocketClient } from '@/transport/WebSocketClient';
 
 interface HookRecord {
   name: string;
-  fn: (...args: unknown[]) => void;
+  fn: (...args: unknown[]) => unknown;
 }
 
 class HooksMock {
   registered: HookRecord[] = [];
-  on(name: string, fn: (...args: unknown[]) => void): number {
+  on(name: string, fn: (...args: unknown[]) => unknown): number {
     this.registered.push({ name, fn });
     return this.registered.length;
   }
@@ -19,6 +19,15 @@ class HooksMock {
     for (const h of this.registered.filter((h) => h.name === name)) {
       h.fn(...args);
     }
+  }
+  /** Fire a hook and return the return-value of the first matching handler. */
+  fireReturn(name: string, ...args: unknown[]): unknown {
+    const handlers = this.registered.filter((h) => h.name === name);
+    let lastReturn: unknown;
+    for (const h of handlers) {
+      lastReturn = h.fn(...args);
+    }
+    return lastReturn;
   }
 }
 
@@ -155,5 +164,64 @@ describe('installPromptInterception', () => {
 
     expect(app.close).toHaveBeenCalled();
     expect(app.selection).toBeNull();
+  });
+});
+
+// ─── DamageModifierDialog suppression ────────────────────────────────────
+//
+// Clicks button[type=submit] inside app.element to trigger the dialog's own
+// submit listener: isRolled=true → this.close() through the AppV2 internal
+// path, which reliably removes the DOM element.
+
+describe('installPromptInterception — renderDamageModifierDialog', () => {
+  it('registers a renderDamageModifierDialog hook', () => {
+    installPromptInterception([]);
+    const names = hooksMock.registered.map((h) => h.name);
+    expect(names).toContain('renderDamageModifierDialog');
+  });
+
+  it('removes the element from DOM and calls close() to resolve the Promise', async () => {
+    installPromptInterception([]);
+
+    const removeMock = jest.fn();
+    const $html = { remove: removeMock };
+    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
+
+    hooksMock.fire('renderDamageModifierDialog', app, $html);
+    await Promise.resolve();
+
+    // isRolled set before close so #resolve(true) signals "proceed".
+    expect(app.isRolled).toBe(true);
+    // Element detached before browser paint.
+    expect(removeMock).toHaveBeenCalled();
+    // Promise resolved (action completes).
+    expect(app.close).toHaveBeenCalled();
+  });
+
+  it('sets isRolled before calling close() so the roll is not cancelled', async () => {
+    installPromptInterception([]);
+
+    const callOrder: string[] = [];
+    const $html = { remove: jest.fn() };
+    const app = {
+      isRolled: false,
+      close: jest.fn().mockImplementation(() => {
+        callOrder.push(`close:isRolled=${String(app.isRolled)}`);
+        return Promise.resolve();
+      }),
+    };
+    Object.defineProperty(app, 'isRolled', {
+      get() { return this._isRolled ?? false; },
+      set(v: boolean) {
+        callOrder.push(`setIsRolled:${String(v)}`);
+        this._isRolled = v;
+      },
+    });
+
+    hooksMock.fire('renderDamageModifierDialog', app, $html);
+    await Promise.resolve();
+
+    expect(callOrder[0]).toBe('setIsRolled:true');
+    expect(callOrder[1]).toMatch(/^close:isRolled=true/);
   });
 });

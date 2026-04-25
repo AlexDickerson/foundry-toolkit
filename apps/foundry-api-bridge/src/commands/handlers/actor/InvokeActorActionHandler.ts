@@ -427,7 +427,10 @@ async function rollStrikeAction(
   if (!variant) {
     throw new Error(`roll-strike: strike "${strikeSlug}" has no variant ${variantIndex.toString()}`);
   }
-  await variant.roll({});
+  // skipDialog: true — suppress PF2e's CheckDialogPF2e (situational modifier
+  // prompt). Portal players are explicitly requesting the attack; they
+  // don't need a dialog step. Consistent with rollStatisticAction.
+  await variant.roll({ skipDialog: true });
   return { ok: true };
 }
 
@@ -451,6 +454,9 @@ async function rollStrikeDamageAction(
   const critical = params['critical'] === true;
 
   const strike = resolveStrike(actor, strikeSlug);
+  // DamageModifierDialog is suppressed via the renderDamageModifierDialog hook
+  // in prompt-intercept.ts — skipDialog is NOT in DamageRollParams so passing
+  // it here has no effect. The hook handles it unconditionally.
   if (critical) {
     if (typeof strike.critical !== 'function') {
       throw new Error(`roll-strike-damage: strike "${strikeSlug}" has no critical roll`);

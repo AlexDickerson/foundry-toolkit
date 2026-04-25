@@ -4,6 +4,8 @@
 // `z.infer<>` so clients (character-creator, future consumers) can
 // import a typed body shape without redeclaring it.
 
+export * from './dialog.js';
+
 import type { z } from 'zod/v4';
 
 import type {

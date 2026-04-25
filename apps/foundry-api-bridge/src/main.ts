@@ -1,4 +1,5 @@
 import { ConfigManager } from '@/config/ConfigManager';
+import { installDialogInterception } from '@/dialog/dialog-intercept';
 import { installPromptInterception } from '@/creator/prompt-intercept';
 import { EventChannelController } from '@/events/EventChannelController';
 import {
@@ -356,6 +357,7 @@ function initializeWebSocket(
   }
 
   installPromptInterception(wsClients);
+  installDialogInterception(wsClients);
 
   for (const client of wsClients) {
     client.connect();

@@ -55,11 +55,75 @@ interface PromptResponse {
 
 const HOOK_NAME = 'renderPickAThingPrompt';
 
+// PF2e's DamageModifierDialog lets users toggle modifiers before rolling
+// damage. It extends `fav1.api.Application` (not Foundry's Dialog), so the
+// generic renderDialog hook never fires for it.
+//
+// The dialog API (src/module/system/damage/dialog.ts):
+//   app.isRolled  — false by default; close() calls #resolve(this.isRolled)
+//   Closing with isRolled=false signals CANCEL → damage roll returns null.
+//   Closing with isRolled=true  signals PROCEED → damage roll continues.
+//
+// skipDialog cannot be passed via DamageRollParams (it's not in that type);
+// it only lives in DamageDamageContext which is built from user settings.
+// So we suppress the dialog at the render hook instead.
+//
+// NOTE: this hook is intentionally unconditional — it fires whether or not
+// a portal client is connected, because the modal would stall Foundry for
+// everyone if it were left open with no GM to click it.
+interface DamageModifierDialogApp {
+  isRolled: boolean;
+  close(options?: { force?: boolean }): Promise<void>;
+}
+
 export function installPromptInterception(wsClients: readonly WebSocketClient[]): void {
   // @ts-expect-error — Foundry's Hooks global is untyped in this module
   Hooks.on(HOOK_NAME, (app: PickAThingPromptApp) => {
     void handlePrompt(app, wsClients);
   });
+
+  // Suppress PF2e's DamageModifierDialog.
+  //
+  // The dialog's own activateListeners attaches a submit listener to the
+  // outer HTML element:
+  //   html.addEventListener("submit", e => { e.preventDefault(); this.isRolled = true; this.close(); });
+  //
+  // Programmatically clicking button[type=submit] triggers that listener
+  // through the normal AppV2 path — isRolled=true → close() → #resolve(true).
+  // This is cleaner than calling app.close() externally because AppV2's
+  // async close() reliably removes the DOM element when invoked from inside
+  // its own listener chain.
+  //
+  // preRenderDamageModifierDialog was tried but AppV2 uses Hooks.callAll
+  // (unlike AppV1's Hooks.call), so returning false does not cancel the
+  // render. renderDamageModifierDialog fires reliably with the element in DOM.
+  // AppV1's render hook fires with (app, $html) where $html is the jQuery-
+  // wrapped root .app element. We remove it from the DOM immediately —
+  // before the browser paints — then call close() to resolve the internal
+  // Promise so the action completes.
+  //
+  // Why remove() instead of submitBtn.click():
+  //   • PF2e creates one DamageModifierDialog per damage component (base,
+  //     splash, persistent …); a single roll may fire this hook 2-3 times.
+  //   • AppV1's close() runs a 200 ms slideUp animation.  During that
+  //     window game-state updates can trigger re-renders, racing the
+  //     animation and leaving a zombie element.
+  //   • $html.remove() detaches the node synchronously; slideUp then runs
+  //     on a detached element (no-op), state is cleaned up after the timer.
+  //
+  // isRolled must be true before close() so pf2e's
+  //   close() { this.#resolve?.(this.isRolled); }
+  // resolves with true ("proceed") not false ("cancel").
+  // @ts-expect-error — Hooks is untyped
+  Hooks.on('renderDamageModifierDialog', (app: DamageModifierDialogApp, $html: unknown) => {
+    console.info('Foundry API Bridge | Suppressing DamageModifierDialog — removing element');
+    app.isRolled = true;
+    // Detach from DOM synchronously before any browser paint.
+    ($html as { remove(): void }).remove();
+    // Resolve the internal Promise (completes the action).
+    void app.close();
+  });
+
   console.log('Foundry API Bridge | ChoiceSet prompt interception installed');
 }
 

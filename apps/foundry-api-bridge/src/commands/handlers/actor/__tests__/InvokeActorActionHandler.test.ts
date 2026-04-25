@@ -683,7 +683,8 @@ describe('invokeActorActionHandler — roll-strike', () => {
     });
 
     const strike = (actor.system as { actions: Array<{ variants: Array<{ roll: jest.Mock }> }> }).actions[0]!;
-    expect(strike.variants[1]!.roll).toHaveBeenCalledWith({});
+    // skipDialog: true — suppress PF2e's CheckDialogPF2e for portal-initiated rolls.
+    expect(strike.variants[1]!.roll).toHaveBeenCalledWith({ skipDialog: true });
     expect(result).toEqual({ ok: true });
   });
 
@@ -772,6 +773,8 @@ describe('invokeActorActionHandler — roll-strike-damage', () => {
     });
 
     const strike = (actor.system as { actions: Array<{ damage: jest.Mock; critical: jest.Mock }> }).actions[0]!;
+    // DamageModifierDialog is suppressed via the renderDamageModifierDialog hook,
+    // not via params (skipDialog is not in DamageRollParams).
     expect(strike.damage).toHaveBeenCalledWith({});
     expect(strike.critical).not.toHaveBeenCalled();
   });
