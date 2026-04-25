@@ -77,5 +77,6 @@ export function buildCompendiumQuery(opts: CompendiumSearchOptions): string {
   if (opts.ancestrySlug !== undefined && opts.ancestrySlug.length > 0) params.set('ancestrySlug', opts.ancestrySlug);
   if (opts.maxLevel !== undefined) params.set('maxLevel', opts.maxLevel.toString());
   if (opts.limit !== undefined) params.set('limit', opts.limit.toString());
+  if (opts.offset !== undefined) params.set('offset', opts.offset.toString());
   return params.toString();
 }

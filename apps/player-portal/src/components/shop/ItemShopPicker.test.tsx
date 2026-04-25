@@ -25,7 +25,7 @@ describe('ItemShopPicker — pagination', () => {
   let searchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: makeMatches(150) });
+    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: makeMatches(150), total: 150 });
   });
 
   afterEach(() => {
@@ -142,7 +142,7 @@ describe('ItemShopPicker — pagination', () => {
       level: 0,
       price: { value: { gp: 4 } },
     }));
-    searchSpy.mockResolvedValue({ matches: filteredMatches });
+    searchSpy.mockResolvedValue({ matches: filteredMatches, total: filteredMatches.length });
     const input = container.querySelector('[data-testid="shop-search"]') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'sword' } });
     await waitFor(() => {
@@ -153,7 +153,7 @@ describe('ItemShopPicker — pagination', () => {
   });
 
   it('omits pagination controls when there is only one page', async () => {
-    searchSpy.mockResolvedValue({ matches: makeMatches(12) });
+    searchSpy.mockResolvedValue({ matches: makeMatches(12), total: 12 });
     const { container } = render(<ItemShopPicker items={[]} onBuy={vi.fn()} pending={new Set()} />);
     await waitFor(() => {
       expect(container.querySelectorAll('[data-item-uuid]').length).toBe(12);
@@ -202,7 +202,7 @@ describe('ItemShopPicker — price filter', () => {
         // price omitted entirely — should remain visible (uncached pack case)
       },
     ];
-    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: mixed });
+    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: mixed, total: mixed.length });
   });
 
   afterEach(() => {
@@ -250,7 +250,7 @@ describe('ItemShopPicker — detail overlay', () => {
         price: { value: { gp: 4 } },
       },
     };
-    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: [match] });
+    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: [match], total: 1 });
     docSpy = vi.spyOn(api, 'getCompendiumDocument').mockResolvedValue({ document: doc });
   });
 

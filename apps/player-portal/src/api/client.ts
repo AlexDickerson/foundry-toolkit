@@ -63,8 +63,8 @@ function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 export const api = {
   getActors: (): Promise<ActorSummary[]> => request<ActorSummary[]>('/actors'),
   getPreparedActor: (id: string): Promise<PreparedActor> => request<PreparedActor>(`/actors/${id}/prepared`),
-  searchCompendium: (opts: CompendiumSearchOptions): Promise<{ matches: CompendiumMatch[] }> =>
-    request<{ matches: CompendiumMatch[] }>(`/compendium/search?${buildCompendiumQuery(opts)}`),
+  searchCompendium: (opts: CompendiumSearchOptions): Promise<{ matches: CompendiumMatch[]; total: number }> =>
+    request<{ matches: CompendiumMatch[]; total: number }>(`/compendium/search?${buildCompendiumQuery(opts)}`),
   listCompendiumPacks: (opts: { documentType?: string } = {}): Promise<{ packs: CompendiumPack[] }> => {
     const params = new URLSearchParams();
     if (opts.documentType !== undefined) params.set('documentType', opts.documentType);

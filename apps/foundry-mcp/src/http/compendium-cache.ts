@@ -212,13 +212,19 @@ export class CompendiumCache {
   // (partial cache-hits would return misleading results). Passing no
   // packIds means "all cached packs"; if nothing is cached, returns
   // null too so the caller still goes to the bridge.
-  search(opts: SearchOptions): { matches: EnrichedMatch[] } | null {
+  //
+  // Response always includes `total` — the number of items matching
+  // the filters before any pagination slice — so callers can determine
+  // whether there are more pages to fetch.
+  search(opts: SearchOptions): { matches: EnrichedMatch[]; total: number } | null {
     const packs = this.lookup(opts.packIds);
     if (packs === null) return null;
     this.hits++;
-    const matches = runFilter(packs, opts);
+    const all = runFilter(packs, opts);
+    const total = all.length;
     const limit = opts.limit ?? 100;
-    return { matches: matches.slice(0, limit) };
+    const offset = opts.offset ?? 0;
+    return { matches: all.slice(offset, offset + limit), total };
   }
 
   // Aggregate DISTINCT facet values over every document in the

@@ -4,6 +4,7 @@ import type { CompendiumDocument, CompendiumMatch, CompendiumSearchOptions, Comp
 import { enrichDescription } from '../../lib/foundry-enrichers';
 import { useDebounce } from '../../lib/useDebounce';
 import { type RemoteDataState, useRemoteData } from '../../lib/useRemoteData';
+import { usePaginatedSearch } from '../../lib/usePaginatedSearch';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { evaluateDocument } from '../../prereqs';
 import type { CharacterContext, Evaluation } from '../../prereqs';
@@ -94,12 +95,14 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
     ],
   );
 
-  // Live match list. `useRemoteData` keeps the previous `ready` data
-  // visible across re-fetches so the list narrows in place without
-  // flashing an empty state between keystrokes.
-  const matchesState = useRemoteData<CompendiumMatch[]>(
-    async () => {
-      const opts: CompendiumSearchOptions = { q: debouncedQuery, limit: 50 };
+  // Live match list with pagination. `usePaginatedSearch` keeps the
+  // previous `ready` data visible across re-fetches so the list narrows
+  // in place without flashing an empty state between keystrokes.
+  // Page size is capped at 50 so the background prefetch (below) doesn't
+  // stampede the server; "Load more" fetches the next 50 on demand.
+  const { state: matchesState, hasMore, isLoadingMore, loadMore } = usePaginatedSearch<CompendiumMatch>(
+    async (offset, pageSize) => {
+      const opts: CompendiumSearchOptions = { q: debouncedQuery, limit: pageSize, offset };
       if (filters.packIds !== undefined && filters.packIds.length > 0) opts.packIds = filters.packIds;
       if (selectedSources.length > 0) opts.sources = selectedSources;
       if (filters.documentType !== undefined) opts.documentType = filters.documentType;
@@ -107,23 +110,22 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
       if (filters.anyTraits !== undefined) opts.anyTraits = filters.anyTraits;
       if (filters.maxLevel !== undefined) opts.maxLevel = filters.maxLevel;
       if (filters.ancestrySlug !== undefined) opts.ancestrySlug = filters.ancestrySlug;
-      const result = await api.searchCompendium(opts);
-      return result.matches;
+      return api.searchCompendium(opts);
     },
     // filterKey captures every filter field used inside the fetcher.
     [debouncedQuery, filterKey],
     {
-      onSuccess: (matches, isCancelled) => {
-        // Background prefetch the full document for each match so the
-        // detail pane opens instantly on click. Each worker also
-        // resolves that document's prereqs against the compendium and
-        // evaluates them against the current character context, so the
-        // per-row prereq state lights up without a second trip.
+      onPage: (newMatches, isCancelled) => {
+        // Background prefetch the full document for each NEW page's
+        // matches so the detail pane opens instantly on click.  Each
+        // worker also resolves that document's prereqs and evaluates
+        // them against the current character context so the per-row
+        // prereq state lights up without a second trip.
         // Bounded concurrency keeps the network from stampeding when
         // 50 results come back.
         const ctx = characterContext;
         void prefetchDocuments(
-          matches,
+          newMatches,
           docCacheRef.current,
           prereqCacheRef.current,
           ctx
@@ -173,8 +175,7 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
   );
 
   // Apply sort on top of whatever order the server returned. Client-side
-  // is fine because the server already caps results (limit 50 by default
-  // from the picker), so the sort runs over a tiny array. Entries missing
+  // sort runs over the accumulated (paginated) list.  Entries missing
   // a level always sink to the bottom of a Level sort (in either
   // direction) and stay alpha-asc among themselves — "unknown" shouldn't
   // leapfrog real data just because the user flipped direction.
@@ -183,7 +184,7 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
   // back `fails`. `unknown` (unparseable) stays through.
   const visibleMatches = useMemo(() => {
     if (matchesState.kind !== 'ready') return [];
-    const copy = [...matchesState.data];
+    const copy = [...matchesState.items];
     const dirMul = sort.dir === 'desc' ? -1 : 1;
     if (sort.mode === 'level') {
       const leveled = copy.filter((m) => m.level !== undefined);
@@ -354,12 +355,27 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
               <p className="p-4 text-sm italic text-pf-alt">No matches. Loosen the filters or search term.</p>
             )}
             {matchesState.kind === 'ready' && visibleMatches.length > 0 && (
-              <MatchList
-                matches={visibleMatches}
-                evaluations={evaluations}
-                activeUuid={detailTarget?.uuid}
-                onSelect={setDetailTarget}
-              />
+              <>
+                <MatchList
+                  matches={visibleMatches}
+                  evaluations={evaluations}
+                  activeUuid={detailTarget?.uuid}
+                  onSelect={setDetailTarget}
+                />
+                {(hasMore || isLoadingMore) && (
+                  <div className="border-t border-pf-border px-4 py-2 text-center">
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      disabled={isLoadingMore}
+                      data-testid="feat-picker-load-more"
+                      className="rounded border border-pf-border bg-pf-bg px-3 py-1 text-xs font-semibold uppercase tracking-widest text-pf-alt-dark transition-colors hover:border-pf-primary hover:text-pf-primary disabled:cursor-wait disabled:opacity-50"
+                    >
+                      {isLoadingMore ? 'Loading…' : `Load more (${(matchesState.total - matchesState.items.length).toString()} remaining)`}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
           {detailOpen && (
