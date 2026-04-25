@@ -1,4 +1,5 @@
 import type { PreparedCharacter } from '../../api/types';
+import { formatAncestryLine } from '../../lib/format';
 
 interface Props {
   character: PreparedCharacter;
@@ -42,7 +43,7 @@ export function SheetHeader({ character, onBack, onSettingsOpen }: Props): React
   const rarity = system.traits.rarity;
   const alliance = system.details.alliance;
 
-  const identity = [heritage, ancestry].filter(Boolean).join(' ');
+  const identity = formatAncestryLine(heritage, ancestry);
   const subtitle = [`Level ${level.toString()}`, cls, background, identity].filter(Boolean).join(' · ');
 
   return (

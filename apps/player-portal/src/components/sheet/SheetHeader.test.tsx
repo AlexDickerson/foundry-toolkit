@@ -69,4 +69,24 @@ describe('SheetHeader', () => {
     const { container } = render(<SheetHeader character={neutral} />);
     expect(container.querySelector('[data-badge="alliance"]')).toBeNull();
   });
+
+  it('does not duplicate ancestry when heritage already contains it', () => {
+    // Regression: "Venom-Resistant Vishkanya Vishkanya" was produced before
+    // the de-duplication fix.
+    const vishkanya: PreparedCharacter = {
+      ...character,
+      system: {
+        ...character.system,
+        details: {
+          ...character.system.details,
+          ancestry: { name: 'Vishkanya', trait: 'vishkanya' },
+          heritage: { name: 'Venom-Resistant Vishkanya', trait: null },
+        },
+      },
+    };
+    const { container } = render(<SheetHeader character={vishkanya} />);
+    const identity = container.querySelector('[data-section="identity"]');
+    expect(identity?.textContent).toContain('Venom-Resistant Vishkanya');
+    expect(identity?.textContent).not.toContain('Venom-Resistant Vishkanya Vishkanya');
+  });
 });
