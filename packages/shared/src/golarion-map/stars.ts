@@ -75,7 +75,7 @@ export function resolveStarsOptions(opts?: StarsOptions): ResolvedStarsOptions {
   return {
     density: opts?.density ?? 50,
     color: opts?.color ?? [1.0, 0.97, 0.92],
-    sizeRange: opts?.sizeRange ?? [1.0, 3.0],
+    sizeRange: opts?.sizeRange ?? [1.0, 8.0],
     brightnessRange: opts?.brightnessRange ?? [0.4, 1.0],
     twinkle: {
       speed: opts?.twinkle?.speed ?? 0.8,
