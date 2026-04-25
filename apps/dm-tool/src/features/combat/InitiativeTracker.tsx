@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { reserveMonsterName, rollD20, sortedCombatants } from './util';
 import { PushResultDialog } from './PushResultDialog';
 import { PARTY_ACTOR_NAME, isAlreadyInEncounter, togglePartySelection } from './party-picker-utils';
+import { useFoundryHpSync } from './useFoundryHpSync';
 
 interface Props {
   encounter: Encounter;
@@ -42,6 +43,8 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
       setPushing(false);
     }
   }, [encounter.id, monsterCount, pushing]);
+
+  useFoundryHpSync(encounter, onChange);
 
   const order = sortedCombatants(encounter.combatants);
   const currentId = order[encounter.turnIndex]?.id ?? null;

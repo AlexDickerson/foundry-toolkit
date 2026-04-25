@@ -24,6 +24,7 @@ import { registerSetupIpcHandlers } from './setup-ipc.js';
 import { scanBookRoot } from './book-scanner.js';
 import { closePf2eDb, getPf2eDb, openPf2eDb } from '@foundry-toolkit/db/pf2e';
 import { getPreparedCompendium, initPreparedCompendium } from './compendium/singleton.js';
+import { startActorHpWatcher } from './actor-hp-watcher.js';
 
 // `map-file://` and `book-file://` must be registered as privileged
 // schemes BEFORE app.ready fires, otherwise the CSP rules in index.html
@@ -436,6 +437,12 @@ async function startup(): Promise<void> {
   registerBookFileProtocol(() => bookDb);
   registerMonsterFileProtocol(bootstrap.dbPath);
   registerIpcHandlers(db, bookDb, cfg, () => mainWindow);
+
+  if (cfg.foundryMcpUrl) {
+    const watcher = startActorHpWatcher(cfg.foundryMcpUrl, () => mainWindow);
+    app.on('will-quit', () => watcher.stop());
+    console.info('actor-hp-watcher: started for', cfg.foundryMcpUrl);
+  }
 
   // Renderer-driven runtime resize of the native window-control overlay.
   // This lives in main.ts (rather than ipc.ts) because it needs the

@@ -836,6 +836,10 @@ export interface ElectronAPI {
    *  Returns null when foundryMcpUrl is not configured or the bridge is
    *  disconnected. */
   getActorSpellcasting(actorId: string): Promise<ActorSpellcasting | null>;
+  /** Subscribe to live HP updates from Foundry. Fires whenever an actor's
+   *  HP changes while the `actors` SSE channel is active. Returns an
+   *  unsubscribe function. */
+  onActorHpUpdated(callback: (update: ActorHpUpdate) => void): () => void;
 }
 
 // --- Party inventory ---------------------------------------------------------
@@ -944,8 +948,17 @@ export interface Combatant {
   notes?: string;
   /** Foundry actor document id. Set only when the PC was added from the party
    *  picker (where we have the live actor id). Absent for manually-entered PCs
-   *  and monsters. Required by the spell cast + slot display features. */
+   *  and monsters. Required by the spell cast + slot display features and the
+   *  live HP sync via the `actors` SSE channel. */
   foundryActorId?: string;
+}
+
+/** Payload pushed from the Electron main process to the renderer whenever
+ *  a Foundry actor's HP changes via the `actors` SSE channel. */
+export interface ActorHpUpdate {
+  actorId: string;
+  hp: number;
+  maxHp: number;
 }
 
 /** One monster combatant successfully turned into a Foundry actor. */
