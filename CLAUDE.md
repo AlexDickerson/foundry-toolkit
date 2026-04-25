@@ -107,6 +107,13 @@ Lint in this monorepo is slow — TypeScript-aware rules type-check across works
 - Push frequently — at minimum after every logical unit of work, and always before ending a session.
 - Run `npm run lint` + `npm run format:check` before committing; fix warnings before pushing.
 - Commit only when explicitly asked.
+- **PR descriptions must declare which apps were touched.** List the affected apps and their dev commands near the top so the reviewer knows what to spin up in the worktree. Example:
+
+  **Apps touched**
+  - `apps/dm-tool` — `npm run dev:dm-tool`
+  - `apps/foundry-mcp` — `npm run dev:mcp`
+
+  If only `packages/*` changed, name which app(s) consume the changed package so the reviewer can pick a representative one to validate. If no app needs to be spun up (pure docs / config / CI), say so explicitly.
 
 ## Key gotchas
 
