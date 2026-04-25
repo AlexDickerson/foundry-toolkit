@@ -68,9 +68,12 @@ export function MonsterFilterPanel({ facets, params, onChange }: Props) {
     <div className="flex h-full flex-col border-r border-border bg-card">
       <div className="flex h-12 shrink-0 items-center justify-between px-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs" style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>
+          <Label
+            className="text-sm tracking-wide text-foreground"
+            style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}
+          >
             Filters
-          </span>
+          </Label>
           {activeCount > 0 && (
             <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
               {activeCount}
