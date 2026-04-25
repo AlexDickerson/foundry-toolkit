@@ -76,11 +76,9 @@ export async function pushSceneToFoundry(opts: PushSceneOptions): Promise<PushSc
   });
 
   // 2. Create the scene. We always go through `create_scene_from_uvtt` even for
-  //    wall-less maps, because foundry-mcp's plain `create_scene` handler only
-  //    sets `scene.background.src` — which Foundry v14 ignores in favor of
-  //    `levels[0].background.src`. The uvtt handler sets the Level correctly, so
-  //    the image actually renders. When we don't have a real .uvtt file we
-  //    synthesize a minimal blob sized to the image with no walls or portals.
+  //    wall-less maps so that we get the correct scene dimensions from the uvtt
+  //    resolution block. When we don't have a real .uvtt file we synthesize a
+  //    minimal blob sized to the image with no walls or portals.
   const uvttData: UvttData = opts.uvttData ?? {
     resolution: {
       pixels_per_grid: DEFAULT_PIXELS_PER_GRID,
