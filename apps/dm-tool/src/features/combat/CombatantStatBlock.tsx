@@ -327,12 +327,7 @@ function SpellRow({
   const disabled = isCasting || noSlotsLeft || isExpended;
 
   return (
-    <div
-      className={cn(
-        'flex items-center gap-1.5 rounded px-1 py-0.5 text-[10px]',
-        isExpended && 'opacity-50',
-      )}
-    >
+    <div className={cn('flex items-center gap-1.5 rounded px-1 py-0.5 text-[10px]', isExpended && 'opacity-50')}>
       {spell.actions && <span className="shrink-0 text-[9px] text-muted-foreground">[{spell.actions}]</span>}
       <span className={cn('flex-1 truncate', isExpended ? 'line-through text-muted-foreground' : 'text-foreground')}>
         {spell.name}
