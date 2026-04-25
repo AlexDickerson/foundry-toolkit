@@ -125,11 +125,16 @@ export function startAutoRotate(map: Map, options?: AutoRotateOptions): () => vo
     const dt = (timestamp - lastTimestamp) / 1000; // seconds
     lastTimestamp = timestamp;
 
-    const center = map.getCenter();
-    const sign = opts.direction === 'east' ? 1 : -1;
-    const newLng = normalizeLng(center.lng + opts.degreesPerSecond * dt * sign);
-
-    map.jumpTo({ center: [newLng, center.lat] });
+    // Skip the center update while MapLibre is running a zoom animation
+    // (e.g. scroll-to-zoom ease). jumpTo cancels ongoing animations, which
+    // makes scrolling feel sluggish without this guard. lastTimestamp is still
+    // advanced so there is no stutter when the zoom settles.
+    if (!map.isZooming()) {
+      const center = map.getCenter();
+      const sign = opts.direction === 'east' ? 1 : -1;
+      const newLng = normalizeLng(center.lng + opts.degreesPerSecond * dt * sign);
+      map.jumpTo({ center: [newLng, center.lat] });
+    }
 
     rafId = requestAnimationFrame(frame);
   }
