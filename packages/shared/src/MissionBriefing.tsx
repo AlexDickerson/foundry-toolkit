@@ -165,22 +165,30 @@ export function MissionBriefing({ mission, onClose, actions }: Props) {
   const secondaryObjectives = mission.objectives.filter((o) => !o.isPrimary);
 
   return (
+    // Backdrop: fixed full-screen overlay that scrolls when the parchment is
+    // taller than the viewport. flex + justifyContent:center is the reliable
+    // way to constrain the inner card width — block-flow margin:auto inside
+    // overflow-y:auto fixed containers is inconsistent in Chromium.
+    // paddingTop 64 px on the inner div clears dm-tool's 54 px titleBarOverlay
+    // (hidden title bar, Electron native min/max/close rendered over content).
     <div
       className="fixed inset-0 z-50 overflow-y-auto"
-      style={{ background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(4px)' }}
+      style={{
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        justifyContent: 'center',
+      }}
       onClick={onClose}
     >
-      {/*
-       * max-w-3xl via Tailwind alone can fail to materialise under Tailwind 4 JIT
-       * during hot-reload (see dm-tool CLAUDE.md gotcha), so maxWidth is also set
-       * as an inline style. paddingTop of 64 px clears the 54 px native window-
-       * control overlay that dm-tool adds via titleBarOverlay (hidden title bar with
-       * Electron's native min/max/close buttons rendered over the content area).
-       * The extra ~10 px gap is harmless in any browser-based consumer.
-       */}
       <div
-        className="mx-auto w-full max-w-3xl px-8 pb-8"
-        style={{ maxWidth: 680, paddingTop: 64 }}
+        style={{
+          width: '100%',
+          maxWidth: 680,
+          padding: '64px 32px 32px',
+          alignSelf: 'flex-start',
+          flexShrink: 0,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Toolbar */}
