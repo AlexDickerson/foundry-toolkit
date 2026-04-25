@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 import { ResizableSidebar } from '@/components/ResizableSidebar';
 import { DetailOverlay } from '@/components/FloatingPanel';
 import { ItemFilterPanel } from './ItemFilterPanel';
@@ -85,6 +86,7 @@ export function ItemBrowser({ keywords = '' }: { keywords?: string }) {
   );
 
   const handleClose = useCallback(() => setClosing(true), []);
+  useEscapeToClose(handleClose, selectedId !== null);
   const handleClosed = useCallback(() => {
     setSelectedId(null);
     setClosing(false);

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ResizableSidebar } from '@/components/ResizableSidebar';
 import { DetailOverlay } from '@/components/FloatingPanel';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 import { MonsterFilterPanel } from './MonsterFilterPanel';
 import { MonsterCardGrid } from './MonsterCardGrid';
 import { MonsterDetailPane } from './MonsterDetailPane';
@@ -38,6 +39,7 @@ export function MonsterBrowser({ keywords = '' }: { keywords?: string }) {
   );
 
   const handleClose = useCallback(() => setClosing(true), []);
+  useEscapeToClose(handleClose, selectedMonster !== null);
   const handleClosed = useCallback(() => {
     setSelectedMonster(null);
     setClosing(false);

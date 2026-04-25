@@ -9,6 +9,7 @@ import { ThumbnailGrid, type ThumbnailItem } from './ThumbnailGrid';
 import { DetailPane } from './DetailPane';
 import { TaggerDialog } from './TaggerDialog';
 import { useFacets, useMapSearch, usePackMapping } from './useMaps';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { MapSummary, SearchParams } from '@foundry-toolkit/shared/types';
@@ -138,6 +139,7 @@ export function MapBrowser({
   const [detailClosing, setDetailClosing] = useState(false);
 
   const closeDetail = useCallback(() => setDetailClosing(true), []);
+  useEscapeToClose(closeDetail, selectedFileName !== null);
   const handleDetailClosed = useCallback(() => {
     setSelectedFileName(null);
     setActiveVariants(null);
