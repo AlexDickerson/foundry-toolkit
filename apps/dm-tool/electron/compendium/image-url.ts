@@ -1,17 +1,28 @@
 // Pure utility — no Electron, no I/O, no caching.
 // Extracts URL rewriting so it stays testable outside the IPC handler.
 
-/** Convert a Foundry-relative asset path (e.g. `systems/pf2e/icons/…`) to
- *  a `monster-file://img/<path>` URL that the Electron renderer can load
- *  via the registered protocol handler.
+/** Convert a Foundry-relative asset path (e.g. `systems/pf2e/icons/…` or
+ *  `modules/pf2e-tokens-bestiaries/…`) to a URL the Electron renderer can load.
  *
- *  Returns `null` for missing/empty inputs. Leaves already-absolute URLs
- *  (http/https) or `monster-file://` URLs untouched so callers are
- *  idempotent. Encodes `#` and `?` to avoid confusing URL parsers. */
-export function toMonsterFileUrl(path: string | null | undefined): string | null {
+ *  - When `mcpBaseUrl` is supplied the path is served through foundry-mcp's
+ *    existing asset proxy (`GET /modules/*`, `/systems/*`, etc.) which fetches
+ *    from the live Foundry instance over the bridge. This is the preferred path
+ *    and works for any asset regardless of where the dm-tool database lives.
+ *  - When `mcpBaseUrl` is absent (local-only install, no mcp configured) we
+ *    fall back to the `monster-file://img/<path>` Electron protocol, which
+ *    searches for the file relative to the pf2e.db directory.
+ *
+ *  Already-absolute URLs (http/https/monster-file://) are returned untouched.
+ *  Returns `null` for missing/empty inputs. */
+export function toMonsterFileUrl(path: string | null | undefined, mcpBaseUrl?: string): string | null {
   if (!path) return null;
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('monster-file://')) return path;
-  // Encode characters that URL parsers treat specially inside the path segment.
+  if (mcpBaseUrl) {
+    const base = mcpBaseUrl.replace(/\/+$/, '');
+    return `${base}/${path}`;
+  }
+  // Local-only fallback: monster-file:// protocol searches for the file
+  // relative to the pf2e.db directory by progressively stripping path segments.
   const encoded = path.replace(/#/g, '%23').replace(/\?/g, '%3F');
   return `monster-file://img/${encoded}`;
 }
