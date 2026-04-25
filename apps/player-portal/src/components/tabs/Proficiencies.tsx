@@ -1,3 +1,4 @@
+import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import type {
   CharacterSystem,
   ClassDC,
@@ -6,15 +7,18 @@ import type {
   ProficiencyRank,
   SkillStatistic,
 } from '../../api/types';
+import { api } from '../../api/client';
 import { t } from '../../i18n/t';
 import { formatSignedInt } from '../../lib/format';
 import { ATTACK_LABEL_KEY, DEFENSE_LABEL_KEY } from '../../lib/pf2e-maps';
+import { useActorAction } from '../../lib/useActorAction';
 import { ModifierTooltip } from '../common/ModifierTooltip';
 import { RankChip } from '../common/RankChip';
 import { SectionHeader } from '../common/SectionHeader';
 
 interface Props {
   system: CharacterSystem;
+  actorId: string;
 }
 
 // Proficiencies tab — a direct port of the data shape consumed by
@@ -26,7 +30,7 @@ interface Props {
 //   4. Defense proficiencies (unarmored/light/medium/heavy/barding)
 //   5. Spellcasting (omitted when rank is 0)
 //   6. Class DCs (one per class; most characters have exactly one)
-export function Proficiencies({ system }: Props): React.ReactElement {
+export function Proficiencies({ system, actorId }: Props): React.ReactElement {
   const skills = Object.values(system.skills);
   const coreSkills = skills.filter((s) => !s.lore);
   const loreSkills = skills.filter((s) => s.lore);
@@ -41,7 +45,7 @@ export function Proficiencies({ system }: Props): React.ReactElement {
       <SectionHeader>{t('PF2E.CoreSkillsHeader')}</SectionHeader>
       <ProficiencyGrid>
         {coreSkills.map((skill) => (
-          <SkillRow key={skill.slug} skill={skill} />
+          <SkillRow key={skill.slug} skill={skill} actorId={actorId} />
         ))}
       </ProficiencyGrid>
 
@@ -50,7 +54,7 @@ export function Proficiencies({ system }: Props): React.ReactElement {
           <SectionHeader>{t('PF2E.LoreSkillsHeader')}</SectionHeader>
           <ProficiencyGrid>
             {loreSkills.map((skill) => (
-              <SkillRow key={skill.slug} skill={skill} spanFull />
+              <SkillRow key={skill.slug} skill={skill} actorId={actorId} spanFull />
             ))}
           </ProficiencyGrid>
         </>
@@ -120,18 +124,41 @@ function ProficiencyGrid({ children }: { children: React.ReactNode }): React.Rea
 
 // ─── Row renderers ─────────────────────────────────────────────────────
 
-function SkillRow({ skill, spanFull }: { skill: SkillStatistic; spanFull?: boolean }): React.ReactElement {
+function SkillRow({
+  skill,
+  actorId,
+  spanFull,
+}: {
+  skill: SkillStatistic;
+  actorId: string;
+  spanFull?: boolean;
+}): React.ReactElement {
+  const roll = useActorAction({
+    run: () => createPf2eClient(api.dispatch).character(actorId).rollSkill(skill.slug),
+  });
+
   return (
     <li
       className={[
-        'group relative flex items-center gap-3 rounded border border-pf-border bg-pf-bg px-3 py-2',
+        'group relative rounded border border-pf-border bg-pf-bg',
         spanFull === true ? 'sm:col-span-2' : '',
-      ].join(' ')}
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-statistic={skill.slug}
     >
-      <Modifier value={skill.value} />
-      <span className="flex-1 truncate text-sm text-pf-text">{renderLabel(skill.label, skill.lore === true)}</span>
-      <RankChip rank={skill.rank} />
+      <button
+        type="button"
+        className="flex w-full items-center gap-3 px-3 py-2 hover:bg-pf-bg-dark disabled:opacity-50"
+        onClick={() => {
+          roll.trigger();
+        }}
+        disabled={roll.state === 'pending'}
+      >
+        <Modifier value={skill.value} />
+        <span className="flex-1 truncate text-sm text-pf-text">{renderLabel(skill.label, skill.lore === true)}</span>
+        <RankChip rank={skill.rank} />
+      </button>
       <ModifierTooltip title={skill.label} breakdown={skill.breakdown} modifiers={skill.modifiers} />
     </li>
   );

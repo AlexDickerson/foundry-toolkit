@@ -186,7 +186,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
             </>
           )}
           {activeTab === 'feats' && <Feats items={state.actor.items} />}
-          {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} />}
+          {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} actorId={actorId} />}
           {activeTab === 'progression' && (
             <Progression
               characterLevel={state.actor.system.details.level.value}

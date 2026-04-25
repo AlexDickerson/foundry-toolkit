@@ -91,6 +91,27 @@ export function createPf2eClient(dispatch: DispatchFn) {
         },
 
         /**
+         * Roll a skill check via the dispatcher.
+         *
+         * Dispatches: `actor.skills[slug].roll(opts)`
+         *
+         * Works for both core skills (acrobatics, arcana, …) and lore skills
+         * (custom slugs like "tanning-lore") — any slug present on the actor.
+         *
+         * @param slug - PF2e skill slug, e.g. 'acrobatics' or 'tanning-lore'.
+         * @param opts - PF2e CheckRollContext options, e.g. `{ skipDialog, rollMode }`.
+         *   Passed through to Foundry's roll method verbatim.
+         */
+        rollSkill(slug: string, opts: Record<string, unknown> = {}): Promise<DispatchResponse> {
+          return dispatch({
+            class: 'CharacterPF2e',
+            id: actorId,
+            method: `skills.${slug}.roll`,
+            args: [opts],
+          });
+        },
+
+        /**
          * Apply damage to the actor via the dispatcher.
          *
          * Dispatches: `actor.applyDamage(amount, opts)`

@@ -88,6 +88,57 @@ describe('createPf2eClient', () => {
     });
   });
 
+  // ─── character().rollSkill ──────────────────────────────────────────────
+
+  describe('character().rollSkill', () => {
+    it('dispatches class=CharacterPF2e, method=skills.<slug>.roll', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).character('actor-001').rollSkill('acrobatics');
+
+      expect(spy).toHaveBeenCalledOnce();
+      expect(spy).toHaveBeenCalledWith({
+        class: 'CharacterPF2e',
+        id: 'actor-001',
+        method: 'skills.acrobatics.roll',
+        args: [{}],
+      });
+    });
+
+    it('interpolates arbitrary skill slugs including lore skills', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).character('actor-001').rollSkill('tanning-lore');
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ method: 'skills.tanning-lore.roll' }));
+    });
+
+    it('passes opts through in args[0]', async () => {
+      const { dispatch, spy } = makeDispatch();
+      const opts = { skipDialog: true };
+      await createPf2eClient(dispatch).character('actor-001').rollSkill('athletics', opts);
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ args: [opts] }));
+    });
+
+    it('defaults opts to {} when omitted', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).character('actor-001').rollSkill('stealth');
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ args: [{}] }));
+    });
+
+    it('uses the actorId supplied to character()', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).character('specific-actor').rollSkill('arcana');
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ id: 'specific-actor' }));
+    });
+
+    it('returns the DispatchResponse from the dispatch function', async () => {
+      const { dispatch } = makeDispatch();
+      const expected: DispatchResponse = { result: { total: 14, formula: '1d20+3' } };
+      vi.mocked(dispatch).mockResolvedValueOnce(expected);
+
+      const resp = await createPf2eClient(dispatch).character('actor-001').rollSkill('deception');
+      expect(resp).toEqual(expected);
+    });
+  });
+
   // ─── weapon().rollDamage ─────────────────────────────────────────────────
 
   describe('weapon().rollDamage', () => {
