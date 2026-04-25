@@ -29,7 +29,7 @@ describe('Proficiencies', () => {
   });
 
   it('renders every core skill and its value + rank', () => {
-    const { container } = render(<Proficiencies system={system} />);
+    const { container } = render(<Proficiencies system={system} actorId="test-actor" />);
     for (const [slug, { value, rank }] of Object.entries(EXPECTED_SKILLS)) {
       const row = container.querySelector(`[data-statistic="${slug}"]`);
       expect(row, `row for ${slug}`).toBeTruthy();
@@ -41,14 +41,14 @@ describe('Proficiencies', () => {
   });
 
   it('renders the lore skill (Tanning Lore, from Hunter background) as a named row', () => {
-    const { container } = render(<Proficiencies system={system} />);
+    const { container } = render(<Proficiencies system={system} actorId="test-actor" />);
     const row = container.querySelector('[data-statistic="tanning-lore"]');
     expect(row, 'tanning-lore row').toBeTruthy();
     expect(within(row as HTMLElement).getAllByText('Tanning Lore').length).toBeGreaterThan(0);
   });
 
   it('renders martial attack proficiencies', () => {
-    const { container } = render(<Proficiencies system={system} />);
+    const { container } = render(<Proficiencies system={system} actorId="test-actor" />);
     for (const slug of ['simple', 'martial', 'advanced', 'unarmed']) {
       const row = container.querySelector(`[data-slug="${slug}"]`);
       expect(row, `attack row for ${slug}`).toBeTruthy();
@@ -56,7 +56,7 @@ describe('Proficiencies', () => {
   });
 
   it('renders martial defense proficiencies', () => {
-    const { container } = render(<Proficiencies system={system} />);
+    const { container } = render(<Proficiencies system={system} actorId="test-actor" />);
     for (const slug of ['unarmored', 'light', 'medium', 'heavy']) {
       const row = container.querySelector(`[data-slug="${slug}"]`);
       expect(row, `defense row for ${slug}`).toBeTruthy();
@@ -64,7 +64,7 @@ describe('Proficiencies', () => {
   });
 
   it('renders the class DC — Barbarian at DC 17', () => {
-    const { container } = render(<Proficiencies system={system} />);
+    const { container } = render(<Proficiencies system={system} actorId="test-actor" />);
     // The ClassDC row has no data-slug attribute yet; query by unique content.
     const dcRows = Array.from(container.querySelectorAll('li')).filter((li) => li.textContent?.includes('17'));
     expect(dcRows.length).toBeGreaterThan(0);
@@ -73,7 +73,7 @@ describe('Proficiencies', () => {
   });
 
   it('omits spellcasting when rank is 0', () => {
-    const { container } = render(<Proficiencies system={system} />);
+    const { container } = render(<Proficiencies system={system} actorId="test-actor" />);
     // Amiri has spellcasting rank 0; the Spells header key shouldn't render.
     const headers = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent);
     expect(headers.some((h) => h?.includes('Spells'))).toBe(false);
