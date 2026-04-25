@@ -280,52 +280,60 @@ function SpellChip({ spell }: { spell: MonsterSpellInfo }) {
           side="top"
           align="start"
           sideOffset={4}
-          className="z-50 w-72 rounded-md border border-border bg-popover p-3 text-xs shadow-md"
+          avoidCollisions
+          collisionPadding={8}
+          className="z-50 flex w-72 flex-col rounded-md border border-border bg-popover text-xs shadow-md"
+          style={{ maxHeight: 'min(420px, 70vh)' }}
         >
-          {/* Header */}
-          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-            <span className="font-semibold text-foreground">{spell.name}</span>
-            {spell.rank === 0 ? (
-              <span className="rounded bg-accent px-1 py-0.5 text-[10px] font-medium">Cantrip</span>
-            ) : (
-              <span className="rounded bg-accent px-1 py-0.5 text-[10px] font-medium tabular-nums">
-                Rank {spell.rank}
-              </span>
-            )}
-            {spell.castTime && <span className="ml-auto text-muted-foreground">{castGlyph(spell.castTime)}</span>}
+          {/* Sticky header — always visible */}
+          <div className="shrink-0 border-b border-border/50 px-3 pb-1.5 pt-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-semibold text-foreground">{spell.name}</span>
+              {spell.rank === 0 ? (
+                <span className="rounded bg-accent px-1 py-0.5 text-[10px] font-medium">Cantrip</span>
+              ) : (
+                <span className="rounded bg-accent px-1 py-0.5 text-[10px] font-medium tabular-nums">
+                  Rank {spell.rank}
+                </span>
+              )}
+              {spell.castTime && <span className="ml-auto text-muted-foreground">{castGlyph(spell.castTime)}</span>}
+            </div>
           </div>
 
-          {/* Traits */}
-          {spell.traits.length > 0 && (
-            <div className="mb-1.5 flex flex-wrap gap-1">
-              {spell.traits.map((t) => (
-                <span
-                  key={t}
-                  className="rounded border border-border px-1 py-0.5 text-[10px] capitalize text-muted-foreground"
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
+          {/* Scrollable body */}
+          <div className="min-h-0 overflow-y-auto px-3 pb-3 pt-1.5">
+            {/* Traits */}
+            {spell.traits.length > 0 && (
+              <div className="mb-1.5 flex flex-wrap gap-1">
+                {spell.traits.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded border border-border px-1 py-0.5 text-[10px] capitalize text-muted-foreground"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
 
-          {/* Range / Area / Target */}
-          {(spell.range || spell.area || spell.target) && (
-            <p className="mb-1.5 text-muted-foreground">
-              {[
-                spell.range && `Range ${spell.range}`,
-                spell.area && `Area ${spell.area}`,
-                spell.target && `Target ${spell.target}`,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          )}
+            {/* Range / Area / Target */}
+            {(spell.range || spell.area || spell.target) && (
+              <p className="mb-1.5 text-muted-foreground">
+                {[
+                  spell.range && `Range ${spell.range}`,
+                  spell.area && `Area ${spell.area}`,
+                  spell.target && `Target ${spell.target}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
 
-          {/* Description */}
-          {spell.description && (
-            <p className="whitespace-pre-wrap leading-relaxed text-foreground/80">{spell.description}</p>
-          )}
+            {/* Description */}
+            {spell.description && (
+              <p className="whitespace-pre-wrap leading-relaxed text-foreground/80">{spell.description}</p>
+            )}
+          </div>
         </HoverCard.Content>
       </HoverCard.Portal>
     </HoverCard.Root>
