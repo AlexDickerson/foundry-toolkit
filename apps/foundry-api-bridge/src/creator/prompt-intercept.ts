@@ -82,23 +82,37 @@ export function installPromptInterception(wsClients: readonly WebSocketClient[])
     void handlePrompt(app, wsClients);
   });
 
-  // Suppress PF2e's DamageModifierDialog before it reaches the DOM.
+  // Suppress PF2e's DamageModifierDialog.
   //
-  // Timing note: resolve() calls this.render(true) BEFORE the Promise
-  // constructor, so #resolve is not yet set when preRender fires. A
-  // setTimeout(0) lets resolve() finish assigning #resolve, then we
-  // close on the next tick. Returning false cancels the DOM render so
-  // the dialog never appears.
+  // The dialog's own activateListeners attaches a submit listener to the
+  // outer HTML element:
+  //   html.addEventListener("submit", e => { e.preventDefault(); this.isRolled = true; this.close(); });
   //
-  // app.isRolled must be true before close() so pf2e's
-  //   close() { this.#resolve?.(this.isRolled); }
-  // resolves the Promise with true ("proceed") not false ("cancel").
+  // Programmatically clicking button[type=submit] triggers that listener
+  // through the normal AppV2 path — isRolled=true → close() → #resolve(true).
+  // This is cleaner than calling app.close() externally because AppV2's
+  // async close() reliably removes the DOM element when invoked from inside
+  // its own listener chain.
+  //
+  // preRenderDamageModifierDialog was tried but AppV2 uses Hooks.callAll
+  // (unlike AppV1's Hooks.call), so returning false does not cancel the
+  // render. renderDamageModifierDialog fires reliably with the element in DOM.
   // @ts-expect-error — Hooks is untyped
-  Hooks.on('preRenderDamageModifierDialog', (app: DamageModifierDialogApp) => {
-    console.info('Foundry API Bridge | Suppressing DamageModifierDialog (preRender)');
-    app.isRolled = true;
-    setTimeout(() => { void app.close(); }, 0);
-    return false; // cancel DOM render — dialog never appears
+  Hooks.on('renderDamageModifierDialog', (app: DamageModifierDialogApp) => {
+    console.info(
+      `Foundry API Bridge | Suppressing DamageModifierDialog — clicking submit`,
+    );
+    // app.element is the AppV2 root HTMLElement.
+    const submitBtn = (app as unknown as { element?: HTMLElement }).element
+      ?.querySelector<HTMLButtonElement>('button[type=submit]');
+    if (submitBtn) {
+      submitBtn.click();
+    } else {
+      // Fallback: no submit button found — set isRolled and close directly.
+      console.warn('Foundry API Bridge | DamageModifierDialog: submit button not found, closing directly');
+      app.isRolled = true;
+      void app.close();
+    }
   });
 
   console.log('Foundry API Bridge | ChoiceSet prompt interception installed');

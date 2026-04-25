@@ -169,56 +169,53 @@ describe('installPromptInterception', () => {
 
 // ─── DamageModifierDialog suppression ────────────────────────────────────
 //
-// Uses preRenderDamageModifierDialog + return false to cancel the DOM render
-// entirely (dialog never appears). setTimeout(0) defers close() so that
-// resolve() can finish assigning #resolve before we call close().
+// Clicks button[type=submit] inside app.element to trigger the dialog's own
+// submit listener: isRolled=true → this.close() through the AppV2 internal
+// path, which reliably removes the DOM element.
 
-describe('installPromptInterception — preRenderDamageModifierDialog', () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it('registers a preRenderDamageModifierDialog hook', () => {
+describe('installPromptInterception — renderDamageModifierDialog', () => {
+  it('registers a renderDamageModifierDialog hook', () => {
     installPromptInterception([]);
     const names = hooksMock.registered.map((h) => h.name);
-    expect(names).toContain('preRenderDamageModifierDialog');
+    expect(names).toContain('renderDamageModifierDialog');
   });
 
-  it('returns false from the hook to cancel the DOM render', () => {
+  it('clicks the submit button so the dialog closes via its own listener', () => {
     installPromptInterception([]);
 
-    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
-    const returnValue = hooksMock.fireReturn('preRenderDamageModifierDialog', app);
+    const clickMock = jest.fn();
+    const submitBtn = { click: clickMock } as unknown as HTMLButtonElement;
+    const element = {
+      querySelector: jest.fn().mockReturnValue(submitBtn),
+    } as unknown as HTMLElement;
+    const app = {
+      isRolled: false,
+      element,
+      close: jest.fn().mockResolvedValue(undefined),
+    };
 
-    expect(returnValue).toBe(false);
-  });
+    hooksMock.fire('renderDamageModifierDialog', app);
 
-  it('sets isRolled=true immediately so close() resolves the roll as "proceed"', () => {
-    installPromptInterception([]);
-
-    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
-    hooksMock.fire('preRenderDamageModifierDialog', app);
-
-    // isRolled must be true before close() is invoked so PF2e's
-    // #resolve(this.isRolled) sends true (proceed), not false (cancel).
-    expect(app.isRolled).toBe(true);
-  });
-
-  it('calls close() after a setTimeout(0) so #resolve is assigned first', () => {
-    installPromptInterception([]);
-
-    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
-    hooksMock.fire('preRenderDamageModifierDialog', app);
-
-    // close() must not be called synchronously (race: #resolve not set yet)
+    expect(element.querySelector).toHaveBeenCalledWith('button[type=submit]');
+    expect(clickMock).toHaveBeenCalled();
+    // The app's own submit listener sets isRolled and closes — we don't do it.
     expect(app.close).not.toHaveBeenCalled();
+  });
 
-    jest.runAllTimers();
+  it('falls back to direct close when no submit button exists', async () => {
+    installPromptInterception([]);
 
+    const element = { querySelector: jest.fn().mockReturnValue(null) } as unknown as HTMLElement;
+    const app = {
+      isRolled: false,
+      element,
+      close: jest.fn().mockResolvedValue(undefined),
+    };
+
+    hooksMock.fire('renderDamageModifierDialog', app);
+    await Promise.resolve();
+
+    expect(app.isRolled).toBe(true);
     expect(app.close).toHaveBeenCalled();
   });
 });
