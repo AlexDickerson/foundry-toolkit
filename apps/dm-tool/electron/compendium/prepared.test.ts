@@ -140,7 +140,7 @@ describe('searchMonsters', () => {
 });
 
 describe('listMonsters', () => {
-  it('returns every match when no keywords are supplied (no server-side filters)', async () => {
+  it('fetches all matches with no server-side facet filters (client-side post-filter only)', async () => {
     const search = vi.fn().mockResolvedValue({
       matches: [
         monsterMatch({ name: 'A', level: 1 }),
@@ -149,14 +149,9 @@ describe('listMonsters', () => {
       ],
     });
     const api = fakeApi({ searchCompendium: search });
-    // Non-keyword filters are intentionally ignored. Pack selection is
-    // the only filter sent over the wire; text search happens
-    // client-side against the returned list.
-    const out = await createPreparedCompendium(api).listMonsters({
-      levels: [3, 7],
-      traits: ['fire'],
-    });
-    expect(out.map((s) => s.name)).toEqual(['A', 'B', 'C']);
+    // The server call must NOT receive q / traits / maxLevel — those are
+    // applied client-side. Pack selection is the only thing sent over the wire.
+    await createPreparedCompendium(api).listMonsters({ levels: [3, 7], traits: ['fire'] });
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({
         limit: 10000,
@@ -168,6 +163,121 @@ describe('listMonsters', () => {
     expect(call).not.toHaveProperty('traits');
     expect(call).not.toHaveProperty('maxLevel');
     expect(call).not.toHaveProperty('documentType');
+  });
+
+  // ----- client-side filter regression tests -----
+  // These tests cover the bug where facet filters (level, rarity, size, etc.)
+  // were accepted by the UI but silently ignored — every filter change left
+  // the monster list unchanged.
+
+  it('filters by level range client-side', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'A', level: 1 }),
+        monsterMatch({ name: 'B', level: 5 }),
+        monsterMatch({ name: 'C', level: 9 }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ levels: [3, 7] });
+    expect(out.map((s) => s.name)).toEqual(['B']);
+  });
+
+  it('filters by rarity client-side (case-insensitive)', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Common', rarity: 'common' }),
+        monsterMatch({ name: 'Rare', rarity: 'rare' }),
+        monsterMatch({ name: 'Uncommon', rarity: 'uncommon' }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ rarities: ['Rare'] });
+    expect(out.map((s) => s.name)).toEqual(['Rare']);
+  });
+
+  it('filters by size client-side', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Tiny', size: 'tiny' }),
+        monsterMatch({ name: 'Large', size: 'large' }),
+        monsterMatch({ name: 'Huge', size: 'huge' }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ sizes: ['large', 'huge'] });
+    expect(out.map((s) => s.name)).toEqual(['Large', 'Huge']);
+  });
+
+  it('filters by creature type client-side (case-insensitive)', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'A Dragon', creatureType: 'Dragon' }),
+        monsterMatch({ name: 'A Humanoid', creatureType: 'Humanoid' }),
+        monsterMatch({ name: 'An Undead', creatureType: 'Undead' }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ creatureTypes: ['humanoid', 'undead'] });
+    expect(out.map((s) => s.name)).toEqual(['A Humanoid', 'An Undead']);
+  });
+
+  it('filters by traits client-side (all selected traits must be present)', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Dragon', traits: ['dragon', 'fire'] }),
+        monsterMatch({ name: 'Fire Elemental', traits: ['fire', 'elemental'] }),
+        monsterMatch({ name: 'Goblin', traits: ['humanoid', 'goblin'] }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    // Only the dragon has BOTH dragon AND fire traits
+    const out = await createPreparedCompendium(api).listMonsters({ traits: ['dragon', 'fire'] });
+    expect(out.map((s) => s.name)).toEqual(['Dragon']);
+  });
+
+  it('filters by source client-side', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'A', source: 'Bestiary' }),
+        monsterMatch({ name: 'B', source: 'Bestiary 2' }),
+        monsterMatch({ name: 'C', source: 'Monster Core' }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ sources: ['Bestiary', 'Monster Core'] });
+    expect(out.map((s) => s.name)).toEqual(['A', 'C']);
+  });
+
+  it('filters by hp range client-side', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Weak', hp: 20 }),
+        monsterMatch({ name: 'Medium', hp: 100 }),
+        monsterMatch({ name: 'Strong', hp: 300 }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ hpMin: 50, hpMax: 200 });
+    expect(out.map((s) => s.name)).toEqual(['Medium']);
+  });
+
+  it('stacks keyword + facet filters (AND semantics across filter types)', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Young Red Dragon', level: 10, rarity: 'uncommon', traits: ['dragon', 'fire'] }),
+        monsterMatch({ name: 'Young Blue Dragon', level: 10, rarity: 'rare', traits: ['dragon', 'electricity'] }),
+        monsterMatch({ name: 'Ancient Red Dragon', level: 19, rarity: 'uncommon', traits: ['dragon', 'fire'] }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    // keyword 'young' + levels [1,15] + rarities ['uncommon'] → only Young Red Dragon
+    const out = await createPreparedCompendium(api).listMonsters({
+      keywords: 'young',
+      levels: [1, 15],
+      rarities: ['uncommon'],
+    });
+    expect(out.map((s) => s.name)).toEqual(['Young Red Dragon']);
   });
 
   it('filters matches client-side by keyword (name substring)', async () => {
