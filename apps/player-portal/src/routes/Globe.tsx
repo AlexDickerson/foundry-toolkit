@@ -12,6 +12,7 @@ import {
   PIN_SOURCE,
   buildMapStyle,
   createCloudsLayer,
+  createHaloLayer,
   createStarsLayer,
   ensureDefaultImage,
   ensureIconImage,
@@ -112,6 +113,12 @@ export function Globe() {
         type: 'geojson',
         data: pinsToGeoJson(pinsRef.current, map),
       });
+
+      // Atmospheric halo: soft glow ring at the globe silhouette, giving the
+      // depth cue that makes the globe read as a sphere rather than a flat disc.
+      // Added after the cloud layer (style.load) and before pin icons so the
+      // halo is visible at the limb without obscuring map markers.
+      map.addLayer(createHaloLayer());
 
       map.addLayer({
         id: PIN_LAYER,

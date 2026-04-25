@@ -11,3 +11,5 @@ export { startAutoRotate } from './auto-rotate.js';
 export type { AutoRotateOptions } from './auto-rotate.js';
 export { createCloudsLayer, mergeCloudsOptions } from './clouds.js';
 export type { CloudsOptions } from './clouds.js';
+export { createHaloLayer, mergeHaloOptions } from './halo.js';
+export type { HaloOptions, ResolvedHaloOptions } from './halo.js';
