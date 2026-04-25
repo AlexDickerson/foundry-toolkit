@@ -517,9 +517,9 @@ function CountResource({
   return (
     <div className="flex items-center gap-2" {...rest}>
       <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">{label}</span>
-      <span className="font-mono text-sm tabular-nums text-neutral-900">
+      <span className="font-mono text-sm tabular-nums text-pf-text">
         {value}
-        <span className="text-neutral-400">/{max}</span>
+        <span className="text-pf-text-muted">/{max}</span>
       </span>
     </div>
   );
@@ -537,7 +537,7 @@ function ShieldTile({ shield }: { shield: Shield }): React.ReactElement {
         <img src={shield.icon} alt="" className="h-8 w-8 shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
       )}
       <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="text-sm font-medium text-neutral-900">{name}</span>
+        <span className="text-sm font-medium text-pf-text">{name}</span>
         <span className="text-xs text-pf-text-muted">
           <span className="font-semibold">+{shield.ac}</span> AC
         </span>
@@ -718,7 +718,7 @@ function SpeedList({ speeds }: { speeds: Array<{ key: string; speed: Speed }> })
         <span key={key} className="inline-flex items-center gap-1" data-speed={key} title={speed.breakdown}>
           <span className="tabular-nums">{speed.value} ft</span>
           <span className="text-xs text-pf-text-muted">{SPEED_LABELS[key] ?? humaniseSlug(key)}</span>
-          {idx < speeds.length - 1 && <span className="text-neutral-300">·</span>}
+          {idx < speeds.length - 1 && <span className="text-pf-border">·</span>}
         </span>
       ))}
     </span>
@@ -772,7 +772,7 @@ function XPBar({ value, max, pct }: { value: number; max: number; pct: number })
   const clamped = Math.max(0, Math.min(100, pct));
   return (
     <span className="flex items-center gap-2" data-stat="xp">
-      <span className="font-mono tabular-nums text-neutral-900">
+      <span className="font-mono tabular-nums text-pf-text">
         {value} / {max}
       </span>
       <span
