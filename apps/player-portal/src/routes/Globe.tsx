@@ -90,6 +90,10 @@ export function Globe() {
     });
 
     map.on('load', () => {
+      // Black void: remove the default blue atmosphere so stars read against
+      // actual darkness rather than MapLibre's atmospheric haze.
+      map.setSky({ 'atmosphere-blend': 0 });
+
       // Starfield backdrop: screen-space stars rendered before all other layers
       // so the globe and atmosphere paint over them in the void.
       const firstLayerId = map.getStyle().layers[0]?.id;
