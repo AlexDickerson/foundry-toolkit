@@ -127,9 +127,12 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
     [encounter.combatants, update],
   );
 
-  const addPc = useCallback(
-    (pc: { name: string; initiativeMod: number; maxHp: number }) => {
-      const combatant: Combatant = {
+  /** Add one or more PCs in a single update so all land in the same
+   *  combatants array — calling this in a loop would lose all but the
+   *  last because each call closes over the same stale snapshot. */
+  const addPcs = useCallback(
+    (pcs: ReadonlyArray<{ name: string; initiativeMod: number; maxHp: number }>) => {
+      const newCombatants: Combatant[] = pcs.map((pc) => ({
         id: crypto.randomUUID(),
         kind: 'pc',
         displayName: pc.name,
@@ -137,11 +140,14 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
         initiative: null,
         hp: pc.maxHp,
         maxHp: pc.maxHp,
-      };
-      return update({ combatants: [...encounter.combatants, combatant] });
+      }));
+      return update({ combatants: [...encounter.combatants, ...newCombatants] });
     },
     [encounter.combatants, update],
   );
+
+  // Single-PC convenience wrapper kept for the manual AddPcPanel.
+  const addPc = useCallback((pc: { name: string; initiativeMod: number; maxHp: number }) => addPcs([pc]), [addPcs]);
 
   return (
     <div style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
@@ -299,7 +305,7 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
         {addMode === 'party' && (
           <PartyPickerPanel
             existing={encounter.combatants}
-            onAdd={(pc) => void addPc(pc)}
+            onAdd={(pcs) => void addPcs(pcs)}
             onAddManually={() => setAddMode('pc-manual')}
             onClose={() => setAddMode('none')}
           />
@@ -530,10 +536,12 @@ function AddMonsterPanel({
   );
 }
 
-/** Party picker: fetches characters from Foundry's party folder and
+type PcInput = { name: string; initiativeMod: number; maxHp: number };
+
+/** Party picker: fetches characters from the PF2e party actor and
  *  presents them as a multi-select list.  Falls back to the manual
  *  form via the "Add manually" link when Foundry is not connected or
- *  the folder is empty. */
+ *  the party roster is empty. */
 function PartyPickerPanel({
   existing,
   onAdd,
@@ -541,7 +549,8 @@ function PartyPickerPanel({
   onClose,
 }: {
   existing: Combatant[];
-  onAdd: (pc: { name: string; initiativeMod: number; maxHp: number }) => void;
+  /** Called once with ALL chosen members so they land in one update. */
+  onAdd: (pcs: PcInput[]) => void;
   onAddManually: () => void;
   onClose: () => void;
 }) {
@@ -566,12 +575,21 @@ function PartyPickerPanel({
 
   const handleToggle = (id: string) => setSelected((prev) => togglePartySelection(prev, id));
 
+  const toPcInput = (m: PartyMember): PcInput => ({
+    name: m.name,
+    initiativeMod: m.initiativeMod,
+    maxHp: m.maxHp,
+  });
+
   const handleAddSelected = () => {
-    for (const m of members) {
-      if (selected.has(m.id)) {
-        onAdd({ name: m.name, initiativeMod: m.initiativeMod, maxHp: m.maxHp });
-      }
-    }
+    const chosen = members.filter((m) => selected.has(m.id)).map(toPcInput);
+    if (chosen.length === 0) return;
+    onAdd(chosen);
+    setSelected(new Set());
+  };
+
+  const handleAddAll = () => {
+    onAdd(members.map(toPcInput));
     setSelected(new Set());
   };
 
@@ -664,9 +682,14 @@ function PartyPickerPanel({
       {/* Footer actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {fetchStatus === 'ready' && members.length > 0 && (
-          <Button size="sm" onClick={handleAddSelected} disabled={selected.size === 0}>
-            {selected.size > 0 ? `Add (${selected.size.toString()})` : 'Add'}
-          </Button>
+          <>
+            <Button size="sm" onClick={handleAddSelected} disabled={selected.size === 0}>
+              {selected.size > 0 ? `Add (${selected.size.toString()})` : 'Add'}
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleAddAll}>
+              Add all
+            </Button>
+          </>
         )}
         <button
           type="button"
