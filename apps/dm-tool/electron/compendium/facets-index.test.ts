@@ -74,6 +74,17 @@ describe('aggregateMonsterFacets', () => {
     expect(out.rarities).toContain('common');
   });
 
+  it('partitions "unique" into the rarity bucket and keeps it out of traits', () => {
+    const out = __internal.aggregateMonsterFacets([
+      monsterMatch({ traits: ['unique', 'dragon'] }),
+      monsterMatch({ traits: ['common', 'humanoid'] }),
+    ]);
+    expect(out.rarities).toContain('unique');
+    expect(out.rarities).toContain('common');
+    expect(out.traits).not.toContain('unique');
+    expect(out.traits).not.toContain('common');
+  });
+
   it('produces a zero range when no rows have a level', () => {
     const out = __internal.aggregateMonsterFacets([]);
     expect(out.levelRange).toEqual([0, 0]);
