@@ -1,8 +1,9 @@
 // Ambient cloud-wash layer for the Golarion globe — player-portal only.
 //
 // Rendered as a tessellated unit-sphere mesh transformed with MapLibre's
-// globe projection matrix.  A six-octave FBM shader samples noise in
-// lon/lat space, animated by a slow time drift.  The layer clips precisely
+// globe projection matrix.  A six-octave 3D FBM shader samples noise directly
+// from the unit-sphere position, so there are no lat/lon wrapping seams,
+// no polar pinching, and no equatorial artefacts.  The layer clips precisely
 // to the globe's visible hemisphere, so no clouds bleed into the sky area.
 //
 // Usage (after style.load):
@@ -62,9 +63,10 @@ export function mergeCloudsOptions(options?: CloudsOptions): ResolvedCloudsOptio
 /**
  * Build a tessellated unit sphere.
  *
- * Returns an interleaved Float32Array with 5 floats per vertex:
- *   [x, y, z, lon, lat]  (lon ∈ [-π, π], lat ∈ [-π/2, π/2])
+ * Returns a Float32Array with 3 floats per vertex [x, y, z]
  * and a Uint16Array of triangle indices.
+ * The noise is sampled in 3D (sphere-position) space in the fragment shader,
+ * so lon/lat attributes are not needed.
  */
 function buildSphereMesh(latSteps: number, lonSteps: number): { data: Float32Array; indices: Uint16Array } {
   const verts: number[] = [];
@@ -80,8 +82,6 @@ function buildSphereMesh(latSteps: number, lonSteps: number): { data: Float32Arr
         cosLat * Math.cos(lon), // x
         cosLat * Math.sin(lon), // y
         sinLat, // z
-        lon, // attribute lon (radians)
-        lat, // attribute lat (radians)
       );
     }
   }
@@ -107,67 +107,70 @@ const SPHERE = buildSphereMesh(48, 96);
 // ---------------------------------------------------------------------------
 
 /** Vertex shader — transforms unit-sphere vertices with MapLibre's globe
- *  projection matrix and computes a signed clip-distance against the
- *  horizon plane so the fragment shader can discard the back hemisphere. */
+ *  projection matrix and passes the 3D sphere position to the fragment
+ *  shader for seamless 3D noise sampling. */
 const VERT_SRC = `
   attribute vec3 a_sphere;   // unit-sphere position (x, y, z)
-  attribute vec2 a_lonlat;   // longitude, latitude in radians
 
   uniform mat4 u_matrix;     // defaultProjectionData.mainMatrix
   uniform vec4 u_clip_plane; // defaultProjectionData.clippingPlane
 
-  varying vec2  v_lonlat;
+  varying vec3  v_sphere;    // sphere position passed to frag for 3D noise
   varying float v_visible;   // > 0 = front hemisphere
 
   void main() {
     gl_Position = u_matrix * vec4(a_sphere, 1.0);
-    v_lonlat  = a_lonlat;
+    v_sphere  = a_sphere;
     // Positive when vertex is on the camera-facing side of the globe
     v_visible = dot(u_clip_plane.xyz, a_sphere) + u_clip_plane.w;
   }
 `;
 
-/** FBM cloud fragment shader.
+/** FBM cloud fragment shader — samples noise in 3D sphere-position space.
  *
- *  Two FBM layers are sampled in lon/lat space at slowly-drifting offsets,
- *  blended, and threshold-clipped with smoothstep.  Fragments on the back
- *  hemisphere are discarded; fragments near the horizon fade softly out. */
+ *  Sampling in 3D (x,y,z on the unit sphere) is inherently seamless:
+ *  there is no lon/lat wrapping, no equatorial integer-boundary artefacts,
+ *  and no polar pinching.  Drift is a slow translation of the 3D sample
+ *  point, producing a convincing cloud-mass movement. */
 const FRAG_SRC = `
   precision highp float;
 
   uniform float u_time;    // wall-clock seconds
-  uniform float u_drift;   // driftSpeed (lon/lat UV units per second)
+  uniform float u_drift;   // driftSpeed
   uniform float u_opacity; // overall alpha cap
-  uniform float u_scale;   // UV scale for cloud features
+  uniform float u_scale;   // 3D noise scale (controls cloud feature size)
   uniform vec3  u_color;   // cloud tint
 
-  varying vec2  v_lonlat;
+  varying vec3  v_sphere;
   varying float v_visible;
 
-  // ---- noise helpers -------------------------------------------------------
+  // ---- 3-D noise helpers ---------------------------------------------------
 
-  float hash(vec2 p) {
-    p  = fract(p * vec2(234.34, 435.345));
+  float hash3(vec3 p) {
+    p  = fract(p * vec3(234.34, 435.345, 127.1));
     p += dot(p, p + 34.23);
-    return fract(p.x * p.y);
+    return fract(p.x * p.y + p.y * p.z + p.z * p.x);
   }
 
-  float vnoise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+  float vnoise3(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    vec3 u = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(mix(hash3(i),               hash3(i + vec3(1,0,0)), u.x),
+          mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), u.x), u.y),
+      mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), u.x),
+          mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), u.x), u.y),
+      u.z
+    );
   }
 
-  float fbm(vec2 p) {
+  // 6-octave 3D fractional Brownian motion
+  float fbm3(vec3 p) {
     float val = 0.0;
     float amp = 0.5;
     for (int i = 0; i < 6; i++) {
-      val += amp * vnoise(p);
+      val += amp * vnoise3(p);
       p   *= 2.0;
       amp *= 0.5;
     }
@@ -177,26 +180,21 @@ const FRAG_SRC = `
   // -------------------------------------------------------------------------
 
   void main() {
-    // Discard fragments on the back hemisphere
     if (v_visible <= 0.0) discard;
 
     float t  = u_time;
     float ds = u_drift;
+    vec3  pos = v_sphere * u_scale;
 
-    // Map lon/lat to noise UV; scale controls cloud feature size
-    vec2 uv = vec2(
-      v_lonlat.x / 6.28318530718 + 0.5,   // lon → [0, 1]
-      v_lonlat.y / 3.14159265359 + 0.5    // lat → [0, 1]
-    ) * u_scale;
-
-    // Two FBM layers at slightly different drift angles for visual depth
-    float n1 = fbm(uv + vec2(ds * t,         ds * 0.3 * t));
-    float n2 = fbm(uv * 1.6 + vec2(-ds * 0.7 * t, ds * 0.4 * t) + vec2(5.2, 1.3));
+    // Drift: translate the 3D sample point slowly — no seams, no wrapping
+    float n1 = fbm3(pos + vec3(ds * t,        ds * 0.3 * t,  ds * 0.15 * t));
+    float n2 = fbm3(pos * 1.6 + vec3(-ds * 0.7 * t, ds * 0.4 * t, -ds * 0.2 * t)
+                    + vec3(2.1, 1.3, 0.8));
 
     float cloud = mix(n1, n2, 0.4);
     cloud = smoothstep(0.38, 0.65, cloud);
 
-    // Soft fade near the globe's horizon so clouds don't hard-clip at the limb
+    // Soft fade near the globe's horizon
     float horizon = clamp(v_visible * 8.0, 0.0, 1.0);
 
     float alpha = cloud * u_opacity * horizon;
@@ -239,8 +237,8 @@ function buildProgram(gl: GL, vertSrc: string, fragSrc: string): WebGLProgram | 
   return prog;
 }
 
-// Stride between vertices in the interleaved buffer: 5 floats × 4 bytes
-const STRIDE = 20;
+// Stride between vertices: 3 floats × 4 bytes (xyz only; no lon/lat needed)
+const STRIDE = 12;
 
 // ---------------------------------------------------------------------------
 // Public factory
@@ -268,7 +266,6 @@ export function createCloudsLayer(options?: CloudsOptions): CustomLayerInterface
   let _ibo: WebGLBuffer | null = null;
   let _map: MaplibreMap | null = null;
   let _aSphere = -1;
-  let _aLonlat = -1;
   let _uMatrix: WebGLUniformLocation | null = null;
   let _uClipPlane: WebGLUniformLocation | null = null;
   let _uTime: WebGLUniformLocation | null = null;
@@ -291,7 +288,6 @@ export function createCloudsLayer(options?: CloudsOptions): CustomLayerInterface
       if (!_program) return;
 
       _aSphere = _gl.getAttribLocation(_program, 'a_sphere');
-      _aLonlat = _gl.getAttribLocation(_program, 'a_lonlat');
       _uMatrix = _gl.getUniformLocation(_program, 'u_matrix');
       _uClipPlane = _gl.getUniformLocation(_program, 'u_clip_plane');
       _uTime = _gl.getUniformLocation(_program, 'u_time');
@@ -300,7 +296,7 @@ export function createCloudsLayer(options?: CloudsOptions): CustomLayerInterface
       _uScale = _gl.getUniformLocation(_program, 'u_scale');
       _uColor = _gl.getUniformLocation(_program, 'u_color');
 
-      // Vertex buffer: interleaved [x, y, z, lon, lat]
+      // Vertex buffer: [x, y, z] per vertex (no lon/lat — noise is 3D)
       _vbo = _gl.createBuffer();
       _gl.bindBuffer(_gl.ARRAY_BUFFER, _vbo);
       _gl.bufferData(_gl.ARRAY_BUFFER, SPHERE.data, _gl.STATIC_DRAW);
@@ -336,12 +332,10 @@ export function createCloudsLayer(options?: CloudsOptions): CustomLayerInterface
 
       g.useProgram(_program);
 
-      // Bind vertex buffer and wire interleaved attributes
+      // Bind vertex buffer: 3 floats per vertex (x, y, z)
       g.bindBuffer(g.ARRAY_BUFFER, _vbo);
       g.enableVertexAttribArray(_aSphere);
-      g.vertexAttribPointer(_aSphere, 3, g.FLOAT, false, STRIDE, 0); // xyz at offset 0
-      g.enableVertexAttribArray(_aLonlat);
-      g.vertexAttribPointer(_aLonlat, 2, g.FLOAT, false, STRIDE, 12); // lonlat at offset 12
+      g.vertexAttribPointer(_aSphere, 3, g.FLOAT, false, STRIDE, 0);
 
       g.bindBuffer(g.ELEMENT_ARRAY_BUFFER, _ibo);
 
@@ -359,7 +353,6 @@ export function createCloudsLayer(options?: CloudsOptions): CustomLayerInterface
       g.drawElements(g.TRIANGLES, SPHERE.indices.length, g.UNSIGNED_SHORT, 0);
 
       g.disableVertexAttribArray(_aSphere);
-      g.disableVertexAttribArray(_aLonlat);
       g.bindBuffer(g.ARRAY_BUFFER, null);
       g.bindBuffer(g.ELEMENT_ARRAY_BUFFER, null);
       g.depthMask(true);
