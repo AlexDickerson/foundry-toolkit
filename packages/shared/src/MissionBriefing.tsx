@@ -170,7 +170,19 @@ export function MissionBriefing({ mission, onClose, actions }: Props) {
       style={{ background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
-      <div className="mx-auto w-full max-w-3xl p-8" onClick={(e) => e.stopPropagation()}>
+      {/*
+       * max-w-3xl via Tailwind alone can fail to materialise under Tailwind 4 JIT
+       * during hot-reload (see dm-tool CLAUDE.md gotcha), so maxWidth is also set
+       * as an inline style. paddingTop of 64 px clears the 54 px native window-
+       * control overlay that dm-tool adds via titleBarOverlay (hidden title bar with
+       * Electron's native min/max/close buttons rendered over the content area).
+       * The extra ~10 px gap is harmless in any browser-based consumer.
+       */}
+      <div
+        className="mx-auto w-full max-w-3xl px-8 pb-8"
+        style={{ maxWidth: 680, paddingTop: 64 }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Toolbar */}
         <div className="mb-3 flex justify-end gap-2">
           {actions}
