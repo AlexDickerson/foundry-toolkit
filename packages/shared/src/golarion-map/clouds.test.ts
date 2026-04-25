@@ -5,7 +5,7 @@ describe('mergeCloudsOptions — defaults', () => {
   it('returns all defaults when called with no argument', () => {
     const opts = mergeCloudsOptions();
     expect(opts.opacity).toBe(0.25);
-    expect(opts.driftSpeed).toBe(0.02);
+    expect(opts.driftSpeed).toBe(0.06);
     expect(opts.scale).toBe(3.0);
     expect(opts.color).toEqual([1, 0.98, 0.95]);
   });
@@ -13,7 +13,7 @@ describe('mergeCloudsOptions — defaults', () => {
   it('returns all defaults when called with an empty object', () => {
     const opts = mergeCloudsOptions({});
     expect(opts.opacity).toBe(0.25);
-    expect(opts.driftSpeed).toBe(0.02);
+    expect(opts.driftSpeed).toBe(0.06);
     expect(opts.scale).toBe(3.0);
     expect(opts.color).toEqual([1, 0.98, 0.95]);
   });
@@ -21,7 +21,7 @@ describe('mergeCloudsOptions — defaults', () => {
   it('returns all defaults when called with undefined', () => {
     const opts = mergeCloudsOptions(undefined);
     expect(opts.opacity).toBe(0.25);
-    expect(opts.driftSpeed).toBe(0.02);
+    expect(opts.driftSpeed).toBe(0.06);
   });
 });
 
@@ -29,7 +29,7 @@ describe('mergeCloudsOptions — partial overrides', () => {
   it('applies opacity override while keeping other defaults', () => {
     const opts = mergeCloudsOptions({ opacity: 0.5 });
     expect(opts.opacity).toBe(0.5);
-    expect(opts.driftSpeed).toBe(0.02);
+    expect(opts.driftSpeed).toBe(0.06);
     expect(opts.scale).toBe(3.0);
     expect(opts.color).toEqual([1, 0.98, 0.95]);
   });
