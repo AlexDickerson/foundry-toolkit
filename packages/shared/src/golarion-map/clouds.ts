@@ -202,10 +202,10 @@ const FRAG_SRC = `
     // driftSpeed in sample-space units/sec (same semantics as before).
     float angle = u_drift * u_time / u_scale;
 
-    // Rotate sample coords clockwise (negative angle) — pattern drifts east.
-    // Layer 2 rotates at 0.7× for a parallax feel (higher clouds, different speed).
-    float n1 = fbm3(rotateZ(pos,       -angle));
-    float n2 = fbm3(rotateZ(pos * 1.6, -angle * 0.7) + vec3(2.1, 1.3, 0.8));
+    // Positive angle rotates sample coords counterclockwise (east→west sampling),
+    // making the cloud pattern drift westward.  Layer 2 at 0.7× for parallax.
+    float n1 = fbm3(rotateZ(pos,       angle));
+    float n2 = fbm3(rotateZ(pos * 1.6, angle * 0.7) + vec3(2.1, 1.3, 0.8));
 
     float cloud = mix(n1, n2, 0.4);
     cloud = smoothstep(0.38, 0.65, cloud);
