@@ -33,7 +33,9 @@ export const TREASURE_PER_LEVEL_GP: Record<number, number> = {
  *  given party level. Falls back to level 10 for out-of-table inputs so
  *  callers don't crash on unexpected levels. */
 export function moderatePerEncounterGp(partyLevel: number): number {
-  return (TREASURE_PER_LEVEL_GP[partyLevel] ?? TREASURE_PER_LEVEL_GP[10]) / 4;
+  // Level 10 is always present in the table; the fallback is guaranteed non-undefined.
+
+  return (TREASURE_PER_LEVEL_GP[partyLevel] ?? TREASURE_PER_LEVEL_GP[10]!) / 4;
 }
 
 /** Treasure budget (gp) for an encounter of the given XP threat at the

@@ -135,3 +135,6 @@ export {
 
 // Event channel handlers
 export { createSetEventSubscriptionHandler } from '@/commands/handlers/events';
+
+// Generic Foundry dispatcher (Layer 0)
+export { dispatchHandler } from '@/commands/handlers/dispatch';

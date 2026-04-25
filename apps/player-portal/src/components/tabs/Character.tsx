@@ -1,3 +1,4 @@
+import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import { api } from '../../api/client';
 import type { AbilityKey, CharacterSystem, IWREntry, Save, Shield, Speed } from '../../api/types';
 import { ABILITY_KEYS } from '../../api/types';
@@ -167,8 +168,12 @@ function StatsBlock({
   const rollPerception = useActorAction({
     run: () => api.rollActorStatistic(actorId, 'perception'),
   });
+  // Fortitude is wired through the pf2e-rules Layer 1 client → generic
+  // dispatcher (Layer 0), validating the end-to-end dispatcher round-trip.
+  // createPf2eClient is pure and cheap; recreating per render is intentional
+  // for the spike — follow-up can memoize if profiling shows it matters.
   const rollFortitude = useActorAction({
-    run: () => api.rollActorStatistic(actorId, 'fortitude'),
+    run: () => createPf2eClient(api.dispatch).character(actorId).rollSave('fortitude'),
   });
   const rollReflex = useActorAction({
     run: () => api.rollActorStatistic(actorId, 'reflex'),

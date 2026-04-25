@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@foundry-toolkit/pf2e-rules": "*",
     "@foundry-toolkit/shared": "*",
     "@tailwindcss/postcss": "^4.2.2",
     "@testing-library/dom": "^10.4.0",

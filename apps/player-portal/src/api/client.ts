@@ -5,6 +5,8 @@ import type {
   AdjustActorConditionResponse,
   AdjustActorResourceResponse,
   CreateActorBody,
+  DispatchRequest,
+  DispatchResponse,
   Pf2eRollMode,
   Pf2eStatisticSlug,
   RollActorStatisticResponse,
@@ -131,6 +133,11 @@ export const api = {
       'roll-statistic',
       rollMode !== undefined ? { statistic, rollMode } : { statistic },
     ),
+  // Generic Foundry dispatcher — Layer 0. Sends { class, id, method, args }
+  // to POST /api/dispatch and returns { result: unknown }. Normally called
+  // indirectly via createPf2eClient(api.dispatch) from packages/pf2e-rules.
+  dispatch: (req: DispatchRequest): Promise<DispatchResponse> =>
+    request<DispatchResponse>('/dispatch', { method: 'POST', body: req }),
   resolvePrompt: (bridgeId: string, value: unknown): Promise<{ ok: boolean }> =>
     request<{ ok: boolean }>(`/prompts/${bridgeId}/resolve`, { method: 'POST', body: { value } }),
   uploadAsset: (body: UploadAssetBody): Promise<UploadAssetResult> =>

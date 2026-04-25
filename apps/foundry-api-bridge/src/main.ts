@@ -110,6 +110,7 @@ import {
   updateRollTableHandler,
   deleteRollTableHandler,
   createSetEventSubscriptionHandler,
+  dispatchHandler,
   type SetEventSubscriptionParams,
 } from '@/commands';
 
@@ -270,6 +271,10 @@ function initializeWebSocket(
   commandRouter.register('create-roll-table', createRollTableHandler);
   commandRouter.register('update-roll-table', updateRollTableHandler);
   commandRouter.register('delete-roll-table', deleteRollTableHandler);
+
+  // Generic Foundry dispatcher (Layer 0). One command handles any
+  // document class + method combination without a dedicated handler.
+  commandRouter.register('dispatch', dispatchHandler);
 
   // Scene actions
   commandRouter.register('activate-scene', activateSceneHandler);

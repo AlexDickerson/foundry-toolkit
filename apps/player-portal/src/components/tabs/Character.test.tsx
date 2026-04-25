@@ -1,13 +1,28 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup, within } from '@testing-library/react';
+import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
+import { render, cleanup, fireEvent, within, act } from '@testing-library/react';
 import amiri from '../../fixtures/amiri-prepared.json';
 import type { CharacterSystem } from '../../api/types';
 import { Character } from './Character';
+import { api } from '../../api/client';
+
+// Mock the api client. The existing render-only tests never trigger api calls,
+// so this mock is safe for the whole file.  The new dispatcher test below
+// inspects `api.dispatch` directly.
+vi.mock('../../api/client', () => ({
+  api: {
+    dispatch: vi.fn().mockResolvedValue({ result: null }),
+    rollActorStatistic: vi.fn().mockResolvedValue({}),
+    adjustActorResource: vi.fn().mockResolvedValue({}),
+    adjustActorCondition: vi.fn().mockResolvedValue({}),
+    longRest: vi.fn().mockResolvedValue({}),
+  },
+}));
 
 // Amiri — level-1 human barbarian. Verified values pulled from the live
 // /prepared payload: str+4 (key), dex+2, con+2, int+0, wis+0, cha+1,
 // AC 18, HP 22/22, Perception +5, Fort +7, Ref +5, Will +5, Class DC 17.
 const system = (amiri as unknown as { system: CharacterSystem }).system;
+
 
 describe('Character tab', () => {
   afterEach(() => {
@@ -223,5 +238,63 @@ describe('Character tab', () => {
     expect(tile?.textContent).toContain('+2');
     expect(tile?.textContent).toContain('15/20');
     expect(tile?.textContent).toContain('Raised');
+  });
+});
+
+// ─── Dispatcher end-to-end: fortitude save button ───────────────────────────
+//
+// Verifies that the fortitude save tile calls api.dispatch with the expected
+// DispatchRequest shape.  This is the end-to-end spike test validating that
+// the pf2e-rules Layer 1 client is wired into the Character sheet correctly.
+
+describe('Character tab — fortitude save wired through dispatcher', () => {
+  beforeEach(() => {
+    vi.mocked(api.dispatch).mockClear();
+    vi.mocked(api.dispatch).mockResolvedValue({ result: null });
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('clicking the Fortitude save tile calls api.dispatch with the right DispatchRequest', async () => {
+    const { container } = render(
+      <Character system={system} actorId="test-actor" onActorChanged={() => undefined} />,
+    );
+
+    const fortTile = container.querySelector('[data-stat="save-fortitude"]') as HTMLButtonElement;
+    expect(fortTile, 'fortitude tile should render as a button').toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(fortTile);
+    });
+
+    expect(api.dispatch).toHaveBeenCalledWith({
+      class: 'CharacterPF2e',
+      id: 'test-actor',
+      method: 'saves.fortitude.roll',
+      args: [{}],
+    });
+  });
+
+  it('reflex and will tiles still call rollActorStatistic (not dispatch)', async () => {
+    const { container } = render(
+      <Character system={system} actorId="test-actor" onActorChanged={() => undefined} />,
+    );
+
+    const reflexTile = container.querySelector('[data-stat="save-reflex"]') as HTMLButtonElement;
+    const willTile = container.querySelector('[data-stat="save-will"]') as HTMLButtonElement;
+
+    await act(async () => {
+      fireEvent.click(reflexTile);
+    });
+    await act(async () => {
+      fireEvent.click(willTile);
+    });
+
+    // Only fortitude goes through dispatch — reflex and will still use rollActorStatistic.
+    expect(api.dispatch).not.toHaveBeenCalled();
+    expect(api.rollActorStatistic).toHaveBeenCalledWith('test-actor', 'reflex');
+    expect(api.rollActorStatistic).toHaveBeenCalledWith('test-actor', 'will');
   });
 });

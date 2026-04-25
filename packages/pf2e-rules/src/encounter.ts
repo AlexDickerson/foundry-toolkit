@@ -14,7 +14,9 @@ export function creatureXp(creatureLevel: number, partyLevel: number): number {
   const d = creatureLevel - partyLevel;
   if (d <= -5) return 0;
   if (d >= 5) return 200;
-  return [10, 15, 20, 30, 40, 60, 80, 120, 160][d + 4];
+  // d is in [-4, 4] after the guards above, so index [0, 8] is always valid.
+
+  return [10, 15, 20, 30, 40, 60, 80, 120, 160][d + 4]!;
 }
 
 /** XP → threat-tier label. Thresholds match CRB Table 10-2. */
