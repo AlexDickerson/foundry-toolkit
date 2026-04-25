@@ -548,14 +548,14 @@ function CoinStrip({ coins }: { coins: PhysicalItem[] }): React.ReactElement {
     }
   }
   return (
-    <div className="flex items-center gap-4 rounded border border-amber-300 bg-amber-50 px-3 py-2" data-section="coins">
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-amber-800">Coins</span>
+    <div className="flex items-center gap-4 rounded border border-pf-tertiary-dark bg-pf-tertiary/20 px-3 py-2" data-section="coins">
+      <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">Coins</span>
       {(['pp', 'gp', 'sp', 'cp'] as const).map((denom) => (
         <span
           key={denom}
           className={[
             'font-mono text-sm tabular-nums',
-            totals[denom] > 0 ? 'text-neutral-900' : 'text-neutral-300',
+            totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
           ].join(' ')}
         >
           <strong>{totals[denom]}</strong>{' '}

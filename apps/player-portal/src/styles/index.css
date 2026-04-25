@@ -61,6 +61,11 @@
   --color-pf-alt: #a89070;
   --color-pf-alt-dark: #c4b098; /* was #443730 — section headers need light text */
   --color-pf-alt-light: #d4c0a8;
+  /* Tertiary — darkened from parchment gold (#e9d7a1) to warm amber so
+   * bg-pf-tertiary buttons/chips are readable without being blinding. */
+  --color-pf-tertiary: #b08828;
+  --color-pf-tertiary-dark: #7a5e10;
+  --color-pf-tertiary-light: #d4a840;
   /* Tertiary (gold) and rarity/proficiency/success colors stay unchanged —
    * they're light or semantic and already work on dark backgrounds. */
 
