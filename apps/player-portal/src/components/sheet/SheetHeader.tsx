@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { PreparedCharacter } from '../../api/types';
 import { formatAncestryLine } from '../../lib/format';
 
@@ -102,6 +103,7 @@ export function SheetHeader({ character, onBack, onSettingsOpen }: Props): React
 
 function CharacterPortrait({ src, name }: { src: string; name: string }): React.ReactElement {
   const [failed, setFailed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   if (!src || failed) {
     return (
@@ -116,13 +118,58 @@ function CharacterPortrait({ src, name }: { src: string; name: string }): React.
   }
 
   return (
-    <img
-      src={src}
-      alt={`${name} portrait`}
-      data-testid="character-portrait"
-      onError={(): void => setFailed(true)}
-      className="h-24 w-20 flex-shrink-0 rounded border border-pf-border object-cover object-top"
-    />
+    <>
+      <button
+        type="button"
+        onClick={(): void => setExpanded(true)}
+        data-testid="character-portrait-button"
+        aria-label={`View ${name} portrait`}
+        title="View full portrait"
+        className="flex-shrink-0 cursor-zoom-in rounded border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+      >
+        <img
+          src={src}
+          alt={`${name} portrait`}
+          data-testid="character-portrait"
+          onError={(): void => setFailed(true)}
+          className="h-24 w-20 rounded border border-pf-border object-cover object-top"
+        />
+      </button>
+      {expanded &&
+        createPortal(
+          <PortraitLightbox src={src} name={name} onClose={(): void => setExpanded(false)} />,
+          document.body,
+        )}
+    </>
+  );
+}
+
+function PortraitLightbox({ src, name, onClose }: { src: string; name: string; onClose: () => void }): React.ReactElement {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return (): void => {
+      document.removeEventListener('keydown', handler);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+      onClick={onClose}
+      role="dialog"
+      aria-modal
+      aria-label={`${name} portrait`}
+    >
+      <img
+        src={src}
+        alt={`${name} portrait`}
+        className="max-h-[90vh] max-w-[90vw] rounded object-contain shadow-2xl"
+        onClick={(e): void => e.stopPropagation()}
+      />
+    </div>
   );
 }
 

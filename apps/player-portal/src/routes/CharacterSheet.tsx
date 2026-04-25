@@ -194,9 +194,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
               characterContext={fromPreparedCharacter(state.actor)}
             />
           )}
-          {activeTab === 'background' && (
-            <Background details={state.actor.system.details} img={state.actor.img} name={state.actor.name} />
-          )}
+          {activeTab === 'background' && <Background details={state.actor.system.details} />}
         </div>
       )}
       {settingsOpen && state.kind === 'ready' && (

@@ -3,18 +3,15 @@ import { SectionHeader } from '../common/SectionHeader';
 
 interface Props {
   details: CharacterDetails;
-  /** Character portrait image path (raw Foundry relative path, e.g. "systems/pf2e/..."). */
-  img?: string | undefined;
-  name?: string | undefined;
 }
 
 // Background tab — pf2e system.details.biography + demographic fields.
 // Read-only viewer. HTML fields (appearance, backstory, campaignNotes)
 // are rendered as raw HTML because the source is our self-hosted
 // Foundry; there's no untrusted-user input path into these fields.
-export function Background({ details, img, name }: Props): React.ReactElement {
+export function Background({ details }: Props): React.ReactElement {
   const bio = details.biography;
-  if (!img && !hasAnyBackgroundContent(details)) {
+  if (!hasAnyBackgroundContent(details)) {
     return (
       <section className="space-y-6" data-section="background-empty">
         <p className="text-sm italic text-neutral-500">
@@ -32,7 +29,6 @@ export function Background({ details, img, name }: Props): React.ReactElement {
       <EdictsAnathemaBlock bio={bio} />
       <SocialBlock bio={bio} />
       <TextBlock title="Campaign Notes" html={bio.campaignNotes} dataSection="campaign-notes" />
-      <PortraitArtBlock img={img} name={name} />
     </section>
   );
 }
@@ -68,20 +64,6 @@ function hasAnyBackgroundContent(details: CharacterDetails): boolean {
 }
 
 // ─── Sub-sections ──────────────────────────────────────────────────────
-
-function PortraitArtBlock({ img, name }: { img: string | undefined; name: string | undefined }): React.ReactElement | null {
-  if (!img) return null;
-  const src = img.startsWith('/') ? img : `/${img}`;
-  return (
-    <div className="flex justify-center" data-section="portrait-art">
-      <img
-        src={src}
-        alt={name ? `${name} portrait` : 'Character portrait'}
-        className="max-h-96 rounded border border-pf-border object-contain shadow-sm"
-      />
-    </div>
-  );
-}
 
 function DemographicsBlock({ details }: { details: CharacterDetails }): React.ReactElement | null {
   const fields: Array<[label: string, value: string]> = [
