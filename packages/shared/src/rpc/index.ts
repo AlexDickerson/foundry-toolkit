@@ -5,6 +5,7 @@
 // import a typed body shape without redeclaring it.
 
 export * from './dialog.js';
+export * from './dispatch.js';
 
 import type { z } from 'zod/v4';
 
