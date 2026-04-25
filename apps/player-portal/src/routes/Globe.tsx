@@ -178,7 +178,7 @@ export function Globe() {
   }, [pins, syncSource]);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', backgroundColor: '#000' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
       {activeMission && <MissionBriefing mission={activeMission} onClose={() => setActiveMission(null)} />}
