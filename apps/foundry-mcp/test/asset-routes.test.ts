@@ -192,6 +192,60 @@ describe('asset routes — bridge state / errors', () => {
   });
 });
 
+// Regression: character-sheet weapon/feat/spell icons failed to load after
+// the character-creator SPA was merged into player-portal. Foundry stores
+// asset paths without a leading slash (e.g. `icons/weapons/polearms/...`),
+// which browsers resolve relative to the current document URL. When the SPA
+// moved from foundry-mcp's root to player-portal's /characters/:actorId
+// route, relative paths resolved against /characters/ instead of /, causing
+// browsers to request /characters/icons/... — not handled by any proxy.
+// Fix: <base href="/"> in player-portal's index.html makes all relative
+// asset URLs root-absolute. These tests confirm foundry-mcp's /icons/* route
+// handles the specific path shape the character sheet renders.
+describe('asset routes — regression: character-sheet icon paths', () => {
+  it('serves icons/weapons/polearms/spear-hooked-broad.webp with 200 and correct content-type', async () => {
+    const { app } = makeApp({
+      respond: async () => ({
+        ok: true,
+        contentType: 'image/webp',
+        bytes: Buffer.from('fake-webp-bytes').toString('base64'),
+      }),
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/icons/weapons/polearms/spear-hooked-broad.webp',
+    });
+    assert.equal(res.statusCode, 200, 'weapon icon should return 200');
+    assert.equal(res.headers['content-type'], 'image/webp', 'weapon icon should return image/webp');
+    assert.ok(res.rawPayload.length > 0, 'weapon icon body should be non-empty');
+  });
+
+  it('returns 404 when Foundry reports the icon path does not exist', async () => {
+    const { app } = makeApp({
+      respond: async () => ({ ok: false, status: 404, error: 'File not found' }),
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/icons/weapons/polearms/spear-hooked-broad.webp',
+    });
+    assert.equal(res.statusCode, 404, 'missing icon should return 404');
+    assert.match(String(res.headers['content-type']), /text\/plain/, '404 body should be plain text');
+  });
+
+  it('serves icons/svg/mystery-man.svg with correct SVG content-type', async () => {
+    const { app } = makeApp({
+      respond: async () => ({
+        ok: true,
+        contentType: 'image/svg+xml',
+        bytes: Buffer.from('<svg/>').toString('base64'),
+      }),
+    });
+    const res = await app.inject({ method: 'GET', url: '/icons/svg/mystery-man.svg' });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers['content-type'], 'image/svg+xml');
+  });
+});
+
 describe('debug endpoint', () => {
   it('returns cache counters as JSON', async () => {
     const { app, cache } = makeApp({});

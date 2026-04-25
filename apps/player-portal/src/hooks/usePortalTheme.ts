@@ -17,7 +17,7 @@ export function usePortalTheme(): [PortalTheme, () => void] {
     localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
 
-  const toggle = useCallback(() => setTheme((t) => (t === 'light' ? 'dark' : 'light')), []);
+  const toggle = useCallback(() => { setTheme((t) => (t === 'light' ? 'dark' : 'light')); }, []);
 
   return [theme, toggle];
 }

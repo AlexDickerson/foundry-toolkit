@@ -105,12 +105,15 @@ export function registerAssetRoutes(app: FastifyInstance, deps: AssetRouteDeps =
       // Cache 404s briefly so dead paths don't hammer the bridge. 5xx are
       // transient — don't cache those.
       if (status === 404) {
+        log.warn(`asset proxy: path not found in Foundry: ${path}`);
         cache.set(path, {
           contentType: 'text/plain',
           body: Buffer.alloc(0),
           status: 404,
           expiresAt: Date.now() + negTtl,
         });
+      } else {
+        log.warn(`asset proxy: upstream error for ${path}: ${errorMsg} (status ${status.toString()})`);
       }
 
       reply.code(status).type('text/plain').send(errorMsg);

@@ -480,7 +480,7 @@ function PipResource({
     <div className="flex items-center gap-2" title={title} {...rest}>
       <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">{label}</span>
       {onAdjust !== undefined && (
-        <StepButton label="−" disabled={pending ?? false} onClick={() => onAdjust(-1)} />
+        <StepButton label="−" disabled={pending ?? false} onClick={() => { onAdjust(-1); }} />
       )}
       <div className="flex gap-1" aria-label={`${value.toString()} of ${max.toString()}`}>
         {Array.from({ length: max }, (_, i) => (
@@ -494,7 +494,7 @@ function PipResource({
         ))}
       </div>
       {onAdjust !== undefined && (
-        <StepButton label="+" disabled={pending ?? false} onClick={() => onAdjust(1)} />
+        <StepButton label="+" disabled={pending ?? false} onClick={() => { onAdjust(1); }} />
       )}
       <span className="font-mono text-xs tabular-nums text-pf-text-muted">
         {value}/{max}
@@ -669,7 +669,7 @@ function Condition({
     <div className="flex items-center gap-2" title={title} {...rest}>
       <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">{label}</span>
       {onAdjust !== undefined && (
-        <StepButton label="−" disabled={pending ?? false} onClick={() => onAdjust(-1)} />
+        <StepButton label="−" disabled={pending ?? false} onClick={() => { onAdjust(-1); }} />
       )}
       <div className="flex gap-1" aria-label={`${value.toString()} of ${max.toString()}`}>
         {Array.from({ length: max }, (_, i) => (
@@ -683,7 +683,7 @@ function Condition({
         ))}
       </div>
       {onAdjust !== undefined && (
-        <StepButton label="+" disabled={pending ?? false} onClick={() => onAdjust(1)} />
+        <StepButton label="+" disabled={pending ?? false} onClick={() => { onAdjust(1); }} />
       )}
       <span className="font-mono text-xs tabular-nums text-pf-text-muted">
         {value}/{max}

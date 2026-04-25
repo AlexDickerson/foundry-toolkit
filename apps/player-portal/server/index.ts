@@ -14,10 +14,13 @@
 // end to end.
 //
 // Foundry assets — /icons, /systems, /modules, /worlds are proxied to
-// Foundry VTT (default http://localhost:30000) so prepared-actor payloads
-// like "systems/pf2e/icons/iconics/portraits/amiri.webp" resolve same-origin
-// in the browser. /assets is intentionally NOT proxied because Vite's built
-// SPA chunks live at /assets/*.
+// foundry-mcp (MCP_URL) so asset fetches go through the MCP server's
+// WebSocket bridge to Foundry and benefit from its in-process asset cache.
+// Proxying to FOUNDRY_URL directly would break in deployments where the
+// Foundry VTT HTTP server is not reachable from player-portal's host —
+// only foundry-mcp has a persistent outbound connection to Foundry.
+// /assets is intentionally NOT proxied because Vite's built SPA chunks
+// live at /assets/*.
 //
 // Map proxy — /map/* → https://map.pathfinderwiki.com/ so PMTiles tile
 // requests are same-origin.
@@ -43,16 +46,15 @@ const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const HOST = process.env.HOST ?? '0.0.0.0';
 const SHARED_SECRET = process.env.SHARED_SECRET;
 const MCP_URL = process.env.MCP_URL ?? 'http://localhost:8765';
-const FOUNDRY_URL = process.env.FOUNDRY_URL ?? 'http://localhost:30000';
 // In prod the compiled server sits at server-dist/index.js and the SPA
 // build is at dist/. In dev Vite serves static from memory on :5173 and
 // proxies /api, /map, and the Foundry asset prefixes here, so dist/ may
 // not exist — we skip static serving in that case.
 const STATIC_DIR = process.env.STATIC_DIR ?? join(__dirname, '..', 'dist');
 
-// Foundry asset prefixes served by a bare Foundry install. `/assets` is
-// deliberately excluded because Vite's built SPA uses it for bundled
-// chunks — proxying it would make the client unable to load its own JS.
+// Foundry asset prefixes — all proxied to foundry-mcp so the WS bridge
+// serves them. `/assets` is deliberately excluded because Vite's built SPA
+// uses it for bundled chunks — proxying it would break client JS loading.
 const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds'];
 
 if (!SHARED_SECRET) {
@@ -100,13 +102,15 @@ async function main(): Promise<void> {
     http2: false,
   });
 
-  // Proxy Foundry asset prefixes → Foundry VTT. One @fastify/http-proxy
+  // Proxy Foundry asset prefixes → foundry-mcp. One @fastify/http-proxy
   // registration per prefix because the plugin only accepts a single
   // `prefix` string. rewritePrefix matches prefix so paths pass through
   // unchanged (e.g. /icons/foo.webp → upstream /icons/foo.webp).
+  // foundry-mcp handles these at the root level via its own asset routes
+  // (which use the WS bridge to fetch from Foundry and cache the result).
   for (const prefix of FOUNDRY_ASSET_PREFIXES) {
     await app.register(fastifyHttpProxy, {
-      upstream: FOUNDRY_URL,
+      upstream: MCP_URL,
       prefix,
       rewritePrefix: prefix,
       http2: false,
@@ -211,6 +215,15 @@ async function main(): Promise<void> {
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith('/api/') || req.url.startsWith('/map/')) {
         reply.code(404).send({ error: 'not found' });
+        return;
+      }
+      // Asset prefix requests that land here were not caught by a proxy
+      // route — return a plain 404 rather than serving index.html, which
+      // would confuse the browser into parsing HTML as an image.
+      const isAssetPrefix = FOUNDRY_ASSET_PREFIXES.some((p) => req.url.startsWith(p + '/') || req.url === p);
+      if (isAssetPrefix) {
+        console.warn(`asset proxy miss: ${req.url} — not caught by any proxy route`);
+        reply.code(404).type('text/plain').send('asset not found');
         return;
       }
       // SPA fallback — deep-linked client routes get index.html.
