@@ -15,6 +15,7 @@ import {
   ensureDefaultImage,
   ensureIconImage,
   pinsToGeoJson,
+  startAutoRotate,
 } from '@foundry-toolkit/shared/golarion-map';
 import { MissionBriefing } from '@foundry-toolkit/shared/MissionBriefing';
 import type { GlobePin, MissionData } from '@foundry-toolkit/shared/types';
@@ -80,6 +81,7 @@ export function Globe() {
 
     map.on('style.load', () => {
       map.setProjection({ type: 'globe' });
+      startAutoRotate(map, { startDelayMs: 500 });
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
