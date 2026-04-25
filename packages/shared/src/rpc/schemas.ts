@@ -107,6 +107,11 @@ export const compendiumSearchQuery = z.object({
   // this size; uncached searches already iterate the full index on
   // every call, so the bigger cap just widens the response payload.
   limit: z.coerce.number().int().positive().max(10_000).optional(),
+  // Zero-based offset for server-side pagination. Combined with `limit`
+  // to page through results: offset=0 is the first page, offset=50 is
+  // the second (with limit=50), etc. No-op when omitted (returns from
+  // the beginning of the sorted result set).
+  offset: z.coerce.number().int().nonnegative().optional(),
 });
 
 export const listCompendiumPacksQuery = z.object({

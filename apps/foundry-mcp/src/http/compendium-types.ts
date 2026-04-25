@@ -79,6 +79,8 @@ export interface SearchOptions {
   willMin?: number;
   willMax?: number;
   limit?: number;
+  /** Zero-based offset into the full result set for pagination. */
+  offset?: number;
 }
 
 // One cached pack's worth of documents, plus the metadata used by

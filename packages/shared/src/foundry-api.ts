@@ -157,8 +157,12 @@ export interface CompendiumSearchOptions {
   refMax?: number;
   willMin?: number;
   willMax?: number;
-  /** Max results. Clamped server-side to 1-10_000, defaults to 10. */
+  /** Max results per page. Clamped server-side to 1-10_000, defaults to 100. */
   limit?: number;
+  /** Zero-based offset into the full result set. Use with `limit` to
+   *  page through results: offset=0 is the first page, offset=50 (with
+   *  limit=50) is the second, and so on. */
+  offset?: number;
 }
 
 export interface CompendiumMatch {

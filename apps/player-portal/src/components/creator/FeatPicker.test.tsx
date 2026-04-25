@@ -33,7 +33,7 @@ describe('FeatPicker', () => {
   let searchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: sampleMatches });
+    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: sampleMatches, total: sampleMatches.length });
   });
   afterEach(() => {
     searchSpy.mockRestore();
@@ -124,7 +124,7 @@ describe('FeatPicker', () => {
   });
 
   it('shows an empty-state message when no matches come back', async () => {
-    searchSpy.mockResolvedValueOnce({ matches: [] });
+    searchSpy.mockResolvedValueOnce({ matches: [], total: 0 });
     const { container } = render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
@@ -210,6 +210,7 @@ describe('FeatPicker', () => {
           traits: [],
         },
       ],
+      total: 3,
     });
     const { container, getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
@@ -293,6 +294,7 @@ describe('FeatPicker', () => {
           traits: [],
         },
       ],
+      total: 3,
     });
     const { container, getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
@@ -355,6 +357,7 @@ describe('FeatPicker', () => {
           traits: [],
         },
       ],
+      total: 3,
     });
     const { container, getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
@@ -429,6 +432,7 @@ describe('FeatPicker', () => {
           traits: [],
         },
       ],
+      total: 3,
     });
     const { container, getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
@@ -442,5 +446,70 @@ describe('FeatPicker', () => {
     );
     // L1 alpha first (Alpha before Beta), then the unlevelled entry at the bottom.
     expect(order).toEqual(['Alvl1', 'Blvl1', 'U-noLvl']);
+  });
+
+  // --- Pagination (load more) ---------------------------------------------
+
+  it('shows a "Load more" button when the server total exceeds the page', async () => {
+    // Return 2 matches but declare total=10 → "Load more" should appear.
+    searchSpy.mockResolvedValue({ matches: sampleMatches, total: 10 });
+    const { container } = render(
+      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+    );
+    await waitFor(() => {
+      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+    });
+    expect(container.querySelector('[data-testid="feat-picker-load-more"]')).toBeTruthy();
+  });
+
+  it('does not show "Load more" when total equals the loaded count', async () => {
+    // Default mock has total === matches.length (2) → no more button.
+    const { container } = render(
+      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+    );
+    await waitFor(() => {
+      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+    });
+    expect(container.querySelector('[data-testid="feat-picker-load-more"]')).toBeFalsy();
+  });
+
+  it('fetches the next page and appends results when "Load more" is clicked', async () => {
+    const page2Matches = [
+      {
+        packId: 'pf2e.feats-srd',
+        packLabel: 'Class Feats',
+        documentId: 'c',
+        uuid: 'Compendium.pf2e.feats-srd.Item.c',
+        name: 'Power Attack',
+        type: 'feat',
+        img: '',
+        level: 2,
+        traits: ['barbarian'],
+      },
+    ];
+    // Page 0: total=3, but only 2 returned → hasMore=true
+    searchSpy.mockResolvedValueOnce({ matches: sampleMatches, total: 3 });
+    // Page 1: remaining 1 item
+    searchSpy.mockResolvedValueOnce({ matches: page2Matches, total: 3 });
+
+    const { container, getByTestId } = render(
+      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-testid="feat-picker-load-more"]')).toBeTruthy();
+    });
+
+    fireEvent.click(getByTestId('feat-picker-load-more'));
+
+    await waitFor(() => {
+      expect(container.textContent).toContain('Power Attack');
+    });
+
+    // All 3 rows visible (2 original + 1 new).
+    expect(container.querySelectorAll('[data-match-uuid]').length).toBe(3);
+    // Second call should have offset=2.
+    const secondCall = searchSpy.mock.calls[1]?.[0];
+    expect(secondCall?.offset).toBe(sampleMatches.length);
   });
 });

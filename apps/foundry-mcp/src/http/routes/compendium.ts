@@ -40,6 +40,7 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
       willMin,
       willMax,
       limit,
+      offset,
     } = parsed;
 
     // Serve from cache when every requested pack is warmed. Partial
@@ -77,6 +78,7 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
       ...(willMin !== undefined ? { willMin } : {}),
       ...(willMax !== undefined ? { willMax } : {}),
       ...(limit !== undefined ? { limit } : {}),
+      ...(offset !== undefined ? { offset } : {}),
     });
     if (cached) return cached;
 
@@ -86,7 +88,11 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
     // floor here — acceptable because the path is only hit for
     // un-warmed packs, which dm-tool shouldn't be querying in steady
     // state.
-    return sendCommand('find-in-compendium', {
+    //
+    // The bridge has no offset support; pagination always starts at
+    // page 0 on the fallback path. `total` is set to the match count
+    // so the caller doesn't attempt a second page.
+    const bridgeResult = (await sendCommand('find-in-compendium', {
       name: q ?? '',
       packId,
       documentType,
@@ -96,7 +102,9 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
       ancestrySlug,
       maxLevel,
       limit,
-    });
+    })) as { matches: unknown[] };
+    const bridgeMatches = Array.isArray(bridgeResult.matches) ? bridgeResult.matches : [];
+    return { matches: bridgeMatches, total: bridgeMatches.length };
   });
 
   app.get('/api/compendium/packs', async (req) => {

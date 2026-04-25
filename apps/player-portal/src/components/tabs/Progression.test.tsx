@@ -39,7 +39,7 @@ describe('Progression tab', () => {
   let searchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: [picker_match] });
+    searchSpy = vi.spyOn(api, 'searchCompendium').mockResolvedValue({ matches: [picker_match], total: 1 });
   });
 
   afterEach(() => {

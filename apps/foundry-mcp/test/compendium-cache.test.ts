@@ -365,6 +365,32 @@ describe('CompendiumCache.search — filters', () => {
     assert.equal(result?.matches.length, 2);
   });
 
+  it('includes total equal to the full unsliced match count', () => {
+    const result = cache.search({ packIds: ['pf2e.equipment-srd'], limit: 2 });
+    // total reflects the number of items that matched the filters, not
+    // the number returned (which is capped by limit).
+    assert.ok(result?.total !== undefined, 'total should be present');
+    assert.ok((result?.total ?? 0) > 2, 'total should exceed the limit');
+    assert.equal(result?.total, equipmentDocs.length);
+  });
+
+  it('applies offset to skip items and reports the unsliced total', () => {
+    const all = cache.search({ packIds: ['pf2e.equipment-srd'] });
+    const total = all?.total ?? 0;
+    // Page 0: first two items.
+    const page0 = cache.search({ packIds: ['pf2e.equipment-srd'], limit: 2, offset: 0 });
+    // Page 1: next two items.
+    const page1 = cache.search({ packIds: ['pf2e.equipment-srd'], limit: 2, offset: 2 });
+    assert.equal(page0?.total, total);
+    assert.equal(page1?.total, total);
+    // Pages are disjoint.
+    const p0uuids = new Set(page0?.matches.map((m) => m.uuid));
+    const p1uuids = new Set(page1?.matches.map((m) => m.uuid));
+    for (const uuid of p1uuids) {
+      assert.ok(!p0uuids.has(uuid), `uuid ${uuid} appeared on both pages`);
+    }
+  });
+
   it('enriches matches with price read from the cached document', () => {
     const result = cache.search({ packIds: ['pf2e.equipment-srd'], q: 'bastard' });
     const sword = result?.matches[0];

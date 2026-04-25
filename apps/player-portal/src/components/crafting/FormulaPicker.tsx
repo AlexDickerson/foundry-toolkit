@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiRequestError } from '../../api/client';
+import { api } from '../../api/client';
 import type { CompendiumMatch } from '../../api/types';
 import { useDebounce } from '../../lib/useDebounce';
+import { usePaginatedSearch } from '../../lib/usePaginatedSearch';
 
 interface Props {
   /** Uuids that are already in the formula book — filtered out of
@@ -22,17 +23,39 @@ interface Props {
 export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.ReactElement {
   const [query, setQuery] = useState('');
   const debounced = useDebounce(query, 200);
-  const [matches, setMatches] = useState<CompendiumMatch[]>([]);
-  const [state, setState] = useState<'idle' | 'searching' | { error: string }>('idle');
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Search is gated on the query being at least 2 characters. We pass a
+  // stable `enabled` flag into the fetcher — when false it short-circuits
+  // to an empty result so `usePaginatedSearch` doesn't fire a real request.
+  const searchEnabled = debounced.trim().length >= 2;
+
+  const {
+    state: searchState,
+    hasMore,
+    isLoadingMore,
+    loadMore,
+  } = usePaginatedSearch<CompendiumMatch>(
+    async (offset, pageSize) => {
+      if (!searchEnabled) return { matches: [], total: 0 };
+      return api.searchCompendium({
+        q: debounced,
+        documentType: 'Item',
+        // Copy to a mutable array — `CompendiumSearchOptions.packIds`
+        // is typed `string[]`, not `readonly string[]`.
+        packIds: [...PHYSICAL_ITEM_PACKS],
+        limit: pageSize,
+        offset,
+      });
+    },
+    [debounced],
+  );
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Trap Esc to close and keep scroll anchored to the top on new
-  // query — dialog lives inside a fixed overlay so ambient scroll
-  // inside the results list shouldn't leak out.
+  // Trap Esc to close.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose();
@@ -43,39 +66,18 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
     };
   }, [onClose]);
 
-  useEffect(() => {
-    if (debounced.trim().length < 2) {
-      setMatches([]);
-      setState('idle');
-      return;
-    }
-    let cancelled = false;
-    setState('searching');
-    api
-      .searchCompendium({
-        q: debounced,
-        documentType: 'Item',
-        // Copy to a mutable array — `CompendiumSearchOptions.packIds`
-        // is typed `string[]`, not `readonly string[]`.
-        packIds: [...PHYSICAL_ITEM_PACKS],
-        limit: 50,
-      })
-      .then(({ matches: fetched }) => {
-        if (cancelled) return;
-        setMatches(fetched);
-        setState('idle');
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const message = err instanceof ApiRequestError ? err.message : err instanceof Error ? err.message : String(err);
-        setState({ error: message });
-      });
-    return (): void => {
-      cancelled = true;
-    };
-  }, [debounced]);
+  // Filter out already-known items client-side on top of the server results.
+  // `allMatches` is memoised to produce a stable reference when the search
+  // state hasn't changed, preventing useMemo from seeing new array identity
+  // on every render when the search is in the loading/error state.
+  const allMatches = useMemo(
+    () => (searchState.kind === 'ready' ? searchState.items : []),
+    [searchState],
+  );
+  const filtered = useMemo(() => allMatches.filter((m) => !alreadyKnown.has(m.uuid)), [allMatches, alreadyKnown]);
 
-  const filtered = useMemo(() => matches.filter((m) => !alreadyKnown.has(m.uuid)), [matches, alreadyKnown]);
+  const isSearching = searchEnabled && searchState.kind === 'loading';
+  const searchError = searchState.kind === 'error' ? searchState.message : null;
 
   return (
     <div
@@ -112,17 +114,17 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
           />
         </div>
         <div className="min-h-[4rem] flex-1 overflow-y-auto p-2">
-          {state === 'searching' && <p className="p-2 text-sm italic text-neutral-400">Searching…</p>}
-          {typeof state === 'object' && (
-            <p className="p-2 text-sm text-red-700">Search failed: {state.error}</p>
+          {isSearching && <p className="p-2 text-sm italic text-neutral-400">Searching…</p>}
+          {searchError !== null && (
+            <p className="p-2 text-sm text-red-700">Search failed: {searchError}</p>
           )}
-          {state === 'idle' && debounced.trim().length < 2 && (
+          {!searchEnabled && (
             <p className="p-2 text-xs italic text-neutral-400">Type to search the equipment compendium.</p>
           )}
-          {state === 'idle' && debounced.trim().length >= 2 && filtered.length === 0 && matches.length > 0 && (
+          {searchEnabled && !isSearching && searchError === null && filtered.length === 0 && allMatches.length > 0 && (
             <p className="p-2 text-xs italic text-neutral-400">Every match is already in the book.</p>
           )}
-          {state === 'idle' && debounced.trim().length >= 2 && matches.length === 0 && (
+          {searchEnabled && !isSearching && searchError === null && allMatches.length === 0 && (
             <p className="p-2 text-xs italic text-neutral-400">No matches.</p>
           )}
           {filtered.length > 0 && (
@@ -152,6 +154,19 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
                 </li>
               ))}
             </ul>
+          )}
+          {(hasMore || isLoadingMore) && (
+            <div className="mt-2 text-center">
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={isLoadingMore}
+                data-testid="formula-picker-load-more"
+                className="rounded border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-600 hover:border-neutral-400 hover:text-neutral-800 disabled:cursor-wait disabled:opacity-50"
+              >
+                {isLoadingMore ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
           )}
         </div>
       </div>
