@@ -1,0 +1,9 @@
+The CSS design token files (pf2e.css, fonts.css, color-schemes.css) derived
+from foundryvtt/pf2e (Apache-2.0) live at packages/shared/tokens/ — one
+level above this directory — so that Vite's CSS @import resolver can find
+them by direct file-system path without requiring exports-map resolution.
+
+See packages/shared/tokens/NOTICE for the full attribution.
+
+index.ts (this directory) mirrors those token values as typed TypeScript
+constants. It is not itself upstream-derived code.

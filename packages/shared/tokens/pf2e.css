@@ -1,0 +1,78 @@
+/*
+ * PF2e design tokens → Tailwind 4 theme.
+ *
+ * Values lifted from foundryvtt/pf2e (Apache-2.0, see NOTICE) — primarily
+ * src/styles/_colors.scss and _fonts.scss. We keep only the tokens we use;
+ * the full SCSS system (mixins, sheet-specific selectors, icon fonts) is
+ * deliberately out of scope for this port.
+ *
+ * Exposing tokens via Tailwind 4's @theme block means each `--color-pf-*`
+ * becomes an inline utility (`bg-pf-primary`, `text-pf-primary`, etc.), and
+ * `--font-*` becomes `font-*`. Anything outside @theme stays scoped to
+ * handwritten CSS.
+ */
+@theme {
+  /* Core palette */
+  --color-pf-primary: #5e0000; /* deep heraldic red */
+  --color-pf-primary-dark: #4a0000;
+  --color-pf-primary-light: #7a0000;
+  --color-pf-secondary: #171f69; /* navy */
+  --color-pf-secondary-dark: #0f1547;
+  --color-pf-secondary-light: #2a358f;
+  --color-pf-tertiary: #e9d7a1; /* parchment gold */
+  --color-pf-tertiary-dark: #cbb77a;
+  --color-pf-tertiary-light: #f3e6be;
+  --color-pf-alt: #786452; /* warm brown */
+  --color-pf-alt-dark: #443730;
+  --color-pf-alt-light: #9a8471;
+
+  /* Surfaces */
+  --color-pf-bg: #f8f4f1; /* cream parchment */
+  --color-pf-bg-dark: #e6dfd7;
+  --color-pf-sub: #605856;
+  --color-pf-text: #1c1c1c;
+  --color-pf-text-muted: #605856;
+  --color-pf-border: #baa991;
+
+  /* Rarity */
+  --color-pf-rarity-common: #323232;
+  --color-pf-rarity-uncommon: #98513d;
+  --color-pf-rarity-rare: #002664;
+  --color-pf-rarity-unique: #54166e;
+
+  /* Proficiency ranks */
+  --color-pf-prof-untrained: #424242;
+  --color-pf-prof-trained: #171f69;
+  --color-pf-prof-expert: #3c005e;
+  --color-pf-prof-master: #664400;
+  --color-pf-prof-legendary: #5e0000;
+
+  /* Degrees of success */
+  --color-pf-crit-success: #008000;
+  --color-pf-success: #0000ff;
+  --color-pf-failure: #ff4500;
+  --color-pf-crit-failure: #ff0000;
+
+  /* Fonts (overrides Tailwind defaults for sans / serif / mono) */
+  --font-sans: Roboto, ui-sans-serif, system-ui, sans-serif;
+  --font-sans-condensed: 'Roboto Condensed', Roboto, ui-sans-serif, sans-serif;
+  --font-serif: Eczar, Georgia, 'Times New Roman', serif;
+  --font-body: Gelasio, Georgia, 'Times New Roman', serif;
+  --font-mono: 'Roboto Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Custom animations. Tailwind 4 surfaces each `--animate-*` entry
+     as an `animate-<name>` utility. */
+  --animate-boost: boost 250ms ease-out;
+}
+
+@keyframes boost {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

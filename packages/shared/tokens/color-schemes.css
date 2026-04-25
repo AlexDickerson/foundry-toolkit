@@ -1,0 +1,64 @@
+/*
+ * Alternate color schemes for PF2e-themed surfaces.
+ *
+ * The default palette lives in pf2e.css under @theme — that's the PF2e
+ * Classic look (deep heraldic red + navy + parchment gold). Each
+ * [data-color-scheme="..."] block below replaces the core palette CSS
+ * variables; Tailwind 4 utilities (`bg-pf-primary`, `text-pf-secondary`,
+ * etc.) all reference those variables via var(), so re-cascading them at
+ * the document-root level retunes the whole surface.
+ *
+ * Rarity, proficiency, and degree-of-success colors are deliberately left
+ * alone — they're semantic (rare is always blue, unique is always purple)
+ * and shouldn't drift between palettes.
+ *
+ * Derived from foundryvtt/pf2e (Apache-2.0) — see NOTICE.
+ */
+
+/* Arcane — violet + deep teal, muted lilac accents. */
+[data-color-scheme='arcane'] {
+  --color-pf-primary: #4a1a6b;
+  --color-pf-primary-dark: #381252;
+  --color-pf-primary-light: #5e2585;
+  --color-pf-secondary: #0d4a7a;
+  --color-pf-secondary-dark: #0a3658;
+  --color-pf-secondary-light: #176ba8;
+  --color-pf-tertiary: #dcd2ea;
+  --color-pf-tertiary-dark: #b5a5cf;
+  --color-pf-tertiary-light: #ebe3f4;
+  --color-pf-alt: #5a4a7a;
+  --color-pf-alt-dark: #3a2f52;
+  --color-pf-alt-light: #7d6ba0;
+}
+
+/* Verdant — forest green + teal, sage accents. */
+[data-color-scheme='verdant'] {
+  --color-pf-primary: #1f4e2b;
+  --color-pf-primary-dark: #163a1f;
+  --color-pf-primary-light: #2a6a3c;
+  --color-pf-secondary: #1a4754;
+  --color-pf-secondary-dark: #10313b;
+  --color-pf-secondary-light: #2a6b7c;
+  --color-pf-tertiary: #d5e4c7;
+  --color-pf-tertiary-dark: #a4c08d;
+  --color-pf-tertiary-light: #e7eedb;
+  --color-pf-alt: #556445;
+  --color-pf-alt-dark: #343e27;
+  --color-pf-alt-light: #7a8a68;
+}
+
+/* Frost — steel blue + slate indigo, pale sky accents. */
+[data-color-scheme='frost'] {
+  --color-pf-primary: #1d4a80;
+  --color-pf-primary-dark: #133560;
+  --color-pf-primary-light: #2a66a8;
+  --color-pf-secondary: #2d3e5c;
+  --color-pf-secondary-dark: #1d2940;
+  --color-pf-secondary-light: #4a5f85;
+  --color-pf-tertiary: #d6e2ef;
+  --color-pf-tertiary-dark: #9eb8d3;
+  --color-pf-tertiary-light: #eaf1f8;
+  --color-pf-alt: #4e5e74;
+  --color-pf-alt-dark: #2e3847;
+  --color-pf-alt-light: #7687a0;
+}

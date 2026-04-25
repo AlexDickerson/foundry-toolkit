@@ -1,4 +1,9 @@
+/* PF2e shared design tokens — fonts first so faces are available when
+ * Tailwind processes @theme. Then pf2e.css registers --color-pf-* and
+ * --font-* as Tailwind 4 utilities. */
+@import '@foundry-toolkit/shared/tokens/fonts.css';
 @import 'tailwindcss';
+@import '@foundry-toolkit/shared/tokens/pf2e.css';
 
 @plugin 'tailwindcss-animate';
 
@@ -44,7 +49,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 
-  --font-display: 'Cinzel', 'Palatino Linotype', 'Book Antiqua', serif;
+  --font-display: 'Eczar', Georgia, 'Times New Roman', serif;
 }
 
 /*
@@ -65,141 +70,148 @@
   }
 }
 
-/* shadcn/ui design tokens — default theme (Ember) with warm amber/parchment
- * accents for a TTRPG dungeon-master aesthetic. Alternate themes override
- * these variables via [data-theme] attribute selectors below. */
+/* shadcn/ui design tokens — default theme (PF2e Classic dark) with heraldic
+ * red/navy accents matching the shared PF2e design language. Alternate themes
+ * override these variables via [data-theme] attribute selectors below. */
 @layer base {
   :root {
-    --background: 30 8% 6%;
-    --foreground: 40 20% 95%;
+    --background: 25 8% 6%;
+    --foreground: 35 15% 92%;
 
-    --card: 30 6% 9%;
-    --card-foreground: 40 20% 95%;
+    --card: 25 6% 8%;
+    --card-foreground: 35 15% 92%;
 
-    --popover: 30 6% 9%;
-    --popover-foreground: 40 20% 95%;
+    --popover: 25 6% 8%;
+    --popover-foreground: 35 15% 92%;
 
-    --primary: 32 95% 52%;
-    --primary-foreground: 30 8% 6%;
+    /* Heraldic red — HSL approximation of the PF2e primary family,
+     * lightened to 42% for visibility as a button/accent on dark. */
+    --primary: 0 72% 42%;
+    --primary-foreground: 35 15% 96%;
 
-    --secondary: 30 4% 15%;
-    --secondary-foreground: 40 20% 95%;
+    /* Dark navy — echoes PF2e secondary (#171f69). */
+    --secondary: 220 10% 14%;
+    --secondary-foreground: 35 15% 92%;
 
-    --muted: 30 4% 13%;
-    --muted-foreground: 35 8% 55%;
+    --muted: 25 5% 12%;
+    --muted-foreground: 30 8% 52%;
 
-    --accent: 30 6% 16%;
-    --accent-foreground: 40 20% 95%;
+    --accent: 220 8% 15%;
+    --accent-foreground: 35 15% 92%;
 
     --destructive: 0 72% 45%;
-    --destructive-foreground: 40 20% 95%;
+    --destructive-foreground: 35 15% 92%;
 
-    --border: 30 5% 17%;
-    --input: 30 5% 17%;
-    --ring: 32 95% 52%;
+    --border: 25 5% 17%;
+    --input: 25 5% 17%;
+    --ring: 0 72% 42%;
 
     --radius: 0.5rem;
 
-    /* heading font for TTRPG identity */
-    --font-display: 'Cinzel', 'Palatino Linotype', 'Book Antiqua', serif;
+    /* heading font — Eczar matches the PF2e display font from shared tokens */
+    --font-display: 'Eczar', Georgia, 'Times New Roman', serif;
 
-    /* PF2e rarity color tokens — canonical palette */
-    --rarity-common: 0 0% 45%;
-    --rarity-uncommon: 30 80% 45%;
-    --rarity-rare: 220 70% 50%;
-    --rarity-unique: 270 60% 50%;
+    /* PF2e rarity color tokens — canonical HSL equivalents of pf2e.css hex values */
+    --rarity-common: 0 0% 20%; /* #323232 */
+    --rarity-uncommon: 15 43% 42%; /* #98513d */
+    --rarity-rare: 218 100% 20%; /* #002664 */
+    --rarity-unique: 286 67% 26%; /* #54166e */
   }
 
-  /* ── Arcane — purple/violet sorcery ── */
+  /* ── Arcane — violet sorcery (mirrors player-portal arcane scheme) ── */
   [data-theme='arcane'] {
-    --background: 270 10% 6%;
-    --foreground: 260 20% 95%;
-    --card: 270 8% 9%;
-    --card-foreground: 260 20% 95%;
-    --popover: 270 8% 9%;
-    --popover-foreground: 260 20% 95%;
-    --primary: 265 85% 60%;
-    --primary-foreground: 270 10% 6%;
-    --secondary: 270 6% 15%;
-    --secondary-foreground: 260 20% 95%;
-    --muted: 270 6% 13%;
-    --muted-foreground: 265 8% 55%;
-    --accent: 270 8% 16%;
-    --accent-foreground: 260 20% 95%;
+    --background: 276 10% 6%;
+    --foreground: 270 15% 95%;
+    --card: 276 8% 9%;
+    --card-foreground: 270 15% 95%;
+    --popover: 276 8% 9%;
+    --popover-foreground: 270 15% 95%;
+    /* Primary: brighter variant of arcane #4a1a6b for dark-mode visibility */
+    --primary: 286 62% 52%;
+    --primary-foreground: 276 10% 6%;
+    --secondary: 204 76% 13%; /* deep teal — echoes arcane secondary */
+    --secondary-foreground: 270 15% 95%;
+    --muted: 276 6% 13%;
+    --muted-foreground: 270 8% 55%;
+    --accent: 276 8% 15%;
+    --accent-foreground: 270 15% 95%;
     --destructive: 0 72% 45%;
-    --destructive-foreground: 260 20% 95%;
-    --border: 270 6% 17%;
-    --input: 270 6% 17%;
-    --ring: 265 85% 60%;
+    --destructive-foreground: 270 15% 95%;
+    --border: 276 6% 17%;
+    --input: 276 6% 17%;
+    --ring: 286 62% 52%;
   }
 
-  /* ── Verdant — forest green druid ── */
+  /* ── Verdant — forest green (mirrors player-portal verdant scheme) ── */
   [data-theme='verdant'] {
-    --background: 150 10% 5%;
-    --foreground: 140 15% 93%;
-    --card: 150 8% 8%;
-    --card-foreground: 140 15% 93%;
-    --popover: 150 8% 8%;
-    --popover-foreground: 140 15% 93%;
-    --primary: 145 70% 45%;
-    --primary-foreground: 150 10% 5%;
-    --secondary: 150 5% 14%;
-    --secondary-foreground: 140 15% 93%;
-    --muted: 150 5% 12%;
-    --muted-foreground: 145 8% 50%;
-    --accent: 150 7% 15%;
-    --accent-foreground: 140 15% 93%;
+    --background: 138 10% 5%;
+    --foreground: 130 12% 93%;
+    --card: 138 8% 8%;
+    --card-foreground: 130 12% 93%;
+    --popover: 138 8% 8%;
+    --popover-foreground: 130 12% 93%;
+    /* Primary: brighter variant of verdant #1f4e2b for dark-mode visibility */
+    --primary: 138 43% 40%;
+    --primary-foreground: 138 10% 5%;
+    --secondary: 191 36% 13%; /* deep teal — echoes verdant secondary */
+    --secondary-foreground: 130 12% 93%;
+    --muted: 138 5% 12%;
+    --muted-foreground: 134 8% 50%;
+    --accent: 138 7% 14%;
+    --accent-foreground: 130 12% 93%;
     --destructive: 0 72% 45%;
-    --destructive-foreground: 140 15% 93%;
-    --border: 150 5% 16%;
-    --input: 150 5% 16%;
-    --ring: 145 70% 45%;
+    --destructive-foreground: 130 12% 93%;
+    --border: 138 5% 16%;
+    --input: 138 5% 16%;
+    --ring: 138 43% 40%;
   }
 
-  /* ── Frost — cool blue ice ── */
+  /* ── Frost — steel blue (mirrors player-portal frost scheme) ── */
   [data-theme='frost'] {
-    --background: 215 12% 7%;
-    --foreground: 210 15% 94%;
-    --card: 215 10% 10%;
-    --card-foreground: 210 15% 94%;
-    --popover: 215 10% 10%;
-    --popover-foreground: 210 15% 94%;
-    --primary: 210 80% 55%;
-    --primary-foreground: 215 12% 7%;
-    --secondary: 215 6% 15%;
-    --secondary-foreground: 210 15% 94%;
-    --muted: 215 6% 13%;
+    --background: 213 12% 7%;
+    --foreground: 208 12% 94%;
+    --card: 213 10% 10%;
+    --card-foreground: 208 12% 94%;
+    --popover: 213 10% 10%;
+    --popover-foreground: 208 12% 94%;
+    /* Primary: brighter variant of frost #1d4a80 for dark-mode visibility */
+    --primary: 213 62% 50%;
+    --primary-foreground: 213 12% 7%;
+    --secondary: 219 34% 14%; /* slate — echoes frost secondary */
+    --secondary-foreground: 208 12% 94%;
+    --muted: 213 6% 13%;
     --muted-foreground: 210 8% 52%;
-    --accent: 215 8% 16%;
-    --accent-foreground: 210 15% 94%;
+    --accent: 213 8% 15%;
+    --accent-foreground: 208 12% 94%;
     --destructive: 0 72% 45%;
-    --destructive-foreground: 210 15% 94%;
-    --border: 215 6% 17%;
-    --input: 215 6% 17%;
-    --ring: 210 80% 55%;
+    --destructive-foreground: 208 12% 94%;
+    --border: 213 6% 17%;
+    --input: 213 6% 17%;
+    --ring: 213 62% 50%;
   }
 
-  /* ── Parchment — warm light theme ── */
+  /* ── Parchment — warm light theme (PF2e classic surfaces) ── */
   [data-theme='parchment'] {
-    --background: 38 40% 90%;
-    --foreground: 30 10% 12%;
-    --card: 38 35% 95%;
-    --card-foreground: 30 10% 12%;
-    --popover: 38 35% 95%;
-    --popover-foreground: 30 10% 12%;
-    --primary: 25 85% 40%;
-    --primary-foreground: 38 40% 96%;
-    --secondary: 35 15% 82%;
-    --secondary-foreground: 30 10% 15%;
-    --muted: 35 18% 85%;
-    --muted-foreground: 30 8% 45%;
-    --accent: 35 20% 86%;
-    --accent-foreground: 30 10% 12%;
-    --destructive: 0 72% 45%;
-    --destructive-foreground: 38 40% 96%;
-    --border: 35 15% 78%;
-    --input: 35 15% 78%;
-    --ring: 25 85% 40%;
+    --background: 30 35% 96%; /* near --color-pf-bg-dark */
+    --foreground: 0 0% 11%; /* near --color-pf-text */
+    --card: 30 30% 97%;
+    --card-foreground: 0 0% 11%;
+    --popover: 30 30% 97%;
+    --popover-foreground: 0 0% 11%;
+    /* Primary: heraldic red, slightly brightened for light-mode buttons */
+    --primary: 0 100% 18%; /* #5e0000 */
+    --primary-foreground: 30 35% 97%;
+    --secondary: 29 20% 88%; /* warm parchment panel */
+    --secondary-foreground: 0 0% 11%;
+    --muted: 29 22% 91%;
+    --muted-foreground: 0 3% 38%; /* --color-pf-sub */
+    --accent: 29 24% 89%;
+    --accent-foreground: 0 0% 11%;
+    --destructive: 0 72% 38%;
+    --destructive-foreground: 30 35% 97%;
+    --border: 30 22% 73%; /* near --color-pf-border */
+    --input: 30 22% 73%;
+    --ring: 0 100% 18%;
   }
 
   * {

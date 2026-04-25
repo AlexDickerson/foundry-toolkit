@@ -15,7 +15,11 @@
     "./map-stem": "./src/map-stem.ts",
     "./MissionBriefing": "./src/MissionBriefing.tsx",
     "./golarion-map": "./src/golarion-map/index.ts",
-    "./rpc": "./src/rpc/index.ts"
+    "./rpc": "./src/rpc/index.ts",
+    "./tokens": "./src/tokens/index.ts",
+    "./tokens/pf2e.css": "./tokens/pf2e.css",
+    "./tokens/fonts.css": "./tokens/fonts.css",
+    "./tokens/color-schemes.css": "./tokens/color-schemes.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
