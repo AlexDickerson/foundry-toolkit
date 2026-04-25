@@ -454,20 +454,19 @@ async function rollStrikeDamageAction(
   const critical = params['critical'] === true;
 
   const strike = resolveStrike(actor, strikeSlug);
-  // skipDialog: true — suppress PF2e's DamageModifierDialog (situational
-  // modifier prompt that fires renderDamageModifierDialog). Portal players
-  // are explicitly requesting the roll; consistent with RollDamageHandler
-  // which already passes { configure: false } for the same reason.
+  // DamageModifierDialog is suppressed via the renderDamageModifierDialog hook
+  // in prompt-intercept.ts — skipDialog is NOT in DamageRollParams so passing
+  // it here has no effect. The hook handles it unconditionally.
   if (critical) {
     if (typeof strike.critical !== 'function') {
       throw new Error(`roll-strike-damage: strike "${strikeSlug}" has no critical roll`);
     }
-    await strike.critical({ skipDialog: true });
+    await strike.critical({});
   } else {
     if (typeof strike.damage !== 'function') {
       throw new Error(`roll-strike-damage: strike "${strikeSlug}" has no damage roll`);
     }
-    await strike.damage({ skipDialog: true });
+    await strike.damage({});
   }
   return { ok: true };
 }

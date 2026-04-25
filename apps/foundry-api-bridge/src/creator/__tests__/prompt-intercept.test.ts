@@ -157,3 +157,44 @@ describe('installPromptInterception', () => {
     expect(app.selection).toBeNull();
   });
 });
+
+// ─── DamageModifierDialog suppression ────────────────────────────────────
+
+describe('installPromptInterception — renderDamageModifierDialog', () => {
+  it('registers a renderDamageModifierDialog hook', () => {
+    installPromptInterception([]);
+    const names = hooksMock.registered.map((h) => h.name);
+    expect(names).toContain('renderDamageModifierDialog');
+  });
+
+  it('sets isRolled=true and closes the dialog so the roll proceeds', async () => {
+    installPromptInterception([]);
+
+    const app = {
+      isRolled: false,
+      close: jest.fn().mockResolvedValue(undefined),
+    };
+
+    hooksMock.fire('renderDamageModifierDialog', app);
+    await Promise.resolve(); // allow microtask to settle
+
+    expect(app.isRolled).toBe(true);
+    expect(app.close).toHaveBeenCalled();
+  });
+
+  it('does not set isRolled=false (which would cancel the roll)', async () => {
+    installPromptInterception([]);
+
+    const app = {
+      isRolled: false,
+      close: jest.fn().mockResolvedValue(undefined),
+    };
+
+    hooksMock.fire('renderDamageModifierDialog', app);
+    await Promise.resolve();
+
+    // isRolled must be true before close() is called so pf2e's #resolve(true)
+    // signals "proceed" rather than "cancel".
+    expect(app.isRolled).toBe(true);
+  });
+});

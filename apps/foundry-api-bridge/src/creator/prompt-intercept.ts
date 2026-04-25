@@ -55,11 +55,42 @@ interface PromptResponse {
 
 const HOOK_NAME = 'renderPickAThingPrompt';
 
+// PF2e's DamageModifierDialog lets users toggle modifiers before rolling
+// damage. It extends `fav1.api.Application` (not Foundry's Dialog), so the
+// generic renderDialog hook never fires for it.
+//
+// The dialog API (src/module/system/damage/dialog.ts):
+//   app.isRolled  — false by default; close() calls #resolve(this.isRolled)
+//   Closing with isRolled=false signals CANCEL → damage roll returns null.
+//   Closing with isRolled=true  signals PROCEED → damage roll continues.
+//
+// skipDialog cannot be passed via DamageRollParams (it's not in that type);
+// it only lives in DamageDamageContext which is built from user settings.
+// So we suppress the dialog at the render hook instead.
+//
+// NOTE: this hook is intentionally unconditional — it fires whether or not
+// a portal client is connected, because the modal would stall Foundry for
+// everyone if it were left open with no GM to click it.
+interface DamageModifierDialogApp {
+  isRolled: boolean;
+  close(options?: { force?: boolean }): Promise<void>;
+}
+
 export function installPromptInterception(wsClients: readonly WebSocketClient[]): void {
   // @ts-expect-error — Foundry's Hooks global is untyped in this module
   Hooks.on(HOOK_NAME, (app: PickAThingPromptApp) => {
     void handlePrompt(app, wsClients);
   });
+
+  // Suppress PF2e's DamageModifierDialog — set isRolled=true before close()
+  // so pf2e's internal promise resolves as "proceed", not "cancel".
+  // @ts-expect-error — Hooks is untyped
+  Hooks.on('renderDamageModifierDialog', (app: DamageModifierDialogApp) => {
+    console.info('Foundry API Bridge | Suppressing DamageModifierDialog with defaults');
+    app.isRolled = true;
+    void app.close();
+  });
+
   console.log('Foundry API Bridge | ChoiceSet prompt interception installed');
 }
 
