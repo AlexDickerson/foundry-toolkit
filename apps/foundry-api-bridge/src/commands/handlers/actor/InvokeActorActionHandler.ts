@@ -427,7 +427,10 @@ async function rollStrikeAction(
   if (!variant) {
     throw new Error(`roll-strike: strike "${strikeSlug}" has no variant ${variantIndex.toString()}`);
   }
-  await variant.roll({});
+  // skipDialog: true — suppress PF2e's CheckDialogPF2e (situational modifier
+  // prompt). Portal players are explicitly requesting the attack; they
+  // don't need a dialog step. Consistent with rollStatisticAction.
+  await variant.roll({ skipDialog: true });
   return { ok: true };
 }
 
@@ -451,16 +454,20 @@ async function rollStrikeDamageAction(
   const critical = params['critical'] === true;
 
   const strike = resolveStrike(actor, strikeSlug);
+  // skipDialog: true — suppress PF2e's DamageModifierDialog (situational
+  // modifier prompt that fires renderDamageModifierDialog). Portal players
+  // are explicitly requesting the roll; consistent with RollDamageHandler
+  // which already passes { configure: false } for the same reason.
   if (critical) {
     if (typeof strike.critical !== 'function') {
       throw new Error(`roll-strike-damage: strike "${strikeSlug}" has no critical roll`);
     }
-    await strike.critical({});
+    await strike.critical({ skipDialog: true });
   } else {
     if (typeof strike.damage !== 'function') {
       throw new Error(`roll-strike-damage: strike "${strikeSlug}" has no damage roll`);
     }
-    await strike.damage({});
+    await strike.damage({ skipDialog: true });
   }
   return { ok: true };
 }
