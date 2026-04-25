@@ -89,4 +89,19 @@ describe('SheetHeader', () => {
     expect(identity?.textContent).toContain('Venom-Resistant Vishkanya');
     expect(identity?.textContent).not.toContain('Venom-Resistant Vishkanya Vishkanya');
   });
+
+  it('renders portrait img with a leading-slash asset path', () => {
+    const { container } = render(<SheetHeader character={character} />);
+    const img = container.querySelector('[data-testid="character-portrait"]') as HTMLImageElement | null;
+    expect(img, 'portrait img element').toBeTruthy();
+    // Amiri fixture: "systems/pf2e/icons/iconics/portraits/amiri.webp"
+    expect(img?.getAttribute('src')).toBe('/systems/pf2e/icons/iconics/portraits/amiri.webp');
+  });
+
+  it('renders portrait placeholder when img is empty', () => {
+    const noImg: PreparedCharacter = { ...character, img: '' };
+    const { container } = render(<SheetHeader character={noImg} />);
+    expect(container.querySelector('[data-testid="character-portrait"]')).toBeNull();
+    expect(container.querySelector('[data-testid="character-portrait-placeholder"]')).toBeTruthy();
+  });
 });
