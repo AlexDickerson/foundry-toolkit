@@ -4,6 +4,7 @@ import { log } from '../logger.js';
 import { registerActorRoutes } from './routes/actors.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerCompendiumRoutes } from './routes/compendium.js';
+import { registerDispatchRoute } from './routes/dispatch.js';
 import { registerEvalRoutes } from './routes/eval.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerPromptRoutes } from './routes/prompts.js';
@@ -70,6 +71,7 @@ export async function buildHttpApp(): Promise<FastifyInstance> {
 
   registerActorRoutes(app);
   registerAssetRoutes(app);
+  registerDispatchRoute(app);
   registerCompendiumRoutes(app);
   registerEvalRoutes(app);
   registerEventRoutes(app);
