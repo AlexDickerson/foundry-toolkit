@@ -93,7 +93,7 @@ function StrikeCard({
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-sm font-medium text-neutral-900">
+            <span className="truncate text-sm font-medium text-pf-text">
               {strike.label}
               {strike.quantity > 1 && (
                 <span className="ml-2 text-xs font-normal text-pf-text-muted">×{strike.quantity}</span>
@@ -322,7 +322,7 @@ function ActionCard({
               type="button"
               onClick={toggle}
               aria-expanded={expanded}
-              className="min-w-0 truncate text-left text-sm font-medium text-neutral-900 hover:underline"
+              className="min-w-0 truncate text-left text-sm font-medium text-pf-text hover:underline"
               data-testid="action-card-toggle"
             >
               {item.name}

@@ -23,7 +23,7 @@ export function ModifierTooltip({ title, breakdown, modifiers }: Props): React.R
         'group-hover:visible',
       ].join(' ')}
     >
-      <div className="mb-1 text-sm font-semibold text-neutral-900">{t(title)}</div>
+      <div className="mb-1 text-sm font-semibold text-pf-text">{t(title)}</div>
       <div className="mb-2 text-pf-text-muted">{breakdown}</div>
       {active.length > 0 && (
         <ul className="space-y-0.5">
