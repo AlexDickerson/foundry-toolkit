@@ -730,8 +730,10 @@ function GridTile({
 }): React.ReactElement {
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
-      <details className="group">
-        <summary className="flex cursor-pointer list-none flex-col items-center gap-1 rounded border border-pf-border bg-pf-bg p-2 text-center hover:bg-pf-bg-dark/40 group-open:border-pf-primary/60 group-open:shadow-lg">
+      {/* Border lives on <details> (not <summary>) so open:rounded-b-none
+          + panel border-t-0 form one continuous card shape. */}
+      <details className="group relative rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
+        <summary className="flex cursor-pointer list-none flex-col items-center gap-1 p-2 text-center hover:bg-pf-bg-dark/40">
           <div className="relative">
             <img src={item.img} alt="" className="h-14 w-14 rounded border border-pf-border bg-pf-bg-dark" />
             {item.system.quantity > 1 && (
@@ -748,13 +750,10 @@ function GridTile({
           </div>
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
-        {/* Floating detail card below the tile. Fixed 18rem width so
-            descriptions stay readable even when the tile itself is
-            narrow; overlaps neighbouring tiles rather than pushing
-            the grid around. z-20 keeps it above nearby tiles but
-            below the tab bar / popovers. Image stays in the summary
-            above — no duplicate here. */}
-        <div className="absolute left-0 top-full z-20 mt-1 w-72 rounded border border-pf-primary/60 bg-pf-bg p-3 text-left text-sm text-pf-text shadow-lg">
+        {/* min-w-[18rem] keeps descriptions readable on narrow tiles;
+            the panel may overhang to the right which is fine. No mt-1 —
+            border-t-0 seals directly against the <details> bottom edge. */}
+        <div className="absolute left-0 top-full z-20 min-w-[18rem] rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 text-left text-sm text-pf-text shadow-lg">
           <ItemDescription item={item} />
         </div>
       </details>
