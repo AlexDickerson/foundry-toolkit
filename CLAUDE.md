@@ -79,6 +79,24 @@ What good logging looks like:
 
 **Don't ship code that depends on `/api/eval` at runtime.** It's an investigation tool. Productionize discoveries by writing a real handler (or, when issue #74's generic dispatcher lands, routing through that). When `ALLOW_EVAL` is unset the endpoint isn't registered and requests 404 indistinguishably from any other unknown route — production code calling it would fail silently.
 
+## API documentation lookups (Context7)
+
+Context7 is the preferred tool for fetching up-to-date docs on libraries, frameworks, and APIs. The MCP exposes `mcp__context7__resolve-library-id` and `mcp__context7__query-docs`. Reach for it instead of guessing from training data.
+
+**Foundry VTT API** (hooks, Document model, classes, application lifecycle):
+
+- `/websites/foundryvtt_api_v14` — v14 API (current).
+- `/websites/foundryvtt_api_v13` — v13 API.
+- `/foundryvtt/foundryvtt` — generic Foundry docs.
+
+**PF2e system** (rules, sheet behaviors, common system shapes):
+
+- `/kagangtuya-star/foundry-pf2e-wiki-doc` — community PF2e wiki / docs (high reputation, 710 snippets).
+
+**When Context7 isn't enough:** typed source-level questions (exact public method signatures on `CharacterPF2e`, `ItemPF2e`, etc.) aren't fully indexed there. Read the vendored PF2e source under `apps/player-portal/`, or do a direct read against `https://github.com/foundryvtt/pf2e`. Gemini Pro / NotebookLM handles the full repo size if needed — but stay inside Claude Code unless the size genuinely requires it.
+
+**Relationship to `/api/eval`:** Context7 is for documented API — static descriptions, method signatures, hook names. `/api/eval` is for runtime introspection — when you need to know what a real actor's data looks like right now, eval beats both Context7 and source reads.
+
 ## Root ESLint scope
 
 `eslint.config.js` explicitly ignores `apps/player-portal`, `apps/foundry-mcp`, `apps/foundry-api-bridge`, plus all `dist/`, `out/`, `server-dist/`, `tagger/`, `resources/`, and `.claude/`. The root ESLint pass therefore only covers **`apps/dm-tool` + `packages/*` + `tools/*`**. The three excluded apps lint via their own workspace scripts.
