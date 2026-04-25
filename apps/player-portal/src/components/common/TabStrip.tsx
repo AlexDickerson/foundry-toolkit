@@ -25,7 +25,7 @@ export function TabStrip<Id extends string>({ tabs, active, onChange }: Props<Id
               onChange(tab.id);
             }}
             className={[
-              'px-2.5 py-2 text-sm font-medium tracking-wide transition-colors',
+              'px-2 py-2 text-sm font-medium tracking-wide transition-colors',
               '-mb-px border-b-2',
               isActive
                 ? 'border-pf-primary text-pf-primary'
