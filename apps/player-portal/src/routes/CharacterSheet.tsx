@@ -6,6 +6,7 @@ import { SheetHeader } from '../components/sheet/SheetHeader';
 import { SettingsDialog } from '../components/settings/SettingsDialog';
 import { TabStrip } from '../components/common/TabStrip';
 import type { Tab } from '../components/common/TabStrip';
+import { SectionHeader } from '../components/common/SectionHeader';
 import { Actions } from '../components/tabs/Actions';
 import { Background } from '../components/tabs/Background';
 import { Character } from '../components/tabs/Character';
@@ -20,29 +21,21 @@ import { fromPreparedCharacter } from '../prereqs';
 import { usePreferences } from '../lib/usePreferences';
 import { prefetchIcons } from '../lib/prefetchIcons';
 import { PromptQueue } from '../components/dialog/PromptQueue';
+import type { TabId } from '../lib/tabUtils';
 
 type State =
   | { kind: 'loading' }
   | { kind: 'error'; message: string; suggestion?: string }
   | { kind: 'ready'; actor: PreparedCharacter };
 
-type TabId =
-  | 'character'
-  | 'actions'
-  | 'spells'
-  | 'inventory'
-  | 'crafting'
-  | 'feats'
-  | 'proficiencies'
-  | 'progression'
-  | 'background';
-
+// 'crafting' is no longer a top-level tab — its content is surfaced as a
+// section within the 'inventory' tab. TabId is defined in lib/tabUtils so
+// normalizeTabId() can map stale references if tab state is ever persisted.
 const TABS: readonly Tab<TabId>[] = [
   { id: 'character', label: 'Character' },
   { id: 'actions', label: 'Actions' },
   { id: 'spells', label: 'Spells' },
   { id: 'inventory', label: 'Inventory' },
-  { id: 'crafting', label: 'Crafting' },
   { id: 'feats', label: 'Feats' },
   { id: 'proficiencies', label: 'Proficiencies' },
   { id: 'progression', label: 'Progression' },
@@ -184,9 +177,14 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
             <Spells items={state.actor.items} characterLevel={state.actor.system.details.level.value} />
           )}
           {activeTab === 'inventory' && (
-            <Inventory items={state.actor.items} actorId={actorId} onActorChanged={reloadActor} />
+            <>
+              <Inventory items={state.actor.items} actorId={actorId} onActorChanged={reloadActor} />
+              <div className="mt-10 border-t border-pf-border pt-6">
+                <SectionHeader>Crafting</SectionHeader>
+                <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
+              </div>
+            </>
           )}
-          {activeTab === 'crafting' && <Crafting actorId={actorId} crafting={state.actor.system.crafting} />}
           {activeTab === 'feats' && <Feats items={state.actor.items} />}
           {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} />}
           {activeTab === 'progression' && (
