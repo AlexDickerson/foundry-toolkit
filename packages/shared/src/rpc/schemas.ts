@@ -270,6 +270,13 @@ export const updateActorItemBody = z.object({
   system: z.record(z.string(), z.unknown()).optional(),
 });
 
+/** Query params for `GET /api/actors/party`.  `party` overrides the
+ *  default party actor name defined in `apps/foundry-api-bridge/src/party-config.ts`
+ *  ("The Party").  Only needed when the PF2e party actor has been renamed. */
+export const partyActorsQuery = z.object({
+  party: z.string().min(1).optional(),
+});
+
 export const bridgeIdParam = z.object({
   id: z.string().min(1),
 });

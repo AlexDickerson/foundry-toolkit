@@ -8,12 +8,21 @@ import {
   addItemFromCompendiumBody,
   createActorBody,
   invokeActorActionBody,
+  partyActorsQuery,
   updateActorBody,
   updateActorItemBody,
 } from '../schemas.js';
 
 export function registerActorRoutes(app: FastifyInstance): void {
   app.get('/api/actors', async () => sendCommand('get-actors'));
+
+  /** Return player characters from the PF2e party actor.
+   *  Optional `?party=` query param overrides the default party actor name
+   *  ("The Party") so GMs who renamed their party actor don't need a code change. */
+  app.get('/api/actors/party', async (req) => {
+    const { party } = partyActorsQuery.parse(req.query);
+    return sendCommand('get-party-members', party ? { partyName: party } : {});
+  });
 
   app.get('/api/actors/:id', async (req) => {
     const { id } = actorIdParam.parse(req.params);

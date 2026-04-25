@@ -31,6 +31,7 @@ import {
   getActorHandler,
   getPreparedActorHandler,
   getStatisticTraceHandler,
+  getPartyMembersHandler,
   runScriptHandler,
   getWorldInfoHandler,
   getJournalsHandler,
@@ -169,6 +170,7 @@ function initializeWebSocket(
   commandRouter.register('get-actor', getActorHandler);
   commandRouter.register('get-prepared-actor', getPreparedActorHandler);
   commandRouter.register('get-statistic-trace', getStatisticTraceHandler);
+  commandRouter.register('get-party-members', getPartyMembersHandler);
   commandRouter.register('run-script', runScriptHandler);
   commandRouter.register('get-journals', getJournalsHandler);
   commandRouter.register('get-journal', getJournalHandler);

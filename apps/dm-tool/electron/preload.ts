@@ -12,6 +12,7 @@ import type {
   AurusTeam,
   Encounter,
   LootItem,
+  PartyMember,
   PushEncounterResult,
   Book,
   BookClassifyProgress,
@@ -181,6 +182,7 @@ const api: ElectronAPI = {
     ipcRenderer.invoke('generateEncounterLoot', args),
   pushEncounterToFoundry: (encounterId: string): Promise<PushEncounterResult> =>
     ipcRenderer.invoke('pushEncounterToFoundry', encounterId),
+  listPartyMembers: (): Promise<PartyMember[]> => ipcRenderer.invoke('listPartyMembers'),
 
   // Auto-Wall
   autoWallAvailable: (): Promise<boolean> => ipcRenderer.invoke('autoWallAvailable'),

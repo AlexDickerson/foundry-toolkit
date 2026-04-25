@@ -822,6 +822,12 @@ export interface ElectronAPI {
    *  with the API Bridge module connected. Returns a summary of what
    *  was created + skipped so the UI can surface ambiguities. */
   pushEncounterToFoundry(encounterId: string): Promise<PushEncounterResult>;
+  /** Fetch player characters from the GM's party folder in Foundry.
+   *  Returns an empty array when foundryMcpUrl is not configured, the
+   *  bridge is not connected, or the folder contains no characters.
+   *  The folder name defaults to "The Party" and can be overridden by
+   *  passing `?folder=` on the HTTP side. */
+  listPartyMembers(): Promise<PartyMember[]>;
 }
 
 // --- Party inventory ---------------------------------------------------------
@@ -863,6 +869,21 @@ export interface AurusTeam {
   note?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// --- Party members (Foundry live query) --------------------------------------
+
+/** A player character fetched from the GM's party folder in Foundry.
+ *  Stats are pre-extracted for the combat tracker so the picker
+ *  can display them without a follow-up actor fetch. */
+export interface PartyMember {
+  id: string;
+  name: string;
+  img: string;
+  /** Perception modifier (PF2e `system.perception.mod`), used as the
+   *  default initiative modifier in the combat tracker. */
+  initiativeMod: number;
+  maxHp: number;
 }
 
 // --- Combat tracker ----------------------------------------------------------
