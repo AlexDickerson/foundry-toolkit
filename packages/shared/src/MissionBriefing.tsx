@@ -3,6 +3,7 @@
 
 import { Fragment, type ReactNode } from 'react';
 import type { MissionData, MissionStatus, MissionThreatLevel } from '@foundry-toolkit/shared/types';
+import { pf2eColors } from './tokens/index.js';
 
 const threatDescriptions: Record<MissionThreatLevel, string> = {
   Trivial: 'Minor Concern',
@@ -12,13 +13,15 @@ const threatDescriptions: Record<MissionThreatLevel, string> = {
   Extreme: 'Mortal Danger',
 };
 
-// Status stamp colors — tinted red inks on aged parchment.
+// Status stamp colors — tinted red/green inks on aged parchment.
+// Active/Assigned use the PF2e primary-light red; Failed uses primary-dark.
+// Completed uses a deep forest green that reads as a positive seal.
 const statusStampStyle: Record<MissionStatus, { color: string; label: string } | null> = {
   Available: null,
-  Assigned: { color: '#7a2020', label: 'Assigned' },
-  Active: { color: '#7a2020', label: 'Active' },
+  Assigned: { color: pf2eColors.primaryLight, label: 'Assigned' },
+  Active: { color: pf2eColors.primaryLight, label: 'Active' },
   Completed: { color: '#2f5a2f', label: 'Completed' },
-  Failed: { color: '#5a1a1a', label: 'Failed' },
+  Failed: { color: pf2eColors.primaryDark, label: 'Failed' },
 };
 
 /** Render a short string with `[[wikilink|alias]]` → italic span and
@@ -96,7 +99,7 @@ function WaxSeal() {
         style={{
           width: 64,
           height: 64,
-          background: '#7a2020',
+          background: pf2eColors.primaryLight,
           boxShadow:
             'inset 0 2px 4px rgba(0,0,0,0.4), inset 0 -1px 2px rgba(255,200,200,0.1), 2px 3px 6px rgba(0,0,0,0.3)',
         }}
