@@ -8,11 +8,18 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import type { MonsterFacets, MonsterSearchParams } from '@foundry-toolkit/shared/types';
 
-const RARITY_COLORS: Record<string, string> = {
-  common: 'border-zinc-500 bg-zinc-500/10',
-  uncommon: 'border-amber-500 bg-amber-500/10',
-  rare: 'border-blue-500 bg-blue-500/10',
-  unique: 'border-purple-500 bg-purple-500/10',
+const RARITY_BORDER: Record<string, string> = {
+  common: 'border-zinc-500',
+  uncommon: 'border-amber-500',
+  rare: 'border-blue-500',
+  unique: 'border-purple-500',
+};
+
+const RARITY_BG: Record<string, string> = {
+  common: 'bg-zinc-500/10',
+  uncommon: 'bg-amber-500/10',
+  rare: 'bg-blue-500/10',
+  unique: 'bg-purple-500/10',
 };
 
 const SIZE_ORDER = ['tiny', 'small', 'med', 'medium', 'large', 'huge', 'gargantuan'];
@@ -127,9 +134,10 @@ export function MonsterFilterPanel({ facets, params, onChange }: Props) {
                       onClick={() => toggleArray('rarities', r)}
                       className={cn(
                         'rounded-md border px-2 py-0.5 text-xs capitalize transition-colors',
+                        RARITY_BORDER[r.toLowerCase()] ?? 'border-border',
                         active
-                          ? (RARITY_COLORS[r.toLowerCase()] ?? 'border-primary bg-primary/10')
-                          : 'border-border bg-background hover:bg-accent',
+                          ? (RARITY_BG[r.toLowerCase()] ?? 'bg-primary/10')
+                          : 'bg-background hover:bg-accent',
                       )}
                     >
                       {r}
