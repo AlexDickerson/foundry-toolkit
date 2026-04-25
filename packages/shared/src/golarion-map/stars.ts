@@ -136,13 +136,13 @@ in float v_alpha;
 out vec4 fragColor;
 
 void main() {
-  // Discard corners of the point sprite quad, leaving a circle.
   vec2 coord = gl_PointCoord - vec2(0.5);
-  float dist = length(coord);
-  if (dist > 0.5) discard;
+  float dist2 = dot(coord, coord); // dist² — avoids a sqrt
 
-  // Soft glow: full alpha at centre, fades to zero at the edge.
-  float soft = 1.0 - smoothstep(0.25, 0.5, dist);
+  // Gaussian falloff: bright core, exponential decay outward.
+  // No hard edge — the function reaches ~0.018 at the sprite boundary
+  // so there's nothing to discard and no circular outline visible.
+  float soft = exp(-dist2 * 16.0);
   fragColor = vec4(u_color, v_alpha * soft);
 }`;
 
