@@ -713,7 +713,7 @@ describe('itemDocToBrowserRow', () => {
 });
 
 describe('itemDocToBrowserDetail', () => {
-  it('includes cleaned description and parsed variants', () => {
+  it('includes cleaned description, parsed variants, and itemType', () => {
     const detail = itemDocToBrowserDetail(potionOfHealingDoc());
     expect(detail.description).toContain('Drink to regain ◆ HP.');
     expect(detail.source).toBe('Player Core');
@@ -721,6 +721,30 @@ describe('itemDocToBrowserDetail', () => {
     expect(detail.variants[0]).toEqual({ type: 'lesser', level: 3, price: '12 gp' });
     // Consumable defaults to activatable
     expect(detail.hasActivation).toBe(true);
+    // itemType mirrors doc.type
+    expect(detail.itemType).toBe('consumable');
+  });
+
+  it('itemType reflects the document type for non-consumable items', () => {
+    const weaponDoc: CompendiumDocument = {
+      id: 'sword1',
+      uuid: 'Compendium.pf2e.equipment-srd.Item.sword1',
+      name: 'Longsword',
+      type: 'weapon',
+      img: '',
+      system: {
+        level: { value: 0 },
+        publication: { title: 'Core Rulebook', remaster: false },
+        traits: { value: ['versatile-p'], rarity: 'common' },
+        price: { value: { gp: 1 } },
+        bulk: { value: 1 },
+        usage: { value: 'held-in-one-hand' },
+        description: { value: '<p>A standard one-handed sword.</p>' },
+      },
+    };
+    const detail = itemDocToBrowserDetail(weaponDoc);
+    expect(detail.itemType).toBe('weapon');
+    expect(detail.description).toBe('A standard one-handed sword.');
   });
 });
 
