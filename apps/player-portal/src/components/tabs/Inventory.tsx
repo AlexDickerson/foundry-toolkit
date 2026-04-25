@@ -587,8 +587,17 @@ function ItemRow({
       : undefined;
 
   return (
-    <li className="relative rounded border border-pf-border bg-pf-bg" data-item-id={item.id} data-item-type={item.type}>
-      <details className="group" open={card.isOpen}>
+    <li className="relative" data-item-id={item.id} data-item-type={item.type}>
+      {/* <details> is the visual card (owns the border). Making it
+          relative means the absolute panel positions from the bottom of
+          the summary rather than from the bottom of the <li>, so it
+          appears directly below the row even on container items whose
+          <li> is taller due to nested contents.
+          open:rounded-b-none seals the seam with the panel's rounded-b. */}
+      <details
+        className="group relative rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg"
+        open={card.isOpen}
+      >
         <summary
           className="flex cursor-pointer list-none items-center gap-3 px-3 py-2 hover:bg-pf-bg-dark/40"
           onClick={(e): void => {
@@ -616,15 +625,18 @@ function ItemRow({
           <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
           <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
-        {/* Absolute-positioned panel — overlays rows below instead of
-            pushing them down. Containing block is the <li> (relative);
-            left/right span the full card width. */}
+        {/* Absolute panel shares border color with the open <details>,
+            drops the top border (seam is the <details> bottom edge),
+            and gets the bottom rounding that <details> gives up. */}
         <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
           <ItemDescription item={item} />
         </div>
       </details>
       {isContainerRow && contents.length > 0 && (
-        <ul className="divide-y divide-neutral-100 border-t border-neutral-100 pl-6" data-container-contents={item.id}>
+        <ul
+          className="rounded-b border-x border-b border-pf-border divide-y divide-neutral-100 pl-6"
+          data-container-contents={item.id}
+        >
           {contents.map((child) => (
             <ContainerChildRow key={child.id} item={child} />
           ))}
@@ -681,7 +693,10 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
   const card = useExpandableCard();
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
-      <details className="group" open={card.isOpen}>
+      <details
+        className="group relative rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg"
+        open={card.isOpen}
+      >
         <summary
           className="flex cursor-pointer list-none items-center gap-3 px-3 py-1.5 hover:bg-pf-bg-dark/40"
           onClick={(e): void => {
