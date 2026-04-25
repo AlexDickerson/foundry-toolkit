@@ -24,10 +24,11 @@ import type {
   ItemBrowserRow,
   ItemVariant,
   MonsterDetail,
+  MonsterSpellGroup,
   MonsterSummary,
 } from '@foundry-toolkit/shared/types';
 import type { LootShortlistItem } from '@foundry-toolkit/ai/loot';
-import type { CompendiumDocument, CompendiumMatch, ItemPrice } from './types.js';
+import type { CompendiumDocument, CompendiumEmbeddedItem, CompendiumMatch, ItemPrice } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Re-exported MonsterResult / MonsterRow shapes
@@ -231,6 +232,59 @@ function formatAttackList(raw: unknown): string {
 export const formatMelee = formatAttackList;
 export const formatRanged = formatAttackList;
 
+// ---------------------------------------------------------------------------
+// PF2e processed-actor strike format
+// ---------------------------------------------------------------------------
+//
+// When the mcp cache warms a compendium pack it stores the full processed
+// PF2e actor document (the Foundry-hydrated shape, not the raw pack JSON).
+// Strikes live in `system.actions[]` as flat objects with:
+//   { type: "strike", attackRollType: "PF2E.NPCAttackMelee"|"…Ranged",
+//     label: string, totalModifier: number,
+//     traits: [{ name: string, label: string }],
+//     item: { system: { damageRolls: { <id>: { damage, damageType, category } } } } }
+//
+// This is distinct from the legacy test-fixture shape (system.actions.melee[])
+// used when the bridge serialises raw pack JSON.
+
+function formatPf2eStrikes(actions: unknown, attackRollType: string): string {
+  if (!Array.isArray(actions)) return '';
+  return actions
+    .filter(
+      (a): a is Record<string, unknown> =>
+        isRecord(a) && readString(a.type) === 'strike' && readString(a.attackRollType) === attackRollType,
+    )
+    .map((strike) => {
+      const name = readString(strike.label);
+      const mod = readNumber(strike.totalModifier);
+      const sign = mod >= 0 ? '+' : '';
+
+      // Traits: array of { name, label } objects; skip the generic "attack" tag.
+      const traitObjs = Array.isArray(strike.traits) ? strike.traits.filter(isRecord) : [];
+      const traitNames = traitObjs.map((t) => readString(t.name)).filter((n) => n.length > 0 && n !== 'attack');
+      const traitsStr = traitNames.length > 0 ? ` (${traitNames.join(', ')})` : '';
+
+      // Damage: item.system.damageRolls is a keyed object, one entry per roll.
+      const itemSys = isRecord(strike.item) ? readPath(strike.item as Record<string, unknown>, ['system']) : null;
+      const dmgRolls = isRecord(itemSys) && isRecord(itemSys.damageRolls) ? itemSys.damageRolls : null;
+      let dmgStr = '';
+      if (dmgRolls) {
+        dmgStr = Object.values(dmgRolls)
+          .filter(isRecord)
+          .map((r) => {
+            const formula = readString(r.damage);
+            const type = readString(r.damageType);
+            const category = readString(r.category);
+            return `${formula} ${type}${category === 'persistent' ? ' persistent' : ''}`.trim();
+          })
+          .join(' plus ');
+      }
+
+      return `◆ ${name} ${sign}${mod.toString()}${traitsStr}, Damage ${dmgStr}`;
+    })
+    .join('; ');
+}
+
 interface WireAction {
   name?: unknown;
   action_type?: unknown;
@@ -296,20 +350,39 @@ export function formatWeaknesses(raw: unknown): string {
 }
 
 export function formatSpeed(system: Record<string, unknown>): string {
-  // PF2e shape: system.attributes.speed.value (land, number) +
-  // system.attributes.speed.otherSpeeds[] with { type, value }.
-  const speedObj = readPath(system, ['attributes', 'speed']);
-  if (!isRecord(speedObj)) return '';
-  const land = readNumber(speedObj.value);
-  const parts: string[] = [];
-  if (land > 0) parts.push(`${land.toString()} feet`);
-  const other = Array.isArray(speedObj.otherSpeeds) ? speedObj.otherSpeeds.filter(isRecord) : [];
-  for (const s of other) {
-    const type = readString(s.type);
-    const value = readNumber(s.value);
-    if (type) parts.push(`${type} ${value.toString()} feet`);
+  // Legacy / simplified shape: system.attributes.speed.value (land) +
+  // system.attributes.speed.otherSpeeds[].
+  const attrSpeed = readPath(system, ['attributes', 'speed']);
+  if (isRecord(attrSpeed)) {
+    const land = readNumber(attrSpeed.value);
+    const parts: string[] = [];
+    if (land > 0) parts.push(`${land.toString()} feet`);
+    const other = Array.isArray(attrSpeed.otherSpeeds) ? attrSpeed.otherSpeeds.filter(isRecord) : [];
+    for (const s of other) {
+      const type = readString(s.type);
+      const value = readNumber(s.value);
+      if (type) parts.push(`${type} ${value.toString()} feet`);
+    }
+    return parts.join(', ');
   }
-  return parts.join(', ');
+
+  // PF2e processed shape: system.movement.speeds.{ land, burrow, climb, fly, swim }
+  // each entry is null (not available) or { value: number }.
+  const movSpeeds = readPath(system, ['movement', 'speeds']);
+  if (isRecord(movSpeeds)) {
+    const parts: string[] = [];
+    const SPEED_KEYS = ['land', 'burrow', 'climb', 'fly', 'swim'] as const;
+    for (const key of SPEED_KEYS) {
+      const entry = movSpeeds[key];
+      if (!isRecord(entry)) continue;
+      const val = readNumber(entry.value);
+      if (val <= 0) continue;
+      parts.push(key === 'land' ? `${val.toString()} feet` : `${key} ${val.toString()} feet`);
+    }
+    return parts.join(', ');
+  }
+
+  return '';
 }
 
 // ---------------------------------------------------------------------------
@@ -440,16 +513,154 @@ function monsterSkills(system: Record<string, unknown>): string {
   return parts.join(', ');
 }
 
+// ---------------------------------------------------------------------------
+// Spell list formatter
+// ---------------------------------------------------------------------------
+//
+// PF2e spellcasting data lives in the document's embedded `items` array
+// (not in `system`). Each spellcasting tradition is a `spellcastingEntry`
+// item that links to `spell` items via `spell.system.location.value`.
+//
+// Wire shape (from getCompendiumDocumentHandler):
+//   spellcastingEntry.system.tradition.value  — "arcane"|"divine"|"occult"|"primal"
+//   spellcastingEntry.system.prepared.value   — "prepared"|"spontaneous"|"innate"|"focus"
+//   spellcastingEntry.system.spelldc.dc        — DC number
+//   spellcastingEntry.system.spelldc.value     — spell attack bonus
+//   spell.system.level.value                   — 0=cantrip, 1-10=spell level
+//   spell.system.location.value                — ID of the spellcastingEntry
+//   spell.system.location.uses.max             — charges for innate spells
+//   spell.system.location.heightenedLevel      — if heightened to a different level
+
+const RARITY_SPELL_TRAITS = new Set(['common', 'uncommon', 'rare', 'unique']);
+
+export function monsterSpells(items: CompendiumEmbeddedItem[] | undefined): MonsterSpellGroup[] {
+  if (!items || items.length === 0) return [];
+
+  // Build index of spellcasting entries by their ID.
+  interface EntryInfo {
+    name: string;
+    tradition: string;
+    castingType: string;
+    dc?: number;
+    attack?: number;
+  }
+  const entries = new Map<string, EntryInfo>();
+  for (const item of items) {
+    if (item.type !== 'spellcastingEntry') continue;
+    const sys = item.system;
+    const id = item.id;
+    if (!id) continue;
+    entries.set(id, {
+      name: item.name,
+      tradition: readString(readPath(sys, ['tradition', 'value'])),
+      castingType: readString(readPath(sys, ['prepared', 'value'])),
+      dc: (() => {
+        const v = readPath(sys, ['spelldc', 'dc']);
+        return typeof v === 'number' && v > 0 ? v : undefined;
+      })(),
+      attack: (() => {
+        const v = readPath(sys, ['spelldc', 'value']);
+        return typeof v === 'number' && v !== 0 ? v : undefined;
+      })(),
+    });
+  }
+  if (entries.size === 0) return [];
+
+  // Group spell info objects by entry ID then by effective rank.
+  interface SpellInfoByEntry {
+    [entryId: string]: Map<number, import('@foundry-toolkit/shared/types').MonsterSpellInfo[]>;
+  }
+  const spellsByEntry: SpellInfoByEntry = {};
+
+  for (const item of items) {
+    if (item.type !== 'spell') continue;
+    const sys = item.system;
+    const entryId = readString(readPath(sys, ['location', 'value']));
+    if (!entryId || !entries.has(entryId)) continue;
+
+    // Effective rank: heightened level when set, otherwise base level.
+    const baseLevel = readNumber(readPath(sys, ['level', 'value']));
+    const heightened = readPath(sys, ['location', 'heightenedLevel']);
+    const rank = typeof heightened === 'number' ? heightened : baseLevel;
+
+    // usesPerDay for innate spells.
+    const usesMax = readPath(sys, ['location', 'uses', 'max']);
+    const usesPerDay = typeof usesMax === 'number' && usesMax > 0 ? usesMax : undefined;
+
+    // Cast time.
+    const castTime = readString(readPath(sys, ['time', 'value']));
+
+    // Range.
+    const range = readString(readPath(sys, ['range', 'value']));
+
+    // Area: format as "15-foot emanation" if present.
+    const areaValue = readPath(sys, ['area', 'value']);
+    const areaType = readPath(sys, ['area', 'type']);
+    const area =
+      typeof areaValue === 'number' && typeof areaType === 'string' && areaType.length > 0
+        ? `${areaValue.toString()}-foot ${areaType}`
+        : '';
+
+    // Target.
+    const target = readString(readPath(sys, ['target', 'value']));
+
+    // Traits: filter out rarity tags.
+    const allTraits = readStringArray(readPath(sys, ['traits', 'value']));
+    const traits = allTraits.filter((t) => !RARITY_SPELL_TRAITS.has(t.toLowerCase()));
+
+    // Description.
+    const description = cleanDescription(readString(readPath(sys, ['description', 'value'])));
+
+    if (!spellsByEntry[entryId]) spellsByEntry[entryId] = new Map();
+    const byRank = spellsByEntry[entryId];
+    if (!byRank.has(rank)) byRank.set(rank, []);
+    byRank.get(rank)!.push({ name: item.name, rank, usesPerDay, castTime, range, area, target, traits, description });
+  }
+
+  const groups: MonsterSpellGroup[] = [];
+  for (const [entryId, entry] of entries) {
+    const byRank = spellsByEntry[entryId];
+    if (!byRank || byRank.size === 0) continue;
+
+    // Sort ranks: cantrips (0) first, then ascending.
+    const ranks = [...byRank.keys()].sort((a, b) => a - b).map((rank) => ({ rank, spells: byRank.get(rank)! }));
+
+    groups.push({
+      entryName: entry.name,
+      tradition: entry.tradition,
+      castingType: entry.castingType,
+      dc: entry.dc,
+      attack: entry.attack,
+      ranks,
+    });
+  }
+
+  return groups;
+}
+
+/** Return null for Foundry's generic placeholder icons — they're not
+ *  real portraits and aren't worth fetching or displaying. */
+function isDefaultIcon(path: string): boolean {
+  return path.includes('/default-icons/');
+}
+
+/** Return the portrait path, or null if it's a default placeholder. */
+function pickPortraitUrl(doc: CompendiumDocument): string | null {
+  const img = doc.img;
+  if (!img || isDefaultIcon(img)) return null;
+  return img;
+}
+
 /** Prefer a doc-level tokenImg when the mcp bridge populates it; fall
  *  back to the portrait. See the prototypeToken bridge PR. */
 function pickTokenUrl(doc: CompendiumDocument): string | null {
   const maybe = (doc as { tokenImg?: unknown }).tokenImg;
-  if (typeof maybe === 'string' && maybe.length > 0) return maybe;
+  if (typeof maybe === 'string' && maybe.length > 0 && !isDefaultIcon(maybe)) return maybe;
   // TODO(compendium-migration): once bridge PR landing prototypeToken
   // merges, this fallback can be removed — `tokenImg` will always be
   // present on actor docs and we'll surface null when it's genuinely
   // missing (unlike the portrait, which every doc has).
-  return doc.img || null;
+  return pickPortraitUrl(doc);
 }
 
 // ---------------------------------------------------------------------------
@@ -459,12 +670,34 @@ function pickTokenUrl(doc: CompendiumDocument): string | null {
 export function monsterDocToResult(doc: CompendiumDocument): MonsterResult {
   const system = readSystem(doc);
   const saves = monsterSaves(system);
-  const melee = readPath(system, ['actions', 'melee']) ?? [];
-  const ranged = readPath(system, ['actions', 'ranged']) ?? [];
-  // pf2e stores actions as embedded items with type='action'. The wire
-  // contract may flatten them into `system.actions` (array) or leave them
-  // on the doc's embedded Items collection. Accept both.
-  const actionsRaw = readPath(system, ['actions']) ?? readPath(system, ['details', 'actions']) ?? [];
+
+  // Two action-data shapes come off the wire:
+  //
+  //   Legacy (raw pack JSON serialised by the bridge):
+  //     system.actions = { melee: [{name, bonus, damage, traits}], ranged: [...] }
+  //
+  //   PF2e processed (mcp cache dumps the fully-hydrated actor):
+  //     system.actions = [{type:"strike", attackRollType:"PF2E.NPCAttackMelee"|"…Ranged",
+  //                        label, totalModifier, traits:[{name}], item:{system:{damageRolls}}}]
+  //
+  // Detect by whether system.actions is a plain array (processed) or an
+  // object with sub-arrays (legacy).
+  const actionsRaw = readPath(system, ['actions']);
+  const isPf2eProcessed = Array.isArray(actionsRaw);
+
+  const meleeStr = isPf2eProcessed
+    ? formatPf2eStrikes(actionsRaw, 'PF2E.NPCAttackMelee')
+    : formatMelee(readPath(system, ['actions', 'melee']) ?? []);
+
+  const rangedStr = isPf2eProcessed
+    ? formatPf2eStrikes(actionsRaw, 'PF2E.NPCAttackRanged')
+    : formatRanged(readPath(system, ['actions', 'ranged']) ?? []);
+
+  // Passive abilities: in the processed shape, passive abilities (reactions,
+  // free actions, non-strike specials) are embedded items not surfaced in
+  // system.actions — fall back to the legacy details.actions path.
+  const passiveRaw = isPf2eProcessed ? (readPath(system, ['details', 'actions']) ?? []) : (actionsRaw ?? []);
+
   const immunities = readPath(system, ['attributes', 'immunities']);
   const weaknesses = readPath(system, ['attributes', 'weaknesses']);
   const resistances = readPath(system, ['attributes', 'resistances']);
@@ -492,13 +725,10 @@ export function monsterDocToResult(doc: CompendiumDocument): MonsterResult {
     immunities: formatImmunities(immunities),
     weaknesses: formatWeaknesses(weaknesses),
     resistances: formatWeaknesses(resistances),
-    melee: formatMelee(melee),
-    ranged: formatRanged(ranged),
-    abilities: Array.isArray(actionsRaw) ? formatActions(actionsRaw) : '',
+    melee: meleeStr,
+    ranged: rangedStr,
+    abilities: Array.isArray(passiveRaw) ? formatActions(passiveRaw) : '',
     description: monsterDescription(system),
-    // aonUrl was scope-dropped from the projection layer (see the PR
-    // description). Consumers that still need a link pass the doc name or
-    // uuid through and decide downstream.
     aon_url: '',
   };
 }
@@ -544,7 +774,7 @@ export function monsterDocToRow(doc: CompendiumDocument): MonsterRow {
     actions: r.abilities,
     description: r.description,
     aon_url: r.aon_url,
-    image_file: doc.img || null,
+    image_file: pickPortraitUrl(doc),
     token_file: pickTokenUrl(doc),
   };
 }
@@ -579,9 +809,10 @@ export function monsterDocToDetail(doc: CompendiumDocument): MonsterDetail {
     melee: r.melee,
     ranged: r.ranged,
     abilities: r.abilities,
+    spells: monsterSpells(doc.items),
     description: r.description,
     aonUrl: r.aon_url,
-    imageUrl: doc.img || null,
+    imageUrl: pickPortraitUrl(doc),
     tokenUrl: pickTokenUrl(doc),
   };
 }
@@ -607,22 +838,26 @@ export function monsterDocToSummary(doc: CompendiumDocument): MonsterSummary {
 }
 
 /** Lean path — skip the full doc fetch and use whatever the match already
- *  surfaces. Fields the server doesn't emit fall back to sensible defaults;
- *  consumers that need the full stat block should call `monsterDocToDetail`. */
+ *  surfaces. When the mcp server serves from its warm cache it populates
+ *  hp/ac/fort/ref/will/rarity/size/creatureType/source on the match row; we
+ *  read those here so the Monster Browser grid shows real stats without a
+ *  per-card document fetch. Fields absent on the match (bridge-fallback /
+ *  cache-cold path) fall back to safe defaults — callers that need guaranteed
+ *  full stat blocks should use `monsterDocToDetail` instead. */
 export function monsterMatchToSummary(m: CompendiumMatch): MonsterSummary {
   return {
     name: m.name,
     level: m.level ?? 0,
-    hp: 0,
-    ac: 0,
-    fort: 0,
-    ref: 0,
-    will: 0,
-    rarity: 'common',
-    size: '',
-    creatureType: '',
+    hp: m.hp ?? 0,
+    ac: m.ac ?? 0,
+    fort: m.fort ?? 0,
+    ref: m.ref ?? 0,
+    will: m.will ?? 0,
+    rarity: m.rarity ?? 'common',
+    size: m.size ?? '',
+    creatureType: m.creatureType ?? '',
     traits: m.traits ?? [],
-    source: '',
+    source: m.source ?? '',
     aonUrl: '',
   };
 }

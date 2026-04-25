@@ -107,7 +107,8 @@ export type CommandType =
   | 'get-scene-background'
   | 'update-scene'
   | 'get-combat-turn-context'
-  | 'set-event-subscription';
+  | 'set-event-subscription'
+  | 'fetch-asset';
 
 export interface RollDiceParams {
   formula: string;
@@ -1236,6 +1237,13 @@ export interface GetCompendiumDocumentParams {
   uuid: string; // e.g. 'Compendium.pf2e.feats-srd.Item.abc123'
 }
 
+export interface CompendiumEmbeddedItem {
+  id: string;
+  name: string;
+  type: string;
+  system: Record<string, unknown>;
+}
+
 export interface CompendiumDocumentData {
   id: string;
   uuid: string;
@@ -1250,6 +1258,12 @@ export interface CompendiumDocumentData {
    *  Shape varies by item type; the picker treats it as raw data and
    *  reads only what its renderer needs. */
   system: Record<string, unknown>;
+  /** Embedded item documents (spells, actions, feats, spellcastingEntry, …).
+   *  Populated on Actor documents by `getCompendiumDocumentHandler` so the
+   *  detail panel can render spell lists and passive abilities.
+   *  Absent on Item documents and in `dumpCompendiumPackHandler` responses
+   *  (the cache doesn't need them). */
+  items?: CompendiumEmbeddedItem[];
 }
 
 export interface GetCompendiumDocumentResult {
@@ -1597,6 +1611,7 @@ export interface CommandParamsMap {
   'update-scene': UpdateSceneParams;
   'get-combat-turn-context': GetCombatTurnContextParams;
   'set-event-subscription': SetEventSubscriptionParams;
+  'fetch-asset': { path: string };
 }
 
 export interface CommandResultMap {
@@ -1694,4 +1709,5 @@ export interface CommandResultMap {
   'update-scene': UpdateSceneResult;
   'get-combat-turn-context': CombatTurnContext;
   'set-event-subscription': SetEventSubscriptionResult;
+  'fetch-asset': { ok: boolean; contentType?: string; bytes?: string; status?: number; error?: string };
 }

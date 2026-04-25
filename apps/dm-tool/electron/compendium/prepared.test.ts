@@ -238,6 +238,34 @@ describe('listMonsters', () => {
     const out = await createPreparedCompendium(api).listMonsters({});
     expect(out).toEqual([]);
   });
+
+  it('surfaces hp/ac/saves from enriched matches (cache-warm path)', async () => {
+    // Regression test: previously monsterMatchToSummary ignored these fields
+    // and every grid chip showed HP 0 / AC 0 / F +0 / R +0 / W +0.
+    const enriched: CompendiumMatch = {
+      ...monsterMatch(),
+      hp: 180,
+      ac: 30,
+      fort: 20,
+      ref: 18,
+      will: 17,
+      rarity: 'uncommon',
+      size: 'huge',
+      creatureType: 'Dragon',
+    };
+    const search = vi.fn().mockResolvedValue({ matches: [enriched] });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({});
+    expect(out).toHaveLength(1);
+    expect(out[0].hp).toBe(180);
+    expect(out[0].ac).toBe(30);
+    expect(out[0].fort).toBe(20);
+    expect(out[0].ref).toBe(18);
+    expect(out[0].will).toBe(17);
+    expect(out[0].rarity).toBe('uncommon');
+    expect(out[0].size).toBe('huge');
+    expect(out[0].creatureType).toBe('Dragon');
+  });
 });
 
 describe('getMonsterByName', () => {

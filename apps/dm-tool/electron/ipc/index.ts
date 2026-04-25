@@ -33,7 +33,7 @@ export function registerIpcHandlers(
   registerMapHandlers(db, cfg);
   registerBookHandlers(bookDb, cfg, getMainWindow);
   registerChatHandlers(getMainWindow);
-  registerMonsterHandlers();
+  registerMonsterHandlers(cfg.foundryMcpUrl);
   registerItemHandlers();
   registerCompendiumHandlers();
   registerTaggerHandlers(cfg, getMainWindow);

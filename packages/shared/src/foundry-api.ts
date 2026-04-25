@@ -236,6 +236,17 @@ export interface CompendiumFacets {
   levelRange: [number, number] | null;
 }
 
+/** A single embedded item (spell, action, feat, spellcastingEntry, …) on
+ *  an Actor compendium document. Populated by `get-compendium-document`
+ *  so dm-tool's detail panel can render spell lists and passive abilities.
+ *  Not present in search results or the bulk cache dump. */
+export interface CompendiumEmbeddedItem {
+  id: string;
+  name: string;
+  type: string;
+  system: Record<string, unknown>;
+}
+
 export interface CompendiumDocument {
   id: string;
   uuid: string;
@@ -249,4 +260,9 @@ export interface CompendiumDocument {
   /** Full `system.*` slice. Shape varies by item type; consumers narrow
    *  defensively via `document.type`. */
   system: Record<string, unknown>;
+  /** Embedded items (spells, passive actions, feats, spellcastingEntry, …).
+   *  Present on Actor documents fetched via `get-compendium-document`.
+   *  Absent on Item documents and when the document came from the search
+   *  cache (the bulk dump omits items to keep cache memory bounded). */
+  items?: CompendiumEmbeddedItem[];
 }

@@ -1,9 +1,10 @@
+import * as HoverCard from '@radix-ui/react-hover-card';
 import { ExternalLink, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { cleanFoundryMarkup } from '@/lib/foundry-markup';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import type { MonsterDetail } from '@foundry-toolkit/shared/types';
+import type { MonsterDetail, MonsterSpellGroup, MonsterSpellInfo } from '@foundry-toolkit/shared/types';
 
 const RARITY_BADGE: Record<string, string> = {
   common: 'bg-zinc-600 text-zinc-100',
@@ -135,6 +136,17 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
                 </>
               )}
 
+              {/* Spells */}
+              {detail.spells.length > 0 && (
+                <>
+                  <Separator />
+                  <section>
+                    <SectionLabel>Spells</SectionLabel>
+                    <SpellsSection groups={detail.spells} />
+                  </section>
+                </>
+              )}
+
               {/* Full art */}
               {detail.imageUrl && (
                 <>
@@ -199,6 +211,132 @@ function StatCell({ label, value }: { label: string; value: string }) {
       <span className="font-semibold uppercase text-muted-foreground">{label}</span>
       <span className="mt-0.5 text-sm font-medium tabular-nums text-foreground">{value}</span>
     </div>
+  );
+}
+
+/** Map PF2e cast-time values to Unicode action glyphs. */
+const CAST_GLYPH: Record<string, string> = {
+  '1': '◆',
+  '2': '◆◆',
+  '3': '◆◆◆',
+  reaction: '↺',
+  free: '◇',
+};
+
+function castGlyph(castTime: string): string {
+  return CAST_GLYPH[castTime] ?? castTime;
+}
+
+/** Render structured spell groups with Radix HoverCard chips. */
+function SpellsSection({ groups }: { groups: MonsterSpellGroup[] }) {
+  return (
+    <div className="space-y-3 text-xs">
+      {groups.map((group, gi) => {
+        const parts: string[] = [];
+        if (group.tradition) parts.push(group.tradition);
+        if (group.dc) parts.push(`DC ${group.dc.toString()}`);
+        if (group.attack !== undefined) parts.push(`+${group.attack.toString()} attack`);
+        const subtitle = parts.join(' ');
+
+        return (
+          <div key={gi}>
+            <p className="font-semibold text-foreground/90">
+              {group.entryName}
+              {subtitle && <span className="ml-1 font-normal text-muted-foreground">({subtitle})</span>}
+            </p>
+            <div className="mt-1 space-y-1">
+              {group.ranks.map((rankRow) => {
+                const rankLabel = rankRow.rank === 0 ? 'Cantrips' : `Rank ${rankRow.rank.toString()}`;
+                return (
+                  <div key={rankRow.rank} className="flex flex-wrap items-baseline gap-1 pl-3">
+                    <span className="shrink-0 text-muted-foreground">{rankLabel}:</span>
+                    {rankRow.spells.map((spell, si) => (
+                      <SpellChip key={si} spell={spell} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A single spell name rendered as a hover-card chip. */
+function SpellChip({ spell }: { spell: MonsterSpellInfo }) {
+  const label = spell.usesPerDay !== undefined ? `${spell.name} (${spell.usesPerDay.toString()}/day)` : spell.name;
+
+  return (
+    <HoverCard.Root openDelay={300} closeDelay={100}>
+      <HoverCard.Trigger asChild>
+        <span className="cursor-default rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[11px] text-foreground/90 hover:border-border hover:bg-muted transition-colors">
+          {label}
+        </span>
+      </HoverCard.Trigger>
+      <HoverCard.Portal>
+        <HoverCard.Content
+          side="top"
+          align="start"
+          sideOffset={4}
+          avoidCollisions
+          collisionPadding={8}
+          className="z-50 flex w-72 flex-col rounded-md border border-border bg-popover text-xs shadow-md"
+          style={{ maxHeight: 'min(420px, 70vh)' }}
+        >
+          {/* Sticky header — always visible */}
+          <div className="shrink-0 border-b border-border/50 px-3 pb-1.5 pt-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-semibold text-foreground">{spell.name}</span>
+              {spell.rank === 0 ? (
+                <span className="rounded bg-accent px-1 py-0.5 text-[10px] font-medium">Cantrip</span>
+              ) : (
+                <span className="rounded bg-accent px-1 py-0.5 text-[10px] font-medium tabular-nums">
+                  Rank {spell.rank}
+                </span>
+              )}
+              {spell.castTime && <span className="ml-auto text-muted-foreground">{castGlyph(spell.castTime)}</span>}
+            </div>
+          </div>
+
+          {/* Scrollable body */}
+          <div className="min-h-0 overflow-y-auto px-3 pb-3 pt-1.5">
+            {/* Traits */}
+            {spell.traits.length > 0 && (
+              <div className="mb-1.5 flex flex-wrap gap-1">
+                {spell.traits.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded border border-border px-1 py-0.5 text-[10px] capitalize text-muted-foreground"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Range / Area / Target */}
+            {(spell.range || spell.area || spell.target) && (
+              <p className="mb-1.5 text-muted-foreground">
+                {[
+                  spell.range && `Range ${spell.range}`,
+                  spell.area && `Area ${spell.area}`,
+                  spell.target && `Target ${spell.target}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
+
+            {/* Description */}
+            {spell.description && (
+              <p className="whitespace-pre-wrap leading-relaxed text-foreground/80">{spell.description}</p>
+            )}
+          </div>
+        </HoverCard.Content>
+      </HoverCard.Portal>
+    </HoverCard.Root>
   );
 }
 

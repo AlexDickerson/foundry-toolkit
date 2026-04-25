@@ -312,6 +312,36 @@ export interface MonsterSummary {
   aonUrl: string;
 }
 
+export interface MonsterSpellInfo {
+  name: string;
+  /** 0 = cantrip, 1–10 = spell rank */
+  rank: number;
+  /** For innate spells — undefined means unlimited/at-will */
+  usesPerDay?: number;
+  /** PF2e action cost: "1", "2", "3", "reaction", "free", or empty */
+  castTime: string;
+  range: string;
+  area: string;
+  target: string;
+  traits: string[];
+  /** Cleaned plain-text description (Foundry markup stripped) */
+  description: string;
+}
+
+export interface MonsterSpellRank {
+  rank: number;
+  spells: MonsterSpellInfo[];
+}
+
+export interface MonsterSpellGroup {
+  entryName: string;
+  tradition: string;
+  castingType: string;
+  dc?: number;
+  attack?: number;
+  ranks: MonsterSpellRank[];
+}
+
 export interface MonsterDetail {
   name: string;
   level: number;
@@ -339,6 +369,8 @@ export interface MonsterDetail {
   melee: string;
   ranged: string;
   abilities: string;
+  /** Structured spell groups. Empty array when the monster has no spells. */
+  spells: MonsterSpellGroup[];
   description: string;
   aonUrl: string;
   /** Relative path to portrait art image, or null if unavailable. */
