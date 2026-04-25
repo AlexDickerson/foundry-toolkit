@@ -23,8 +23,10 @@ export interface StarsOptions {
    * Default: warm white [1.0, 0.97, 0.92].
    */
   color?: [number, number, number];
-  /** Point size range [min, max] in CSS pixels. Default: [0.5, 2.0]. */
+  /** Point size range [min, max] in CSS pixels. Default: [1.0, 3.0]. */
   sizeRange?: [number, number];
+  /** Per-star base brightness range [min, max] in [0, 1]. Default: [0.15, 1.0]. */
+  brightnessRange?: [number, number];
   /** Twinkle animation parameters. */
   twinkle?: {
     /** Angular speed in radians per second. Default: 0.8. */
@@ -41,6 +43,7 @@ export interface ResolvedStarsOptions {
   density: number;
   color: [number, number, number];
   sizeRange: [number, number];
+  brightnessRange: [number, number];
   twinkle: { speed: number; amplitude: number };
   opacity: number;
 }
@@ -68,6 +71,7 @@ export function resolveStarsOptions(opts?: StarsOptions): ResolvedStarsOptions {
     density: opts?.density ?? 50,
     color: opts?.color ?? [1.0, 0.97, 0.92],
     sizeRange: opts?.sizeRange ?? [1.0, 3.0],
+    brightnessRange: opts?.brightnessRange ?? [0.15, 1.0],
     twinkle: {
       speed: opts?.twinkle?.speed ?? 0.8,
       amplitude: opts?.twinkle?.amplitude ?? 0.15,
@@ -91,6 +95,7 @@ precision mediump float;
 in vec2 a_pos;
 in float a_size;
 in float a_phase;
+in float a_brightness;
 
 uniform float u_time;
 uniform float u_twinkle_speed;
@@ -104,10 +109,11 @@ void main() {
   gl_Position = vec4(a_pos, 0.0, 1.0);
   gl_PointSize = a_size;
 
-  // base + sin wave ensures alpha never goes below (1 - amplitude).
+  // base + sin wave, then scaled by per-star brightness so dim stars stay
+  // dim even at peak twinkle and bright stars are fully lit.
   float base = 1.0 - u_twinkle_amplitude;
   float wave = sin(u_time * u_twinkle_speed + a_phase) * u_twinkle_amplitude;
-  v_alpha = (base + wave) * u_opacity;
+  v_alpha = (base + wave) * a_brightness * u_opacity;
 }`;
 
 const FRAG_SRC = /* glsl */ `#version 300 es
@@ -165,6 +171,7 @@ class StarsLayer implements CustomLayerInterface {
   private _posBuffer: WebGLBuffer | null = null;
   private _sizeBuffer: WebGLBuffer | null = null;
   private _phaseBuffer: WebGLBuffer | null = null;
+  private _brightnessBuffer: WebGLBuffer | null = null;
   private _count = 0;
   private _startTime = 0;
 
@@ -219,13 +226,16 @@ class StarsLayer implements CustomLayerInterface {
     const positions = new Float32Array(this._count * 2);
     const sizes = new Float32Array(this._count);
     const phases = new Float32Array(this._count);
+    const brightnesses = new Float32Array(this._count);
     const [minSz, maxSz] = this._opts.sizeRange;
+    const [minBr, maxBr] = this._opts.brightnessRange;
 
     for (let i = 0; i < this._count; i++) {
       positions[i * 2] = rng() * 2 - 1; // x in NDC
       positions[i * 2 + 1] = rng() * 2 - 1; // y in NDC
       sizes[i] = minSz + rng() * (maxSz - minSz);
-      phases[i] = rng() * Math.PI * 2; // unique phase per star
+      phases[i] = rng() * Math.PI * 2; // unique twinkle phase per star
+      brightnesses[i] = minBr + rng() * (maxBr - minBr); // static base brightness
     }
 
     // Upload geometry to GPU via VAO -------------------------------------
@@ -250,6 +260,7 @@ class StarsLayer implements CustomLayerInterface {
     this._posBuffer = uploadAttrib(positions, 'a_pos', 2);
     this._sizeBuffer = uploadAttrib(sizes, 'a_size', 1);
     this._phaseBuffer = uploadAttrib(phases, 'a_phase', 1);
+    this._brightnessBuffer = uploadAttrib(brightnesses, 'a_brightness', 1);
 
     gl.bindVertexArray(null);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -338,6 +349,10 @@ class StarsLayer implements CustomLayerInterface {
     if (this._phaseBuffer) {
       gl.deleteBuffer(this._phaseBuffer);
       this._phaseBuffer = null;
+    }
+    if (this._brightnessBuffer) {
+      gl.deleteBuffer(this._brightnessBuffer);
+      this._brightnessBuffer = null;
     }
     if (this._vao) {
       gl.deleteVertexArray(this._vao);

@@ -60,6 +60,7 @@ describe('resolveStarsOptions', () => {
     expect(opts.density).toBe(50);
     expect(opts.color).toEqual([1.0, 0.97, 0.92]);
     expect(opts.sizeRange).toEqual([1.0, 3.0]);
+    expect(opts.brightnessRange).toEqual([0.15, 1.0]);
     expect(opts.twinkle.speed).toBe(0.8);
     expect(opts.twinkle.amplitude).toBe(0.15);
     expect(opts.opacity).toBe(0.85);
@@ -92,6 +93,16 @@ describe('resolveStarsOptions', () => {
   it('accepts a custom sizeRange', () => {
     const opts = resolveStarsOptions({ sizeRange: [1.0, 3.0] });
     expect(opts.sizeRange).toEqual([1.0, 3.0]);
+  });
+
+  it('accepts a custom brightnessRange', () => {
+    const opts = resolveStarsOptions({ brightnessRange: [0.5, 0.9] });
+    expect(opts.brightnessRange).toEqual([0.5, 0.9]);
+  });
+
+  it('keeps default brightnessRange when not overridden', () => {
+    const opts = resolveStarsOptions({ density: 80 });
+    expect(opts.brightnessRange).toEqual([0.15, 1.0]);
   });
 
   it('overrides only twinkle.speed, preserving twinkle.amplitude default', () => {
