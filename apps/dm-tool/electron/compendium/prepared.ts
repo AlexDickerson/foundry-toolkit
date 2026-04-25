@@ -256,6 +256,11 @@ async function fetchMonsterDocByName<T>(
   const exact = matches.find((m) => m.name.toLowerCase() === name.toLowerCase());
   const pick = exact ?? matches[0];
   if (!pick) return null;
+  // Always fetch fresh for the detail view: the document cache predates the
+  // `items` field (spells, passive abilities) and would serve a stale version
+  // that lacks it. The detail pane is opened one-at-a-time so the extra
+  // round-trip is imperceptible.
+  api.invalidateDocument(pick.uuid);
   const { document } = await api.getCompendiumDocument(pick.uuid);
   return map(document);
 }
