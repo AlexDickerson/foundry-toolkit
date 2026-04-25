@@ -94,20 +94,6 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
               )}
             </div>
 
-            {/* Traits */}
-            {detail.traits.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {detail.traits.map((t) => (
-                  <span
-                    key={t}
-                    className="rounded border border-border bg-accent/60 px-1.5 py-0.5 text-[10px] leading-none text-foreground/80"
-                  >
-                    {t.toLowerCase()}
-                  </span>
-                ))}
-              </div>
-            )}
-
             <Separator />
 
             {/* Stats — single-column, label left / value right */}
@@ -208,6 +194,23 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
                   <ExternalLink className="h-3 w-3" />
                   View on Archives of Nethys
                 </button>
+              </>
+            )}
+
+            {/* Traits */}
+            {detail.traits.length > 0 && (
+              <>
+                <Separator />
+                <div className="flex flex-wrap gap-1">
+                  {detail.traits.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded border border-border bg-accent/60 px-1.5 py-0.5 text-[10px] leading-none text-foreground/80"
+                    >
+                      {t.toLowerCase()}
+                    </span>
+                  ))}
+                </div>
               </>
             )}
           </div>
