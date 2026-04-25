@@ -63,6 +63,7 @@ describe('resolveStarsOptions', () => {
     expect(opts.brightnessRange).toEqual([0.4, 1.0]);
     expect(opts.twinkle.speed).toBe(0.8);
     expect(opts.twinkle.amplitude).toBe(0.15);
+    expect(opts.twinkle.sizeAmplitude).toBe(0.3);
     expect(opts.opacity).toBe(0.85);
   });
 
@@ -115,12 +116,21 @@ describe('resolveStarsOptions', () => {
     const opts = resolveStarsOptions({ twinkle: { amplitude: 0.3 } });
     expect(opts.twinkle.speed).toBe(0.8);
     expect(opts.twinkle.amplitude).toBe(0.3);
+    expect(opts.twinkle.sizeAmplitude).toBe(0.3); // default preserved
+  });
+
+  it('overrides twinkle.sizeAmplitude independently', () => {
+    const opts = resolveStarsOptions({ twinkle: { sizeAmplitude: 0.1 } });
+    expect(opts.twinkle.sizeAmplitude).toBe(0.1);
+    expect(opts.twinkle.speed).toBe(0.8);
+    expect(opts.twinkle.amplitude).toBe(0.15);
   });
 
   it('overrides all twinkle fields simultaneously', () => {
-    const opts = resolveStarsOptions({ twinkle: { speed: 1.2, amplitude: 0.4 } });
+    const opts = resolveStarsOptions({ twinkle: { speed: 1.2, amplitude: 0.4, sizeAmplitude: 0.5 } });
     expect(opts.twinkle.speed).toBe(1.2);
     expect(opts.twinkle.amplitude).toBe(0.4);
+    expect(opts.twinkle.sizeAmplitude).toBe(0.5);
   });
 
   it('does not mutate the input options object', () => {

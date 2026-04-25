@@ -33,6 +33,11 @@ export interface StarsOptions {
     speed?: number;
     /** Fraction of total alpha that oscillates [0, 1]. Default: 0.15. */
     amplitude?: number;
+    /**
+     * Fraction of base size that oscillates [0, 1]. Default: 0.3.
+     * Each star uses an independent phase so they pulse out-of-sync.
+     */
+    sizeAmplitude?: number;
   };
   /** Overall opacity multiplier [0, 1]. Default: 0.85. */
   opacity?: number;
@@ -44,7 +49,7 @@ export interface ResolvedStarsOptions {
   color: [number, number, number];
   sizeRange: [number, number];
   brightnessRange: [number, number];
-  twinkle: { speed: number; amplitude: number };
+  twinkle: { speed: number; amplitude: number; sizeAmplitude: number };
   opacity: number;
 }
 
@@ -75,6 +80,7 @@ export function resolveStarsOptions(opts?: StarsOptions): ResolvedStarsOptions {
     twinkle: {
       speed: opts?.twinkle?.speed ?? 0.8,
       amplitude: opts?.twinkle?.amplitude ?? 0.15,
+      sizeAmplitude: opts?.twinkle?.sizeAmplitude ?? 0.3,
     },
     opacity: opts?.opacity ?? 0.85,
   };
@@ -95,11 +101,13 @@ precision mediump float;
 in vec2 a_pos;
 in float a_size;
 in float a_phase;
+in float a_size_phase;
 in float a_brightness;
 
 uniform float u_time;
 uniform float u_twinkle_speed;
 uniform float u_twinkle_amplitude;
+uniform float u_size_amplitude;
 uniform float u_opacity;
 
 out float v_alpha;
@@ -107,7 +115,10 @@ out float v_alpha;
 void main() {
   // Screen-space: ignore the projection matrix entirely.
   gl_Position = vec4(a_pos, 0.0, 1.0);
-  gl_PointSize = a_size;
+
+  // Size pulses independently of brightness using its own per-star phase.
+  float size_wave = sin(u_time * u_twinkle_speed + a_size_phase) * u_size_amplitude;
+  gl_PointSize = a_size * (1.0 + size_wave);
 
   // base + sin wave, then scaled by per-star brightness so dim stars stay
   // dim even at peak twinkle and bright stars are fully lit.
@@ -171,6 +182,7 @@ class StarsLayer implements CustomLayerInterface {
   private _posBuffer: WebGLBuffer | null = null;
   private _sizeBuffer: WebGLBuffer | null = null;
   private _phaseBuffer: WebGLBuffer | null = null;
+  private _sizePhaseBuffer: WebGLBuffer | null = null;
   private _brightnessBuffer: WebGLBuffer | null = null;
   private _count = 0;
   private _startTime = 0;
@@ -179,6 +191,7 @@ class StarsLayer implements CustomLayerInterface {
   private _uTime: WebGLUniformLocation | null = null;
   private _uTwinkleSpeed: WebGLUniformLocation | null = null;
   private _uTwinkleAmplitude: WebGLUniformLocation | null = null;
+  private _uSizeAmplitude: WebGLUniformLocation | null = null;
   private _uOpacity: WebGLUniformLocation | null = null;
   private _uColor: WebGLUniformLocation | null = null;
 
@@ -226,6 +239,7 @@ class StarsLayer implements CustomLayerInterface {
     const positions = new Float32Array(this._count * 2);
     const sizes = new Float32Array(this._count);
     const phases = new Float32Array(this._count);
+    const sizePhases = new Float32Array(this._count);
     const brightnesses = new Float32Array(this._count);
     const [minSz, maxSz] = this._opts.sizeRange;
     const [minBr, maxBr] = this._opts.brightnessRange;
@@ -234,7 +248,8 @@ class StarsLayer implements CustomLayerInterface {
       positions[i * 2] = rng() * 2 - 1; // x in NDC
       positions[i * 2 + 1] = rng() * 2 - 1; // y in NDC
       sizes[i] = minSz + rng() * (maxSz - minSz);
-      phases[i] = rng() * Math.PI * 2; // unique twinkle phase per star
+      phases[i] = rng() * Math.PI * 2; // unique brightness-twinkle phase
+      sizePhases[i] = rng() * Math.PI * 2; // independent size-pulse phase
       brightnesses[i] = minBr + rng() * (maxBr - minBr); // static base brightness
     }
 
@@ -260,6 +275,7 @@ class StarsLayer implements CustomLayerInterface {
     this._posBuffer = uploadAttrib(positions, 'a_pos', 2);
     this._sizeBuffer = uploadAttrib(sizes, 'a_size', 1);
     this._phaseBuffer = uploadAttrib(phases, 'a_phase', 1);
+    this._sizePhaseBuffer = uploadAttrib(sizePhases, 'a_size_phase', 1);
     this._brightnessBuffer = uploadAttrib(brightnesses, 'a_brightness', 1);
 
     gl.bindVertexArray(null);
@@ -269,6 +285,7 @@ class StarsLayer implements CustomLayerInterface {
     this._uTime = gl.getUniformLocation(program, 'u_time');
     this._uTwinkleSpeed = gl.getUniformLocation(program, 'u_twinkle_speed');
     this._uTwinkleAmplitude = gl.getUniformLocation(program, 'u_twinkle_amplitude');
+    this._uSizeAmplitude = gl.getUniformLocation(program, 'u_size_amplitude');
     this._uOpacity = gl.getUniformLocation(program, 'u_opacity');
     this._uColor = gl.getUniformLocation(program, 'u_color');
 
@@ -310,6 +327,7 @@ class StarsLayer implements CustomLayerInterface {
     gl.uniform1f(this._uTime, elapsed);
     gl.uniform1f(this._uTwinkleSpeed, twinkle.speed);
     gl.uniform1f(this._uTwinkleAmplitude, twinkle.amplitude);
+    gl.uniform1f(this._uSizeAmplitude, twinkle.sizeAmplitude);
     gl.uniform1f(this._uOpacity, opacity);
     gl.uniform3fv(this._uColor, color);
 
@@ -349,6 +367,10 @@ class StarsLayer implements CustomLayerInterface {
     if (this._phaseBuffer) {
       gl.deleteBuffer(this._phaseBuffer);
       this._phaseBuffer = null;
+    }
+    if (this._sizePhaseBuffer) {
+      gl.deleteBuffer(this._sizePhaseBuffer);
+      this._sizePhaseBuffer = null;
     }
     if (this._brightnessBuffer) {
       gl.deleteBuffer(this._brightnessBuffer);
