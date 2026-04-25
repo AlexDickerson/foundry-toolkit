@@ -225,3 +225,116 @@ describe('installPromptInterception — renderDamageModifierDialog', () => {
     expect(callOrder[1]).toMatch(/^close:isRolled=true/);
   });
 });
+
+// ─── CheckModifiersDialog suppression ─────────────────────────────────────────
+//
+// PF2e's CheckModifiersDialog (attack / check modifier prompt) resolves its
+// internal Promise by submitting its form, not by calling close() directly.
+// Calling close() would cancel the roll (resolves with null). The hook
+// removes the element from the DOM (prevent flash) then dispatches a submit
+// event on the detached form so the activateListeners handler fires and the
+// roll proceeds with the form's default (zero) modifier values.
+
+describe('installPromptInterception — renderCheckModifiersDialog', () => {
+  it('registers a renderCheckModifiersDialog hook', () => {
+    installPromptInterception([]);
+    const names = hooksMock.registered.map((h) => h.name);
+    expect(names).toContain('renderCheckModifiersDialog');
+  });
+
+  it('removes the element from DOM and dispatches submit on the form', () => {
+    installPromptInterception([]);
+
+    const removeMock = jest.fn();
+    const dispatchMock = jest.fn();
+    const formEl = { dispatchEvent: dispatchMock };
+    const $html = {
+      remove: removeMock,
+      find: jest.fn().mockImplementation((selector: string) => ({
+        get: (i: number): unknown => (selector === 'form' && i === 0 ? formEl : undefined),
+      })),
+    };
+    const app = { close: jest.fn().mockResolvedValue(undefined) };
+
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
+
+    expect(removeMock).toHaveBeenCalled();
+    expect(dispatchMock).toHaveBeenCalledWith(expect.objectContaining({ type: 'submit' }));
+    // close() must NOT be called: it would resolve with null (cancel the roll).
+    expect(app.close).not.toHaveBeenCalled();
+  });
+
+  it('removes DOM before dispatching submit to prevent visual flash', () => {
+    installPromptInterception([]);
+
+    const callOrder: string[] = [];
+    const formEl = {
+      dispatchEvent: jest.fn(() => { callOrder.push('submit'); }),
+    };
+    const $html = {
+      remove: jest.fn(() => { callOrder.push('remove'); }),
+      find: jest.fn().mockImplementation((selector: string) => ({
+        get: (i: number): unknown => (selector === 'form' && i === 0 ? formEl : undefined),
+      })),
+    };
+    const app = { close: jest.fn().mockResolvedValue(undefined) };
+
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
+
+    expect(callOrder).toEqual(['remove', 'submit']);
+  });
+
+  it('falls back to clicking button[type="submit"] when no form element exists', () => {
+    installPromptInterception([]);
+
+    const removeMock = jest.fn();
+    const clickMock = jest.fn();
+    const btn = { click: clickMock };
+    const $html = {
+      remove: removeMock,
+      find: jest.fn().mockImplementation((selector: string) => ({
+        get: (i: number): unknown =>
+          selector === 'button[type="submit"]' && i === 0 ? btn : undefined,
+      })),
+    };
+    const app = { close: jest.fn().mockResolvedValue(undefined) };
+
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
+
+    expect(removeMock).toHaveBeenCalled();
+    expect(clickMock).toHaveBeenCalled();
+    expect(app.close).not.toHaveBeenCalled();
+  });
+
+  it('calls app.close() as a last resort when neither form nor button is found', async () => {
+    installPromptInterception([]);
+
+    const $html = {
+      remove: jest.fn(),
+      find: jest.fn().mockReturnValue({ get: (): undefined => undefined }),
+    };
+    const app = { close: jest.fn().mockResolvedValue(undefined) };
+
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
+    await Promise.resolve();
+
+    expect(app.close).toHaveBeenCalled();
+  });
+
+  it('does not call app.close() when the form submit path succeeds', () => {
+    installPromptInterception([]);
+
+    const $html = {
+      remove: jest.fn(),
+      find: jest.fn().mockImplementation((selector: string) => ({
+        get: (i: number): unknown =>
+          selector === 'form' && i === 0 ? { dispatchEvent: jest.fn() } : undefined,
+      })),
+    };
+    const app = { close: jest.fn().mockResolvedValue(undefined) };
+
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
+
+    expect(app.close).not.toHaveBeenCalled();
+  });
+});

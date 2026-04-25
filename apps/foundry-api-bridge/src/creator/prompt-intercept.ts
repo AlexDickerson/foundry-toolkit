@@ -76,6 +76,25 @@ interface DamageModifierDialogApp {
   close(options?: { force?: boolean }): Promise<void>;
 }
 
+// PF2e's CheckModifiersDialog shows before attack / check rolls when the user
+// has "Show Check Dialogs" enabled. The class name is CheckModifiersDialog
+// (src/module/system/check/dialog.ts), so the AppV1 hook is
+// renderCheckModifiersDialog. Unlike DamageModifierDialog it has no `isRolled`
+// flag: close() resolves the internal Promise with false (cancel), and the
+// roll proceeds only when the form is submitted (the Roll button).
+// We suppress it by dispatching a submit event on the detached form element.
+interface CheckModifiersDialogApp {
+  close(options?: { force?: boolean }): Promise<void>;
+}
+
+// Minimal jQuery-compatible surface for AppV1 render hooks.  AppV1 passes
+// $html as a jQuery-wrapped root .app element; .find() returns a jQuery
+// collection from which .get(0) yields the underlying HTMLElement.
+interface JQueryLike {
+  find(selector: string): { get(index: 0): HTMLElement | undefined };
+  remove(): void;
+}
+
 export function installPromptInterception(wsClients: readonly WebSocketClient[]): void {
   // @ts-expect-error — Foundry's Hooks global is untyped in this module
   Hooks.on(HOOK_NAME, (app: PickAThingPromptApp) => {
@@ -124,7 +143,58 @@ export function installPromptInterception(wsClients: readonly WebSocketClient[])
     void app.close();
   });
 
-  console.log('Foundry API Bridge | ChoiceSet prompt interception installed');
+  // Suppress PF2e's CheckModifiersDialog (attack / check modifier dialog).
+  //
+  // PF2e renders CheckModifiersDialog before attack rolls when "Show Check
+  // Dialogs" is enabled in the system settings (src/module/system/check/
+  // dialog.ts). The strike variant's roll() in document.ts builds checkContext
+  // as a plain object and never forwards skipDialog from AttackRollParams, so
+  // passing skipDialog:true to variant.roll() is silently ignored — the dialog
+  // appears whenever game.user.settings.showCheckDialogs is true.
+  //
+  // Unlike DamageModifierDialog (where setting app.isRolled=true before
+  // close() signals "proceed"), CheckModifiersDialog resolves its internal
+  // Promise only when the form is submitted. Calling close() directly calls
+  // resolve(false) (cancel) and aborts the roll.
+  //
+  // Fix:
+  //   1. Remove $html from the DOM synchronously — prevents any visual flash
+  //      and eliminates the 200 ms slideUp zombie-element race.
+  //   2. Dispatch a native "submit" event on the detached <form> element.
+  //      The activateListeners submit handler is a native addEventListener on
+  //      $html[0] (the outer .app wrapper); the submit event bubbles from the
+  //      form up to it, calling resolve(true) → the attack proceeds with the
+  //      form's current (default, zero) modifier values.
+  //   3. Fall back to clicking button[type="submit"] if no <form> is present.
+  //   4. Last resort: app.close() — cancels the roll but unblocks the stall.
+  //
+  // @ts-expect-error — Hooks is untyped
+  Hooks.on('renderCheckModifiersDialog', (app: CheckModifiersDialogApp, $html: unknown) => {
+    console.info('Foundry API Bridge | Suppressing CheckModifiersDialog — triggering Roll with defaults');
+    const jq = $html as JQueryLike;
+    // Detach from DOM synchronously to prevent visual flash.
+    jq.remove();
+    // Trigger the dialog's resolve path with default modifier values (0).
+    const form = jq.find('form').get(0);
+    if (form) {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      return;
+    }
+    const submitBtn = jq.find('button[type="submit"]').get(0);
+    if (submitBtn) {
+      submitBtn.click();
+      return;
+    }
+    // Neither found — close() cancels the roll but at least unblocks the stall.
+    console.warn(
+      'Foundry API Bridge | CheckModifiersDialog: no form or submit button found — closing (roll will be cancelled)',
+    );
+    void app.close();
+  });
+
+  console.log(
+    'Foundry API Bridge | Prompt interception installed (PickAThingPrompt, DamageModifierDialog, CheckModifiersDialog)',
+  );
 }
 
 async function handlePrompt(app: PickAThingPromptApp, wsClients: readonly WebSocketClient[]): Promise<void> {

@@ -1,5 +1,21 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, fireEvent, within } from '@testing-library/react';
+
+// ─── API mock ─────────────────────────────────────────────────────────────
+// Hoisted so the module resolver sees it before Actions.tsx imports api/client.
+
+const rollStrikeMock = vi.fn().mockResolvedValue({ ok: true });
+const rollStrikeDamageMock = vi.fn().mockResolvedValue({ ok: true });
+const useItemMock = vi.fn().mockResolvedValue({ ok: true, itemId: 'x', itemName: 'x' });
+
+vi.mock('../../api/client', () => ({
+  api: {
+    rollStrike: (...args: unknown[]) => rollStrikeMock(...args),
+    rollStrikeDamage: (...args: unknown[]) => rollStrikeDamageMock(...args),
+    useItem: (...args: unknown[]) => useItemMock(...args),
+  },
+  ApiRequestError: class ApiRequestError extends Error {},
+}));
 import amiri from '../../fixtures/amiri-prepared.json';
 import type { Ability, AbilityKey, PreparedActorItem, Strike } from '../../api/types';
 import { Actions } from './Actions';
@@ -159,5 +175,95 @@ describe('Actions tab — action items', () => {
     expect(body, 'description body').toBeTruthy();
     // Rage's description starts with "You tap into your inner fury".
     expect(body?.textContent).toContain('inner fury');
+  });
+});
+
+// ─── Attack-button relay path ─────────────────────────────────────────────
+// Verifies that clicking a MAP variant button or a Damage/Crit button calls
+// the correct api method with the correct arguments, confirming the player-
+// portal side of the relay path is wired correctly end-to-end.
+
+describe('Actions tab — attack-button relay path', () => {
+  beforeEach(() => {
+    rollStrikeMock.mockClear();
+    rollStrikeDamageMock.mockClear();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('calls api.rollStrike with variantIndex=0 when the first attack button is clicked', () => {
+    const { container } = render(
+      <Actions actorId="test-actor" onItemUsed={() => undefined} actions={actions} items={items} />,
+    );
+    const card = container.querySelector('[data-strike-slug="bastard-sword"]') as HTMLElement;
+    const firstBtn = card.querySelector('[data-variant-index="0"]') as HTMLElement;
+
+    fireEvent.click(firstBtn);
+
+    // rollStrike is called synchronously inside trigger() before the await.
+    expect(rollStrikeMock).toHaveBeenCalledWith('test-actor', 'bastard-sword', 0);
+  });
+
+  it('calls api.rollStrike with variantIndex=1 for the second attack (MAP −5)', () => {
+    const { container } = render(
+      <Actions actorId="test-actor" onItemUsed={() => undefined} actions={actions} items={items} />,
+    );
+    const card = container.querySelector('[data-strike-slug="bastard-sword"]') as HTMLElement;
+    const secondBtn = card.querySelector('[data-variant-index="1"]') as HTMLElement;
+
+    fireEvent.click(secondBtn);
+
+    expect(rollStrikeMock).toHaveBeenCalledWith('test-actor', 'bastard-sword', 1);
+  });
+
+  it('calls api.rollStrike with variantIndex=2 for the third attack (MAP −10)', () => {
+    const { container } = render(
+      <Actions actorId="test-actor" onItemUsed={() => undefined} actions={actions} items={items} />,
+    );
+    const card = container.querySelector('[data-strike-slug="bastard-sword"]') as HTMLElement;
+    const thirdBtn = card.querySelector('[data-variant-index="2"]') as HTMLElement;
+
+    fireEvent.click(thirdBtn);
+
+    expect(rollStrikeMock).toHaveBeenCalledWith('test-actor', 'bastard-sword', 2);
+  });
+
+  it('calls api.rollStrikeDamage(critical=false) when the Damage button is clicked', () => {
+    const { container } = render(
+      <Actions actorId="test-actor" onItemUsed={() => undefined} actions={actions} items={items} />,
+    );
+    const card = container.querySelector('[data-strike-slug="bastard-sword"]') as HTMLElement;
+    const damageBtn = card.querySelector('[data-role="strike-damage-roll"]') as HTMLElement;
+
+    fireEvent.click(damageBtn);
+
+    expect(rollStrikeDamageMock).toHaveBeenCalledWith('test-actor', 'bastard-sword', false);
+  });
+
+  it('calls api.rollStrikeDamage(critical=true) when the Crit button is clicked', () => {
+    const { container } = render(
+      <Actions actorId="test-actor" onItemUsed={() => undefined} actions={actions} items={items} />,
+    );
+    const card = container.querySelector('[data-strike-slug="bastard-sword"]') as HTMLElement;
+    const critBtn = card.querySelector('[data-role="strike-damage-crit"]') as HTMLElement;
+
+    fireEvent.click(critBtn);
+
+    expect(rollStrikeDamageMock).toHaveBeenCalledWith('test-actor', 'bastard-sword', true);
+  });
+
+  it('passes the correct strike slug for each weapon', () => {
+    const { container } = render(
+      <Actions actorId="test-actor" onItemUsed={() => undefined} actions={actions} items={items} />,
+    );
+    // Click the javelin's first attack variant.
+    const javelinCard = container.querySelector('[data-strike-slug="javelin"]') as HTMLElement;
+    const javelinFirst = javelinCard.querySelector('[data-variant-index="0"]') as HTMLElement;
+
+    fireEvent.click(javelinFirst);
+
+    expect(rollStrikeMock).toHaveBeenCalledWith('test-actor', 'javelin', 0);
   });
 });
