@@ -130,7 +130,7 @@ function SkillRow({ skill, spanFull }: { skill: SkillStatistic; spanFull?: boole
       data-statistic={skill.slug}
     >
       <Modifier value={skill.value} />
-      <span className="flex-1 truncate text-sm text-neutral-900">{renderLabel(skill.label, skill.lore === true)}</span>
+      <span className="flex-1 truncate text-sm text-pf-text">{renderLabel(skill.label, skill.lore === true)}</span>
       <RankChip rank={skill.rank} />
       <ModifierTooltip title={skill.label} breakdown={skill.breakdown} modifiers={skill.modifiers} />
     </li>
@@ -158,7 +158,7 @@ function MartialRow({
       title={prof.breakdown}
     >
       <Modifier value={prof.value} />
-      <span className="flex-1 truncate text-sm text-neutral-900">{label}</span>
+      <span className="flex-1 truncate text-sm text-pf-text">{label}</span>
       <RankChip rank={prof.rank} />
     </li>
   );
@@ -172,8 +172,8 @@ function ClassDCRow({ classDC, spanFull }: { classDC: ClassDC; spanFull: boolean
         spanFull ? 'sm:col-span-2' : '',
       ].join(' ')}
     >
-      <span className="inline-flex w-8 justify-end font-mono text-sm tabular-nums text-neutral-900">{classDC.dc}</span>
-      <span className="flex-1 truncate text-sm text-neutral-900">{classDC.label}</span>
+      <span className="inline-flex w-8 justify-end font-mono text-sm tabular-nums text-pf-text">{classDC.dc}</span>
+      <span className="flex-1 truncate text-sm text-pf-text">{classDC.label}</span>
       <RankChip rank={classDC.rank} />
       <ModifierTooltip title={classDC.label} breakdown={classDC.breakdown} modifiers={classDC.modifiers} />
     </li>

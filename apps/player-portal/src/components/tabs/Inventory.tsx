@@ -591,7 +591,7 @@ function ItemRow({
           <img src={item.img} alt="" className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="truncate text-sm text-neutral-900">{item.name}</span>
+              <span className="truncate text-sm text-pf-text">{item.name}</span>
               {item.system.quantity > 1 && (
                 <span className="flex-shrink-0 text-xs text-pf-text-muted">×{item.system.quantity}</span>
               )}

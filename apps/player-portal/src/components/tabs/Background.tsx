@@ -84,7 +84,7 @@ function DemographicsBlock({ details }: { details: CharacterDetails }): React.Re
         {populated.map(([label, value]) => (
           <div key={label} className="flex items-baseline gap-2" data-field={label.toLowerCase()}>
             <dt className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">{label}</dt>
-            <dd className="text-neutral-900">{value}</dd>
+            <dd className="text-pf-text">{value}</dd>
           </div>
         ))}
       </dl>
@@ -111,7 +111,7 @@ function PersonalityBlock({ bio }: { bio: CharacterBiography }): React.ReactElem
             <dt className="w-28 shrink-0 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
               {label}
             </dt>
-            <dd className="text-neutral-900">{value}</dd>
+            <dd className="text-pf-text">{value}</dd>
           </div>
         ))}
       </dl>
@@ -137,7 +137,7 @@ function ListCol({ label, entries }: { label: string; entries: string[] }): Reac
   return (
     <div data-list={label.toLowerCase()}>
       <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-neutral-600">{label}</h3>
-      <ul className="list-disc space-y-0.5 pl-5 text-sm text-neutral-900">
+      <ul className="list-disc space-y-0.5 pl-5 text-sm text-pf-text">
         {entries.map((e, i) => (
           <li key={`${label}-${i.toString()}`}>{e}</li>
         ))}
@@ -163,7 +163,7 @@ function SocialBlock({ bio }: { bio: CharacterBiography }): React.ReactElement |
             <dt className="w-28 shrink-0 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
               {label}
             </dt>
-            <dd className="text-neutral-900">{value}</dd>
+            <dd className="text-pf-text">{value}</dd>
           </div>
         ))}
       </dl>
@@ -185,7 +185,7 @@ function TextBlock({
     <div data-section={dataSection ?? title.toLowerCase()}>
       <SectionHeader>{title}</SectionHeader>
       <div
-        className="max-w-none text-sm leading-relaxed text-neutral-900 [&_p]:my-2 [&_p]:leading-relaxed"
+        className="max-w-none text-sm leading-relaxed text-pf-text [&_p]:my-2 [&_p]:leading-relaxed"
         // Safe: source is our own Foundry world, not untrusted user input.
         dangerouslySetInnerHTML={{ __html: html }}
       />
