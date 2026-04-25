@@ -607,22 +607,26 @@ export function monsterDocToSummary(doc: CompendiumDocument): MonsterSummary {
 }
 
 /** Lean path — skip the full doc fetch and use whatever the match already
- *  surfaces. Fields the server doesn't emit fall back to sensible defaults;
- *  consumers that need the full stat block should call `monsterDocToDetail`. */
+ *  surfaces. When the mcp server serves from its warm cache it populates
+ *  hp/ac/fort/ref/will/rarity/size/creatureType/source on the match row; we
+ *  read those here so the Monster Browser grid shows real stats without a
+ *  per-card document fetch. Fields absent on the match (bridge-fallback /
+ *  cache-cold path) fall back to safe defaults — callers that need guaranteed
+ *  full stat blocks should use `monsterDocToDetail` instead. */
 export function monsterMatchToSummary(m: CompendiumMatch): MonsterSummary {
   return {
     name: m.name,
     level: m.level ?? 0,
-    hp: 0,
-    ac: 0,
-    fort: 0,
-    ref: 0,
-    will: 0,
-    rarity: 'common',
-    size: '',
-    creatureType: '',
+    hp: m.hp ?? 0,
+    ac: m.ac ?? 0,
+    fort: m.fort ?? 0,
+    ref: m.ref ?? 0,
+    will: m.will ?? 0,
+    rarity: m.rarity ?? 'common',
+    size: m.size ?? '',
+    creatureType: m.creatureType ?? '',
     traits: m.traits ?? [],
-    source: '',
+    source: m.source ?? '',
     aonUrl: '',
   };
 }

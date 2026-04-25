@@ -209,6 +209,19 @@ async function listMonsters(
 
   const summaries = filtered.map(monsterMatchToSummary);
 
+  // Warn when the mcp server's cache wasn't warm for these packs — stats
+  // (hp/ac/saves) will be 0 on every grid chip until the cache warms and
+  // the user triggers a fresh query. This typically resolves within seconds
+  // of Foundry connecting; it's a transient state, not an error.
+  const statslesCount = filtered.filter((m) => m.hp === undefined).length;
+  if (statslesCount > 0) {
+    console.warn(
+      `[compendium] ${statslesCount.toString()} of ${filtered.length.toString()} monster matches missing stats (hp/ac/saves). ` +
+        `mcp cache may still be warming for the requested packs — grid chips will show 0 until the cache is ready.`,
+      { packIds },
+    );
+  }
+
   const sortBy = params.sortBy ?? 'level';
   const sortDir = params.sortDir ?? 'asc';
   if (sortBy === 'name' || sortBy === 'level') {

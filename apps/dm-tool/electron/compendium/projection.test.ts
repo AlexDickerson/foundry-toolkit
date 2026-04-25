@@ -138,7 +138,8 @@ function potionOfHealingDoc(): CompendiumDocument {
   };
 }
 
-function monsterMatch(): CompendiumMatch {
+/** Lean match — only the fields the bridge emits (no stats). */
+function monsterMatchLean(): CompendiumMatch {
   return {
     packId: 'pf2e.pathfinder-bestiary',
     packLabel: 'PF2e Bestiary',
@@ -149,6 +150,23 @@ function monsterMatch(): CompendiumMatch {
     img: 'systems/pf2e/icons/classes/young-red-dragon.webp',
     level: 10,
     traits: ['dragon', 'fire'],
+  };
+}
+
+/** Enriched match — includes the cache-served stat fields mcp adds when
+ *  the server's compendium cache is warm. */
+function monsterMatchEnriched(): CompendiumMatch {
+  return {
+    ...monsterMatchLean(),
+    hp: 180,
+    ac: 30,
+    fort: 20,
+    ref: 18,
+    will: 17,
+    rarity: 'uncommon',
+    size: 'huge',
+    creatureType: 'Dragon',
+    source: 'PF2e Bestiary',
   };
 }
 
@@ -359,13 +377,54 @@ describe('monsterDocToSummary / monsterMatchToSummary', () => {
     expect(out.traits).toEqual(['dragon', 'fire']);
   });
 
-  it('lean match projection leaves unknown fields at sensible defaults', () => {
-    const out = monsterMatchToSummary(monsterMatch());
+  it('enriched match (cache-warm) uses hp/ac/saves/rarity/size/creatureType from the match', () => {
+    // When the mcp server's cache is warm it populates these fields on
+    // CompendiumMatch. monsterMatchToSummary must read them rather than
+    // returning placeholder zeros — this is the fix for the "stats show as
+    // 0 on every Monster Browser grid chip" bug.
+    const out = monsterMatchToSummary(monsterMatchEnriched());
+    expect(out.name).toBe('Young Red Dragon');
+    expect(out.level).toBe(10);
+    expect(out.hp).toBe(180);
+    expect(out.ac).toBe(30);
+    expect(out.fort).toBe(20);
+    expect(out.ref).toBe(18);
+    expect(out.will).toBe(17);
+    expect(out.rarity).toBe('uncommon');
+    expect(out.size).toBe('huge');
+    expect(out.creatureType).toBe('Dragon');
+    expect(out.source).toBe('PF2e Bestiary');
+    expect(out.traits).toEqual(['dragon', 'fire']);
+  });
+
+  it('lean match (bridge fallback / cache-cold) falls back to safe defaults for missing stats', () => {
+    // When the mcp server is not yet warm (or the search fell through to
+    // the bridge) the match doesn't carry stats. Defaults must be safe
+    // numeric/string values, not undefined, so the UI renders without
+    // crashing.
+    const out = monsterMatchToSummary(monsterMatchLean());
     expect(out.name).toBe('Young Red Dragon');
     expect(out.level).toBe(10);
     expect(out.hp).toBe(0);
     expect(out.ac).toBe(0);
+    expect(out.fort).toBe(0);
+    expect(out.ref).toBe(0);
+    expect(out.will).toBe(0);
+    expect(out.rarity).toBe('common');
+    expect(out.size).toBe('');
+    expect(out.creatureType).toBe('');
+    expect(out.source).toBe('');
     expect(out.traits).toEqual(['dragon', 'fire']);
+  });
+
+  it('partial enrichment — present fields win, absent fields default', () => {
+    // Only hp/ac populated (e.g. a hypothetical partial cache hit).
+    const partial: CompendiumMatch = { ...monsterMatchLean(), hp: 95, ac: 22 };
+    const out = monsterMatchToSummary(partial);
+    expect(out.hp).toBe(95);
+    expect(out.ac).toBe(22);
+    expect(out.fort).toBe(0);
+    expect(out.rarity).toBe('common');
   });
 });
 
