@@ -11,7 +11,7 @@ interface Props<Id extends string> {
 
 export function TabStrip<Id extends string>({ tabs, active, onChange }: Props<Id>): React.ReactElement {
   return (
-    <nav className="mb-6 flex overflow-x-auto border-b border-pf-border" role="tablist">
+    <nav className="mb-6 flex overflow-x-auto overflow-y-hidden border-b border-pf-border" role="tablist">
       {tabs.map((tab) => {
         const isActive = tab.id === active;
         return (
