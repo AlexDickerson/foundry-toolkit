@@ -5,12 +5,14 @@ import { Protocol } from 'pmtiles';
 import { api } from '@/lib/api';
 import type { GlobePin, GlobePinKind, MissionData } from '@foundry-toolkit/shared/types';
 import {
+  DEFAULT_FILL_HEX,
   PIN_LAYER,
   PIN_SOURCE,
   buildMapStyle,
   ensureDefaultImage,
   ensureIconImage,
   getIconBody,
+  parseIconKey,
   pinsToGeoJson,
 } from '@foundry-toolkit/shared/golarion-map';
 import { IconPicker } from './IconPicker';
@@ -27,6 +29,7 @@ export function GlobeViewer() {
   const pinsRef = useRef<GlobePin[]>([]);
   const [pins, setPins] = useState<GlobePin[]>([]);
   const [selectedIcon, setSelectedIcon] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pinKind, setPinKind] = useState<GlobePinKind>('note');
   const [activeMission, setActiveMission] = useState<MissionData | null>(null);
@@ -41,11 +44,16 @@ export function GlobeViewer() {
    *  preventDefault, suppressing the browser's dblclick generation. */
   const lastPinClickRef = useRef<{ id: string; time: number } | null>(null);
   const selectedIconRef = useRef(selectedIcon);
+  const selectedColorRef = useRef(selectedColor);
   const pinKindRef = useRef(pinKind);
 
   useEffect(() => {
     selectedIconRef.current = selectedIcon;
   }, [selectedIcon]);
+
+  useEffect(() => {
+    selectedColorRef.current = selectedColor;
+  }, [selectedColor]);
 
   useEffect(() => {
     pinKindRef.current = pinKind;
@@ -96,6 +104,7 @@ export function GlobeViewer() {
         lat,
         label: '',
         icon: selectedIconRef.current,
+        iconColor: selectedColorRef.current,
         zoom: currentZoom,
         note: '',
         kind: pinKindRef.current,
@@ -138,11 +147,15 @@ export function GlobeViewer() {
 
     // When MapLibre encounters an icon-image that isn't loaded yet, load
     // it on demand. addImage() triggers a re-render automatically.
+    // Keys may carry a colour suffix (gi-<name>::<hex>) — parseIconKey
+    // extracts both parts so the correct coloured SVG is generated.
     map.on('styleimagemissing', (e: { id: string }) => {
-      if (e.id === 'gi-default') {
-        ensureDefaultImage(map);
-      } else if (e.id.startsWith('gi-')) {
-        ensureIconImage(map, e.id.slice(3));
+      const parsed = parseIconKey(e.id);
+      if (!parsed) return;
+      if (parsed.name === 'default') {
+        ensureDefaultImage(map, parsed.color);
+      } else {
+        ensureIconImage(map, parsed.name, parsed.color);
       }
     });
 
@@ -308,12 +321,50 @@ export function GlobeViewer() {
               width: 14,
               height: 14,
               borderRadius: '50%',
-              background: 'hsl(32, 95%, 52%)',
+              background: selectedColor || 'hsl(32, 95%, 52%)',
               border: '2px solid white',
             }}
           />
         )}
       </button>
+
+      {/* Fill-color picker — sets the circle colour for newly placed pins */}
+      <div className="absolute z-10" style={{ left: 56, top: 12 }}>
+        <label
+          title={selectedColor ? `Pin fill color: ${selectedColor}` : 'Pin fill color: default golden'}
+          className="flex cursor-pointer items-center justify-center rounded-lg border border-border bg-background/90 shadow-md backdrop-blur-sm transition-colors hover:bg-accent"
+          style={{ width: 40, height: 40, position: 'relative', display: 'flex' }}
+        >
+          <span
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              background: selectedColor || 'hsl(32, 95%, 52%)',
+              border: '2px solid rgba(255,255,255,0.5)',
+              flexShrink: 0,
+            }}
+          />
+          <input
+            type="color"
+            value={selectedColor || DEFAULT_FILL_HEX}
+            onChange={(e) => setSelectedColor(e.target.value)}
+            style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+            aria-label="Pin fill color"
+          />
+        </label>
+        {selectedColor && (
+          <button
+            type="button"
+            onClick={() => setSelectedColor('')}
+            title="Reset to default golden"
+            className="absolute flex items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+            style={{ width: 14, height: 14, fontSize: 9, top: -4, right: -4 }}
+          >
+            ×
+          </button>
+        )}
+      </div>
 
       {/* Pin kind toggle — determines what kind of pin is placed on right-click */}
       <div

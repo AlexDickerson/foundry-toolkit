@@ -27,6 +27,7 @@ export function migratePf2eDb(db: Database.Database): void {
   // time the payload is built for a push. Null for non-mission pins or when
   // no Obsidian vault is configured.
   if (!has('mission_markdown')) db.exec('ALTER TABLE globe_pins ADD COLUMN mission_markdown TEXT');
+  if (!has('icon_color')) db.exec("ALTER TABLE globe_pins ADD COLUMN icon_color TEXT NOT NULL DEFAULT ''");
 
   // Party inventory + Aurus leaderboard — persisted as JSON rows so schema
   // changes stay localized to shared/types.ts. The sidecar is the live-sync

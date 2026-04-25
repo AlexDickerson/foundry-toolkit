@@ -39,6 +39,7 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
           lat: pin.lat,
           label: pin.label,
           icon: pin.icon,
+          iconColor: pin.iconColor,
           zoom: pin.zoom,
           note: '',
           kind: pin.kind,

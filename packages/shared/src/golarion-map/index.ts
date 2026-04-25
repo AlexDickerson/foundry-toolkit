@@ -4,7 +4,18 @@
 
 export { DEFAULT_PMTILES_URL, buildMapStyle, colors } from './style.js';
 export { PIN_SOURCE, PIN_LAYER, pinDisplaySize, pinsToGeoJson } from './pins.js';
-export { ensureDefaultImage, ensureIconImage, getIconBody, iconKey, iconSvgHtml, resolvePinIcon } from './icons.js';
+export {
+  DEFAULT_FILL_HEX,
+  coloredIconKey,
+  ensureDefaultImage,
+  ensureIconImage,
+  getIconBody,
+  iconKey,
+  iconSvgHtml,
+  normalizeIconColor,
+  parseIconKey,
+  resolvePinIcon,
+} from './icons.js';
 export { createStarsLayer } from './stars.js';
 export type { StarsOptions, ResolvedStarsOptions } from './stars.js';
 export { startAutoRotate } from './auto-rotate.js';
