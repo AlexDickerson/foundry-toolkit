@@ -1,7 +1,6 @@
 // Compact stat block pinned to the right of the combat tab. Always renders
 // the current actor — monsters pull their full detail from the DB; PCs show
-// just name + HP (no stat block available). Kept visually close to
-// MonsterDetailPane but without the header bar / close button.
+// their live actions and spells fetched from Foundry.
 
 import { useEffect, useState } from 'react';
 import { ExternalLink, Heart, ShieldAlert } from 'lucide-react';
@@ -10,7 +9,13 @@ import { cn } from '@/lib/utils';
 import { cleanFoundryMarkup } from '@/lib/foundry-markup';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import type { Combatant, MonsterDetail } from '@foundry-toolkit/shared/types';
+import type {
+  Combatant,
+  MonsterDetail,
+  MonsterSpellGroup,
+  PlayerAction,
+  PlayerActorDetail,
+} from '@foundry-toolkit/shared/types';
 
 const RARITY_BADGE: Record<string, string> = {
   common: 'bg-zinc-600 text-zinc-100',
@@ -27,6 +32,8 @@ interface Props {
 export function CombatantStatBlock({ combatant, round }: Props) {
   const [detail, setDetail] = useState<MonsterDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [playerDetail, setPlayerDetail] = useState<PlayerActorDetail | null>(null);
+  const [playerLoading, setPlayerLoading] = useState(false);
 
   useEffect(() => {
     if (!combatant || combatant.kind !== 'monster' || !combatant.monsterName) {
@@ -43,6 +50,27 @@ export function CombatantStatBlock({ combatant, round }: Props) {
       .catch((e) => console.error('monstersGetDetail failed:', e))
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [combatant]);
+
+  useEffect(() => {
+    if (!combatant || combatant.kind !== 'pc' || !combatant.actorId) {
+      setPlayerDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setPlayerLoading(true);
+    api
+      .getPlayerActorDetail(combatant.actorId)
+      .then((d) => {
+        if (!cancelled) setPlayerDetail(d);
+      })
+      .catch((e) => console.error('getPlayerActorDetail failed:', e))
+      .finally(() => {
+        if (!cancelled) setPlayerLoading(false);
       });
     return () => {
       cancelled = true;
@@ -77,7 +105,7 @@ export function CombatantStatBlock({ combatant, round }: Props) {
       </div>
 
       {combatant.kind === 'pc' ? (
-        <PcBody combatant={combatant} />
+        <PcBody combatant={combatant} detail={playerDetail} loading={playerLoading} />
       ) : loading ? (
         <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">Loading stat block…</div>
       ) : detail ? (
@@ -128,26 +156,71 @@ function HpBar({ hp, maxHp }: { hp: number; maxHp: number }) {
   );
 }
 
-function PcBody({ combatant }: { combatant: Combatant }) {
+function PcBody({
+  combatant,
+  detail,
+  loading,
+}: {
+  combatant: Combatant;
+  detail: PlayerActorDetail | null;
+  loading: boolean;
+}) {
   return (
-    <div className="flex flex-1 flex-col gap-3 p-4 text-xs text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <ShieldAlert className="h-3.5 w-3.5" />
-        <span>
-          Initiative mod {combatant.initiativeMod >= 0 ? '+' : ''}
-          {combatant.initiativeMod}
-          {combatant.initiative != null && (
-            <>
-              {' · rolled '}
-              <span className="font-medium text-foreground">{combatant.initiative}</span>
-            </>
-          )}
-        </span>
+    <ScrollArea className="min-h-0 flex-1">
+      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Initiative summary */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Initiative mod {combatant.initiativeMod >= 0 ? '+' : ''}
+            {combatant.initiativeMod}
+            {combatant.initiative != null && (
+              <>
+                {' · rolled '}
+                <span className="font-medium text-foreground">{combatant.initiative}</span>
+              </>
+            )}
+          </span>
+        </div>
+
+        {/* No Foundry actor linked — manually added PC */}
+        {!combatant.actorId && (
+          <p className="text-[11px] italic text-muted-foreground">
+            Added manually — connect via the party picker for actions and spells.
+          </p>
+        )}
+
+        {/* Loading actor detail */}
+        {combatant.actorId && loading && <p className="text-xs text-muted-foreground">Loading character data…</p>}
+
+        {/* Failed to load */}
+        {combatant.actorId && !loading && !detail && (
+          <p className="text-[11px] italic text-muted-foreground">Could not load character data from Foundry.</p>
+        )}
+
+        {/* Actions */}
+        {detail && detail.actions.length > 0 && (
+          <>
+            <Separator />
+            <section>
+              <SectionLabel>Actions</SectionLabel>
+              <PcActionsSection actions={detail.actions} />
+            </section>
+          </>
+        )}
+
+        {/* Spells */}
+        {detail && detail.spellGroups.length > 0 && (
+          <>
+            <Separator />
+            <section>
+              <SectionLabel>Spells</SectionLabel>
+              <PcSpellsSection groups={detail.spellGroups} />
+            </section>
+          </>
+        )}
       </div>
-      <p className="text-[11px] italic">
-        PCs don&rsquo;t have a stored stat block — consult the player&rsquo;s character sheet.
-      </p>
-    </div>
+    </ScrollArea>
   );
 }
 
@@ -329,6 +402,91 @@ function StatCell({ label, value }: { label: string; value: string }) {
     >
       <span className="text-[9px] font-semibold uppercase text-muted-foreground">{label}</span>
       <span className="mt-0.5 text-xs font-medium tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+/** Map PF2e action-type + cost to Unicode glyphs for the PC action list. */
+const ACTION_GLYPH: Record<string, string> = {
+  '1': '◆',
+  '2': '◆◆',
+  '3': '◆◆◆',
+  reaction: '↺',
+  free: '◇',
+};
+
+function pcActionGlyph(action: PlayerAction): string {
+  if (action.actionType === 'reaction') return '↺';
+  if (action.actionType === 'free') return '◇';
+  return ACTION_GLYPH[String(action.actionCost ?? 1)] ?? '◆';
+}
+
+function PcActionsSection({ actions }: { actions: PlayerAction[] }) {
+  return (
+    <div className="space-y-1 text-xs">
+      {actions.map((a, i) => (
+        <div key={i} className="flex items-baseline gap-1.5">
+          <span className="shrink-0 w-6 text-center text-muted-foreground">{pcActionGlyph(a)}</span>
+          <span className="font-medium text-foreground/90">{a.name}</span>
+          {a.traits.length > 0 && (
+            <span className="text-[10px] text-muted-foreground">({a.traits.slice(0, 3).join(', ')})</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const CAST_GLYPH: Record<string, string> = {
+  '1': '◆',
+  '2': '◆◆',
+  '3': '◆◆◆',
+  reaction: '↺',
+  free: '◇',
+};
+
+function castGlyph(castTime: string): string {
+  return CAST_GLYPH[castTime] ?? castTime;
+}
+
+function PcSpellsSection({ groups }: { groups: MonsterSpellGroup[] }) {
+  return (
+    <div className="space-y-3 text-xs">
+      {groups.map((group, gi) => {
+        const parts: string[] = [];
+        if (group.tradition) parts.push(group.tradition);
+        if (group.dc) parts.push(`DC ${group.dc.toString()}`);
+        if (group.attack !== undefined) parts.push(`+${group.attack.toString()} attack`);
+        const subtitle = parts.join(' · ');
+
+        return (
+          <div key={gi}>
+            <p className="font-semibold text-foreground/90">
+              {group.entryName}
+              {subtitle && <span className="ml-1 font-normal text-muted-foreground">({subtitle})</span>}
+            </p>
+            <div className="mt-1 space-y-1">
+              {group.ranks.map((rankRow) => {
+                const rankLabel = rankRow.rank === 0 ? 'Cantrips' : `Rank ${rankRow.rank.toString()}`;
+                return (
+                  <div key={rankRow.rank} className="flex flex-wrap items-baseline gap-1 pl-3">
+                    <span className="shrink-0 text-muted-foreground">{rankLabel}:</span>
+                    {rankRow.spells.map((spell, si) => (
+                      <span
+                        key={si}
+                        className="rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[11px] text-foreground/90"
+                      >
+                        {castGlyph(spell.castTime)} {spell.name}
+                        {spell.usesPerDay !== undefined && ` (${spell.usesPerDay.toString()}/day)`}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

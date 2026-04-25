@@ -344,6 +344,25 @@ export interface MonsterSpellGroup {
   ranks: MonsterSpellRank[];
 }
 
+export interface PlayerAction {
+  name: string;
+  /** "action" | "reaction" | "free" */
+  actionType: string;
+  /** Number of actions (1, 2, 3) — only set when actionType === "action". */
+  actionCost?: number;
+  traits: string[];
+  description: string;
+}
+
+/** Actions and spells for a player character fetched live from Foundry.
+ *  Passive abilities are excluded — only combat-relevant actions. */
+export interface PlayerActorDetail {
+  id: string;
+  name: string;
+  actions: PlayerAction[];
+  spellGroups: MonsterSpellGroup[];
+}
+
 export interface MonsterDetail {
   name: string;
   level: number;
@@ -828,6 +847,10 @@ export interface ElectronAPI {
    *  The folder name defaults to "The Party" and can be overridden by
    *  passing `?folder=` on the HTTP side. */
   listPartyMembers(): Promise<PartyMember[]>;
+  /** Fetch combat-relevant actions and spells for a specific Foundry actor
+   *  (identified by its ID). Returns null when foundryMcpUrl is not
+   *  configured or the actor cannot be reached. */
+  getPlayerActorDetail(actorId: string): Promise<PlayerActorDetail | null>;
 }
 
 // --- Party inventory ---------------------------------------------------------
@@ -920,6 +943,10 @@ export interface Combatant {
   /** Exact monster name from pf2e-db. Only present for kind='monster' — used
    *  to refetch the full stat block on demand. */
   monsterName?: string;
+  /** Foundry actor ID for PC combatants added from the party picker. Used to
+   *  fetch actions and spells from the live Foundry session on demand.
+   *  Absent for PCs added manually (no Foundry actor linked). */
+  actorId?: string;
   /** Rendered name. Auto-numbered ("Goblin 1", "Goblin 2") when multiple of
    *  the same monster are added, but freely editable by the DM. */
   displayName: string;

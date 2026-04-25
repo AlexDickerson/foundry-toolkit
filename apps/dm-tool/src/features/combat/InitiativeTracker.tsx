@@ -131,7 +131,7 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
    *  combatants array — calling this in a loop would lose all but the
    *  last because each call closes over the same stale snapshot. */
   const addPcs = useCallback(
-    (pcs: ReadonlyArray<{ name: string; initiativeMod: number; maxHp: number }>) => {
+    (pcs: ReadonlyArray<{ name: string; initiativeMod: number; maxHp: number; actorId?: string }>) => {
       const newCombatants: Combatant[] = pcs.map((pc) => ({
         id: crypto.randomUUID(),
         kind: 'pc',
@@ -140,6 +140,7 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
         initiative: null,
         hp: pc.maxHp,
         maxHp: pc.maxHp,
+        actorId: pc.actorId,
       }));
       return update({ combatants: [...encounter.combatants, ...newCombatants] });
     },
@@ -536,7 +537,7 @@ function AddMonsterPanel({
   );
 }
 
-type PcInput = { name: string; initiativeMod: number; maxHp: number };
+type PcInput = { name: string; initiativeMod: number; maxHp: number; actorId?: string };
 
 /** Party picker: fetches characters from the PF2e party actor and
  *  presents them as a multi-select list.  Falls back to the manual
@@ -579,6 +580,7 @@ function PartyPickerPanel({
     name: m.name,
     initiativeMod: m.initiativeMod,
     maxHp: m.maxHp,
+    actorId: m.id,
   });
 
   const handleAddSelected = () => {

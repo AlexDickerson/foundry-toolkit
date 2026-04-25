@@ -13,6 +13,7 @@ import type {
   Encounter,
   LootItem,
   PartyMember,
+  PlayerActorDetail,
   PushEncounterResult,
   Book,
   BookClassifyProgress,
@@ -183,6 +184,8 @@ const api: ElectronAPI = {
   pushEncounterToFoundry: (encounterId: string): Promise<PushEncounterResult> =>
     ipcRenderer.invoke('pushEncounterToFoundry', encounterId),
   listPartyMembers: (): Promise<PartyMember[]> => ipcRenderer.invoke('listPartyMembers'),
+  getPlayerActorDetail: (actorId: string): Promise<PlayerActorDetail | null> =>
+    ipcRenderer.invoke('getPlayerActorDetail', actorId),
 
   // Auto-Wall
   autoWallAvailable: (): Promise<boolean> => ipcRenderer.invoke('autoWallAvailable'),

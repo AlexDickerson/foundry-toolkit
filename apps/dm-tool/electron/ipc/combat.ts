@@ -2,13 +2,21 @@
 // only; players aren't meant to see the stat blocks or HP totals in here.
 
 import { ipcMain } from 'electron';
-import type { Encounter, LootItem, PartyMember, PushEncounterResult } from '@foundry-toolkit/shared/types';
+import type {
+  Encounter,
+  LootItem,
+  PartyMember,
+  PlayerActorDetail,
+  PushEncounterResult,
+} from '@foundry-toolkit/shared/types';
+import type { PreparedActor } from '@foundry-toolkit/shared/foundry-api';
 import { generateEncounterLoot, type LootMonster } from '@foundry-toolkit/ai/loot';
 import type { DmToolConfig } from '../config.js';
 import { deleteEncounter, listEncounters, upsertEncounter } from '@foundry-toolkit/db/pf2e';
 import { getPreparedCompendium } from '../compendium/singleton.js';
 import { tryParseJson } from '../util.js';
 import { pushEncounterActorsToFoundry } from '../encounter-push.js';
+import { pcActorToDetail } from '../compendium/pc-actor.js';
 
 export function registerCombatHandlers(cfg: DmToolConfig): void {
   ipcMain.handle('encountersList', (): Encounter[] => listEncounters());
@@ -79,5 +87,20 @@ export function registerCombatHandlers(cfg: DmToolConfig): void {
       throw new Error(`Party fetch failed: HTTP ${res.status.toString()}`);
     }
     return res.json() as Promise<PartyMember[]>;
+  });
+
+  ipcMain.handle('getPlayerActorDetail', async (_e, actorId: string): Promise<PlayerActorDetail | null> => {
+    if (!cfg.foundryMcpUrl) {
+      console.info('getPlayerActorDetail: foundryMcpUrl not configured', { actorId });
+      return null;
+    }
+    const base = cfg.foundryMcpUrl.replace(/\/$/, '');
+    const res = await fetch(`${base}/api/actors/${encodeURIComponent(actorId)}/prepared`);
+    if (!res.ok) {
+      console.warn('getPlayerActorDetail: fetch failed', { actorId, status: res.status });
+      return null;
+    }
+    const actor = (await res.json()) as PreparedActor;
+    return pcActorToDetail(actor);
   });
 }
