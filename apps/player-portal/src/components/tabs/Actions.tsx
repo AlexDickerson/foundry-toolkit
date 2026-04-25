@@ -110,13 +110,13 @@ function StrikeCard({
           </div>
           <VariantStrip
             variants={strike.variants}
-            onVariant={(i) => void attack.trigger(i)}
+            onVariant={(i) => { attack.trigger(i); }}
             pending={attack.state === 'pending'}
           />
           <div className="mt-1.5 flex flex-wrap gap-1.5" data-role="strike-damage-actions">
             <button
               type="button"
-              onClick={() => void damage.trigger()}
+              onClick={() => { damage.trigger(); }}
               disabled={damage.state === 'pending'}
               className="rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-[11px] font-semibold text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
               data-role="strike-damage-roll"
@@ -125,7 +125,7 @@ function StrikeCard({
             </button>
             <button
               type="button"
-              onClick={() => void crit.trigger()}
+              onClick={() => { crit.trigger(); }}
               disabled={crit.state === 'pending'}
               className="rounded border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-900 hover:bg-rose-100 disabled:opacity-50"
               data-role="strike-damage-crit"
@@ -330,7 +330,7 @@ function ActionCard({
             <ActionCostBadge kind={kind} count={count} />
             <button
               type="button"
-              onClick={() => void use.trigger()}
+              onClick={() => { use.trigger(); }}
               disabled={use.state === 'pending'}
               className="ml-auto rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
               data-role="action-use"

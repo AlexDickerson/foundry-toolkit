@@ -6,6 +6,7 @@ import { formatSignedInt } from '../../lib/format';
 import { useActorAction, type ActorActionState } from '../../lib/useActorAction';
 import { RankChip } from '../common/RankChip';
 import { SectionHeader } from '../common/SectionHeader';
+import { ConfirmDialog } from '../dialog/ConfirmDialog';
 
 interface Props {
   system: CharacterSystem;
@@ -190,7 +191,7 @@ function StatsBlock({
           title={perception.breakdown}
           rank={perception.rank}
           data-stat="perception"
-          onRoll={() => void rollPerception.trigger()}
+          onRoll={() => { rollPerception.trigger(); }}
           pending={rollPerception.state === 'pending'}
         />
         <StatTile
@@ -205,17 +206,17 @@ function StatsBlock({
       <div className="mt-2 grid grid-cols-3 gap-2">
         <SaveTile
           save={saves.fortitude}
-          onRoll={() => void rollFortitude.trigger()}
+          onRoll={() => { rollFortitude.trigger(); }}
           pending={rollFortitude.state === 'pending'}
         />
         <SaveTile
           save={saves.reflex}
-          onRoll={() => void rollReflex.trigger()}
+          onRoll={() => { rollReflex.trigger(); }}
           pending={rollReflex.state === 'pending'}
         />
         <SaveTile
           save={saves.will}
-          onRoll={() => void rollWill.trigger()}
+          onRoll={() => { rollWill.trigger(); }}
           pending={rollWill.state === 'pending'}
         />
       </div>
@@ -263,10 +264,10 @@ function HpTile({
       <span className="text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">HP</span>
       <span className="mt-0.5 font-mono text-xl font-semibold tabular-nums text-pf-text">{value}</span>
       <div className="mt-1 flex gap-0.5" data-role="hp-stepper">
-        <StepButton label="−5" disabled={state === 'pending'} onClick={() => void trigger(-5)} />
-        <StepButton label="−1" disabled={state === 'pending'} onClick={() => void trigger(-1)} />
-        <StepButton label="+1" disabled={state === 'pending'} onClick={() => void trigger(1)} />
-        <StepButton label="+5" disabled={state === 'pending'} onClick={() => void trigger(5)} />
+        <StepButton label="−5" disabled={state === 'pending'} onClick={() => { trigger(-5); }} />
+        <StepButton label="−1" disabled={state === 'pending'} onClick={() => { trigger(-1); }} />
+        <StepButton label="+1" disabled={state === 'pending'} onClick={() => { trigger(1); }} />
+        <StepButton label="+5" disabled={state === 'pending'} onClick={() => { trigger(5); }} />
       </div>
       {isError && <span className="mt-1 text-[10px] text-red-700">{state.error}</span>}
     </div>
@@ -418,7 +419,7 @@ function ResourcesRow({
           max={heroPoints.max}
           colorOn="border-rose-400 bg-rose-500"
           data-stat="hero-points"
-          onAdjust={(delta) => void adjustHero.trigger(delta)}
+          onAdjust={(delta) => { adjustHero.trigger(delta); }}
           pending={adjustHero.state === 'pending'}
         />
         {focus.max > 0 && (
@@ -429,7 +430,7 @@ function ResourcesRow({
             colorOn="border-indigo-400 bg-indigo-500"
             title={`Cap ${focus.cap.toString()}`}
             data-stat="focus"
-            onAdjust={(delta) => void adjustFocus.trigger(delta)}
+            onAdjust={(delta) => { adjustFocus.trigger(delta); }}
             pending={adjustFocus.state === 'pending'}
           />
         )}
@@ -613,7 +614,7 @@ function ConditionsRow({
           colorOn="border-red-500 bg-red-600"
           title={`Recovery DC ${dying.recoveryDC.toString()}`}
           data-stat="dying"
-          onAdjust={(delta) => void adjustDying.trigger(delta)}
+          onAdjust={(delta) => { adjustDying.trigger(delta); }}
           pending={adjustDying.state === 'pending'}
         />
         <Condition
@@ -622,7 +623,7 @@ function ConditionsRow({
           max={wounded.max}
           colorOn="border-amber-500 bg-amber-600"
           data-stat="wounded"
-          onAdjust={(delta) => void adjustWounded.trigger(delta)}
+          onAdjust={(delta) => { adjustWounded.trigger(delta); }}
           pending={adjustWounded.state === 'pending'}
         />
         <Condition
@@ -631,7 +632,7 @@ function ConditionsRow({
           max={doomed.max}
           colorOn="border-violet-500 bg-violet-700"
           data-stat="doomed"
-          onAdjust={(delta) => void adjustDoomed.trigger(delta)}
+          onAdjust={(delta) => { adjustDoomed.trigger(delta); }}
           pending={adjustDoomed.state === 'pending'}
         />
       </div>
@@ -818,7 +819,7 @@ function ChipList({ label, items }: { label: string; items: string[] }): React.R
 }
 
 function LongRestButton({ actorId, onRested }: { actorId: string; onRested: () => void }): React.ReactElement {
-  const { state, trigger } = useActorAction({
+  const { state, trigger, confirming } = useActorAction({
     run: () => api.longRest(actorId),
     confirm: 'Rest for the night? This restores HP, refreshes resources, and advances in-world time.',
     onSuccess: onRested,
@@ -826,17 +827,27 @@ function LongRestButton({ actorId, onRested }: { actorId: string; onRested: () =
   const isError = typeof state === 'object';
 
   return (
-    <div className="flex flex-col items-end gap-1" data-action="long-rest">
-      <button
-        type="button"
-        onClick={() => void trigger()}
-        disabled={state === 'pending'}
-        className="rounded border border-pf-tertiary-dark bg-pf-tertiary px-3 py-1.5 text-sm font-semibold text-pf-alt-dark hover:bg-pf-tertiary-dark hover:text-white disabled:opacity-50"
-      >
-        {state === 'pending' ? 'Resting…' : 'Long Rest'}
-      </button>
-      {isError && <span className="text-xs text-red-700">{state.error}</span>}
-    </div>
+    <>
+      {confirming !== null && (
+        <ConfirmDialog
+          message={confirming.message}
+          confirmLabel="Rest"
+          onConfirm={confirming.accept}
+          onCancel={confirming.cancel}
+        />
+      )}
+      <div className="flex flex-col items-end gap-1" data-action="long-rest">
+        <button
+          type="button"
+          onClick={() => { trigger(); }}
+          disabled={state === 'pending'}
+          className="rounded border border-pf-tertiary-dark bg-pf-tertiary px-3 py-1.5 text-sm font-semibold text-pf-alt-dark hover:bg-pf-tertiary-dark hover:text-white disabled:opacity-50"
+        >
+          {state === 'pending' ? 'Resting…' : 'Long Rest'}
+        </button>
+        {isError && <span className="text-xs text-red-700">{state.error}</span>}
+      </div>
+    </>
   );
 }
 

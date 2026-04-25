@@ -226,7 +226,7 @@ function FormulaCard({
                 // toggle so clicking Craft doesn't also expand/collapse.
                 e.preventDefault();
                 e.stopPropagation();
-                void craft.trigger();
+                craft.trigger();
               }}
               disabled={pending}
               className="rounded border border-pf-primary bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary hover:bg-pf-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
