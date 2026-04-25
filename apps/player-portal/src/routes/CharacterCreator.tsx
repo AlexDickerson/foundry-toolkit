@@ -235,7 +235,7 @@ export function CharacterCreator(): React.ReactElement {
           {/* Sticky anchor nav — clicking a pill scrolls the matching
               section into view. Filled state still derives from
               `isStepFilled` so users can see what's outstanding. */}
-          <div className="sticky top-0 z-10 -mx-1 mb-4 bg-gradient-to-b from-white via-white/95 to-transparent px-1 pb-2 pt-2">
+          <div className="sticky top-0 z-10 -mx-1 mb-4 bg-stage-gradient px-1 pb-2 pt-2">
             <StepNav steps={STEPS} active={null} onJump={jumpToSection} draft={draft} />
           </div>
 

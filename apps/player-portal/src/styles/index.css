@@ -107,6 +107,13 @@
 @utility border-portal-accent-dim {
   border-color: var(--portal-accent-border);
 }
+/* Sticky step-nav scrim: fades from the page background down to transparent
+ * so the nav pill bar appears to float above the scrolling content. Uses
+ * --portal-bg so the fade colour matches both light (cream parchment) and
+ * dark (#0d111e navy) themes automatically. */
+@utility bg-stage-gradient {
+  background: linear-gradient(to bottom, var(--portal-bg), transparent);
+}
 
 /* Reserve scrollbar-gutter space always so the page doesn't horizontally
    shift when content grows past the viewport and a scrollbar appears. */
