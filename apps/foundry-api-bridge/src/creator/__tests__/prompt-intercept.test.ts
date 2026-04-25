@@ -180,33 +180,48 @@ describe('installPromptInterception — renderDamageModifierDialog', () => {
     expect(names).toContain('renderDamageModifierDialog');
   });
 
-  it('uses $html.find() to locate and click the submit button', () => {
+  it('removes the element from DOM and calls close() to resolve the Promise', async () => {
     installPromptInterception([]);
 
-    const clickMock = jest.fn();
-    const submitBtn = { click: clickMock };
-    // $html is a JQuery-like object; find() returns an array-like of elements.
-    const $html = { find: jest.fn().mockReturnValue([submitBtn]) };
-    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
-
-    hooksMock.fire('renderDamageModifierDialog', app, $html);
-
-    expect($html.find).toHaveBeenCalledWith('button[type=submit]');
-    expect(clickMock).toHaveBeenCalled();
-    // The app's own submit listener sets isRolled and calls close() — we don't.
-    expect(app.close).not.toHaveBeenCalled();
-  });
-
-  it('falls back to direct close when no submit button exists', async () => {
-    installPromptInterception([]);
-
-    const $html = { find: jest.fn().mockReturnValue([]) }; // empty array-like
+    const removeMock = jest.fn();
+    const $html = { remove: removeMock };
     const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
 
     hooksMock.fire('renderDamageModifierDialog', app, $html);
     await Promise.resolve();
 
+    // isRolled set before close so #resolve(true) signals "proceed".
     expect(app.isRolled).toBe(true);
+    // Element detached before browser paint.
+    expect(removeMock).toHaveBeenCalled();
+    // Promise resolved (action completes).
     expect(app.close).toHaveBeenCalled();
+  });
+
+  it('sets isRolled before calling close() so the roll is not cancelled', async () => {
+    installPromptInterception([]);
+
+    const callOrder: string[] = [];
+    const $html = { remove: jest.fn() };
+    const app = {
+      isRolled: false,
+      close: jest.fn().mockImplementation(() => {
+        callOrder.push(`close:isRolled=${String(app.isRolled)}`);
+        return Promise.resolve();
+      }),
+    };
+    Object.defineProperty(app, 'isRolled', {
+      get() { return this._isRolled ?? false; },
+      set(v: boolean) {
+        callOrder.push(`setIsRolled:${String(v)}`);
+        this._isRolled = v;
+      },
+    });
+
+    hooksMock.fire('renderDamageModifierDialog', app, $html);
+    await Promise.resolve();
+
+    expect(callOrder[0]).toBe('setIsRolled:true');
+    expect(callOrder[1]).toMatch(/^close:isRolled=true/);
   });
 });

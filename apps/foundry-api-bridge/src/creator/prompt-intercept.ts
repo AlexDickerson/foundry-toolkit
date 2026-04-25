@@ -97,25 +97,31 @@ export function installPromptInterception(wsClients: readonly WebSocketClient[])
   // preRenderDamageModifierDialog was tried but AppV2 uses Hooks.callAll
   // (unlike AppV1's Hooks.call), so returning false does not cancel the
   // render. renderDamageModifierDialog fires reliably with the element in DOM.
-  // The render hook fires with (app, $html) where $html is the JQuery-wrapped
-  // root element (AppV1 convention). app.element is also a JQuery object —
-  // it does NOT have querySelector; accessing it would silently return
-  // undefined and throw when called. Use $html.find() instead.
+  // AppV1's render hook fires with (app, $html) where $html is the jQuery-
+  // wrapped root .app element. We remove it from the DOM immediately —
+  // before the browser paints — then call close() to resolve the internal
+  // Promise so the action completes.
+  //
+  // Why remove() instead of submitBtn.click():
+  //   • PF2e creates one DamageModifierDialog per damage component (base,
+  //     splash, persistent …); a single roll may fire this hook 2-3 times.
+  //   • AppV1's close() runs a 200 ms slideUp animation.  During that
+  //     window game-state updates can trigger re-renders, racing the
+  //     animation and leaving a zombie element.
+  //   • $html.remove() detaches the node synchronously; slideUp then runs
+  //     on a detached element (no-op), state is cleaned up after the timer.
+  //
+  // isRolled must be true before close() so pf2e's
+  //   close() { this.#resolve?.(this.isRolled); }
+  // resolves with true ("proceed") not false ("cancel").
   // @ts-expect-error — Hooks is untyped
   Hooks.on('renderDamageModifierDialog', (app: DamageModifierDialogApp, $html: unknown) => {
-    console.info('Foundry API Bridge | Suppressing DamageModifierDialog — clicking submit');
-    // JQuery duck-type: find() returns an array-like of native elements.
-    type JQueryLike = { find(sel: string): ArrayLike<HTMLElement> };
-    const html = $html as JQueryLike;
-    const submitBtn = html.find('button[type=submit]')[0];
-    if (submitBtn) {
-      submitBtn.click();
-    } else {
-      // Fallback: template has no submit button — close directly.
-      console.warn('Foundry API Bridge | DamageModifierDialog: submit button not found, falling back to close()');
-      app.isRolled = true;
-      void app.close();
-    }
+    console.info('Foundry API Bridge | Suppressing DamageModifierDialog — removing element');
+    app.isRolled = true;
+    // Detach from DOM synchronously before any browser paint.
+    ($html as { remove(): void }).remove();
+    // Resolve the internal Promise (completes the action).
+    void app.close();
   });
 
   console.log('Foundry API Bridge | ChoiceSet prompt interception installed');
