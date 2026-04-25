@@ -1237,6 +1237,13 @@ export interface GetCompendiumDocumentParams {
   uuid: string; // e.g. 'Compendium.pf2e.feats-srd.Item.abc123'
 }
 
+export interface CompendiumEmbeddedItem {
+  id: string;
+  name: string;
+  type: string;
+  system: Record<string, unknown>;
+}
+
 export interface CompendiumDocumentData {
   id: string;
   uuid: string;
@@ -1251,6 +1258,12 @@ export interface CompendiumDocumentData {
    *  Shape varies by item type; the picker treats it as raw data and
    *  reads only what its renderer needs. */
   system: Record<string, unknown>;
+  /** Embedded item documents (spells, actions, feats, spellcastingEntry, …).
+   *  Populated on Actor documents by `getCompendiumDocumentHandler` so the
+   *  detail panel can render spell lists and passive abilities.
+   *  Absent on Item documents and in `dumpCompendiumPackHandler` responses
+   *  (the cache doesn't need them). */
+  items?: CompendiumEmbeddedItem[];
 }
 
 export interface GetCompendiumDocumentResult {

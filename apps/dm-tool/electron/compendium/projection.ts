@@ -27,7 +27,7 @@ import type {
   MonsterSummary,
 } from '@foundry-toolkit/shared/types';
 import type { LootShortlistItem } from '@foundry-toolkit/ai/loot';
-import type { CompendiumDocument, CompendiumMatch, ItemPrice } from './types.js';
+import type { CompendiumDocument, CompendiumEmbeddedItem, CompendiumMatch, ItemPrice } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Re-exported MonsterResult / MonsterRow shapes
@@ -512,6 +512,103 @@ function monsterSkills(system: Record<string, unknown>): string {
   return parts.join(', ');
 }
 
+// ---------------------------------------------------------------------------
+// Spell list formatter
+// ---------------------------------------------------------------------------
+//
+// PF2e spellcasting data lives in the document's embedded `items` array
+// (not in `system`). Each spellcasting tradition is a `spellcastingEntry`
+// item that links to `spell` items via `spell.system.location.value`.
+//
+// Wire shape (from getCompendiumDocumentHandler):
+//   spellcastingEntry.system.tradition.value  — "arcane"|"divine"|"occult"|"primal"
+//   spellcastingEntry.system.prepared.value   — "prepared"|"spontaneous"|"innate"|"focus"
+//   spellcastingEntry.system.spelldc.dc        — DC number
+//   spellcastingEntry.system.spelldc.value     — spell attack bonus
+//   spell.system.level.value                   — 0=cantrip, 1-10=spell level
+//   spell.system.location.value                — ID of the spellcastingEntry
+//   spell.system.location.uses.max             — charges for innate spells
+//   spell.system.location.heightenedLevel      — if heightened to a different level
+
+export function monsterSpells(items: CompendiumEmbeddedItem[] | undefined): string {
+  if (!items || items.length === 0) return '';
+
+  // Build index of spellcasting entries by their ID.
+  interface EntryInfo {
+    name: string;
+    tradition: string;
+    castingType: string;
+    dc?: number;
+    attack?: number;
+  }
+  const entries = new Map<string, EntryInfo>();
+  for (const item of items) {
+    if (item.type !== 'spellcastingEntry') continue;
+    const sys = item.system;
+    const id = item.id;
+    if (!id) continue;
+    entries.set(id, {
+      name: item.name,
+      tradition: readString(readPath(sys, ['tradition', 'value'])),
+      castingType: readString(readPath(sys, ['prepared', 'value'])),
+      dc: (() => {
+        const v = readPath(sys, ['spelldc', 'dc']);
+        return typeof v === 'number' && v > 0 ? v : undefined;
+      })(),
+      attack: (() => {
+        const v = readPath(sys, ['spelldc', 'value']);
+        return typeof v === 'number' && v !== 0 ? v : undefined;
+      })(),
+    });
+  }
+  if (entries.size === 0) return '';
+
+  // Group spells by entry ID then by effective rank.
+  const spellsByEntry = new Map<string, Map<number, string[]>>();
+  for (const item of items) {
+    if (item.type !== 'spell') continue;
+    const sys = item.system;
+    const entryId = readString(readPath(sys, ['location', 'value']));
+    if (!entryId || !entries.has(entryId)) continue;
+
+    // Effective rank: heightened level when set, otherwise base level.
+    const baseLevel = readNumber(readPath(sys, ['level', 'value']));
+    const heightened = readPath(sys, ['location', 'heightenedLevel']);
+    const rank = typeof heightened === 'number' ? heightened : baseLevel;
+
+    // Usage label for innate spells.
+    const usesMax = readPath(sys, ['location', 'uses', 'max']);
+    const label = typeof usesMax === 'number' && usesMax > 0 ? `${item.name} (${usesMax.toString()}/day)` : item.name;
+
+    if (!spellsByEntry.has(entryId)) spellsByEntry.set(entryId, new Map());
+    const byRank = spellsByEntry.get(entryId)!;
+    if (!byRank.has(rank)) byRank.set(rank, []);
+    byRank.get(rank)!.push(label);
+  }
+
+  const blocks: string[] = [];
+  for (const [entryId, entry] of entries) {
+    const byRank = spellsByEntry.get(entryId);
+    if (!byRank || byRank.size === 0) continue;
+
+    const dcPart = entry.dc ? `DC ${entry.dc.toString()}` : '';
+    const atkPart = entry.attack !== undefined ? `+${entry.attack.toString()} attack` : '';
+    const statParts = [entry.tradition, dcPart, atkPart].filter(Boolean).join(' ');
+    const header = statParts ? `${entry.name} (${statParts})` : entry.name;
+
+    const lines: string[] = [header];
+    // Sort: cantrips (rank 0) first, then ascending.
+    for (const rank of [...byRank.keys()].sort((a, b) => a - b)) {
+      const spells = byRank.get(rank)!;
+      const label = rank === 0 ? 'Cantrips' : `Rank ${rank.toString()}`;
+      lines.push(`  ${label}: ${spells.join(', ')}`);
+    }
+    blocks.push(lines.join('\n'));
+  }
+
+  return blocks.join('\n\n');
+}
+
 /** Return null for Foundry's generic placeholder icons — they're not
  *  real portraits and aren't worth fetching or displaying. */
 function isDefaultIcon(path: string): boolean {
@@ -683,6 +780,7 @@ export function monsterDocToDetail(doc: CompendiumDocument): MonsterDetail {
     melee: r.melee,
     ranged: r.ranged,
     abilities: r.abilities,
+    spells: monsterSpells(doc.items),
     description: r.description,
     aonUrl: r.aon_url,
     imageUrl: pickPortraitUrl(doc),

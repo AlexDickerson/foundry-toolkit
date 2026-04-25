@@ -6,6 +6,7 @@
 export type {
   ApiError,
   CompendiumDocument,
+  CompendiumEmbeddedItem,
   CompendiumMatch,
   CompendiumPack,
   CompendiumSearchOptions,

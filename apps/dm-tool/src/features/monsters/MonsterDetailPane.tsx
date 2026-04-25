@@ -135,6 +135,17 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
                 </>
               )}
 
+              {/* Spells */}
+              {detail.spells && (
+                <>
+                  <Separator />
+                  <section>
+                    <SectionLabel>Spells</SectionLabel>
+                    <SpellBlock text={detail.spells} />
+                  </section>
+                </>
+              )}
+
               {/* Full art */}
               {detail.imageUrl && (
                 <>
@@ -198,6 +209,30 @@ function StatCell({ label, value }: { label: string; value: string }) {
     <div className="flex flex-col items-center leading-none">
       <span className="font-semibold uppercase text-muted-foreground">{label}</span>
       <span className="mt-0.5 text-sm font-medium tabular-nums text-foreground">{value}</span>
+    </div>
+  );
+}
+
+/** Render a spell list. Each top-level line is a spellcasting-entry header;
+ *  indented lines list spells per rank. */
+function SpellBlock({ text }: { text: string }) {
+  const lines = text.split('\n');
+  return (
+    <div className="space-y-1 text-xs leading-relaxed">
+      {lines.map((raw, i) => {
+        const line = raw.trimEnd();
+        if (!line) return null;
+        const isHeader = !line.startsWith('  ');
+        return isHeader ? (
+          <p key={i} className="font-semibold text-foreground/90">
+            {line}
+          </p>
+        ) : (
+          <p key={i} className="pl-3 text-foreground/75">
+            {line.trim()}
+          </p>
+        );
+      })}
     </div>
   );
 }

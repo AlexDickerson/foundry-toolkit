@@ -339,6 +339,10 @@ export interface MonsterDetail {
   melee: string;
   ranged: string;
   abilities: string;
+  /** Formatted spell list, or empty string when the monster has no spells.
+   *  Multi-line; each spellcasting entry is a block headed by the tradition
+   *  and DC, followed by indented lines per spell rank. */
+  spells: string;
   description: string;
   aonUrl: string;
   /** Relative path to portrait art image, or null if unavailable. */
