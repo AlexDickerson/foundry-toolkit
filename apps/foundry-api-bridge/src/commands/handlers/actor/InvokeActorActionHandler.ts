@@ -66,7 +66,7 @@ interface ActorsCollection {
   get(id: string): FoundryActor | undefined;
 }
 
-type PF2eActionFn = (options: Record<string, unknown>) => unknown;
+type PF2eActionFn = (options: Record<string, unknown>) => Promise<unknown>;
 
 interface FoundryGame {
   actors: ActorsCollection;
