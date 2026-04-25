@@ -231,6 +231,59 @@ function formatAttackList(raw: unknown): string {
 export const formatMelee = formatAttackList;
 export const formatRanged = formatAttackList;
 
+// ---------------------------------------------------------------------------
+// PF2e processed-actor strike format
+// ---------------------------------------------------------------------------
+//
+// When the mcp cache warms a compendium pack it stores the full processed
+// PF2e actor document (the Foundry-hydrated shape, not the raw pack JSON).
+// Strikes live in `system.actions[]` as flat objects with:
+//   { type: "strike", attackRollType: "PF2E.NPCAttackMelee"|"…Ranged",
+//     label: string, totalModifier: number,
+//     traits: [{ name: string, label: string }],
+//     item: { system: { damageRolls: { <id>: { damage, damageType, category } } } } }
+//
+// This is distinct from the legacy test-fixture shape (system.actions.melee[])
+// used when the bridge serialises raw pack JSON.
+
+function formatPf2eStrikes(actions: unknown, attackRollType: string): string {
+  if (!Array.isArray(actions)) return '';
+  return actions
+    .filter(
+      (a): a is Record<string, unknown> =>
+        isRecord(a) && readString(a.type) === 'strike' && readString(a.attackRollType) === attackRollType,
+    )
+    .map((strike) => {
+      const name = readString(strike.label);
+      const mod = readNumber(strike.totalModifier);
+      const sign = mod >= 0 ? '+' : '';
+
+      // Traits: array of { name, label } objects; skip the generic "attack" tag.
+      const traitObjs = Array.isArray(strike.traits) ? strike.traits.filter(isRecord) : [];
+      const traitNames = traitObjs.map((t) => readString(t.name)).filter((n) => n.length > 0 && n !== 'attack');
+      const traitsStr = traitNames.length > 0 ? ` (${traitNames.join(', ')})` : '';
+
+      // Damage: item.system.damageRolls is a keyed object, one entry per roll.
+      const itemSys = isRecord(strike.item) ? readPath(strike.item as Record<string, unknown>, ['system']) : null;
+      const dmgRolls = isRecord(itemSys) && isRecord(itemSys.damageRolls) ? itemSys.damageRolls : null;
+      let dmgStr = '';
+      if (dmgRolls) {
+        dmgStr = Object.values(dmgRolls)
+          .filter(isRecord)
+          .map((r) => {
+            const formula = readString(r.damage);
+            const type = readString(r.damageType);
+            const category = readString(r.category);
+            return `${formula} ${type}${category === 'persistent' ? ' persistent' : ''}`.trim();
+          })
+          .join(' plus ');
+      }
+
+      return `◆ ${name} ${sign}${mod.toString()}${traitsStr}, Damage ${dmgStr}`;
+    })
+    .join('; ');
+}
+
 interface WireAction {
   name?: unknown;
   action_type?: unknown;
@@ -296,20 +349,39 @@ export function formatWeaknesses(raw: unknown): string {
 }
 
 export function formatSpeed(system: Record<string, unknown>): string {
-  // PF2e shape: system.attributes.speed.value (land, number) +
-  // system.attributes.speed.otherSpeeds[] with { type, value }.
-  const speedObj = readPath(system, ['attributes', 'speed']);
-  if (!isRecord(speedObj)) return '';
-  const land = readNumber(speedObj.value);
-  const parts: string[] = [];
-  if (land > 0) parts.push(`${land.toString()} feet`);
-  const other = Array.isArray(speedObj.otherSpeeds) ? speedObj.otherSpeeds.filter(isRecord) : [];
-  for (const s of other) {
-    const type = readString(s.type);
-    const value = readNumber(s.value);
-    if (type) parts.push(`${type} ${value.toString()} feet`);
+  // Legacy / simplified shape: system.attributes.speed.value (land) +
+  // system.attributes.speed.otherSpeeds[].
+  const attrSpeed = readPath(system, ['attributes', 'speed']);
+  if (isRecord(attrSpeed)) {
+    const land = readNumber(attrSpeed.value);
+    const parts: string[] = [];
+    if (land > 0) parts.push(`${land.toString()} feet`);
+    const other = Array.isArray(attrSpeed.otherSpeeds) ? attrSpeed.otherSpeeds.filter(isRecord) : [];
+    for (const s of other) {
+      const type = readString(s.type);
+      const value = readNumber(s.value);
+      if (type) parts.push(`${type} ${value.toString()} feet`);
+    }
+    return parts.join(', ');
   }
-  return parts.join(', ');
+
+  // PF2e processed shape: system.movement.speeds.{ land, burrow, climb, fly, swim }
+  // each entry is null (not available) or { value: number }.
+  const movSpeeds = readPath(system, ['movement', 'speeds']);
+  if (isRecord(movSpeeds)) {
+    const parts: string[] = [];
+    const SPEED_KEYS = ['land', 'burrow', 'climb', 'fly', 'swim'] as const;
+    for (const key of SPEED_KEYS) {
+      const entry = movSpeeds[key];
+      if (!isRecord(entry)) continue;
+      const val = readNumber(entry.value);
+      if (val <= 0) continue;
+      parts.push(key === 'land' ? `${val.toString()} feet` : `${key} ${val.toString()} feet`);
+    }
+    return parts.join(', ');
+  }
+
+  return '';
 }
 
 // ---------------------------------------------------------------------------
@@ -472,12 +544,34 @@ function pickTokenUrl(doc: CompendiumDocument): string | null {
 export function monsterDocToResult(doc: CompendiumDocument): MonsterResult {
   const system = readSystem(doc);
   const saves = monsterSaves(system);
-  const melee = readPath(system, ['actions', 'melee']) ?? [];
-  const ranged = readPath(system, ['actions', 'ranged']) ?? [];
-  // pf2e stores actions as embedded items with type='action'. The wire
-  // contract may flatten them into `system.actions` (array) or leave them
-  // on the doc's embedded Items collection. Accept both.
-  const actionsRaw = readPath(system, ['actions']) ?? readPath(system, ['details', 'actions']) ?? [];
+
+  // Two action-data shapes come off the wire:
+  //
+  //   Legacy (raw pack JSON serialised by the bridge):
+  //     system.actions = { melee: [{name, bonus, damage, traits}], ranged: [...] }
+  //
+  //   PF2e processed (mcp cache dumps the fully-hydrated actor):
+  //     system.actions = [{type:"strike", attackRollType:"PF2E.NPCAttackMelee"|"…Ranged",
+  //                        label, totalModifier, traits:[{name}], item:{system:{damageRolls}}}]
+  //
+  // Detect by whether system.actions is a plain array (processed) or an
+  // object with sub-arrays (legacy).
+  const actionsRaw = readPath(system, ['actions']);
+  const isPf2eProcessed = Array.isArray(actionsRaw);
+
+  const meleeStr = isPf2eProcessed
+    ? formatPf2eStrikes(actionsRaw, 'PF2E.NPCAttackMelee')
+    : formatMelee(readPath(system, ['actions', 'melee']) ?? []);
+
+  const rangedStr = isPf2eProcessed
+    ? formatPf2eStrikes(actionsRaw, 'PF2E.NPCAttackRanged')
+    : formatRanged(readPath(system, ['actions', 'ranged']) ?? []);
+
+  // Passive abilities: in the processed shape, passive abilities (reactions,
+  // free actions, non-strike specials) are embedded items not surfaced in
+  // system.actions — fall back to the legacy details.actions path.
+  const passiveRaw = isPf2eProcessed ? (readPath(system, ['details', 'actions']) ?? []) : (actionsRaw ?? []);
+
   const immunities = readPath(system, ['attributes', 'immunities']);
   const weaknesses = readPath(system, ['attributes', 'weaknesses']);
   const resistances = readPath(system, ['attributes', 'resistances']);
@@ -505,13 +599,10 @@ export function monsterDocToResult(doc: CompendiumDocument): MonsterResult {
     immunities: formatImmunities(immunities),
     weaknesses: formatWeaknesses(weaknesses),
     resistances: formatWeaknesses(resistances),
-    melee: formatMelee(melee),
-    ranged: formatRanged(ranged),
-    abilities: Array.isArray(actionsRaw) ? formatActions(actionsRaw) : '',
+    melee: meleeStr,
+    ranged: rangedStr,
+    abilities: Array.isArray(passiveRaw) ? formatActions(passiveRaw) : '',
     description: monsterDescription(system),
-    // aonUrl was scope-dropped from the projection layer (see the PR
-    // description). Consumers that still need a link pass the doc name or
-    // uuid through and decide downstream.
     aon_url: '',
   };
 }

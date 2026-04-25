@@ -247,11 +247,27 @@ describe('formatImmunities / formatWeaknesses', () => {
 });
 
 describe('formatSpeed', () => {
-  it('joins land and other speeds', () => {
+  it('joins land and other speeds (legacy attributes.speed shape)', () => {
     const system = {
       attributes: { speed: { value: 40, otherSpeeds: [{ type: 'fly', value: 120 }] } },
     };
     expect(formatSpeed(system)).toBe('40 feet, fly 120 feet');
+  });
+
+  it('reads the PF2e processed movement.speeds shape', () => {
+    // Barbazu-style: system.movement.speeds.{ land: {value:35}, burrow: null, ... }
+    const system = {
+      movement: {
+        speeds: {
+          land: { value: 35 },
+          burrow: null,
+          climb: null,
+          fly: { value: 60 },
+          swim: null,
+        },
+      },
+    };
+    expect(formatSpeed(system)).toBe('35 feet, fly 60 feet');
   });
 
   it('returns an empty string when speed is missing', () => {
@@ -323,6 +339,96 @@ describe('monsterDocToResult', () => {
     expect(out.level).toBe(0);
     expect(out.hp).toBe(0);
     expect(out.traits).toEqual([]);
+  });
+});
+
+describe('monsterDocToResult — PF2e processed shape (system.actions flat array)', () => {
+  it('extracts melee strikes and speed from the processed actor format', () => {
+    // Minimal Barbazu-style document: flat system.actions[] of strike objects
+    // and speed under system.movement.speeds instead of system.attributes.speed.
+    const doc: CompendiumDocument = {
+      id: 'barb1',
+      uuid: 'Compendium.pf2e.pathfinder-bestiary.Actor.barb1',
+      name: 'Barbazu',
+      type: 'npc',
+      img: 'systems/pf2e/icons/bestiary/barbazu.webp',
+      system: {
+        details: { level: { value: 5 }, publication: { title: 'Bestiary' } },
+        traits: { rarity: 'common', size: { value: 'med' }, value: ['devil', 'fiend'] },
+        attributes: {
+          hp: { max: 60 },
+          ac: { value: 22 },
+          immunities: [{ type: 'fire' }],
+          weaknesses: [{ type: 'holy', value: 5 }],
+          resistances: [],
+        },
+        saves: { fortitude: { value: 15 }, reflex: { value: 11 }, will: { value: 11 } },
+        perception: { mod: 13 },
+        abilities: {
+          str: { mod: 4 },
+          dex: { mod: 2 },
+          con: { mod: 4 },
+          int: { mod: -2 },
+          wis: { mod: 2 },
+          cha: { mod: 1 },
+        },
+        movement: {
+          speeds: { land: { value: 35 }, burrow: null, climb: null, fly: null, swim: null },
+        },
+        actions: [
+          {
+            type: 'strike',
+            attackRollType: 'PF2E.NPCAttackMelee',
+            label: 'Beard',
+            totalModifier: 15,
+            traits: [
+              { name: 'attack', label: 'Attack' },
+              { name: 'magical', label: 'Magical' },
+              { name: 'unholy', label: 'Unholy' },
+            ],
+            item: {
+              system: {
+                damageRolls: { abc: { damage: '1d6+7', damageType: 'piercing', category: null } },
+              },
+            },
+          },
+          {
+            type: 'strike',
+            attackRollType: 'PF2E.NPCAttackMelee',
+            label: 'Glaive',
+            totalModifier: 15,
+            traits: [{ name: 'attack', label: 'Attack' }],
+            item: {
+              system: {
+                damageRolls: {
+                  def: { damage: '1d8+7', damageType: 'slashing', category: null },
+                  ghi: { damage: '2d6', damageType: 'spirit', category: null },
+                },
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    const out = monsterDocToResult(doc);
+
+    // Stats
+    expect(out.hp).toBe(60);
+    expect(out.ac).toBe(22);
+    expect(out.fort).toBe(15);
+    expect(out.speed).toBe('35 feet');
+
+    // Melee: two strikes formatted from processed shape
+    expect(out.melee).toContain('◆ Beard +15');
+    expect(out.melee).toContain('1d6+7 piercing');
+    expect(out.melee).toContain('(magical, unholy)'); // "attack" trait filtered out
+    expect(out.melee).toContain('◆ Glaive +15');
+    expect(out.melee).toContain('1d8+7 slashing');
+    expect(out.melee).toContain('2d6 spirit');
+
+    // No ranged strikes in this fixture
+    expect(out.ranged).toBe('');
   });
 });
 
