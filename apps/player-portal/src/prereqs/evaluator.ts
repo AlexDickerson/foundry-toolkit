@@ -27,6 +27,28 @@ export function evaluatePredicate(pred: Predicate, ctx: CharacterContext): Evalu
       }
       return anyUnknown ? 'unknown' : 'fails';
     }
+    case 'skill-rank-any-of-or-lore': {
+      // Passes if any specific skill OR any lore skill reaches the threshold.
+      let anyUnknown = false;
+      for (const skill of pred.skills) {
+        const rank = ctx.skillRanks.get(skill.toLowerCase());
+        if (rank === undefined) { anyUnknown = true; continue; }
+        if (rank >= pred.min) return 'meets';
+      }
+      for (const slug of ctx.loreSkillSlugs) {
+        const rank = ctx.skillRanks.get(slug);
+        if (rank !== undefined && rank >= pred.min) return 'meets';
+      }
+      return anyUnknown ? 'unknown' : 'fails';
+    }
+    case 'skill-rank-any-lore': {
+      // Passes if any lore skill the character has reaches the threshold.
+      for (const slug of ctx.loreSkillSlugs) {
+        const rank = ctx.skillRanks.get(slug);
+        if (rank !== undefined && rank >= pred.min) return 'meets';
+      }
+      return ctx.loreSkillSlugs.size === 0 ? 'unknown' : 'fails';
+    }
     case 'level':
       return ctx.level >= pred.min ? 'meets' : 'fails';
     case 'ability': {

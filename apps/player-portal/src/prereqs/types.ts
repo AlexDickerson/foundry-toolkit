@@ -14,6 +14,10 @@ export type Predicate =
   | { kind: 'skill-rank'; skill: string; min: ProficiencyRank }
   | { kind: 'skill-rank-any'; min: ProficiencyRank }
   | { kind: 'skill-rank-any-of'; skills: string[]; min: ProficiencyRank }
+  // OR-list that additionally accepts any lore skill at min (e.g. "master in Crafting, Performance, or a Lore skill")
+  | { kind: 'skill-rank-any-of-or-lore'; skills: string[]; min: ProficiencyRank }
+  // Standalone "a Lore skill" wildcard (any lore skill at min)
+  | { kind: 'skill-rank-any-lore'; min: ProficiencyRank }
   | { kind: 'feat'; name: string }
   | { kind: 'ancestry'; slug: string }
   | { kind: 'class'; slug: string }
@@ -35,11 +39,17 @@ export interface CharacterContext {
   level: number;
   classTrait?: string; // e.g. 'barbarian'
   ancestryTrait?: string; // e.g. 'human'
-  /** lower-cased skill slug → rank. Includes 0 (Untrained). */
+  /** lower-cased skill slug → rank. Hyphens normalised to spaces so prereq
+   *  strings ("Herbalism Lore") match lore slugs ("herbalism-lore").
+   *  Includes 0 (Untrained) and also 'perception'. */
   skillRanks: Map<string, ProficiencyRank>;
   abilityMods: Record<AbilityKey, number>;
   /** Names of items the character carries that prereqs can reference —
    *  feats + class features. Case-insensitive lookups via `.has`
    *  against a lower-cased set. */
   features: Set<string>;
+  /** Normalised slugs (hyphens→spaces, lower-cased) of lore skills the
+   *  character has proficiency in, at any rank.  Used by skill-rank-any-lore
+   *  and skill-rank-any-of-or-lore predicates. */
+  loreSkillSlugs: Set<string>;
 }

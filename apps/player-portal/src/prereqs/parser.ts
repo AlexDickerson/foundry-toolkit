@@ -42,11 +42,11 @@ const SKILL_RANK_ANY_RE = /^\s*(trained|expert|master|legendary)\s+(?:in|at)\s+(
 const SKILL_RANK_IN_RE = /^\s*(trained|expert|master|legendary)\s+(?:in|at)\s+(.+?)\s*$/i;
 
 export function parsePrerequisite(raw: string): Predicate[] {
-  // Try whole-string patterns first — some prereqs contain commas or "or" as
-  // part of the predicate itself (e.g. "expert in Arcana, Nature, or Religion"),
-  // so we must not split on commas before we've had a chance to detect them.
+  // Try whole-string patterns first — some prereqs contain commas or "or"/"and"
+  // as part of the predicate itself, so we must not split on commas before
+  // we've had a chance to detect them.
   const whole = parseWholePhrase(raw.trim());
-  if (whole !== null) return [whole];
+  if (whole !== null) return whole;
 
   // pf2e sometimes jams multiple predicates into a single entry with
   // semicolons or commas. Split on those, trim, and parse each half.
@@ -57,23 +57,60 @@ export function parsePrerequisite(raw: string): Predicate[] {
     .map(parsePhrase);
 }
 
-function parseWholePhrase(phrase: string): Predicate | null {
-  // "trained in at least one skill" / "trained in any skill"
+// Returns Predicate[] (possibly multi-element for AND lists) or null when
+// no whole-phrase pattern matches and the caller should fall back to splitting.
+function parseWholePhrase(phrase: string): Predicate[] | null {
+  // "trained in at least one skill" / "trained at any skill"
   const anySkill = SKILL_RANK_ANY_RE.exec(phrase);
   if (anySkill?.[1]) {
     const rank = RANK_WORDS[anySkill[1].toLowerCase()];
-    if (rank !== undefined) return { kind: 'skill-rank-any', min: rank };
+    if (rank !== undefined) return [{ kind: 'skill-rank-any', min: rank }];
   }
 
-  // "rank in Skill1 or Skill2" / "rank in Skill1, Skill2, or Skill3"
-  // Only fires when "or" is present; otherwise single-skill handling below
-  // correctly catches it via parsePhrase → SKILL_RANK_RE.
   const rankIn = SKILL_RANK_IN_RE.exec(phrase);
-  if (rankIn?.[1] && rankIn[2] && /\bor\b/i.test(rankIn[2])) {
+  if (rankIn?.[1] && rankIn[2]) {
     const rank = RANK_WORDS[rankIn[1].toLowerCase()];
-    if (rank !== undefined) {
-      const skills = parseSkillOrList(rankIn[2]);
-      if (skills.length >= 2) return { kind: 'skill-rank-any-of', skills, min: rank };
+    if (rank === undefined) return null;
+    const rest = rankIn[2].trim();
+
+    // OR list: "rank in S1 or S2" / "rank in S1, S2, or S3"
+    // Also handles "a Lore skill" wildcard within the list.
+    if (/\bor\b/i.test(rest)) {
+      const rawItems = parseSkillOrList(rest);
+      const skills: string[] = [];
+      let hasLoreWildcard = false;
+      for (const item of rawItems) {
+        if (/^(?:a|any)\s+lore\s+skill$/i.test(item)) {
+          hasLoreWildcard = true;
+        } else {
+          skills.push(item);
+        }
+      }
+      if (hasLoreWildcard) {
+        // "rank in S1, S2, or a Lore skill" → any specific OR any lore skill
+        if (skills.length === 0) return [{ kind: 'skill-rank-any-lore', min: rank }];
+        return [{ kind: 'skill-rank-any-of-or-lore', skills, min: rank }];
+      }
+      if (skills.length >= 2) return [{ kind: 'skill-rank-any-of', skills, min: rank }];
+    }
+
+    // AND list: "rank in S1 and S2 [and S3 ...]" — returns one skill-rank
+    // predicate per skill; evaluateAll's AND semantics does the rest.
+    // Guard: rest must contain only word chars, spaces, and hyphens so we
+    // don't misparse "… and Strength 14" or semicolon-joined strings.
+    if (/\band\b/i.test(rest) && !/\bor\b/i.test(rest)) {
+      const parts = rest
+        .split(/\s+and\s+/i)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      if (parts.length >= 2 && parts.every((s) => /^[a-z][a-z\s-]*$/.test(s))) {
+        return parts.map((s) => ({ kind: 'skill-rank' as const, skill: s, min: rank }));
+      }
+    }
+
+    // Standalone lore wildcard: "trained in a Lore skill"
+    if (/^(?:a|any)\s+lore\s+skill$/i.test(rest)) {
+      return [{ kind: 'skill-rank-any-lore', min: rank }];
     }
   }
 

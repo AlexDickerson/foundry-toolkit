@@ -10,6 +10,7 @@ function makeCtx(overrides: Partial<CharacterContext> = {}): CharacterContext {
     skillRanks: new Map(),
     abilityMods: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
     features: new Set(),
+    loreSkillSlugs: new Set(),
     ...overrides,
   };
 }
@@ -384,5 +385,159 @@ describe('Doublespeak: "master at Deception"', () => {
   it('"expert at Arcana" also works', () => {
     const ctx = makeCtx({ skillRanks: skillMap([['arcana', 2]]) });
     expect(evaluateAll(parsePrerequisite('expert at Arcana'), ctx)).toBe('meets');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Half-Truths / Tumbling Theft / Vicious Critique — "rank in S1 and S2"
+// ---------------------------------------------------------------------------
+
+describe('"rank in S1 and S2" AND-list prereqs', () => {
+  it('parses "expert in Deception and Diplomacy" → two skill-rank predicates', () => {
+    expect(parsePrerequisite('expert in Deception and Diplomacy')).toEqual([
+      { kind: 'skill-rank', skill: 'deception', min: 2 },
+      { kind: 'skill-rank', skill: 'diplomacy', min: 2 },
+    ]);
+  });
+
+  it('parses "trained in Crafting and Intimidation" → two skill-rank predicates', () => {
+    expect(parsePrerequisite('trained in Crafting and Intimidation')).toEqual([
+      { kind: 'skill-rank', skill: 'crafting', min: 1 },
+      { kind: 'skill-rank', skill: 'intimidation', min: 1 },
+    ]);
+  });
+
+  // Half-Truths — "expert in Deception and Diplomacy"
+  it('Half-Truths: passes when expert in both Deception and Diplomacy', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['deception', 2], ['diplomacy', 2]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Deception and Diplomacy'), ctx)).toBe('meets');
+  });
+
+  it('Half-Truths: fails when only expert in Deception', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['deception', 2], ['diplomacy', 0]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Deception and Diplomacy'), ctx)).toBe('fails');
+  });
+
+  it('Half-Truths: fails when only expert in Diplomacy', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['deception', 0], ['diplomacy', 2]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Deception and Diplomacy'), ctx)).toBe('fails');
+  });
+
+  it('Half-Truths: fails when expert in neither', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['deception', 1], ['diplomacy', 1]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Deception and Diplomacy'), ctx)).toBe('fails');
+  });
+
+  it('Half-Truths: passes when master in both (exceeds expert)', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['deception', 3], ['diplomacy', 3]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Deception and Diplomacy'), ctx)).toBe('meets');
+  });
+
+  // Tumbling Theft — "expert in Acrobatics and Thievery"
+  it('Tumbling Theft: passes when expert in Acrobatics and Thievery', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['acrobatics', 2], ['thievery', 2]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Acrobatics and Thievery'), ctx)).toBe('meets');
+  });
+
+  it('Tumbling Theft: fails when expert in only one skill', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['acrobatics', 2], ['thievery', 1]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Acrobatics and Thievery'), ctx)).toBe('fails');
+  });
+
+  // Vicious Critique — "trained in Crafting and Intimidation"
+  it('Vicious Critique: passes when trained in both Crafting and Intimidation', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 1], ['intimidation', 1]]) });
+    expect(evaluateAll(parsePrerequisite('trained in Crafting and Intimidation'), ctx)).toBe('meets');
+  });
+
+  it('Vicious Critique: fails when untrained in Intimidation', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 1], ['intimidation', 0]]) });
+    expect(evaluateAll(parsePrerequisite('trained in Crafting and Intimidation'), ctx)).toBe('fails');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Master or Apprentice — "master in Crafting, Performance, or a Lore skill"
+// ---------------------------------------------------------------------------
+
+describe('Master or Apprentice: "master in Crafting, Performance, or a Lore skill"', () => {
+  const PREREQ = 'master in Crafting, Performance, or a Lore skill';
+
+  it('parses to skill-rank-any-of-or-lore', () => {
+    expect(parsePrerequisite(PREREQ)).toEqual([
+      { kind: 'skill-rank-any-of-or-lore', skills: ['crafting', 'performance'], min: 3 },
+    ]);
+  });
+
+  it('passes when master in Crafting', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 3], ['performance', 0]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when master in Performance', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 0], ['performance', 3]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when master in a lore skill (Herbalism Lore)', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 0], ['performance', 0], ['herbalism lore', 3]]),
+      loreSkillSlugs: new Set(['herbalism lore']),
+    });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('fails when expert in all three (one short of master)', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['crafting', 2], ['performance', 2], ['herbalism lore', 2]]),
+      loreSkillSlugs: new Set(['herbalism lore']),
+    });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('fails when character has no lore skills and neither crafting nor performance at master', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 2], ['performance', 0]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+
+  it('unknown when specific skills are missing from the map (lore check also fails)', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['herbalism lore', 2]]), loreSkillSlugs: new Set(['herbalism lore']) });
+    // crafting and performance missing → anyUnknown; lore rank too low → unknown
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('unknown');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Temperature Adjustment — "master in Crafting, Herbalism Lore, or Medicine"
+// (Specific lore skill name — not the wildcard; needs slug normalisation)
+// ---------------------------------------------------------------------------
+
+describe('Temperature Adjustment: "master in Crafting, Herbalism Lore, or Medicine"', () => {
+  const PREREQ = 'master in Crafting, Herbalism Lore, or Medicine';
+
+  it('parses to skill-rank-any-of (Herbalism Lore is specific, not the wildcard)', () => {
+    expect(parsePrerequisite(PREREQ)).toEqual([
+      { kind: 'skill-rank-any-of', skills: ['crafting', 'herbalism lore', 'medicine'], min: 3 },
+    ]);
+  });
+
+  it('passes when master in Crafting', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 3], ['herbalism lore', 0], ['medicine', 0]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when master in Herbalism Lore (slug-normalised from "herbalism-lore")', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 0], ['herbalism lore', 3], ['medicine', 0]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when master in Medicine', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 0], ['herbalism lore', 0], ['medicine', 3]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('fails when expert in all three', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['crafting', 2], ['herbalism lore', 2], ['medicine', 2]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
   });
 });

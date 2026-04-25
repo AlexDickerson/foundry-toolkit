@@ -8,8 +8,13 @@ export function fromPreparedCharacter(actor: PreparedCharacter): CharacterContex
   const sys = actor.system;
 
   const skillRanks = new Map<string, ProficiencyRank>();
+  const loreSkillSlugs = new Set<string>();
   for (const [slug, stat] of Object.entries(sys.skills)) {
-    skillRanks.set(slug.toLowerCase(), stat.rank);
+    // Normalise hyphens → spaces so prereq strings ("Herbalism Lore") match
+    // lore slugs stored by pf2e as "herbalism-lore".
+    const key = slug.toLowerCase().replace(/-/g, ' ');
+    skillRanks.set(key, stat.rank);
+    if (stat.lore) loreSkillSlugs.add(key);
   }
   // Perception is a separate stat in pf2e (not in sys.skills) but is used in
   // prereqs like "master in Perception".
@@ -46,6 +51,7 @@ export function fromPreparedCharacter(actor: PreparedCharacter): CharacterContex
     skillRanks,
     abilityMods,
     features,
+    loreSkillSlugs,
   };
   const classSlug = (classItem?.system as { slug?: string } | undefined)?.slug;
   if (classSlug !== undefined) ctx.classTrait = classSlug;
