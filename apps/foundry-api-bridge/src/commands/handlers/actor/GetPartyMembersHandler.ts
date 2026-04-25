@@ -1,22 +1,27 @@
 import type { GetPartyMembersParams, PartyMemberResult } from '@/commands/types';
-import { PARTY_FOLDER_NAME } from '@/party-config';
+import { PARTY_ACTOR_NAME } from '@/party-config';
 
-interface FoundryFolder {
-  id: string;
-  name: string;
-}
-
-interface FoundryActorEntry {
+/** Individual actor as a party member — carries system data for stat extraction. */
+interface PartyMemberActor {
   id: string;
   name: string;
   type: string;
   img: string | undefined;
-  folder: FoundryFolder | null;
   system: Record<string, unknown>;
 }
 
+/** PF2e party actor (type === 'party').  Exposes linked member actors via
+ *  the `.members` iterable — populated by the PF2e system, not available
+ *  on other actor types. */
+interface FoundryPartyActor {
+  id: string;
+  name: string;
+  type: string;
+  members?: Iterable<PartyMemberActor>;
+}
+
 interface ActorsCollection {
-  forEach(fn: (actor: FoundryActorEntry) => void): void;
+  forEach(fn: (actor: FoundryPartyActor) => void): void;
 }
 
 interface FoundryGame {
@@ -41,18 +46,32 @@ function getNestedNumber(obj: Record<string, unknown>, path: string): number | u
 }
 
 export function getPartyMembersHandler(params: GetPartyMembersParams): Promise<PartyMemberResult[]> {
-  const targetFolder = params.folderName ?? PARTY_FOLDER_NAME;
+  const partyName = params.partyName ?? PARTY_ACTOR_NAME;
+
+  // PF2e worlds use a dedicated actor with type='party' (e.g. "The Party").
+  // That actor's `.members` iterable returns the linked player characters.
+  let partyActor: FoundryPartyActor | undefined;
+  getGame().actors.forEach((a) => {
+    if (a.type === 'party' && a.name === partyName) {
+      partyActor = a;
+    }
+  });
+
+  if (!partyActor?.members) {
+    return Promise.resolve([]);
+  }
+
   const members: PartyMemberResult[] = [];
 
-  getGame().actors.forEach((actor) => {
-    // Only include player-character actors from the target folder.
-    if (actor.type !== 'character') return;
-    if (!actor.folder || actor.folder.name !== targetFolder) return;
+  for (const member of partyActor.members) {
+    // Party actors can technically contain non-character actors (e.g. familiars
+    // in some setups) — only include player characters.
+    if (member.type !== 'character') continue;
 
-    const sys = actor.system;
+    const sys = member.system;
 
     // PF2e remastered: perception modifier lives at system.perception.mod.
-    // Classic/pre-remaster: system.attributes.perception.value — try both.
+    // Pre-remaster: system.attributes.perception.value — try both.
     const initiativeMod =
       getNestedNumber(sys, 'perception.mod') ??
       getNestedNumber(sys, 'attributes.perception.value') ??
@@ -61,13 +80,13 @@ export function getPartyMembersHandler(params: GetPartyMembersParams): Promise<P
     const maxHp = getNestedNumber(sys, 'attributes.hp.max') ?? 0;
 
     members.push({
-      id: actor.id,
-      name: actor.name,
-      img: actor.img ?? '',
+      id: member.id,
+      name: member.name,
+      img: member.img ?? '',
       initiativeMod,
       maxHp,
     });
-  });
+  }
 
   return Promise.resolve(members);
 }

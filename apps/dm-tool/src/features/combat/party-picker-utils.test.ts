@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { PARTY_FOLDER_NAME, isAlreadyInEncounter, togglePartySelection } from './party-picker-utils';
+import { PARTY_ACTOR_NAME, isAlreadyInEncounter, togglePartySelection } from './party-picker-utils';
 
 // ─── Folder-name configuration ────────────────────────────────────────────────
 
-describe('PARTY_FOLDER_NAME', () => {
+describe('PARTY_ACTOR_NAME', () => {
   it('defaults to "The Party"', () => {
-    expect(PARTY_FOLDER_NAME).toBe('The Party');
+    expect(PARTY_ACTOR_NAME).toBe('The Party');
   });
 });
 

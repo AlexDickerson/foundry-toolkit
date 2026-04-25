@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { reserveMonsterName, rollD20, sortedCombatants } from './util';
 import { PushResultDialog } from './PushResultDialog';
-import { PARTY_FOLDER_NAME, isAlreadyInEncounter, togglePartySelection } from './party-picker-utils';
+import { PARTY_ACTOR_NAME, isAlreadyInEncounter, togglePartySelection } from './party-picker-utils';
 
 interface Props {
   encounter: Encounter;
@@ -602,7 +602,7 @@ function PartyPickerPanel({
       {/* Empty */}
       {fetchStatus === 'ready' && members.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          No characters found in the &ldquo;{PARTY_FOLDER_NAME}&rdquo; folder.
+          No characters found in the &ldquo;{PARTY_ACTOR_NAME}&rdquo; party roster.
         </p>
       )}
 

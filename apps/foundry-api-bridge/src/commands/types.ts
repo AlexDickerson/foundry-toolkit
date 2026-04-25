@@ -1498,12 +1498,12 @@ export interface CombatTurnContext {
   asciiMap: string;
 }
 
-// Party member query — returns player-character actors filtered by folder
-// name.  Stats are pre-extracted for the dm-tool combat tracker.
+// Party member query — returns player characters from a PF2e party actor.
+// Stats are pre-extracted for the dm-tool combat tracker.
 export interface GetPartyMembersParams {
-  /** Override the folder name to filter by.  Defaults to the
-   *  `PARTY_FOLDER_NAME` constant in party-config.ts. */
-  folderName?: string;
+  /** Override the party actor name to look up.  Defaults to the
+   *  `PARTY_ACTOR_NAME` constant in party-config.ts ("The Party"). */
+  partyName?: string;
 }
 
 export interface PartyMemberResult {

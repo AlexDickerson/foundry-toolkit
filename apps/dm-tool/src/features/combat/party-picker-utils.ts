@@ -1,10 +1,10 @@
-/** Default Foundry folder name that the party-member query filters by.
+/** Default name of the PF2e `party`-type actor that holds party members.
  *
- *  Mirrors `PARTY_FOLDER_NAME` in
+ *  Mirrors `PARTY_ACTOR_NAME` in
  *  `apps/foundry-api-bridge/src/party-config.ts` — keep the two in sync
  *  when renaming.  This copy is used only for display purposes in the
  *  dm-tool UI (error messages, tooltips). */
-export const PARTY_FOLDER_NAME = 'The Party';
+export const PARTY_ACTOR_NAME = 'The Party';
 
 /** Toggle an id in/out of a selection set.  Pure — returns a new Set,
  *  never mutates the input. */
