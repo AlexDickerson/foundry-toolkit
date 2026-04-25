@@ -22,9 +22,10 @@ export interface CloudsOptions {
   /** Overall cloud opacity, 0–1.  Default: 0.25 */
   opacity?: number;
   /**
-   * Drift speed in lon/lat UV units per second.  Default: 0.005
-   * (roughly one cloud-width per minute at the default scale).
-   * Increase toward 0.02–0.05 for a livelier sky.
+   * Drift speed in 3D sample-space units per second.  Default: 0.02
+   * (roughly one cloud-width per 30 s at the default scale — clearly visible
+   * but slow enough to feel atmospheric).  Drop toward 0.005 for near-static
+   * clouds; raise toward 0.05–0.08 for a livelier sky.
    */
   driftSpeed?: number;
   /** Scale factor for cloud cluster size (higher → larger patches).
@@ -50,7 +51,7 @@ interface ResolvedCloudsOptions {
 export function mergeCloudsOptions(options?: CloudsOptions): ResolvedCloudsOptions {
   return {
     opacity: options?.opacity ?? 0.25,
-    driftSpeed: options?.driftSpeed ?? 0.005,
+    driftSpeed: options?.driftSpeed ?? 0.02,
     scale: options?.scale ?? 3.0,
     color: options?.color ?? [1, 0.98, 0.95],
   };
