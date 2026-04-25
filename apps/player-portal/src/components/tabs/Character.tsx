@@ -168,18 +168,17 @@ function StatsBlock({
   const rollPerception = useActorAction({
     run: () => api.rollActorStatistic(actorId, 'perception'),
   });
-  // Fortitude is wired through the pf2e-rules Layer 1 client → generic
-  // dispatcher (Layer 0), validating the end-to-end dispatcher round-trip.
-  // createPf2eClient is pure and cheap; recreating per render is intentional
-  // for the spike — follow-up can memoize if profiling shows it matters.
+  // All three saves go through the pf2e-rules Layer 1 client → generic
+  // dispatcher (Layer 0).  createPf2eClient is pure and cheap; recreating
+  // per render is fine for now — memoize if profiling shows it matters.
   const rollFortitude = useActorAction({
     run: () => createPf2eClient(api.dispatch).character(actorId).rollSave('fortitude'),
   });
   const rollReflex = useActorAction({
-    run: () => api.rollActorStatistic(actorId, 'reflex'),
+    run: () => createPf2eClient(api.dispatch).character(actorId).rollSave('reflex'),
   });
   const rollWill = useActorAction({
-    run: () => api.rollActorStatistic(actorId, 'will'),
+    run: () => createPf2eClient(api.dispatch).character(actorId).rollSave('will'),
   });
   const error =
     firstError(rollPerception.state, rollFortitude.state, rollReflex.state, rollWill.state);
