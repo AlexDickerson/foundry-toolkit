@@ -18,7 +18,7 @@ describe('ActorList', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders actor names on success', async () => {
+  it('renders player character names', async () => {
     vi.stubGlobal(
       'fetch',
       mockFetch([
@@ -30,7 +30,8 @@ describe('ActorList', () => {
     await waitFor(() => {
       expect(screen.getByText('Amiri')).toBeTruthy();
     });
-    expect(screen.getByText('Bandit')).toBeTruthy();
+    // NPCs must not appear in the character list
+    expect(screen.queryByText('Bandit')).toBeNull();
   });
 
   it('renders the API error envelope on failure', async () => {
@@ -51,6 +52,17 @@ describe('ActorList', () => {
     });
     expect(screen.getByText(/Start Foundry/)).toBeTruthy();
   });
+
+  it('renders empty-state when the list contains only non-character actors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch([{ id: 'n1', name: 'Goblin Boss', type: 'npc', img: '' }]),
+    );
+    render(<ActorList />);
+    await waitFor(() => {
+      expect(screen.getByText(/No player characters in the world yet/)).toBeTruthy();
+    });
+  });
 });
 
 describe('env', () => {
@@ -62,7 +74,7 @@ describe('env', () => {
   it('renders empty-state when no actors', async () => {
     render(<ActorList />);
     await waitFor(() => {
-      expect(screen.getByText(/No actors in the world yet/)).toBeTruthy();
+      expect(screen.getByText(/No player characters in the world yet/)).toBeTruthy();
     });
   });
 });

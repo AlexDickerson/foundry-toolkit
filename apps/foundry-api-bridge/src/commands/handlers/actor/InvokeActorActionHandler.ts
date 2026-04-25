@@ -66,7 +66,7 @@ interface ActorsCollection {
   get(id: string): FoundryActor | undefined;
 }
 
-type PF2eActionFn = (options: Record<string, unknown>) => Promise<unknown> | unknown;
+type PF2eActionFn = (options: Record<string, unknown>) => unknown;
 
 interface FoundryGame {
   actors: ActorsCollection;
@@ -394,7 +394,7 @@ async function restForTheNightAction(
     );
   }
 
-  const result = (await restFn({ actors: [actor], skipDialog: true })) as unknown;
+  const result = (await restFn({ actors: [actor], skipDialog: true }));
   const messageCount = Array.isArray(result) ? result.length : 0;
 
   return { ok: true, messageCount };
