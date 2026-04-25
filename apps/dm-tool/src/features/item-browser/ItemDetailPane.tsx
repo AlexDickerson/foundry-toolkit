@@ -48,20 +48,9 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
       {detail && (
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-4 p-4">
-            {/* Icon (left) + stacked metadata (right) */}
+            {/* Stacked metadata (left) + icon (right) */}
             <div className="flex items-start gap-3">
-              {detail.img && (
-                <img
-                  src={detail.img}
-                  alt=""
-                  className="h-24 w-24 shrink-0 rounded-md object-contain"
-                  loading="lazy"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              )}
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-1 flex-col gap-1.5">
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-lg font-bold tabular-nums text-foreground">
                     {detail.level != null ? `Level ${detail.level}` : 'Level —'}
@@ -92,6 +81,17 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
                   </span>
                 )}
               </div>
+              {detail.img && (
+                <img
+                  src={detail.img}
+                  alt=""
+                  className="h-24 w-24 shrink-0 rounded-md object-contain"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
             </div>
 
             {/* Traits */}
