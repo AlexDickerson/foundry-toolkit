@@ -11,6 +11,7 @@ import {
   PIN_LAYER,
   PIN_SOURCE,
   buildMapStyle,
+  createStarsLayer,
   ensureDefaultImage,
   ensureIconImage,
   pinsToGeoJson,
@@ -89,6 +90,11 @@ export function Globe() {
     });
 
     map.on('load', () => {
+      // Starfield backdrop: screen-space stars rendered before all other layers
+      // so the globe and atmosphere paint over them in the void.
+      const firstLayerId = map.getStyle().layers[0]?.id;
+      map.addLayer(createStarsLayer(), firstLayerId);
+
       ensureDefaultImage(map);
 
       map.addSource(PIN_SOURCE, {
