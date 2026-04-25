@@ -135,9 +135,7 @@ export function MonsterFilterPanel({ facets, params, onChange }: Props) {
                       className={cn(
                         'rounded-md border px-2 py-0.5 text-xs capitalize transition-colors',
                         RARITY_BORDER[r.toLowerCase()] ?? 'border-border',
-                        active
-                          ? (RARITY_BG[r.toLowerCase()] ?? 'bg-primary/10')
-                          : 'bg-background hover:bg-accent',
+                        active ? (RARITY_BG[r.toLowerCase()] ?? 'bg-primary/10') : 'bg-background hover:bg-accent',
                       )}
                     >
                       {r}
