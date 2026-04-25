@@ -52,7 +52,7 @@ export function IdentityStep({
               }}
               autoFocus={autoFocus}
               placeholder={placeholder}
-              className="mt-1 w-full rounded border border-pf-border bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-pf-text focus:border-pf-primary focus:outline-none"
+              className="mt-1 w-full rounded border border-pf-border bg-pf-bg px-3 py-2 text-sm font-normal normal-case tracking-normal text-pf-text focus:border-pf-primary focus:outline-none"
             />
           </label>
         ))}

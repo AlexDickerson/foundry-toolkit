@@ -33,7 +33,7 @@ export function ActorList({ onSelect }: Props = {}): React.ReactElement {
   }, []);
 
   if (state.kind === 'loading') {
-    return <p className="text-sm text-neutral-500">Loading actors…</p>;
+    return <p className="text-sm text-pf-text-muted">Loading actors…</p>;
   }
 
   if (state.kind === 'error') {
@@ -47,11 +47,11 @@ export function ActorList({ onSelect }: Props = {}): React.ReactElement {
   }
 
   if (state.actors.length === 0) {
-    return <p className="text-sm text-neutral-500">No actors in the world yet.</p>;
+    return <p className="text-sm text-pf-text-muted">No actors in the world yet.</p>;
   }
 
   return (
-    <ul className="divide-y divide-neutral-200 rounded border border-neutral-200">
+    <ul className="divide-y divide-pf-border rounded border border-pf-border">
       {state.actors.map((actor) => {
         const isCharacter = actor.type === 'character';
         const clickable = isCharacter && onSelect !== undefined;
@@ -60,7 +60,7 @@ export function ActorList({ onSelect }: Props = {}): React.ReactElement {
             key={actor.id}
             className={[
               'flex items-center gap-3 px-4 py-3',
-              clickable ? 'cursor-pointer hover:bg-neutral-50' : '',
+              clickable ? 'cursor-pointer hover:bg-pf-bg-dark' : '',
             ].join(' ')}
             onClick={
               clickable
@@ -71,8 +71,8 @@ export function ActorList({ onSelect }: Props = {}): React.ReactElement {
             }
           >
             <span className="flex-1 truncate font-medium">{actor.name}</span>
-            <span className="text-xs uppercase tracking-wide text-neutral-500">{actor.type}</span>
-            {clickable && <span className="text-neutral-400">→</span>}
+            <span className="text-xs uppercase tracking-wide text-pf-text-muted">{actor.type}</span>
+            {clickable && <span className="text-pf-text-muted">→</span>}
           </li>
         );
       })}

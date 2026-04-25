@@ -3,6 +3,111 @@
 @import './pf2e/tokens.css';
 @import './color-schemes.css';
 
+/* Portal surface tokens — light (default) and dark variants.
+ * Applied to the Layout root div via [data-portal-theme="dark"]. The
+ * @utility rules below reference these variables directly at runtime,
+ * which is why we use @utility rather than @theme: @theme is for static
+ * compile-time values only and cannot chain through runtime var() refs. */
+:root {
+  --portal-bg: var(--color-pf-bg); /* #f8f4f1 cream parchment */
+  /* Semi-transparent overlay used when a background image is set on the
+   * sheet surface. Must match --color-pf-bg at 88% opacity. */
+  --pf-bg-overlay: rgba(248, 244, 241, 0.88);
+  --portal-surface: var(--color-pf-bg-dark); /* #e6dfd7 */
+  --portal-surface-hover: #d4cbc2;
+  --portal-border: var(--color-pf-border); /* #baa991 */
+  --portal-text: var(--color-pf-text); /* #1c1c1c */
+  --portal-text-muted: var(--color-pf-text-muted); /* #605856 */
+  --portal-accent: var(--color-pf-primary); /* #5e0000 heraldic red */
+  --portal-accent-subtle: rgba(94, 0, 0, 0.08);
+  --portal-accent-border: rgba(94, 0, 0, 0.25);
+}
+
+[data-portal-theme='dark'] {
+  /* Portal nav/page surface tokens */
+  --portal-bg: #0d111e;
+  --portal-surface: #141928;
+  --portal-surface-hover: #1b2236;
+  --portal-border: #252e45;
+  --portal-text: #e8e4dc;
+  --portal-text-muted: #8a8fa5;
+  --portal-accent: var(--color-pf-tertiary-dark); /* #cbb77a parchment gold */
+  --portal-accent-subtle: rgba(203, 183, 122, 0.12);
+  --portal-accent-border: rgba(203, 183, 122, 0.4);
+
+  /* PF2e token overrides — extend dark mode to CharactersLayout, the
+   * character sheet, and the character creator. CharactersLayout uses
+   * var(--color-pf-bg/text) inline; sheet/creator use bg-pf-* / text-pf-*
+   * Tailwind utilities. All cascade from this ancestor div. */
+
+  /* Surfaces */
+  --color-pf-bg: #0d111e;
+  --color-pf-bg-dark: #141928;
+  --color-pf-sub: #8a8fa5;
+  --color-pf-text: #e8e4dc;
+  --color-pf-text-muted: #8a8fa5;
+  --color-pf-border: #252e45;
+
+  /* Palette — brightened so these remain legible as text/accents on dark
+   * surfaces (text-pf-primary links, text-pf-secondary templated text,
+   * text-pf-alt-dark section headers). bg-pf-primary/secondary buttons
+   * keep their own white text so contrast is unaffected there. */
+  --color-pf-primary: #b50000;
+  --color-pf-primary-dark: #8a0000;
+  --color-pf-primary-light: #d01010;
+  --color-pf-secondary: #3b56d4;
+  --color-pf-secondary-dark: #2a3fb5;
+  --color-pf-secondary-light: #5a70e8;
+  --color-pf-alt: #a89070;
+  --color-pf-alt-dark: #c4b098; /* was #443730 — section headers need light text */
+  --color-pf-alt-light: #d4c0a8;
+  /* Tertiary — darkened from parchment gold (#e9d7a1) to warm amber so
+   * bg-pf-tertiary buttons/chips are readable without being blinding. */
+  --color-pf-tertiary: #b08828;
+  --color-pf-tertiary-dark: #7a5e10;
+  --color-pf-tertiary-light: #d4a840;
+  /* Tertiary (gold) and rarity/proficiency/success colors stay unchanged —
+   * they're light or semantic and already work on dark backgrounds. */
+
+  /* Dark overlay for background-image sheets (matches dark --color-pf-bg) */
+  --pf-bg-overlay: rgba(13, 17, 30, 0.88);
+}
+
+/* Custom Tailwind utilities for portal theming. Using @utility (not @theme)
+ * so that the CSS variable references are resolved at runtime against the
+ * [data-portal-theme] cascade, not at compile time. All variants
+ * (hover:, focus:, etc.) work automatically on @utility classes. */
+@utility bg-portal-bg {
+  background-color: var(--portal-bg);
+}
+@utility bg-portal-surface {
+  background-color: var(--portal-surface);
+}
+@utility bg-portal-surface-hover {
+  background-color: var(--portal-surface-hover);
+}
+@utility bg-portal-accent-subtle {
+  background-color: var(--portal-accent-subtle);
+}
+@utility text-portal-text {
+  color: var(--portal-text);
+}
+@utility text-portal-text-muted {
+  color: var(--portal-text-muted);
+}
+@utility text-portal-accent {
+  color: var(--portal-accent);
+}
+@utility border-portal-border {
+  border-color: var(--portal-border);
+}
+@utility border-portal-accent {
+  border-color: var(--portal-accent);
+}
+@utility border-portal-accent-dim {
+  border-color: var(--portal-accent-border);
+}
+
 /* Reserve scrollbar-gutter space always so the page doesn't horizontally
    shift when content grows past the viewport and a scrollbar appears. */
 html {

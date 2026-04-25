@@ -195,7 +195,7 @@ export function Inventory({ items, actorId, onActorChanged }: Props): React.Reac
         </p>
       )}
       {physical.length === 0 && effectiveShopView === 'inventory' ? (
-        <p className="text-sm text-neutral-500">No items yet.</p>
+        <p className="text-sm text-pf-text-muted">No items yet.</p>
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -353,7 +353,7 @@ function CategorizedInventory({
   const buckets = view === 'list' ? topLevelByCategory : allByCategory;
   const presentCategories = CATEGORY_ORDER.filter((c) => (buckets.get(c)?.length ?? 0) > 0);
   if (presentCategories.length === 0) {
-    return <p className="text-sm text-neutral-500">No items yet.</p>;
+    return <p className="text-sm text-pf-text-muted">No items yet.</p>;
   }
   return (
     <div className="space-y-4">
@@ -404,7 +404,7 @@ function ShopGearMenu({
   return (
     <details className="relative" data-section="shop-debug">
       <summary
-        className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded border border-pf-border bg-white text-base leading-none text-pf-alt-dark hover:bg-pf-bg-dark/40"
+        className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded border border-pf-border bg-pf-bg text-base leading-none text-pf-alt-dark hover:bg-pf-bg-dark/40"
         title="Shop settings"
         aria-label="Shop settings"
         data-testid="shop-gear"
@@ -412,7 +412,7 @@ function ShopGearMenu({
         <span aria-hidden="true">⚙</span>
       </summary>
       <div
-        className="absolute right-0 top-full z-20 mt-1 w-64 rounded border border-pf-border bg-white p-3 text-xs text-pf-text shadow-lg"
+        className="absolute right-0 top-full z-20 mt-1 w-64 rounded border border-pf-border bg-pf-bg p-3 text-xs text-pf-text shadow-lg"
         data-role="shop-gear-menu"
       >
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
@@ -462,7 +462,7 @@ function ShopViewToggle({
   const inactive = 'text-pf-alt-dark hover:bg-pf-bg-dark/60';
   return (
     <div
-      className="inline-flex shrink-0 overflow-hidden rounded border border-pf-border bg-white"
+      className="inline-flex shrink-0 overflow-hidden rounded border border-pf-border bg-pf-bg"
       role="group"
       aria-label="Shop view"
       data-shop-view={view}
@@ -497,7 +497,7 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
   const inactive = 'text-pf-alt-dark hover:bg-pf-bg-dark/60';
   return (
     <div
-      className="inline-flex shrink-0 overflow-hidden rounded border border-pf-border bg-white"
+      className="inline-flex shrink-0 overflow-hidden rounded border border-pf-border bg-pf-bg"
       role="group"
       aria-label="Inventory view"
       data-inventory-view={view}
@@ -548,18 +548,18 @@ function CoinStrip({ coins }: { coins: PhysicalItem[] }): React.ReactElement {
     }
   }
   return (
-    <div className="flex items-center gap-4 rounded border border-amber-300 bg-amber-50 px-3 py-2" data-section="coins">
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-amber-800">Coins</span>
+    <div className="flex items-center gap-4 rounded border border-pf-tertiary-dark bg-pf-tertiary/20 px-3 py-2" data-section="coins">
+      <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">Coins</span>
       {(['pp', 'gp', 'sp', 'cp'] as const).map((denom) => (
         <span
           key={denom}
           className={[
             'font-mono text-sm tabular-nums',
-            totals[denom] > 0 ? 'text-neutral-900' : 'text-neutral-300',
+            totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
           ].join(' ')}
         >
           <strong>{totals[denom]}</strong>{' '}
-          <span className="text-[10px] uppercase tracking-wider text-neutral-500">{denom}</span>
+          <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
         </span>
       ))}
     </div>
@@ -585,7 +585,7 @@ function ItemRow({
       : undefined;
 
   return (
-    <li className="rounded border border-pf-border bg-white" data-item-id={item.id} data-item-type={item.type}>
+    <li className="rounded border border-pf-border bg-pf-bg" data-item-id={item.id} data-item-type={item.type}>
       <details className="group">
         <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2 hover:bg-pf-bg-dark/40">
           <img src={item.img} alt="" className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
@@ -593,10 +593,10 @@ function ItemRow({
             <div className="flex items-baseline gap-2">
               <span className="truncate text-sm text-neutral-900">{item.name}</span>
               {item.system.quantity > 1 && (
-                <span className="flex-shrink-0 text-xs text-neutral-500">×{item.system.quantity}</span>
+                <span className="flex-shrink-0 text-xs text-pf-text-muted">×{item.system.quantity}</span>
               )}
               {capacityText !== undefined && (
-                <span className="flex-shrink-0 text-[10px] uppercase tracking-wider text-neutral-500">
+                <span className="flex-shrink-0 text-[10px] uppercase tracking-wider text-pf-text-muted">
                   {capacityText}
                 </span>
               )}
@@ -672,7 +672,7 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
           <img src={item.img} alt="" className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
           <div className="min-w-0 flex-1">
             <span className="truncate text-sm text-neutral-800">{item.name}</span>
-            {item.system.quantity > 1 && <span className="ml-2 text-xs text-neutral-500">×{item.system.quantity}</span>}
+            {item.system.quantity > 1 && <span className="ml-2 text-xs text-pf-text-muted">×{item.system.quantity}</span>}
           </div>
           <BulkLabel value={item.system.bulk.value} />
           <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
@@ -694,7 +694,7 @@ function GridTile({
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
       <details className="group">
-        <summary className="flex cursor-pointer list-none flex-col items-center gap-1 rounded border border-pf-border bg-white p-2 text-center hover:bg-pf-bg-dark/40 group-open:border-pf-primary/60 group-open:shadow-lg">
+        <summary className="flex cursor-pointer list-none flex-col items-center gap-1 rounded border border-pf-border bg-pf-bg p-2 text-center hover:bg-pf-bg-dark/40 group-open:border-pf-primary/60 group-open:shadow-lg">
           <div className="relative">
             <img src={item.img} alt="" className="h-14 w-14 rounded border border-pf-border bg-pf-bg-dark" />
             {item.system.quantity > 1 && (

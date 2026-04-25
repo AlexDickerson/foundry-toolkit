@@ -400,7 +400,7 @@ function LevelRow({
       // strength even when the row itself is dimmed.
       className={[
         'grid min-h-12 grid-cols-[3rem_1fr] items-center gap-3 rounded border px-3 py-2',
-        state === 'current' ? 'border-pf-primary bg-pf-tertiary/30' : 'border-pf-border bg-white',
+        state === 'current' ? 'border-pf-primary bg-pf-tertiary/30' : 'border-pf-border bg-pf-bg',
         state === 'past' ? 'opacity-60' : '',
       ].join(' ')}
     >
@@ -534,7 +534,7 @@ function FeatureChip({
   return (
     <li
       ref={chipRef}
-      className="inline-flex items-center gap-1.5 rounded border border-pf-border bg-white px-1.5 py-0.5 text-xs text-pf-text"
+      className="inline-flex items-center gap-1.5 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-xs text-pf-text"
       data-feature-uuid={feature.uuid}
       onMouseEnter={scheduleOpen}
       onMouseLeave={scheduleClose}
@@ -728,7 +728,7 @@ function PickedChip({ slot, pick, onClear }: { slot: SlotType; pick: Pick; onCle
       // picks show their description too.
       data-pick-uuid={featUuid}
       data-uuid={featUuid}
-      className="inline-flex items-center gap-1 rounded border border-pf-border bg-white pl-1 pr-0.5 text-[11px] text-pf-text"
+      className="inline-flex items-center gap-1 rounded border border-pf-border bg-pf-bg pl-1 pr-0.5 text-[11px] text-pf-text"
       title={title}
     >
       {body}

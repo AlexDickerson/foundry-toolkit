@@ -191,7 +191,7 @@ export function PromptModal({ prompt }: Props): React.ReactElement {
                 onClick={(): void => {
                   void resolve(null);
                 }}
-                className="rounded border border-pf-border bg-white px-3 py-1.5 text-xs text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
+                className="rounded border border-pf-border bg-pf-bg px-3 py-1.5 text-xs text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
               >
                 Skip
               </button>

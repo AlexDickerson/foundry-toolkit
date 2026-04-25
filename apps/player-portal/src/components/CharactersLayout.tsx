@@ -6,15 +6,7 @@ import { Outlet } from 'react-router-dom';
 
 export function CharactersLayout(): React.ReactElement {
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        overflowY: 'auto',
-        backgroundColor: 'var(--color-pf-bg)',
-        color: 'var(--color-pf-text)',
-      }}
-    >
+    <div className="h-full w-full overflow-y-auto bg-pf-bg text-pf-text">
       <Outlet />
     </div>
   );

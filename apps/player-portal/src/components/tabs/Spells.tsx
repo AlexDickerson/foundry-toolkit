@@ -20,7 +20,7 @@ export function Spells({ items, characterLevel }: Props): React.ReactElement {
   const spells = items.filter(isSpellItem);
 
   if (entries.length === 0 && spells.length === 0) {
-    return <p className="text-sm text-neutral-500">No spellcasting.</p>;
+    return <p className="text-sm text-pf-text-muted">No spellcasting.</p>;
   }
 
   const byEntry = new Map<string, SpellItem[]>();
@@ -161,7 +161,7 @@ function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel
 
   return (
     <li
-      className="rounded border border-pf-border bg-white"
+      className="rounded border border-pf-border bg-pf-bg"
       data-item-id={spell.id}
       data-spell-slug={spell.system.slug ?? ''}
     >

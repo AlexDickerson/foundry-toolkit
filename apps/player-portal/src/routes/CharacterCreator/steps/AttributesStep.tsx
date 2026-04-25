@@ -344,7 +344,7 @@ function BoostSlotPicker({
               'rounded border px-2 py-1 text-xs font-semibold uppercase tracking-widest transition-colors',
               isActive
                 ? 'border-pf-primary bg-pf-tertiary/40 text-pf-primary'
-                : 'border-pf-border bg-white text-pf-alt-dark hover:bg-pf-tertiary/20',
+                : 'border-pf-border bg-pf-bg text-pf-alt-dark hover:bg-pf-tertiary/20',
             ].join(' ')}
           >
             {key.toUpperCase()}
@@ -391,8 +391,8 @@ function FreeBoostBlock({
                 picked
                   ? 'border-pf-primary bg-pf-tertiary/40'
                   : locked
-                    ? 'cursor-not-allowed border-pf-border bg-white opacity-40'
-                    : 'border-pf-border bg-white hover:bg-pf-tertiary/20',
+                    ? 'cursor-not-allowed border-pf-border bg-pf-bg opacity-40'
+                    : 'border-pf-border bg-pf-bg hover:bg-pf-tertiary/20',
               ].join(' ')}
             >
               <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">

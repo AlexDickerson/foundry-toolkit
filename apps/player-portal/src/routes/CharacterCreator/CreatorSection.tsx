@@ -17,7 +17,7 @@ export function CreatorSection({
     <section
       id={`creator-section-${id}`}
       data-creator-section={id}
-      className="mb-6 scroll-mt-20 rounded border border-pf-border bg-white p-4"
+      className="mb-6 scroll-mt-20 rounded border border-pf-border bg-pf-bg p-4"
     >
       <h2 className="mb-3 border-b border-pf-border pb-1 font-serif text-base font-semibold uppercase tracking-widest text-pf-alt-dark">
         {title}

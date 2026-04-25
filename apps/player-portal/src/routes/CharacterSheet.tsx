@@ -126,7 +126,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
           <button
             type="button"
             onClick={onBack}
-            className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+            className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
           >
             ← Actors
           </button>
@@ -216,16 +216,15 @@ function readBackgroundPath(character: PreparedCharacter): string | null {
   return typeof raw === 'string' && raw.length > 0 ? raw : null;
 }
 
-// Layers a cream overlay on top of the user's image so arbitrary
-// artwork (dark, busy, saturated) stays readable behind the sheet
-// content. The overlay hex matches `--color-pf-bg` for the Classic
-// palette; since no scheme currently overrides the cream surface, this
-// stays visually consistent across color schemes.
+// Layers a semi-transparent overlay on top of the user's image so arbitrary
+// artwork (dark, busy, saturated) stays readable behind the sheet content.
+// Uses var(--pf-bg-overlay) so the overlay colour follows the portal theme
+// toggle (light: cream parchment at 88%, dark: navy at 88%).
 function buildSheetSurfaceStyle(bgPath: string | null): React.CSSProperties | undefined {
   if (!bgPath) return undefined;
   const url = bgPath.startsWith('/') ? bgPath : `/${bgPath}`;
   return {
-    backgroundImage: `linear-gradient(rgba(248, 244, 241, 0.88), rgba(248, 244, 241, 0.88)), url(${url})`,
+    backgroundImage: `linear-gradient(var(--pf-bg-overlay), var(--pf-bg-overlay)), url(${url})`,
     backgroundSize: 'auto, cover',
     backgroundPosition: 'center, center',
     backgroundRepeat: 'no-repeat, no-repeat',

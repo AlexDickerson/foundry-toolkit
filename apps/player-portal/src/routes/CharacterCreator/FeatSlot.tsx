@@ -27,7 +27,7 @@ export function FeatSlot({
             type="button"
             onClick={onOpen}
             disabled={disabled === true}
-            className="rounded border border-pf-border bg-white px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             + Choose
           </button>
@@ -39,7 +39,7 @@ export function FeatSlot({
         <>
           <span
             data-uuid={selection.uuid}
-            className="inline-flex items-center gap-1.5 rounded border border-pf-border bg-white px-2 py-1 text-xs text-pf-text"
+            className="inline-flex items-center gap-1.5 rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text"
           >
             <img src={selection.img} alt="" className="h-4 w-4 rounded bg-pf-bg-dark" />
             <span className="truncate">{selection.name}</span>
@@ -47,7 +47,7 @@ export function FeatSlot({
           <button
             type="button"
             onClick={onOpen}
-            className="rounded border border-pf-border bg-white px-2 py-1 text-[10px] uppercase tracking-widest text-pf-alt-dark hover:bg-pf-bg-dark"
+            className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-[10px] uppercase tracking-widest text-pf-alt-dark hover:bg-pf-bg-dark"
           >
             Change
           </button>

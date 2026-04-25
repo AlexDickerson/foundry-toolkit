@@ -15,55 +15,23 @@ const TILES: Tile[] = [
 
 export function Home(): React.ReactElement {
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        overflowY: 'auto',
-        color: '#e5e5e5',
-        padding: '48px 32px',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-      }}
-    >
-      <div style={{ maxWidth: 960, margin: '0 auto' }}>
-        <header style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 600, margin: 0, letterSpacing: '0.01em' }}>Player Portal</h1>
-          <p style={{ color: '#9a9a9a', marginTop: 8, fontSize: 14 }}>
+    <div className="h-full overflow-y-auto bg-portal-bg text-portal-text">
+      <div className="mx-auto max-w-4xl px-8 py-12">
+        <header className="mb-8">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">Player Portal</h1>
+          <p className="mt-2 text-sm text-portal-text-muted">
             Pick a destination, or jump straight in from the nav bar above.
           </p>
         </header>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: 16,
-          }}
-        >
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
           {TILES.map((tile) => (
             <Link
               key={tile.to}
               to={tile.to}
-              style={{
-                display: 'block',
-                padding: '20px 20px 18px',
-                backgroundColor: '#1a1a1a',
-                border: '1px solid #2d2d2d',
-                borderRadius: 8,
-                color: '#e5e5e5',
-                textDecoration: 'none',
-                transition: 'border-color 0.15s, background-color 0.15s',
-              }}
-              onMouseEnter={(e): void => {
-                e.currentTarget.style.borderColor = '#e4a547';
-                e.currentTarget.style.backgroundColor = '#1f1f1f';
-              }}
-              onMouseLeave={(e): void => {
-                e.currentTarget.style.borderColor = '#2d2d2d';
-                e.currentTarget.style.backgroundColor = '#1a1a1a';
-              }}
+              className="block rounded-lg border border-portal-border bg-portal-surface p-5 text-portal-text no-underline transition-colors duration-150 hover:border-portal-accent hover:bg-portal-surface-hover"
             >
-              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>{tile.label}</div>
-              <div style={{ fontSize: 13, color: '#9a9a9a', lineHeight: 1.45 }}>{tile.blurb}</div>
+              <div className="mb-1.5 text-base font-semibold">{tile.label}</div>
+              <div className="text-sm leading-relaxed text-portal-text-muted">{tile.blurb}</div>
             </Link>
           ))}
         </div>

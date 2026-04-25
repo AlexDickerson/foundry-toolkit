@@ -6,9 +6,9 @@ export function Characters(): React.ReactElement {
   return (
     <main className="mx-auto max-w-3xl p-6 font-sans">
       <h1 className="mb-4 text-2xl font-semibold">Characters</h1>
-      <p className="mb-6 text-sm text-neutral-500">
+      <p className="mb-6 text-sm text-pf-text-muted">
         Pick a character actor to view their sheet, or start a new draft. Pulls from{' '}
-        <code className="rounded bg-neutral-100 px-1 py-0.5">/api/mcp/actors</code>.
+        <code className="rounded bg-pf-bg-dark px-1 py-0.5">/api/mcp/actors</code>.
       </p>
       <div className="mb-4">
         <button

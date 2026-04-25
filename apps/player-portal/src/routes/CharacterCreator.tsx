@@ -211,7 +211,7 @@ export function CharacterCreator(): React.ReactElement {
             resetPendingActor();
             onBack();
           }}
-          className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+          className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
         >
           ← Actors
         </button>
@@ -219,7 +219,7 @@ export function CharacterCreator(): React.ReactElement {
       </div>
 
       {creator.kind === 'creating' && (
-        <p className="rounded border border-pf-border bg-white p-4 text-sm italic text-pf-alt-dark">
+        <p className="rounded border border-pf-border bg-pf-bg p-4 text-sm italic text-pf-alt-dark">
           Creating draft actor…
         </p>
       )}
@@ -412,7 +412,7 @@ function StepNav({
                   ? 'border-pf-primary bg-pf-primary text-white'
                   : filled
                     ? 'border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg-dark'
-                    : 'border-pf-border bg-white text-pf-alt-dark hover:bg-pf-bg',
+                    : 'border-pf-border bg-pf-bg text-pf-alt-dark hover:bg-pf-bg-dark',
               ].join(' ')}
             >
               {STEP_LABEL[s]}

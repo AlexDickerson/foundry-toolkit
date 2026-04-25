@@ -3,6 +3,7 @@
 // highlighted and pinned to the top of the ranked list.
 
 import { useMemo } from 'react';
+import { ConnectionIndicator } from '../components/ConnectionIndicator';
 import { useLiveStream } from '../lib/live';
 import type { AurusTeam } from '@foundry-toolkit/shared/types';
 
@@ -34,13 +35,13 @@ export function Leaderboard() {
   const stale = status === 'disconnected' || (lastUpdated !== null && Date.now() - lastUpdated > 60_000);
 
   return (
-    <div style={{ width: '100%', height: '100%', overflowY: 'auto', color: '#e5e5e5', padding: '24px 32px' }}>
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
+    <div className="h-full overflow-y-auto bg-portal-bg text-portal-text">
+      <div className="mx-auto max-w-3xl px-8 py-6">
+        <header className="mb-5 flex items-baseline justify-between">
           <div>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 600 }}>Aurus Standings</h1>
+            <h1 className="text-2xl font-semibold">Aurus Standings</h1>
             {playerParty && playerRank !== null && (
-              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#9a9a9a' }}>
+              <p className="mt-1 text-sm text-portal-text-muted">
                 {playerParty.name}: rank #{playerRank} of {ranked.length}
               </p>
             )}
@@ -49,92 +50,61 @@ export function Leaderboard() {
         </header>
 
         {!data ? (
-          <p style={{ color: '#9a9a9a', fontSize: 14 }}>Connecting…</p>
+          <p className="text-sm text-portal-text-muted">Connecting…</p>
         ) : ranked.length === 0 ? (
-          <p style={{ color: '#9a9a9a', fontSize: 14 }}>No teams have been registered yet.</p>
+          <p className="text-sm text-portal-text-muted">No teams have been registered yet.</p>
         ) : (
-          <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <ol className="m-0 list-none space-y-2 p-0">
             {ranked.map((team, idx) => (
               <li
                 key={team.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '50px 1fr auto',
-                  gap: 16,
-                  alignItems: 'center',
-                  padding: '14px 18px',
-                  marginBottom: 8,
-                  borderRadius: 8,
-                  backgroundColor: team.isPlayerParty ? 'rgba(228, 165, 71, 0.12)' : '#1a1a1a',
-                  border: team.isPlayerParty ? '1px solid rgba(228, 165, 71, 0.4)' : '1px solid #2a2a2a',
-                }}
+                className={[
+                  'grid items-center gap-4 rounded-lg border px-4 py-3.5 [grid-template-columns:50px_1fr_auto]',
+                  team.isPlayerParty
+                    ? 'border-portal-accent-dim bg-portal-accent-subtle'
+                    : 'border-portal-border bg-portal-surface',
+                ].join(' ')}
               >
+                {/* Rank */}
                 <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 700,
-                    color: idx < 3 ? '#e4a547' : '#6a6a6a',
-                    textAlign: 'center',
-                  }}
+                  className={[
+                    'text-center text-2xl font-bold',
+                    idx < 3 ? 'text-portal-accent' : 'text-portal-text-muted',
+                  ].join(' ')}
                 >
                   #{idx + 1}
                 </div>
+
+                {/* Team name + badge */}
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="flex items-center gap-2.5">
                     <span
-                      style={{
-                        display: 'inline-block',
-                        width: 14,
-                        height: 14,
-                        borderRadius: 3,
-                        backgroundColor: team.color,
-                      }}
+                      className="inline-block h-3.5 w-3.5 rounded-sm"
+                      style={{ backgroundColor: team.color }}
                     />
-                    <span style={{ fontSize: 17, fontWeight: 500 }}>{team.name}</span>
+                    <span className="text-[17px] font-medium">{team.name}</span>
                     {team.isPlayerParty && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.1em',
-                          backgroundColor: 'rgba(228, 165, 71, 0.2)',
-                          color: '#e4a547',
-                          padding: '2px 6px',
-                          borderRadius: 3,
-                        }}
-                      >
+                      <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest bg-portal-accent-subtle text-portal-accent">
                         Your party
                       </span>
                     )}
                   </div>
                   {team.note && (
-                    <div style={{ fontSize: 12, color: '#8a8a8a', marginTop: 4, fontStyle: 'italic' }}>{team.note}</div>
+                    <div className="mt-1 text-xs italic text-portal-text-muted">{team.note}</div>
                   )}
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: '#e5e5e5' }}>
-                    {team.combatPower.toLocaleString()}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#9a9a9a' }}>Combat</div>
-                  <div style={{ fontSize: 13, color: '#9a9a9a', marginTop: 4 }}>{cpToGp(team.valueReclaimedCp)} gp</div>
+
+                {/* Stats */}
+                <div className="text-right">
+                  <div className="text-lg font-semibold">{team.combatPower.toLocaleString()}</div>
+                  <div className="text-[11px] text-portal-text-muted">Combat</div>
+                  <div className="mt-1 text-sm text-portal-text-muted">{cpToGp(team.valueReclaimedCp)} gp</div>
                 </div>
               </li>
             ))}
           </ol>
         )}
       </div>
-    </div>
-  );
-}
-
-function ConnectionIndicator({ status, stale }: { status: string; stale: boolean }) {
-  const color = status === 'connected' ? (stale ? '#d19a3a' : '#4ade80') : '#ef4444';
-  const label =
-    status === 'connected' ? (stale ? 'Stale' : 'Live') : status === 'connecting' ? 'Connecting…' : 'Offline';
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9a9a9a' }}>
-      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, display: 'inline-block' }} />
-      {label}
     </div>
   );
 }

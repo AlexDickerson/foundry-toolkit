@@ -139,7 +139,7 @@ export function SkillIncreasePicker({ level, characterContext, onPick, onClose }
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-pf-border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-pf-alt-dark hover:text-pf-primary"
+            className="rounded border border-pf-border bg-pf-bg px-3 py-1 text-xs font-semibold uppercase tracking-widest text-pf-alt-dark hover:text-pf-primary"
           >
             Cancel
           </button>
@@ -156,7 +156,7 @@ export function SkillIncreasePicker({ level, characterContext, onPick, onClose }
               'rounded border px-3 py-1 text-xs font-semibold uppercase tracking-widest',
               selected !== null
                 ? 'border-pf-primary bg-pf-primary text-white hover:brightness-110'
-                : 'cursor-not-allowed border-pf-border bg-white text-pf-alt opacity-60',
+                : 'cursor-not-allowed border-pf-border bg-pf-bg text-pf-alt opacity-60',
             ].join(' ')}
           >
             {selected !== null ? `Apply ${capitaliseSlug(selected)}` : 'Apply'}

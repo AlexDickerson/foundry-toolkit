@@ -65,7 +65,7 @@ export function Character({ system, actorId, onActorChanged }: Props): React.Rea
             <span data-stat="reach" className="tabular-nums">
               {reach.base} ft
               {reach.manipulate !== reach.base && (
-                <span className="text-neutral-500"> · {reach.manipulate} ft (manipulate)</span>
+                <span className="text-pf-text-muted"> · {reach.manipulate} ft (manipulate)</span>
               )}
             </span>
           </MetaItem>
@@ -84,7 +84,7 @@ export function Character({ system, actorId, onActorChanged }: Props): React.Rea
           <MetaItem label="Class DC">
             <span>
               <strong className="tabular-nums">{classDC.dc}</strong>{' '}
-              <span className="text-neutral-500">({classDC.label})</span>
+              <span className="text-pf-text-muted">({classDC.label})</span>
             </span>
           </MetaItem>
         )}
@@ -124,7 +124,7 @@ function AbilityBlock({
               data-attribute={ak}
               className={[
                 'relative flex flex-col items-center rounded border px-2 py-3',
-                isKey ? 'border-pf-tertiary-dark bg-pf-tertiary/40' : 'border-pf-border bg-white',
+                isKey ? 'border-pf-tertiary-dark bg-pf-tertiary/40' : 'border-pf-border bg-pf-bg',
               ].join(' ')}
             >
               {isKey && (
@@ -256,7 +256,7 @@ function HpTile({
 
   return (
     <div
-      className="flex flex-col items-center rounded border border-pf-border bg-white px-2 py-2"
+      className="flex flex-col items-center rounded border border-pf-border bg-pf-bg px-2 py-2"
       title={hp.breakdown}
       data-stat="hp"
     >
@@ -287,7 +287,7 @@ function StepButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="rounded border border-neutral-300 bg-white px-1 py-0.5 font-mono text-[10px] text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+      className="rounded border border-pf-border bg-pf-bg px-1 py-0.5 font-mono text-[10px] text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
     >
       {label}
     </button>
@@ -362,7 +362,7 @@ function StatTile({
   if (onRoll === undefined) {
     return (
       <div
-        className="flex flex-col items-center rounded border border-pf-border bg-white px-3 py-2"
+        className="flex flex-col items-center rounded border border-pf-border bg-pf-bg px-3 py-2"
         title={title}
         {...rest}
       >
@@ -377,7 +377,7 @@ function StatTile({
       onClick={onRoll}
       disabled={pending === true}
       title={title}
-      className="flex flex-col items-center rounded border border-pf-border bg-white px-3 py-2 hover:border-pf-tertiary-dark hover:bg-pf-tertiary/40 disabled:opacity-60 disabled:hover:bg-white"
+      className="flex flex-col items-center rounded border border-pf-border bg-pf-bg px-3 py-2 hover:border-pf-tertiary-dark hover:bg-pf-tertiary/40 disabled:opacity-60 disabled:hover:bg-pf-bg"
       {...rest}
     >
       {contents}
@@ -478,7 +478,7 @@ function PipResource({
 }): React.ReactElement {
   return (
     <div className="flex items-center gap-2" title={title} {...rest}>
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">{label}</span>
       {onAdjust !== undefined && (
         <StepButton label="−" disabled={pending ?? false} onClick={() => onAdjust(-1)} />
       )}
@@ -488,7 +488,7 @@ function PipResource({
             key={i}
             className={[
               'inline-block h-3 w-3 rounded-full border',
-              i < value ? colorOn : 'border-neutral-300 bg-white',
+              i < value ? colorOn : 'border-pf-border bg-pf-bg',
             ].join(' ')}
           />
         ))}
@@ -496,7 +496,7 @@ function PipResource({
       {onAdjust !== undefined && (
         <StepButton label="+" disabled={pending ?? false} onClick={() => onAdjust(1)} />
       )}
-      <span className="font-mono text-xs tabular-nums text-neutral-500">
+      <span className="font-mono text-xs tabular-nums text-pf-text-muted">
         {value}/{max}
       </span>
     </div>
@@ -516,10 +516,10 @@ function CountResource({
 }): React.ReactElement {
   return (
     <div className="flex items-center gap-2" {...rest}>
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">{label}</span>
-      <span className="font-mono text-sm tabular-nums text-neutral-900">
+      <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">{label}</span>
+      <span className="font-mono text-sm tabular-nums text-pf-text">
         {value}
-        <span className="text-neutral-400">/{max}</span>
+        <span className="text-pf-text-muted">/{max}</span>
       </span>
     </div>
   );
@@ -529,25 +529,25 @@ function ShieldTile({ shield }: { shield: Shield }): React.ReactElement {
   const name = t(shield.name);
   return (
     <div
-      className="flex items-center gap-3 rounded border border-neutral-200 bg-white px-3 py-2"
+      className="flex items-center gap-3 rounded border border-pf-border bg-pf-bg px-3 py-2"
       data-stat="shield"
       title={`Hardness ${shield.hardness.toString()} · Broken Threshold ${shield.brokenThreshold.toString()}`}
     >
       {shield.icon && (
-        <img src={shield.icon} alt="" className="h-8 w-8 shrink-0 rounded border border-neutral-200 bg-neutral-50" />
+        <img src={shield.icon} alt="" className="h-8 w-8 shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
       )}
       <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="text-sm font-medium text-neutral-900">{name}</span>
-        <span className="text-xs text-neutral-600">
+        <span className="text-sm font-medium text-pf-text">{name}</span>
+        <span className="text-xs text-pf-text-muted">
           <span className="font-semibold">+{shield.ac}</span> AC
         </span>
-        <span className="text-xs text-neutral-600">
+        <span className="text-xs text-pf-text-muted">
           HP{' '}
           <span className="font-mono tabular-nums">
             {shield.hp.value}/{shield.hp.max}
           </span>
         </span>
-        <span className="text-xs text-neutral-600">
+        <span className="text-xs text-pf-text-muted">
           Hardness <span className="font-mono tabular-nums">{shield.hardness}</span>
         </span>
         {shield.raised && (
@@ -667,7 +667,7 @@ function Condition({
 }): React.ReactElement {
   return (
     <div className="flex items-center gap-2" title={title} {...rest}>
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">{label}</span>
       {onAdjust !== undefined && (
         <StepButton label="−" disabled={pending ?? false} onClick={() => onAdjust(-1)} />
       )}
@@ -677,7 +677,7 @@ function Condition({
             key={i}
             className={[
               'inline-block h-2.5 w-2.5 rounded-sm border',
-              i < value ? colorOn : 'border-neutral-300 bg-white',
+              i < value ? colorOn : 'border-pf-border bg-pf-bg',
             ].join(' ')}
           />
         ))}
@@ -685,7 +685,7 @@ function Condition({
       {onAdjust !== undefined && (
         <StepButton label="+" disabled={pending ?? false} onClick={() => onAdjust(1)} />
       )}
-      <span className="font-mono text-xs tabular-nums text-neutral-500">
+      <span className="font-mono text-xs tabular-nums text-pf-text-muted">
         {value}/{max}
       </span>
     </div>
@@ -717,8 +717,8 @@ function SpeedList({ speeds }: { speeds: Array<{ key: string; speed: Speed }> })
       {speeds.map(({ key, speed }, idx) => (
         <span key={key} className="inline-flex items-center gap-1" data-speed={key} title={speed.breakdown}>
           <span className="tabular-nums">{speed.value} ft</span>
-          <span className="text-xs text-neutral-500">{SPEED_LABELS[key] ?? humaniseSlug(key)}</span>
-          {idx < speeds.length - 1 && <span className="text-neutral-300">·</span>}
+          <span className="text-xs text-pf-text-muted">{SPEED_LABELS[key] ?? humaniseSlug(key)}</span>
+          {idx < speeds.length - 1 && <span className="text-pf-border">·</span>}
         </span>
       ))}
     </span>
@@ -749,11 +749,11 @@ function IWRRow({ label, entries }: { label: string; entries: IWREntry[] }): Rea
   if (entries.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5" data-iwr={label.toLowerCase()}>
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">{label}</span>
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-pf-text-muted">{label}</span>
       {entries.map((e, i) => (
         <span
           key={`${e.type}-${i.toString()}`}
-          className="rounded-full border border-neutral-300 bg-neutral-50 px-2.5 py-0.5 text-xs text-neutral-700"
+          className="rounded-full border border-pf-border bg-pf-bg px-2.5 py-0.5 text-xs text-pf-text"
           title={e.exceptions?.length ? `except ${e.exceptions.join(', ')}` : undefined}
         >
           {humaniseSlug(e.type)}
@@ -772,11 +772,11 @@ function XPBar({ value, max, pct }: { value: number; max: number; pct: number })
   const clamped = Math.max(0, Math.min(100, pct));
   return (
     <span className="flex items-center gap-2" data-stat="xp">
-      <span className="font-mono tabular-nums text-neutral-900">
+      <span className="font-mono tabular-nums text-pf-text">
         {value} / {max}
       </span>
       <span
-        className="inline-block h-1.5 w-16 overflow-hidden rounded bg-neutral-200"
+        className="inline-block h-1.5 w-16 overflow-hidden rounded bg-pf-bg-dark"
         role="progressbar"
         aria-valuenow={value}
         aria-valuemin={0}
