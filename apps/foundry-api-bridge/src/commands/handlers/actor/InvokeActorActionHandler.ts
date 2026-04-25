@@ -109,6 +109,8 @@ const ACTION_HANDLERS: Record<string, ActionHandler> = {
   'post-item-to-chat': postItemToChatAction,
   'add-formula': addFormulaAction,
   'remove-formula': removeFormulaAction,
+  'get-spellcasting': getSpellcastingAction,
+  'cast-spell': castSpellAction,
 };
 
 // ─── adjust-resource ───────────────────────────────────────────────────
@@ -566,6 +568,186 @@ function readFormulas(actor: FoundryActor): CraftingFormulaEntry[] {
   return formulas.filter((f): f is CraftingFormulaEntry => {
     return typeof f === 'object' && f !== null && typeof (f as { uuid?: unknown }).uuid === 'string';
   });
+}
+
+// ─── get-spellcasting ──────────────────────────────────────────────────
+
+// Returns a serializable snapshot of the actor's spellcasting entries
+// for the dm-tool combat panel. Includes spells grouped by entry and
+// slot state appropriate to each preparation mode.
+
+type SpellPreparationMode = 'prepared' | 'spontaneous' | 'innate' | 'focus' | 'ritual' | 'items';
+
+interface Pf2eSpellcasting {
+  contents: Pf2eSpellcastingEntry[];
+  get(id: string): Pf2eSpellcastingEntry | undefined;
+}
+
+interface Pf2eSpellcastingEntry {
+  id: string;
+  name: string;
+  system: {
+    prepared: { value: SpellPreparationMode; flexible?: boolean };
+    tradition: { value: string };
+    slots?: Record<string, { max: number; value?: number; prepared?: Array<{ id: string | null; expended?: boolean }> }>;
+  };
+  cast(spell: Pf2eSpellItem, opts: { rank?: number; slot?: number }): Promise<unknown>;
+}
+
+interface Pf2eSpellItem {
+  id: string;
+  name: string;
+  type: string;
+  system: {
+    level: { value: number };
+    traits: { value: string[] };
+    time?: { value: string };
+    location?: { value: string | null };
+  };
+}
+
+interface Pf2eActorWithSpells extends FoundryActor {
+  spellcasting?: Pf2eSpellcasting;
+}
+
+async function getSpellcastingAction(
+  actor: FoundryActor,
+  _params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  const pf2eActor = actor as Pf2eActorWithSpells;
+  const spellcasting = pf2eActor.spellcasting;
+  if (!spellcasting) {
+    return { actorId: actor.id, entries: [] };
+  }
+
+  const focus = (actor.system as { resources?: { focus?: { value?: number; max?: number } } }).resources?.focus;
+  const focusPoints = focus && typeof focus.max === 'number' && focus.max > 0
+    ? { value: typeof focus.value === 'number' ? focus.value : 0, max: focus.max }
+    : null;
+
+  const spellItems = actor.items.get
+    ? // actor.items is a Collection — iterate via the global items fallback
+      null
+    : null;
+  void spellItems; // unused; we use the filter approach below
+
+  // Collect all spell items from the actor.
+  const allSpells: Pf2eSpellItem[] = [];
+  // actor.items is a Collection with a `contents` array in Foundry.
+  const itemColl = actor.items as unknown as { contents?: Pf2eSpellItem[]; forEach?: (fn: (i: Pf2eSpellItem) => void) => void };
+  if (Array.isArray(itemColl.contents)) {
+    for (const item of itemColl.contents) {
+      if (item.type === 'spell') allSpells.push(item);
+    }
+  } else if (typeof itemColl.forEach === 'function') {
+    itemColl.forEach((item) => { if (item.type === 'spell') allSpells.push(item); });
+  }
+
+  const entries = spellcasting.contents.map((entry) => {
+    const mode: SpellPreparationMode = entry.system.prepared.value;
+    const tradition = entry.system.tradition.value;
+    const rawSlots = entry.system.slots ?? {};
+
+    // Spells belonging to this entry.
+    const entrySpells = allSpells.filter((s) => s.system.location?.value === entry.id);
+
+    const spellSummaries = entrySpells.map((spell) => {
+      const rank = spell.system.level.value;
+      const isCantrip = spell.system.traits.value.includes('cantrip');
+      const actions = spell.system.time?.value ?? '';
+
+      let expended: boolean | undefined;
+      if (mode === 'prepared') {
+        const slotKey = `slot${rank.toString()}`;
+        const slot = rawSlots[slotKey];
+        expended = slot?.prepared?.find((p) => p.id === spell.id)?.expended ?? false;
+      }
+
+      return { id: spell.id, name: spell.name, rank, isCantrip, actions, expended };
+    });
+
+    // Slot state for spontaneous casters.
+    let slots: Array<{ rank: number; value: number; max: number }> | undefined;
+    if (mode === 'spontaneous') {
+      slots = Object.entries(rawSlots)
+        .map(([key, slot]) => ({
+          rank: parseInt(key.replace('slot', ''), 10),
+          value: slot.value ?? 0,
+          max: slot.max,
+        }))
+        .filter((s) => !isNaN(s.rank) && s.max > 0)
+        .sort((a, b) => a.rank - b.rank);
+    }
+
+    return {
+      id: entry.id,
+      name: entry.name,
+      mode,
+      tradition,
+      spells: spellSummaries,
+      ...(slots !== undefined ? { slots } : {}),
+      ...(mode === 'focus' && focusPoints !== null ? { focusPoints } : {}),
+    };
+  });
+
+  return { actorId: actor.id, entries };
+}
+
+// ─── cast-spell ────────────────────────────────────────────────────────
+
+// Calls entry.cast(spell, { rank }) via the spellcasting entry item on
+// the actor. The DamageModifierDialog and CheckModifiersDialog are
+// already suppressed globally by prompt-intercept.ts, so they never
+// block the cast flow. If a PickAThingPrompt fires (e.g. variable
+// spell targets) it is relayed to any connected WebSocket client.
+
+async function castSpellAction(
+  actor: FoundryActor,
+  params: Record<string, unknown>,
+): Promise<InvokeActorActionResult> {
+  const entryId = params['entryId'];
+  if (typeof entryId !== 'string' || entryId.length === 0) {
+    throw new Error('cast-spell: params.entryId is required');
+  }
+  const spellId = params['spellId'];
+  if (typeof spellId !== 'string' || spellId.length === 0) {
+    throw new Error('cast-spell: params.spellId is required');
+  }
+  const rank = params['rank'];
+  if (typeof rank !== 'number' || !Number.isInteger(rank) || rank < 0) {
+    throw new Error('cast-spell: params.rank must be a non-negative integer');
+  }
+
+  const pf2eActor = actor as Pf2eActorWithSpells;
+  if (!pf2eActor.spellcasting) {
+    throw new Error(`cast-spell: actor ${actor.id} has no spellcasting ability`);
+  }
+
+  const entry = pf2eActor.spellcasting.get(entryId);
+  if (!entry) {
+    throw new Error(`cast-spell: spellcasting entry '${entryId}' not found on actor ${actor.id}`);
+  }
+
+  const spell = actor.items.get(spellId);
+  if (!spell) {
+    throw new Error(`cast-spell: spell item '${spellId}' not found on actor ${actor.id}`);
+  }
+
+  console.info(
+    `Foundry API Bridge | cast-spell: actorId=${actor.id.slice(0, 8)} entryId=${entryId.slice(0, 8)} spellId=${spellId.slice(0, 8)} rank=${rank.toString()}`,
+  );
+
+  try {
+    await entry.cast(spell as unknown as Pf2eSpellItem, { rank });
+  } catch (error) {
+    console.error(
+      `Foundry API Bridge | cast-spell failed: actorId=${actor.id.slice(0, 8)} spellId=${spellId.slice(0, 8)}`,
+      error,
+    );
+    throw error;
+  }
+
+  return { ok: true };
 }
 
 // ─── Router ────────────────────────────────────────────────────────────
