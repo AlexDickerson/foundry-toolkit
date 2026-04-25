@@ -12,7 +12,7 @@ describe('mergeHaloOptions — defaults', () => {
     expect(opts.widthPx).toBe(35);
     expect(opts.innerFeatherPx).toBe(8);
     expect(opts.color).toEqual([0.18, 0.52, 1.0]);
-    expect(opts.opacity).toBe(0.75);
+    expect(opts.opacity).toBe(0.6);
   });
 
   it('returns all defaults when called with an empty object', () => {
@@ -20,7 +20,7 @@ describe('mergeHaloOptions — defaults', () => {
     expect(opts.widthPx).toBe(35);
     expect(opts.innerFeatherPx).toBe(8);
     expect(opts.color).toEqual([0.18, 0.52, 1.0]);
-    expect(opts.opacity).toBe(0.75);
+    expect(opts.opacity).toBe(0.6);
   });
 
   it('returns all defaults when called with undefined', () => {
@@ -37,7 +37,7 @@ describe('mergeHaloOptions — partial overrides', () => {
     const opts = mergeHaloOptions({ widthPx: 60 });
     expect(opts.widthPx).toBe(60);
     expect(opts.innerFeatherPx).toBe(8);
-    expect(opts.opacity).toBe(0.75);
+    expect(opts.opacity).toBe(0.6);
     expect(opts.color).toEqual([0.18, 0.52, 1.0]);
   });
 
@@ -59,7 +59,7 @@ describe('mergeHaloOptions — partial overrides', () => {
     const color: [number, number, number] = [0.3, 0.7, 1.0];
     const opts = mergeHaloOptions({ color });
     expect(opts.color).toEqual([0.3, 0.7, 1.0]);
-    expect(opts.opacity).toBe(0.75);
+    expect(opts.opacity).toBe(0.6);
     expect(opts.widthPx).toBe(35);
   });
 });

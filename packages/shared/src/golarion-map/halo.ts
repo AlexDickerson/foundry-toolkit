@@ -37,7 +37,7 @@ export interface HaloOptions {
   /** Halo colour as linear RGB [R, G, B] in the 0–1 range.
    *  Default: atmospheric blue [0.18, 0.52, 1.0]. */
   color?: [number, number, number];
-  /** Peak opacity of the halo at the silhouette edge. Default: 0.75 */
+  /** Peak opacity of the halo at the silhouette edge. Default: 0.6 */
   opacity?: number;
 }
 
@@ -58,7 +58,7 @@ export function mergeHaloOptions(options?: HaloOptions): ResolvedHaloOptions {
     widthPx: options?.widthPx ?? 35,
     innerFeatherPx: options?.innerFeatherPx ?? 8,
     color: options?.color ?? [0.18, 0.52, 1.0],
-    opacity: options?.opacity ?? 0.75,
+    opacity: options?.opacity ?? 0.6,
   };
 }
 
@@ -196,6 +196,9 @@ type Mat16 = readonly [
   number,
 ];
 
+/** 4-component vector as a fixed-length tuple (same motivation as Mat16). */
+type Vec4 = readonly [number, number, number, number];
+
 /**
  * Multiply a column-major 4×4 matrix by a homogeneous 4-vector.
  * Returns [x, y, z, w].
@@ -314,29 +317,79 @@ export function createHaloLayer(options?: HaloOptions): CustomLayerInterface {
       if (!_program || !_vao || !_gl || !_map) return;
       const gl = _gl;
 
-      // Derive the globe disc centre and radius in NDC from the projection matrix.
+      // Derive the globe disc centre and radius from the clip plane.
       //
-      // The globe is a unit sphere in MapLibre's globe coordinate system.
-      // Projecting [0,0,0] gives the disc centre (sphere origin → screen centre).
-      // Projecting [1,0,0] (an equatorial edge point) gives the approximate
-      // silhouette edge — accurate within ~6% at zoom 2, well within the soft
-      // inner-feather tolerance.
-      // Cast to Mat16 so literal-index access is typed as number, not
-      // number | undefined (required by noUncheckedIndexedAccess).
+      // MapLibre's clippingPlane satisfies:  dot(cp.xyz, p) + cp.w = 0
+      // for every point p on the unit sphere's silhouette ring — i.e. the
+      // actual boundary between the visible and hidden hemisphere.  Using this
+      // gives a rotationally-stable radius that does NOT oscillate as the globe
+      // auto-rotates (unlike projecting a fixed equatorial point such as [1,0,0]
+      // which sweeps from disc-edge to disc-centre and back each full rotation).
+      const cp = input.defaultProjectionData.clippingPlane as unknown as Vec4;
+      const cnx = cp[0],
+        cny = cp[1],
+        cnz = cp[2],
+        cnd = cp[3];
+      const nlen = Math.sqrt(cnx * cnx + cny * cny + cnz * cnz);
+      if (nlen < 1e-6) return; // degenerate clip plane
+
+      // Normalise plane normal
+      const nx = cnx / nlen,
+        ny = cny / nlen,
+        nz = cnz / nlen;
+      const dd = cnd / nlen;
+
+      // Silhouette ring in globe-space:
+      //   centre = -dd · n̂  (on or inside the unit sphere)
+      //   radius = sqrt(1 − dd²)
+      const scx = -dd * nx,
+        scy = -dd * ny,
+        scz = -dd * nz;
+      const sRad = Math.sqrt(Math.max(0, 1 - dd * dd));
+      if (sRad < 1e-6) return; // fully pole-on or degenerate
+
+      // Tangent vector e1 perpendicular to n̂.  Choose the basis axis whose
+      // component along n̂ is smallest for maximum numerical stability.
+      let e1x: number, e1y: number, e1z: number;
+      const absNx = Math.abs(nx),
+        absNy = Math.abs(ny),
+        absNz = Math.abs(nz);
+      if (absNx <= absNy && absNx <= absNz) {
+        // n × [1,0,0] = [0, nz, -ny]
+        const el = Math.sqrt(nz * nz + ny * ny);
+        e1x = 0;
+        e1y = nz / el;
+        e1z = -ny / el;
+      } else if (absNy <= absNz) {
+        // n × [0,1,0] = [-nz, 0, nx]
+        const el = Math.sqrt(nz * nz + nx * nx);
+        e1x = -nz / el;
+        e1y = 0;
+        e1z = nx / el;
+      } else {
+        // n × [0,0,1] = [ny, -nx, 0]
+        const el = Math.sqrt(ny * ny + nx * nx);
+        e1x = ny / el;
+        e1y = -nx / el;
+        e1z = 0;
+      }
+
+      // Project two opposing silhouette points; their screen-space midpoint is
+      // the disc centre and half their distance is the disc radius.
       const m = input.defaultProjectionData.mainMatrix as unknown as Mat16;
-      const centerNDC = projectToNDC(m, 0, 0, 0);
-      const edgeNDC = projectToNDC(m, 1, 0, 0);
+      const sil1 = projectToNDC(m, scx + sRad * e1x, scy + sRad * e1y, scz + sRad * e1z);
+      const sil2 = projectToNDC(m, scx - sRad * e1x, scy - sRad * e1y, scz - sRad * e1z);
+
+      const centerNDC: [number, number] = [(sil1[0] + sil2[0]) / 2, (sil1[1] + sil2[1]) / 2];
 
       const w = gl.drawingBufferWidth;
       const h = gl.drawingBufferHeight;
 
-      // Compute radius in physical pixels (accounts for viewport aspect ratio)
-      const dxNDC = edgeNDC[0] - centerNDC[0];
-      const dyNDC = edgeNDC[1] - centerNDC[1];
+      const dxNDC = sil1[0] - centerNDC[0];
+      const dyNDC = sil1[1] - centerNDC[1];
       const radiusPx = Math.sqrt((dxNDC * (w / 2)) ** 2 + (dyNDC * (h / 2)) ** 2);
 
-      // Guard against degenerate matrices (e.g. during projection transitions
-      // where the globe might not yet be on screen or the matrix is singular).
+      // Guard against degenerate matrices (e.g. during projection transitions).
       if (!isFinite(radiusPx) || radiusPx < 1 || radiusPx > 20_000) return;
 
       // Scale CSS-pixel widths to physical pixels using the canvas DPR.
