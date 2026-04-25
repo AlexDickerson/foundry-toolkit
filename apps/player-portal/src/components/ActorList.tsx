@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, ApiRequestError } from '../api/client';
 import type { ActorSummary } from '../api/types';
+import { isPlayerCharacter } from '../lib/actor-utils';
 
 type State =
   | { kind: 'loading' }
@@ -46,15 +47,18 @@ export function ActorList({ onSelect }: Props = {}): React.ReactElement {
     );
   }
 
-  if (state.actors.length === 0) {
-    return <p className="text-sm text-pf-text-muted">No actors in the world yet.</p>;
+  // The bridge already filters to characters only; this is a defensive
+  // second layer in case a stale bridge or mock returns mixed actor types.
+  const characters = state.actors.filter(isPlayerCharacter);
+
+  if (characters.length === 0) {
+    return <p className="text-sm text-pf-text-muted">No player characters in the world yet.</p>;
   }
 
   return (
     <ul className="divide-y divide-pf-border rounded border border-pf-border">
-      {state.actors.map((actor) => {
-        const isCharacter = actor.type === 'character';
-        const clickable = isCharacter && onSelect !== undefined;
+      {characters.map((actor) => {
+        const clickable = onSelect !== undefined;
         return (
           <li
             key={actor.id}
@@ -71,7 +75,6 @@ export function ActorList({ onSelect }: Props = {}): React.ReactElement {
             }
           >
             <span className="flex-1 truncate font-medium">{actor.name}</span>
-            <span className="text-xs uppercase tracking-wide text-pf-text-muted">{actor.type}</span>
             {clickable && <span className="text-pf-text-muted">→</span>}
           </li>
         );

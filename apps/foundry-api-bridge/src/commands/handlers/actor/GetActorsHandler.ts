@@ -23,6 +23,11 @@ export function getActorsHandler(_params: Record<string, never>): Promise<ActorS
   const actors: ActorSummary[] = [];
 
   getGame().actors.forEach((actor) => {
+    // Only return PF2e player-character actors. NPCs, familiars, loot
+    // containers, vehicles, and party actors are not relevant to the
+    // player portal's character list.
+    if (actor.type !== 'character') return;
+
     actors.push({
       id: actor.id,
       name: actor.name,
