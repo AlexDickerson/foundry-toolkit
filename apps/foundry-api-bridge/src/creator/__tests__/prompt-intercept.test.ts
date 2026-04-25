@@ -3,12 +3,12 @@ import type { WebSocketClient } from '@/transport/WebSocketClient';
 
 interface HookRecord {
   name: string;
-  fn: (...args: unknown[]) => void;
+  fn: (...args: unknown[]) => unknown;
 }
 
 class HooksMock {
   registered: HookRecord[] = [];
-  on(name: string, fn: (...args: unknown[]) => void): number {
+  on(name: string, fn: (...args: unknown[]) => unknown): number {
     this.registered.push({ name, fn });
     return this.registered.length;
   }
@@ -19,6 +19,15 @@ class HooksMock {
     for (const h of this.registered.filter((h) => h.name === name)) {
       h.fn(...args);
     }
+  }
+  /** Fire a hook and return the return-value of the first matching handler. */
+  fireReturn(name: string, ...args: unknown[]): unknown {
+    const handlers = this.registered.filter((h) => h.name === name);
+    let lastReturn: unknown;
+    for (const h of handlers) {
+      lastReturn = h.fn(...args);
+    }
+    return lastReturn;
   }
 }
 
@@ -159,42 +168,57 @@ describe('installPromptInterception', () => {
 });
 
 // ─── DamageModifierDialog suppression ────────────────────────────────────
+//
+// Uses preRenderDamageModifierDialog + return false to cancel the DOM render
+// entirely (dialog never appears). setTimeout(0) defers close() so that
+// resolve() can finish assigning #resolve before we call close().
 
-describe('installPromptInterception — renderDamageModifierDialog', () => {
-  it('registers a renderDamageModifierDialog hook', () => {
+describe('installPromptInterception — preRenderDamageModifierDialog', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('registers a preRenderDamageModifierDialog hook', () => {
     installPromptInterception([]);
     const names = hooksMock.registered.map((h) => h.name);
-    expect(names).toContain('renderDamageModifierDialog');
+    expect(names).toContain('preRenderDamageModifierDialog');
   });
 
-  it('sets isRolled=true and closes the dialog so the roll proceeds', async () => {
+  it('returns false from the hook to cancel the DOM render', () => {
     installPromptInterception([]);
 
-    const app = {
-      isRolled: false,
-      close: jest.fn().mockResolvedValue(undefined),
-    };
+    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
+    const returnValue = hooksMock.fireReturn('preRenderDamageModifierDialog', app);
 
-    hooksMock.fire('renderDamageModifierDialog', app);
-    await Promise.resolve(); // allow microtask to settle
+    expect(returnValue).toBe(false);
+  });
 
+  it('sets isRolled=true immediately so close() resolves the roll as "proceed"', () => {
+    installPromptInterception([]);
+
+    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
+    hooksMock.fire('preRenderDamageModifierDialog', app);
+
+    // isRolled must be true before close() is invoked so PF2e's
+    // #resolve(this.isRolled) sends true (proceed), not false (cancel).
     expect(app.isRolled).toBe(true);
+  });
+
+  it('calls close() after a setTimeout(0) so #resolve is assigned first', () => {
+    installPromptInterception([]);
+
+    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
+    hooksMock.fire('preRenderDamageModifierDialog', app);
+
+    // close() must not be called synchronously (race: #resolve not set yet)
+    expect(app.close).not.toHaveBeenCalled();
+
+    jest.runAllTimers();
+
     expect(app.close).toHaveBeenCalled();
-  });
-
-  it('does not set isRolled=false (which would cancel the roll)', async () => {
-    installPromptInterception([]);
-
-    const app = {
-      isRolled: false,
-      close: jest.fn().mockResolvedValue(undefined),
-    };
-
-    hooksMock.fire('renderDamageModifierDialog', app);
-    await Promise.resolve();
-
-    // isRolled must be true before close() is called so pf2e's #resolve(true)
-    // signals "proceed" rather than "cancel".
-    expect(app.isRolled).toBe(true);
   });
 });

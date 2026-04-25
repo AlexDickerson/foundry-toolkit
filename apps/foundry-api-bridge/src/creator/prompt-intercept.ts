@@ -82,13 +82,23 @@ export function installPromptInterception(wsClients: readonly WebSocketClient[])
     void handlePrompt(app, wsClients);
   });
 
-  // Suppress PF2e's DamageModifierDialog — set isRolled=true before close()
-  // so pf2e's internal promise resolves as "proceed", not "cancel".
+  // Suppress PF2e's DamageModifierDialog before it reaches the DOM.
+  //
+  // Timing note: resolve() calls this.render(true) BEFORE the Promise
+  // constructor, so #resolve is not yet set when preRender fires. A
+  // setTimeout(0) lets resolve() finish assigning #resolve, then we
+  // close on the next tick. Returning false cancels the DOM render so
+  // the dialog never appears.
+  //
+  // app.isRolled must be true before close() so pf2e's
+  //   close() { this.#resolve?.(this.isRolled); }
+  // resolves the Promise with true ("proceed") not false ("cancel").
   // @ts-expect-error — Hooks is untyped
-  Hooks.on('renderDamageModifierDialog', (app: DamageModifierDialogApp) => {
-    console.info('Foundry API Bridge | Suppressing DamageModifierDialog with defaults');
+  Hooks.on('preRenderDamageModifierDialog', (app: DamageModifierDialogApp) => {
+    console.info('Foundry API Bridge | Suppressing DamageModifierDialog (preRender)');
     app.isRolled = true;
-    void app.close();
+    setTimeout(() => { void app.close(); }, 0);
+    return false; // cancel DOM render — dialog never appears
   });
 
   console.log('Foundry API Bridge | ChoiceSet prompt interception installed');
