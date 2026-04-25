@@ -132,9 +132,8 @@ const VERT_SRC = `
  *
  *  Sampling in 3D (x,y,z on the unit sphere) is inherently seamless:
  *  no lon/lat wrapping, no equatorial integer-boundary artefacts, no polar
- *  pinching.  Drift is a rotation of the sample coordinates around the
- *  north-pole axis (+z), which is the only transform that means "east" at
- *  every latitude simultaneously. */
+ *  pinching.  Drift is a Rodrigues rotation around a tilted axis that
+ *  empirically produces westward drift on screen in MapLibre's globe frame. */
 const FRAG_SRC = `
   precision highp float;
 
@@ -180,32 +179,34 @@ const FRAG_SRC = `
     return val;
   }
 
-  // -------------------------------------------------------------------------
+  // ---- rotation -----------------------------------------------------------
 
-  // Rotate a vec3 around the z-axis (north-pole axis) by angle theta.
-  // rotate_z(p, -theta) samples from west, making the pattern appear to
-  // drift east — the only transform that means "east" at every latitude.
-  vec3 rotateZ(vec3 p, float theta) {
+  // Rodrigues' rotation: rotate p around unit axis a by angle theta (CCW).
+  // Use negative theta for CW (sampling from east → pattern drifts west).
+  vec3 rotateAxis(vec3 p, vec3 a, float theta) {
     float c = cos(theta);
     float s = sin(theta);
-    return vec3(p.x * c + p.y * s,
-               -p.x * s + p.y * c,
-                p.z);
+    return p * c + cross(a, p) * s + a * dot(a, p) * (1.0 - c);
   }
+
+  // -------------------------------------------------------------------------
 
   void main() {
     if (v_visible <= 0.0) discard;
 
     vec3 pos = v_sphere * u_scale;
 
-    // angle = driftSpeed * t / scale so the arc speed at the equator equals
-    // driftSpeed in sample-space units/sec (same semantics as before).
+    // angle = driftSpeed * t / scale so arc speed at equator ≈ driftSpeed.
     float angle = u_drift * u_time / u_scale;
 
-    // Positive angle rotates sample coords counterclockwise (east→west sampling),
-    // making the cloud pattern drift westward.  Layer 2 at 0.7× for parallax.
-    float n1 = fbm3(rotateZ(pos,       angle));
-    float n2 = fbm3(rotateZ(pos * 1.6, angle * 0.7) + vec3(2.1, 1.3, 0.8));
+    // Drift axis: geographic north (+z) tilted ~40° toward +y.
+    // Pure z-axis rotation empirically drifts SW on screen in MapLibre's
+    // globe frame; the 40° tilt adds the northward correction to land on W.
+    // Negative angle = CW = sample from east = pattern drifts west.
+    vec3 driftAxis = normalize(vec3(0.0, 0.643, 0.766)); // sin/cos of 40°
+
+    float n1 = fbm3(rotateAxis(pos,       driftAxis, -angle));
+    float n2 = fbm3(rotateAxis(pos * 1.6, driftAxis, -angle * 0.7) + vec3(2.1, 1.3, 0.8));
 
     float cloud = mix(n1, n2, 0.4);
     cloud = smoothstep(0.38, 0.65, cloud);
