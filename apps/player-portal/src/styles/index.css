@@ -3,6 +3,43 @@
 @import './pf2e/tokens.css';
 @import './color-schemes.css';
 
+/* Portal surface tokens — light (default) and dark variants.
+ * Applied to the Layout root div via [data-portal-theme]. Tailwind
+ * utilities bg-portal-*, text-portal-*, border-portal-* etc. reference
+ * these via the @theme entries below. */
+:root {
+  --portal-bg: var(--color-pf-bg); /* #f8f4f1 cream parchment */
+  --portal-surface: var(--color-pf-bg-dark); /* #e6dfd7 */
+  --portal-surface-hover: #d4cbc2;
+  --portal-border: var(--color-pf-border); /* #baa991 */
+  --portal-text: var(--color-pf-text); /* #1c1c1c */
+  --portal-text-muted: var(--color-pf-text-muted); /* #605856 */
+  --portal-accent: var(--color-pf-primary); /* #5e0000 heraldic red */
+  --portal-accent-subtle: rgba(94, 0, 0, 0.08);
+}
+
+[data-portal-theme='dark'] {
+  --portal-bg: #0d111e;
+  --portal-surface: #141928;
+  --portal-surface-hover: #1b2236;
+  --portal-border: #252e45;
+  --portal-text: #e8e4dc;
+  --portal-text-muted: #8a8fa5;
+  --portal-accent: var(--color-pf-tertiary-dark); /* #cbb77a parchment gold */
+  --portal-accent-subtle: rgba(203, 183, 122, 0.12);
+}
+
+@theme {
+  --color-portal-bg: var(--portal-bg);
+  --color-portal-surface: var(--portal-surface);
+  --color-portal-surface-hover: var(--portal-surface-hover);
+  --color-portal-border: var(--portal-border);
+  --color-portal-text: var(--portal-text);
+  --color-portal-text-muted: var(--portal-text-muted);
+  --color-portal-accent: var(--portal-accent);
+  --color-portal-accent-subtle: var(--portal-accent-subtle);
+}
+
 /* Reserve scrollbar-gutter space always so the page doesn't horizontally
    shift when content grows past the viewport and a scrollbar appears. */
 html {

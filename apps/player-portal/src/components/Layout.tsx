@@ -1,19 +1,16 @@
 import { Outlet } from 'react-router-dom';
+import { usePortalTheme } from '../hooks/usePortalTheme';
 import { Nav } from './Nav';
 
 export function Layout() {
+  const [theme, toggleTheme] = usePortalTheme();
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100vw',
-        height: '100vh',
-        backgroundColor: '#0f0f0f',
-      }}
+      data-portal-theme={theme}
+      className="flex h-screen w-screen flex-col bg-portal-bg"
     >
-      <Nav />
-      <main style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+      <Nav theme={theme} onToggleTheme={toggleTheme} />
+      <main className="relative min-h-0 flex-1 overflow-hidden">
         <Outlet />
       </main>
     </div>

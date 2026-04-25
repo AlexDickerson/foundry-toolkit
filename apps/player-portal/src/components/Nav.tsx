@@ -8,36 +8,86 @@ const tabs = [
   { to: '/characters', label: 'Characters' },
 ];
 
-export function Nav() {
+interface Props {
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
+}
+
+export function Nav({ theme, onToggleTheme }: Props) {
   return (
-    <nav
-      style={{
-        display: 'flex',
-        flexShrink: 0,
-        backgroundColor: '#1a1a1a',
-        borderBottom: '1px solid #2d2d2d',
-      }}
-    >
+    <nav className="flex flex-shrink-0 items-center border-b border-portal-border bg-portal-surface">
       {tabs.map((tab) => (
         <NavLink
           key={tab.to}
           to={tab.to}
           end={tab.end ?? false}
-          style={({ isActive }) => ({
-            padding: '12px 20px',
-            color: isActive ? '#ffffff' : '#9a9a9a',
-            textDecoration: 'none',
-            borderBottom: isActive ? '2px solid #e4a547' : '2px solid transparent',
-            fontSize: 14,
-            fontWeight: 500,
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            letterSpacing: '0.02em',
-            transition: 'color 0.15s, border-color 0.15s',
-          })}
+          className={({ isActive }) =>
+            [
+              'inline-flex items-center px-5 py-3 text-sm font-medium tracking-wide',
+              'border-b-2 transition-colors duration-150 no-underline',
+              isActive
+                ? 'border-portal-accent text-portal-text'
+                : 'border-transparent text-portal-text-muted hover:text-portal-text',
+            ].join(' ')
+          }
         >
           {tab.label}
         </NavLink>
       ))}
+
+      {/* Theme toggle — pushed to the right edge */}
+      <button
+        type="button"
+        onClick={onToggleTheme}
+        aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        className="ml-auto mr-3 flex h-8 w-8 items-center justify-center rounded text-portal-text-muted transition-colors hover:text-portal-text"
+      >
+        {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+      </button>
     </nav>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="4" />
+      <line x1="12" y1="2" x2="12" y2="4" />
+      <line x1="12" y1="20" x2="12" y2="22" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="2" y1="12" x2="4" y2="12" />
+      <line x1="20" y1="12" x2="22" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
   );
 }

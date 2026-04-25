@@ -3,6 +3,7 @@
 // an update here within a second or two.
 
 import { useMemo } from 'react';
+import { ConnectionIndicator } from '../components/ConnectionIndicator';
 import { useLiveStream } from '../lib/live';
 import type { PartyInventoryItem } from '@foundry-toolkit/shared/types';
 
@@ -48,19 +49,25 @@ export function Inventory() {
     return map;
   }, [data]);
 
-  const totalBulk = useMemo(() => (data?.items ?? []).reduce((sum, i) => sum + (i.bulk ?? 0) * i.qty, 0), [data]);
-  const totalValue = useMemo(() => (data?.items ?? []).reduce((sum, i) => sum + (i.valueCp ?? 0) * i.qty, 0), [data]);
+  const totalBulk = useMemo(
+    () => (data?.items ?? []).reduce((sum, i) => sum + (i.bulk ?? 0) * i.qty, 0),
+    [data],
+  );
+  const totalValue = useMemo(
+    () => (data?.items ?? []).reduce((sum, i) => sum + (i.valueCp ?? 0) * i.qty, 0),
+    [data],
+  );
 
   const stale = status === 'disconnected' || (lastUpdated !== null && Date.now() - lastUpdated > 60_000);
 
   return (
-    <div style={{ width: '100%', height: '100%', overflowY: 'auto', color: '#e5e5e5', padding: '24px 32px' }}>
-      <div style={{ maxWidth: 960, margin: '0 auto' }}>
-        <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
+    <div className="h-full overflow-y-auto bg-portal-bg text-portal-text">
+      <div className="mx-auto max-w-4xl px-8 py-6">
+        <header className="mb-5 flex items-baseline justify-between">
           <div>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 600 }}>Party Inventory</h1>
+            <h1 className="text-2xl font-semibold">Party Inventory</h1>
             {data && (
-              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#9a9a9a' }}>
+              <p className="mt-1 text-sm text-portal-text-muted">
                 {data.items.length} items · bulk {totalBulk.toFixed(1)} · value {formatCp(totalValue) || '—'}
               </p>
             )}
@@ -69,55 +76,29 @@ export function Inventory() {
         </header>
 
         {!data ? (
-          <p style={{ color: '#9a9a9a', fontSize: 14 }}>Connecting…</p>
+          <p className="text-sm text-portal-text-muted">Connecting…</p>
         ) : data.items.length === 0 ? (
-          <p style={{ color: '#9a9a9a', fontSize: 14 }}>The party has nothing stashed yet.</p>
+          <p className="text-sm text-portal-text-muted">The party has nothing stashed yet.</p>
         ) : (
           CATEGORY_ORDER.map((cat) => {
             const list = grouped.get(cat) ?? [];
             if (list.length === 0) return null;
             return (
-              <section key={cat} style={{ marginBottom: 28 }}>
-                <h2
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: '#e4a547',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    borderBottom: '1px solid #333',
-                    paddingBottom: 6,
-                    marginBottom: 10,
-                  }}
-                >
-                  {CATEGORY_LABELS[cat]} <span style={{ color: '#6a6a6a' }}>· {list.length}</span>
+              <section key={cat} className="mb-7">
+                <h2 className="mb-2.5 border-b border-portal-border pb-1.5 text-xs font-medium uppercase tracking-widest text-portal-accent">
+                  {CATEGORY_LABELS[cat]}{' '}
+                  <span className="text-portal-text-muted">· {list.length}</span>
                 </h2>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                <ul className="m-0 list-none p-0">
                   {list.map((item) => (
                     <li
                       key={item.id}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr auto auto',
-                        gap: 16,
-                        padding: '8px 0',
-                        borderBottom: '1px solid #1f1f1f',
-                        alignItems: 'baseline',
-                      }}
+                      className="grid items-baseline gap-4 border-b border-portal-border py-2 [grid-template-columns:1fr_auto_auto] last:border-0"
                     >
                       <div>
-                        <span style={{ fontSize: 15 }}>{item.name}</span>
+                        <span className="text-[15px]">{item.name}</span>
                         {item.carriedBy && (
-                          <span
-                            style={{
-                              marginLeft: 10,
-                              fontSize: 11,
-                              color: '#e4a547',
-                              backgroundColor: 'rgba(228, 165, 71, 0.1)',
-                              padding: '1px 6px',
-                              borderRadius: 3,
-                            }}
-                          >
+                          <span className="ml-2.5 rounded px-1.5 py-px text-[11px] bg-portal-accent-subtle text-portal-accent">
                             {item.carriedBy}
                           </span>
                         )}
@@ -126,23 +107,21 @@ export function Inventory() {
                             href={item.aonUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ marginLeft: 10, fontSize: 11, color: '#6a9acf' }}
+                            className="ml-2.5 text-[11px] text-blue-500 hover:underline"
                           >
                             AoN
                           </a>
                         )}
                         {item.note && (
-                          <div style={{ fontSize: 12, color: '#8a8a8a', marginTop: 2, fontStyle: 'italic' }}>
-                            {item.note}
-                          </div>
+                          <div className="mt-0.5 text-xs italic text-portal-text-muted">{item.note}</div>
                         )}
                       </div>
-                      <div style={{ fontSize: 13, color: '#9a9a9a', whiteSpace: 'nowrap' }}>
+                      <div className="whitespace-nowrap text-sm text-portal-text-muted">
                         {item.bulk ? `bulk ${(item.bulk * item.qty).toFixed(1)}` : ''}
                         {item.bulk && item.valueCp ? ' · ' : ''}
                         {item.valueCp ? formatCp(item.valueCp * item.qty) : ''}
                       </div>
-                      <div style={{ fontSize: 15, fontWeight: 500, textAlign: 'right', minWidth: 40 }}>×{item.qty}</div>
+                      <div className="min-w-[40px] text-right text-[15px] font-medium">×{item.qty}</div>
                     </li>
                   ))}
                 </ul>
@@ -151,18 +130,6 @@ export function Inventory() {
           })
         )}
       </div>
-    </div>
-  );
-}
-
-function ConnectionIndicator({ status, stale }: { status: string; stale: boolean }) {
-  const color = status === 'connected' ? (stale ? '#d19a3a' : '#4ade80') : '#ef4444';
-  const label =
-    status === 'connected' ? (stale ? 'Stale' : 'Live') : status === 'connecting' ? 'Connecting…' : 'Offline';
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9a9a9a' }}>
-      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, display: 'inline-block' }} />
-      {label}
     </div>
   );
 }
