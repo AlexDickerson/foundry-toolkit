@@ -176,9 +176,9 @@ export async function activateItemHandler(params: ActivateItemParams): Promise<A
   let useResult: FoundryUsageResult | null = null;
 
   if (targetActivity) {
-    useResult = await targetActivity.use(config as Parameters<typeof targetActivity.use>[0]);
+    useResult = await targetActivity.use(config);
   } else {
-    useResult = await item.use(config as Parameters<typeof item.use>[0]);
+    useResult = await item.use(config);
   }
 
   let workflow: MidiWorkflowResult | undefined;

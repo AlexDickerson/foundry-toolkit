@@ -2,7 +2,7 @@
 // only; players aren't meant to see the stat blocks or HP totals in here.
 
 import { ipcMain } from 'electron';
-import type { Encounter, LootItem, PushEncounterResult } from '@foundry-toolkit/shared/types';
+import type { Encounter, LootItem, PartyMember, PushEncounterResult } from '@foundry-toolkit/shared/types';
 import { generateEncounterLoot, type LootMonster } from '@foundry-toolkit/ai/loot';
 import type { DmToolConfig } from '../config.js';
 import { deleteEncounter, listEncounters, upsertEncounter } from '@foundry-toolkit/db/pf2e';
@@ -66,5 +66,18 @@ export function registerCombatHandlers(cfg: DmToolConfig): void {
     const enc = listEncounters().find((x) => x.id === encounterId);
     if (!enc) throw new Error(`Encounter not found: ${encounterId}`);
     return pushEncounterActorsToFoundry(enc, cfg.foundryMcpUrl);
+  });
+
+  ipcMain.handle('listPartyMembers', async (): Promise<PartyMember[]> => {
+    if (!cfg.foundryMcpUrl) {
+      console.info('listPartyMembers: foundryMcpUrl not configured — returning empty list');
+      return [];
+    }
+    const base = cfg.foundryMcpUrl.replace(/\/$/, '');
+    const res = await fetch(`${base}/api/actors/party`);
+    if (!res.ok) {
+      throw new Error(`Party fetch failed: HTTP ${res.status.toString()}`);
+    }
+    return res.json() as Promise<PartyMember[]>;
   });
 }

@@ -108,7 +108,8 @@ export type CommandType =
   | 'update-scene'
   | 'get-combat-turn-context'
   | 'set-event-subscription'
-  | 'fetch-asset';
+  | 'fetch-asset'
+  | 'get-party-members';
 
 export interface RollDiceParams {
   formula: string;
@@ -1497,6 +1498,24 @@ export interface CombatTurnContext {
   asciiMap: string;
 }
 
+// Party member query — returns player-character actors filtered by folder
+// name.  Stats are pre-extracted for the dm-tool combat tracker.
+export interface GetPartyMembersParams {
+  /** Override the folder name to filter by.  Defaults to the
+   *  `PARTY_FOLDER_NAME` constant in party-config.ts. */
+  folderName?: string;
+}
+
+export interface PartyMemberResult {
+  id: string;
+  name: string;
+  img: string;
+  /** Perception modifier (PF2e `system.perception.mod`). Used as the
+   *  default initiative modifier in the combat tracker. */
+  initiativeMod: number;
+  maxHp: number;
+}
+
 // Event channel subscription updates. Server pushes one of these
 // whenever a channel transitions 0↔1 SSE subscribers; the module
 // registers or tears down the matching Hooks.on listeners.
@@ -1612,6 +1631,7 @@ export interface CommandParamsMap {
   'get-combat-turn-context': GetCombatTurnContextParams;
   'set-event-subscription': SetEventSubscriptionParams;
   'fetch-asset': { path: string };
+  'get-party-members': GetPartyMembersParams;
 }
 
 export interface CommandResultMap {
@@ -1710,4 +1730,5 @@ export interface CommandResultMap {
   'get-combat-turn-context': CombatTurnContext;
   'set-event-subscription': SetEventSubscriptionResult;
   'fetch-asset': { ok: boolean; contentType?: string; bytes?: string; status?: number; error?: string };
+  'get-party-members': PartyMemberResult[];
 }

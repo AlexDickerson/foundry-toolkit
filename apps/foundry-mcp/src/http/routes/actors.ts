@@ -8,12 +8,21 @@ import {
   addItemFromCompendiumBody,
   createActorBody,
   invokeActorActionBody,
+  partyActorsQuery,
   updateActorBody,
   updateActorItemBody,
 } from '../schemas.js';
 
 export function registerActorRoutes(app: FastifyInstance): void {
   app.get('/api/actors', async () => sendCommand('get-actors'));
+
+  /** Return player characters from the GM's party folder.
+   *  Optional `?folder=` query param overrides the default folder name
+   *  ("The Party") so GMs who renamed their folder don't need a code change. */
+  app.get('/api/actors/party', async (req) => {
+    const { folder } = partyActorsQuery.parse(req.query);
+    return sendCommand('get-party-members', folder ? { folderName: folder } : {});
+  });
 
   app.get('/api/actors/:id', async (req) => {
     const { id } = actorIdParam.parse(req.params);

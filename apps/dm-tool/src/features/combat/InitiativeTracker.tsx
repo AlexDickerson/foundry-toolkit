@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react';
-import { ChevronLeft, ChevronRight, Dice5, Heart, Trash2, UploadCloud, UserPlus, X } from 'lucide-react';
-import { Skull } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight, Dice5, Heart, Skull, Trash2, UploadCloud, UserPlus, X } from 'lucide-react';
 import type {
   Combatant,
   Encounter,
   MonsterDetail,
   MonsterSummary,
+  PartyMember,
   PushEncounterResult,
 } from '@foundry-toolkit/shared/types';
 import { api } from '@/lib/api';
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { reserveMonsterName, rollD20, sortedCombatants } from './util';
 import { PushResultDialog } from './PushResultDialog';
+import { PARTY_FOLDER_NAME, isAlreadyInEncounter, togglePartySelection } from './party-picker-utils';
 
 interface Props {
   encounter: Encounter;
@@ -21,7 +22,7 @@ interface Props {
 }
 
 export function InitiativeTracker({ encounter, onChange }: Props) {
-  const [addMode, setAddMode] = useState<'none' | 'monster' | 'pc'>('none');
+  const [addMode, setAddMode] = useState<'none' | 'monster' | 'party' | 'pc-manual'>('none');
   const [pushing, setPushing] = useState(false);
   const [pushResult, setPushResult] = useState<PushEncounterResult | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
@@ -282,7 +283,7 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
               <Skull className="mr-1 h-3.5 w-3.5" />
               Add monster
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setAddMode('pc')}>
+            <Button size="sm" variant="outline" onClick={() => setAddMode('party')}>
               <UserPlus className="mr-1 h-3.5 w-3.5" />
               Add PC
             </Button>
@@ -295,7 +296,15 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
             onClose={() => setAddMode('none')}
           />
         )}
-        {addMode === 'pc' && (
+        {addMode === 'party' && (
+          <PartyPickerPanel
+            existing={encounter.combatants}
+            onAdd={(pc) => void addPc(pc)}
+            onAddManually={() => setAddMode('pc-manual')}
+            onClose={() => setAddMode('none')}
+          />
+        )}
+        {addMode === 'pc-manual' && (
           <AddPcPanel
             onAdd={(pc) => {
               void addPc(pc);
@@ -517,6 +526,160 @@ function AddMonsterPanel({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Party picker: fetches characters from Foundry's party folder and
+ *  presents them as a multi-select list.  Falls back to the manual
+ *  form via the "Add manually" link when Foundry is not connected or
+ *  the folder is empty. */
+function PartyPickerPanel({
+  existing,
+  onAdd,
+  onAddManually,
+  onClose,
+}: {
+  existing: Combatant[];
+  onAdd: (pc: { name: string; initiativeMod: number; maxHp: number }) => void;
+  onAddManually: () => void;
+  onClose: () => void;
+}) {
+  const [members, setMembers] = useState<PartyMember[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [fetchStatus, setFetchStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void api
+      .listPartyMembers()
+      .then((result) => {
+        setMembers(result);
+        setFetchStatus('ready');
+      })
+      .catch((e: Error) => {
+        console.warn('PartyPickerPanel: failed to load party members:', e.message);
+        setFetchError(e.message || 'Could not reach Foundry.');
+        setFetchStatus('error');
+      });
+  }, []);
+
+  const handleToggle = (id: string) => setSelected((prev) => togglePartySelection(prev, id));
+
+  const handleAddSelected = () => {
+    for (const m of members) {
+      if (selected.has(m.id)) {
+        onAdd({ name: m.name, initiativeMod: m.initiativeMod, maxHp: m.maxHp });
+      }
+    }
+    setSelected(new Set());
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span className="text-xs font-medium text-foreground">Add from Party</span>
+        <div style={{ flex: 1 }} />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cancel"
+          className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Loading */}
+      {fetchStatus === 'loading' && <p className="text-xs text-muted-foreground">Loading party members…</p>}
+
+      {/* Error */}
+      {fetchStatus === 'error' && (
+        <p className="text-xs text-destructive">{fetchError ?? 'Failed to load party members.'}</p>
+      )}
+
+      {/* Empty */}
+      {fetchStatus === 'ready' && members.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          No characters found in the &ldquo;{PARTY_FOLDER_NAME}&rdquo; folder.
+        </p>
+      )}
+
+      {/* Member list */}
+      {fetchStatus === 'ready' && members.length > 0 && (
+        <div
+          style={{
+            maxHeight: 200,
+            overflowY: 'auto',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: 6,
+          }}
+        >
+          {members.map((m) => {
+            const sel = selected.has(m.id);
+            const added = isAlreadyInEncounter(existing, m.name);
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => handleToggle(m.id)}
+                className={cn(
+                  'flex w-full items-center gap-2 border-b border-border/40 px-2 py-1.5 text-left text-xs last:border-b-0 hover:bg-accent/40',
+                  sel && 'bg-accent/60',
+                )}
+              >
+                {/* Checkbox indicator */}
+                <span
+                  className={cn(
+                    'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border',
+                    sel ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground',
+                  )}
+                >
+                  {sel && (
+                    <svg viewBox="0 0 8 8" className="h-2.5 w-2.5 fill-current">
+                      <path
+                        d="M1 4l2 2 4-4"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </span>
+                <span className="flex-1 truncate font-medium">{m.name}</span>
+                <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                  Init {m.initiativeMod >= 0 ? '+' : ''}
+                  {m.initiativeMod} · HP {m.maxHp}
+                  {added && <span className="ml-1.5 text-primary">✓</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Footer actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {fetchStatus === 'ready' && members.length > 0 && (
+          <Button size="sm" onClick={handleAddSelected} disabled={selected.size === 0}>
+            {selected.size > 0 ? `Add (${selected.size.toString()})` : 'Add'}
+          </Button>
+        )}
+        <button
+          type="button"
+          onClick={onAddManually}
+          className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Add manually
+        </button>
+        <div style={{ flex: 1 }} />
+        <Button size="sm" variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }
