@@ -48,6 +48,7 @@ const KNOWN_CREATURE_TYPES = [
 ];
 
 const RARITY_TRAITS = new Set(['common', 'uncommon', 'rare', 'unique']);
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'unique'];
 const SIZE_TRAITS = new Set(['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']);
 
 let monsterCache: MonsterFacets | null = null;
@@ -101,7 +102,7 @@ function aggregateMonsterFacets(matches: CompendiumMatch[]): MonsterFacets {
   if (rarities.size === 0) rarities.add('common');
 
   return {
-    rarities: [...rarities].sort(),
+    rarities: [...rarities].sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b)),
     sizes: [...sizes].sort(),
     creatureTypes: [...creatureTypes].sort(),
     traits: [...traits].sort(),

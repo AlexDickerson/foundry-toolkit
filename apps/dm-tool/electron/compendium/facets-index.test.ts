@@ -64,7 +64,7 @@ describe('aggregateMonsterFacets', () => {
       monsterMatch({ level: 5, rarity: 'uncommon', traits: ['huge', 'dragon', 'amphibious'] }),
       monsterMatch({ level: 10, rarity: 'rare', traits: ['medium', 'humanoid', 'aquatic'] }),
     ]);
-    expect(out.rarities).toEqual(['common', 'rare', 'uncommon']);
+    expect(out.rarities).toEqual(['common', 'uncommon', 'rare']);
     expect(out.sizes).toEqual(['huge', 'large', 'medium']);
     expect(out.creatureTypes).toEqual(['Dragon', 'Humanoid']);
     expect(out.traits.sort()).toEqual(['amphibious', 'aquatic', 'fire']);
@@ -83,7 +83,7 @@ describe('aggregateMonsterFacets', () => {
       monsterMatch({ rarity: 'uncommon', traits: ['fiend'] }),
       monsterMatch({ rarity: 'rare', traits: ['undead'] }),
     ]);
-    expect(out.rarities).toEqual(['common', 'rare', 'uncommon', 'unique']);
+    expect(out.rarities).toEqual(['common', 'uncommon', 'rare', 'unique']);
     expect(out.traits).not.toContain('unique');
     expect(out.traits).not.toContain('common');
   });
