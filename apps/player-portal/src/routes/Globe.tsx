@@ -13,6 +13,7 @@ import {
   buildMapStyle,
   createCloudsLayer,
   createHaloLayer,
+  createLimbDarkeningLayer,
   createStarsLayer,
   ensureDefaultImage,
   ensureIconImage,
@@ -84,9 +85,11 @@ export function Globe() {
     map.on('style.load', () => {
       map.setProjection({ type: 'globe' });
       startAutoRotate(map, { startDelayMs: 500 });
+      // Limb darkening: subtle black overlay concentrated at the silhouette edge,
+      // providing the spherical-curvature depth cue. Added before clouds so the
+      // darkening is visible beneath any cloud cover.
+      map.addLayer(createLimbDarkeningLayer());
       // Ambient cloud wash — player-portal only; not in dm-tool.
-      // Added after style.load so it sits above terrain/labels but below the
-      // pin icon layer, which is added in the 'load' handler below.
       map.addLayer(createCloudsLayer());
     });
 

@@ -13,3 +13,5 @@ export { createCloudsLayer, mergeCloudsOptions } from './clouds.js';
 export type { CloudsOptions } from './clouds.js';
 export { createHaloLayer, mergeHaloOptions } from './halo.js';
 export type { HaloOptions, ResolvedHaloOptions } from './halo.js';
+export { createLimbDarkeningLayer, mergeLimbOptions } from './limb.js';
+export type { LimbOptions, ResolvedLimbOptions } from './limb.js';
