@@ -1,10 +1,12 @@
 import * as HoverCard from '@radix-ui/react-hover-card';
-import { ExternalLink, X } from 'lucide-react';
+import { ExternalLink, Info, X } from 'lucide-react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { cleanFoundryMarkup } from '@/lib/foundry-markup';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { MonsterDetail, MonsterSpellGroup, MonsterSpellInfo } from '@foundry-toolkit/shared/types';
+import { formatSkills } from './monster-skills';
 
 const RARITY_BADGE: Record<string, string> = {
   common: 'bg-zinc-600 text-zinc-100',
@@ -22,6 +24,8 @@ interface Props {
 
 export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: Props) {
   const mod = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
+  const [loreOpen, setLoreOpen] = useState(false);
+  const formattedSkills = formatSkills(detail.skills);
 
   return (
     <>
@@ -46,6 +50,17 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
           </span>
         ))}
         <div className="flex-1" />
+        {detail.description && (
+          <button
+            type="button"
+            aria-label="Show lore"
+            onMouseEnter={() => setLoreOpen(true)}
+            onMouseLeave={() => setLoreOpen(false)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onClose}
@@ -58,7 +73,7 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
       {loading ? (
         <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">Loading…</div>
       ) : (
-        <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 flex-1">
           {/* Left stat column */}
           <div className="flex w-16 shrink-0 flex-col items-center gap-3 border-r border-border py-3 text-[10px]">
             <StatCell label="AC" value={String(detail.ac)} />
@@ -77,15 +92,10 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
           {/* Right content */}
           <ScrollArea className="min-h-0 min-w-0 flex-1">
             <div className="space-y-4 p-4">
-              {/* Description */}
-              {detail.description && (
-                <p className="text-xs leading-relaxed text-muted-foreground">{detail.description}</p>
-              )}
-
               {/* Speed, Skills, Immunities/Weaknesses/Resistances */}
               <div className="space-y-1 text-xs">
                 <Stat label="Speed" value={detail.speed} />
-                {detail.skills && <Stat label="Skills" value={formatSkills(detail.skills)} />}
+                {formattedSkills && <Stat label="Skills" value={formattedSkills} />}
                 {detail.immunities && <Stat label="Immunities" value={detail.immunities} />}
                 {detail.weaknesses && <Stat label="Weaknesses" value={detail.weaknesses} />}
                 {detail.resistances && <Stat label="Resistances" value={detail.resistances} />}
@@ -156,6 +166,17 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
               )}
             </div>
           </ScrollArea>
+
+          {/* Lore overlay — covers the full content area on info-chip hover */}
+          {loreOpen && detail.description && (
+            <div
+              className="absolute inset-0 z-10 overflow-y-auto bg-background/50 px-5 py-4 backdrop-blur-sm"
+              onMouseEnter={() => setLoreOpen(true)}
+              onMouseLeave={() => setLoreOpen(false)}
+            >
+              <p className="text-xs leading-relaxed text-foreground/90">{detail.description}</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -183,17 +204,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
   );
-}
-
-function formatSkills(raw: string): string {
-  try {
-    const obj: Record<string, number> = JSON.parse(raw);
-    return Object.entries(obj)
-      .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)} ${v >= 0 ? '+' : ''}${v}`)
-      .join(', ');
-  } catch {
-    return raw;
-  }
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
