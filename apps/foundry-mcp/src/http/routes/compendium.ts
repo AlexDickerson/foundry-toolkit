@@ -106,8 +106,11 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
 
   app.get('/api/compendium/document', async (req) => {
     const { uuid } = getCompendiumDocumentQuery.parse(req.query);
-    const cached = compendiumCache.getDocument(uuid);
-    if (cached) return { document: cached };
+    // Always fetch from the bridge — the warm cache stores pack docs from
+    // the bulk dump which omits embedded `items` (spells, abilities, feats).
+    // Consumers that need single-doc caching (dm-tool) handle it themselves
+    // with their own TTL-bound SQLite cache. Going direct ensures `items`
+    // is always present in the response.
     return sendCommand('get-compendium-document', { uuid });
   });
 
