@@ -76,12 +76,14 @@ interface DamageModifierDialogApp {
   close(options?: { force?: boolean }): Promise<void>;
 }
 
-// PF2e's CheckDialogPF2e shows before attack / check rolls when the user
-// has "Show Check Dialogs" enabled. Unlike DamageModifierDialog it has no
-// `isRolled` flag: close() resolves the internal Promise with null (cancel),
-// and the roll proceeds only when the form is submitted (the Roll button).
+// PF2e's CheckModifiersDialog shows before attack / check rolls when the user
+// has "Show Check Dialogs" enabled. The class name is CheckModifiersDialog
+// (src/module/system/check/dialog.ts), so the AppV1 hook is
+// renderCheckModifiersDialog. Unlike DamageModifierDialog it has no `isRolled`
+// flag: close() resolves the internal Promise with false (cancel), and the
+// roll proceeds only when the form is submitted (the Roll button).
 // We suppress it by dispatching a submit event on the detached form element.
-interface CheckDialogPF2eApp {
+interface CheckModifiersDialogApp {
   close(options?: { force?: boolean }): Promise<void>;
 }
 
@@ -141,33 +143,34 @@ export function installPromptInterception(wsClients: readonly WebSocketClient[])
     void app.close();
   });
 
-  // Suppress PF2e's CheckDialogPF2e (attack / check modifier dialog).
+  // Suppress PF2e's CheckModifiersDialog (attack / check modifier dialog).
   //
-  // PF2e renders CheckDialogPF2e before attack rolls when "Show Check Dialogs"
-  // is enabled in the system settings. The dialog asks for situational
-  // modifiers (+/− bonuses). Portal players cannot see it, so the attack
-  // stalls until someone clicks in Foundry — even though rollStrikeAction
-  // passes skipDialog: true, PF2e still fires the render hook.
+  // PF2e renders CheckModifiersDialog before attack rolls when "Show Check
+  // Dialogs" is enabled in the system settings (src/module/system/check/
+  // dialog.ts). The strike variant's roll() in document.ts builds checkContext
+  // as a plain object and never forwards skipDialog from AttackRollParams, so
+  // passing skipDialog:true to variant.roll() is silently ignored — the dialog
+  // appears whenever game.user.settings.showCheckDialogs is true.
   //
   // Unlike DamageModifierDialog (where setting app.isRolled=true before
-  // close() signals "proceed"), CheckDialogPF2e resolves its internal Promise
-  // only when the form is submitted. Calling close() directly resolves with
-  // null (cancel) and aborts the roll.
+  // close() signals "proceed"), CheckModifiersDialog resolves its internal
+  // Promise only when the form is submitted. Calling close() directly calls
+  // resolve(false) (cancel) and aborts the roll.
   //
   // Fix:
   //   1. Remove $html from the DOM synchronously — prevents any visual flash
   //      and eliminates the 200 ms slideUp zombie-element race.
-  //   2. Dispatch a native "submit" event on the detached form element.
-  //      jQuery handlers registered via .on() use addEventListener internally
-  //      and fire on detached nodes, so the activateListeners submit handler
-  //      fires, resolves the Promise with the form's current (default, zero)
-  //      modifier values, and calls close() on the detached node (no-op).
+  //   2. Dispatch a native "submit" event on the detached <form> element.
+  //      The activateListeners submit handler is a native addEventListener on
+  //      $html[0] (the outer .app wrapper); the submit event bubbles from the
+  //      form up to it, calling resolve(true) → the attack proceeds with the
+  //      form's current (default, zero) modifier values.
   //   3. Fall back to clicking button[type="submit"] if no <form> is present.
   //   4. Last resort: app.close() — cancels the roll but unblocks the stall.
   //
   // @ts-expect-error — Hooks is untyped
-  Hooks.on('renderCheckDialogPF2e', (app: CheckDialogPF2eApp, $html: unknown) => {
-    console.info('Foundry API Bridge | Suppressing CheckDialogPF2e — triggering Roll with defaults');
+  Hooks.on('renderCheckModifiersDialog', (app: CheckModifiersDialogApp, $html: unknown) => {
+    console.info('Foundry API Bridge | Suppressing CheckModifiersDialog — triggering Roll with defaults');
     const jq = $html as JQueryLike;
     // Detach from DOM synchronously to prevent visual flash.
     jq.remove();
@@ -184,12 +187,14 @@ export function installPromptInterception(wsClients: readonly WebSocketClient[])
     }
     // Neither found — close() cancels the roll but at least unblocks the stall.
     console.warn(
-      'Foundry API Bridge | CheckDialogPF2e: no form or submit button found — closing (roll will be cancelled)',
+      'Foundry API Bridge | CheckModifiersDialog: no form or submit button found — closing (roll will be cancelled)',
     );
     void app.close();
   });
 
-  console.log('Foundry API Bridge | Prompt interception installed (PickAThingPrompt, DamageModifierDialog, CheckDialogPF2e)');
+  console.log(
+    'Foundry API Bridge | Prompt interception installed (PickAThingPrompt, DamageModifierDialog, CheckModifiersDialog)',
+  );
 }
 
 async function handlePrompt(app: PickAThingPromptApp, wsClients: readonly WebSocketClient[]): Promise<void> {

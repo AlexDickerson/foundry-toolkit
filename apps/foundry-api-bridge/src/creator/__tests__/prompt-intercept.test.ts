@@ -226,20 +226,20 @@ describe('installPromptInterception — renderDamageModifierDialog', () => {
   });
 });
 
-// ─── CheckDialogPF2e suppression ─────────────────────────────────────────
+// ─── CheckModifiersDialog suppression ─────────────────────────────────────────
 //
-// PF2e's CheckDialogPF2e (attack / check modifier prompt) resolves its
+// PF2e's CheckModifiersDialog (attack / check modifier prompt) resolves its
 // internal Promise by submitting its form, not by calling close() directly.
 // Calling close() would cancel the roll (resolves with null). The hook
 // removes the element from the DOM (prevent flash) then dispatches a submit
 // event on the detached form so the activateListeners handler fires and the
 // roll proceeds with the form's default (zero) modifier values.
 
-describe('installPromptInterception — renderCheckDialogPF2e', () => {
-  it('registers a renderCheckDialogPF2e hook', () => {
+describe('installPromptInterception — renderCheckModifiersDialog', () => {
+  it('registers a renderCheckModifiersDialog hook', () => {
     installPromptInterception([]);
     const names = hooksMock.registered.map((h) => h.name);
-    expect(names).toContain('renderCheckDialogPF2e');
+    expect(names).toContain('renderCheckModifiersDialog');
   });
 
   it('removes the element from DOM and dispatches submit on the form', () => {
@@ -256,7 +256,7 @@ describe('installPromptInterception — renderCheckDialogPF2e', () => {
     };
     const app = { close: jest.fn().mockResolvedValue(undefined) };
 
-    hooksMock.fire('renderCheckDialogPF2e', app, $html);
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
 
     expect(removeMock).toHaveBeenCalled();
     expect(dispatchMock).toHaveBeenCalledWith(expect.objectContaining({ type: 'submit' }));
@@ -279,7 +279,7 @@ describe('installPromptInterception — renderCheckDialogPF2e', () => {
     };
     const app = { close: jest.fn().mockResolvedValue(undefined) };
 
-    hooksMock.fire('renderCheckDialogPF2e', app, $html);
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
 
     expect(callOrder).toEqual(['remove', 'submit']);
   });
@@ -299,7 +299,7 @@ describe('installPromptInterception — renderCheckDialogPF2e', () => {
     };
     const app = { close: jest.fn().mockResolvedValue(undefined) };
 
-    hooksMock.fire('renderCheckDialogPF2e', app, $html);
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
 
     expect(removeMock).toHaveBeenCalled();
     expect(clickMock).toHaveBeenCalled();
@@ -315,7 +315,7 @@ describe('installPromptInterception — renderCheckDialogPF2e', () => {
     };
     const app = { close: jest.fn().mockResolvedValue(undefined) };
 
-    hooksMock.fire('renderCheckDialogPF2e', app, $html);
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
     await Promise.resolve();
 
     expect(app.close).toHaveBeenCalled();
@@ -333,7 +333,7 @@ describe('installPromptInterception — renderCheckDialogPF2e', () => {
     };
     const app = { close: jest.fn().mockResolvedValue(undefined) };
 
-    hooksMock.fire('renderCheckDialogPF2e', app, $html);
+    hooksMock.fire('renderCheckModifiersDialog', app, $html);
 
     expect(app.close).not.toHaveBeenCalled();
   });

@@ -427,7 +427,7 @@ async function rollStrikeAction(
   if (!variant) {
     throw new Error(`roll-strike: strike "${strikeSlug}" has no variant ${variantIndex.toString()}`);
   }
-  // skipDialog: true — suppress PF2e's CheckDialogPF2e (situational modifier
+  // skipDialog: true — suppress PF2e's CheckModifiersDialog (situational modifier
   // prompt). Portal players are explicitly requesting the attack; they
   // don't need a dialog step. Consistent with rollStatisticAction.
   await variant.roll({ skipDialog: true });
