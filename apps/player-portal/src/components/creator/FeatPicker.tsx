@@ -328,7 +328,7 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
               setQuery(e.target.value);
             }}
             placeholder="Type to filter…"
-            className="w-full rounded border border-pf-border bg-white px-2 py-1 text-sm text-pf-text placeholder:text-pf-alt focus:border-pf-primary focus:outline-none"
+            className="w-full rounded border border-pf-border bg-pf-bg px-2 py-1 text-sm text-pf-text placeholder:text-pf-alt focus:border-pf-primary focus:outline-none"
             data-testid="feat-picker-input"
           />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
@@ -532,7 +532,7 @@ function SourcePicker({
           'rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-colors',
           count > 0
             ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
-            : 'border-pf-border bg-white text-pf-alt-dark hover:text-pf-primary',
+            : 'border-pf-border bg-pf-bg text-pf-alt-dark hover:text-pf-primary',
         ].join(' ')}
       >
         {label} {open ? '▴' : '▾'}
@@ -541,7 +541,7 @@ function SourcePicker({
         <div
           role="listbox"
           data-testid="source-picker-panel"
-          className="absolute left-0 top-full z-10 mt-1 flex max-h-72 w-80 flex-col rounded border border-pf-border bg-white shadow-lg"
+          className="absolute left-0 top-full z-10 mt-1 flex max-h-72 w-80 flex-col rounded border border-pf-border bg-pf-bg shadow-lg"
         >
           <div className="flex items-center gap-1 border-b border-pf-border p-2">
             <input
@@ -551,7 +551,7 @@ function SourcePicker({
                 setFilter(e.target.value);
               }}
               placeholder="Filter sources…"
-              className="flex-1 rounded border border-pf-border bg-white px-2 py-0.5 text-xs text-pf-text placeholder:text-pf-alt focus:border-pf-primary focus:outline-none"
+              className="flex-1 rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-xs text-pf-text placeholder:text-pf-alt focus:border-pf-primary focus:outline-none"
               data-testid="source-picker-filter"
             />
           </div>
@@ -653,7 +653,7 @@ function SortToggle({ sort, onChange }: { sort: SortState; onChange: (mode: Sort
               'px-2 py-0.5 transition-colors',
               active
                 ? 'bg-pf-primary text-white'
-                : 'bg-white text-pf-alt-dark hover:bg-pf-tertiary/40 hover:text-pf-primary',
+                : 'bg-pf-bg text-pf-alt-dark hover:bg-pf-tertiary/40 hover:text-pf-primary',
             ].join(' ')}
           >
             {opt.label}
@@ -980,7 +980,7 @@ function DetailPanel({
         <button
           type="button"
           onClick={onClose}
-          className="rounded border border-pf-border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-pf-alt-dark hover:text-pf-primary"
+          className="rounded border border-pf-border bg-pf-bg px-3 py-1 text-xs font-semibold uppercase tracking-widest text-pf-alt-dark hover:text-pf-primary"
         >
           Back
         </button>

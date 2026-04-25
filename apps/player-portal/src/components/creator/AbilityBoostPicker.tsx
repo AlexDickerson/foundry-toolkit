@@ -138,8 +138,8 @@ export function AbilityBoostPicker({
                   isSelected
                     ? 'border-pf-primary bg-pf-tertiary/40'
                     : locked
-                      ? 'cursor-not-allowed border-pf-border bg-white opacity-40'
-                      : 'border-pf-border bg-white hover:bg-pf-tertiary/20',
+                      ? 'cursor-not-allowed border-pf-border bg-pf-bg opacity-40'
+                      : 'border-pf-border bg-pf-bg hover:bg-pf-tertiary/20',
                 ].join(' ')}
               >
                 <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">
@@ -155,7 +155,7 @@ export function AbilityBoostPicker({
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-pf-border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-pf-alt-dark hover:text-pf-primary"
+            className="rounded border border-pf-border bg-pf-bg px-3 py-1 text-xs font-semibold uppercase tracking-widest text-pf-alt-dark hover:text-pf-primary"
           >
             Cancel
           </button>
@@ -170,7 +170,7 @@ export function AbilityBoostPicker({
               'rounded border px-3 py-1 text-xs font-semibold uppercase tracking-widest',
               canApply
                 ? 'border-pf-primary bg-pf-primary text-white hover:brightness-110'
-                : 'cursor-not-allowed border-pf-border bg-white text-pf-alt opacity-60',
+                : 'cursor-not-allowed border-pf-border bg-pf-bg text-pf-alt opacity-60',
             ].join(' ')}
           >
             Apply {selected.length}/{BOOSTS_PER_SET}

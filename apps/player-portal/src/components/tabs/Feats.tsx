@@ -70,7 +70,7 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
 
   return (
     <li className="relative" data-item-id={feat.id} data-feat-slug={feat.system.slug ?? ''}>
-      <details className="group rounded border border-pf-border bg-white open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
+      <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
         <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-2 hover:bg-pf-bg-dark/40">
           <img
             src={feat.img}

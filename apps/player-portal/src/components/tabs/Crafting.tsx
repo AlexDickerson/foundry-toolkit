@@ -182,7 +182,7 @@ function FormulaCard({
 
   return (
     <li className="relative" data-formula-uuid={formula.uuid}>
-      <details className="group rounded border border-pf-border bg-white open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
+      <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
         <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-2 hover:bg-pf-bg-dark/40">
           {img !== null ? (
             <img
@@ -198,7 +198,7 @@ function FormulaCard({
             {state.kind === 'error' && (
               <>
                 <span className="block text-sm text-red-700">Unresolved formula</span>
-                <span className="block truncate font-mono text-[10px] text-neutral-500">{formula.uuid}</span>
+                <span className="block truncate font-mono text-[10px] text-pf-text-muted">{formula.uuid}</span>
               </>
             )}
             {state.kind === 'ok' && name !== null && (
@@ -266,7 +266,7 @@ function FormulaDetail({
     return (
       <>
         <p className="text-xs text-red-700">Couldn&apos;t load this formula: {state.message}</p>
-        <p className="mt-1 font-mono text-[10px] text-neutral-500">{uuid}</p>
+        <p className="mt-1 font-mono text-[10px] text-pf-text-muted">{uuid}</p>
         <div className="mt-2 flex justify-end">
           <RemoveFormulaButton onClick={onRemove} />
         </div>
@@ -323,7 +323,7 @@ function CraftingAbilityCard({
   const slotsMax = entry.maxSlots;
 
   return (
-    <li className="rounded border border-pf-border bg-white p-3" data-ability-slug={entry.slug}>
+    <li className="rounded border border-pf-border bg-pf-bg p-3" data-ability-slug={entry.slug}>
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-pf-text">{entry.label}</h3>
         <div className="flex flex-shrink-0 flex-wrap items-start justify-end gap-1">

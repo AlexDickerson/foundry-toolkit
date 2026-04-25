@@ -64,7 +64,7 @@ export function SheetHeader({ character, onBack, onSettingsOpen }: Props): React
                 data-testid="open-settings"
                 aria-label="Settings"
                 title="Settings"
-                className="flex h-7 w-7 items-center justify-center rounded border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+                className="flex h-7 w-7 items-center justify-center rounded border border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg"
               >
                 <GearIcon />
               </button>
@@ -74,7 +74,7 @@ export function SheetHeader({ character, onBack, onSettingsOpen }: Props): React
                 type="button"
                 onClick={onBack}
                 data-testid="back-to-actors"
-                className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg"
               >
                 ← Actors
               </button>

@@ -195,8 +195,8 @@ export function LanguagesStep({
                       picked
                         ? 'border-pf-primary bg-pf-tertiary/40 text-pf-primary'
                         : locked
-                          ? 'cursor-not-allowed border-pf-border bg-white text-pf-alt-dark opacity-40'
-                          : 'border-pf-border bg-white text-pf-text hover:bg-pf-tertiary/20',
+                          ? 'cursor-not-allowed border-pf-border bg-pf-bg text-pf-alt-dark opacity-40'
+                          : 'border-pf-border bg-pf-bg text-pf-text hover:bg-pf-tertiary/20',
                     ].join(' ')}
                   >
                     <span>{lang.label}</span>

@@ -30,7 +30,7 @@ export function Actions({ actions, items, abilities, actorId, onItemUsed }: Prop
 
   const hasAny = strikes.length > 0 || actionItems.length > 0;
   if (!hasAny) {
-    return <p className="text-sm text-neutral-500">No actions available.</p>;
+    return <p className="text-sm text-pf-text-muted">No actions available.</p>;
   }
 
   return (
@@ -81,7 +81,7 @@ function StrikeCard({
 
   return (
     <li
-      className="rounded border border-neutral-200 bg-white p-3"
+      className="rounded border border-pf-border bg-pf-bg p-3"
       data-strike-slug={strike.slug}
       data-ready={strike.ready ? 'true' : 'false'}
     >
@@ -89,19 +89,19 @@ function StrikeCard({
         <img
           src={strike.item.img}
           alt=""
-          className="h-10 w-10 flex-shrink-0 rounded border border-neutral-200 bg-neutral-50"
+          className="h-10 w-10 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
             <span className="truncate text-sm font-medium text-neutral-900">
               {strike.label}
               {strike.quantity > 1 && (
-                <span className="ml-2 text-xs font-normal text-neutral-500">×{strike.quantity}</span>
+                <span className="ml-2 text-xs font-normal text-pf-text-muted">×{strike.quantity}</span>
               )}
             </span>
             {damageText !== null && (
               <span
-                className="flex-shrink-0 font-mono text-xs tabular-nums text-neutral-500"
+                className="flex-shrink-0 font-mono text-xs tabular-nums text-pf-text-muted"
                 data-role="strike-damage"
               >
                 {damageText}
@@ -118,7 +118,7 @@ function StrikeCard({
               type="button"
               onClick={() => void damage.trigger()}
               disabled={damage.state === 'pending'}
-              className="rounded border border-neutral-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-neutral-800 hover:bg-neutral-100 disabled:opacity-50"
+              className="rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-[11px] font-semibold text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
               data-role="strike-damage-roll"
             >
               {damage.state === 'pending' ? 'Rolling…' : 'Damage'}
@@ -136,7 +136,7 @@ function StrikeCard({
           {error !== null && <p className="mt-1 text-[11px] text-red-700">{error}</p>}
           {allTraits.length > 0 && <TraitChips traits={allTraits} />}
           {range !== null && range !== undefined && (
-            <p className="mt-1 text-[10px] text-neutral-500">Range: {range} ft</p>
+            <p className="mt-1 text-[10px] text-pf-text-muted">Range: {range} ft</p>
           )}
         </div>
       </div>
@@ -239,7 +239,7 @@ function VariantStrip({
               'rounded border px-1.5 py-0.5 font-mono text-xs tabular-nums disabled:opacity-50',
               i === 0
                 ? 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
-                : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100',
+                : 'border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg-dark',
             ].join(' ')}
           >
             {v.label}
@@ -305,7 +305,7 @@ function ActionCard({
 
   return (
     <li
-      className="rounded border border-neutral-200 bg-white"
+      className="rounded border border-pf-border bg-pf-bg"
       data-action-id={item.id}
       data-action-kind={kind}
       data-expanded={expanded ? 'true' : 'false'}
@@ -314,7 +314,7 @@ function ActionCard({
         <img
           src={item.img}
           alt=""
-          className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-neutral-200 bg-neutral-50"
+          className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
@@ -341,7 +341,7 @@ function ActionCard({
               type="button"
               onClick={toggle}
               aria-label={expanded ? 'Collapse' : 'Expand'}
-              className="text-[10px] text-neutral-500 hover:text-neutral-800"
+              className="text-[10px] text-pf-text-muted hover:text-pf-text"
             >
               {expanded ? '▾' : '▸'}
             </button>
@@ -354,7 +354,7 @@ function ActionCard({
               {traits.map((slug) => (
                 <li
                   key={slug}
-                  className="rounded-full border border-neutral-300 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-600"
+                  className="rounded-full border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[10px] text-pf-text-muted"
                 >
                   {capitaliseSlug(slug)}
                 </li>
@@ -365,7 +365,7 @@ function ActionCard({
       </div>
       {expanded && (
         <div
-          className="border-t border-neutral-200 bg-pf-bg/60 px-3 py-2 text-sm text-pf-text"
+          className="border-t border-pf-border bg-pf-bg/60 px-3 py-2 text-sm text-pf-text"
           data-role="action-description"
         >
           {hasDescription ? (
@@ -396,7 +396,7 @@ function ActionCostBadge({ kind, count }: { kind: string; count: number | null }
     action: 'border-emerald-300 bg-emerald-50 text-emerald-800',
     reaction: 'border-sky-300 bg-sky-50 text-sky-800',
     free: 'border-violet-300 bg-violet-50 text-violet-800',
-    passive: 'border-neutral-300 bg-neutral-50 text-neutral-600',
+    passive: 'border-pf-border bg-pf-bg text-pf-text-muted',
   };
   return (
     <span
@@ -418,7 +418,7 @@ function TraitChips({ traits }: { traits: { name: string; label: string }[] }): 
       {traits.map((t) => (
         <li
           key={t.name}
-          className="rounded-full border border-neutral-300 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-600"
+          className="rounded-full border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[10px] text-pf-text-muted"
           title={t.name}
         >
           {t.label}

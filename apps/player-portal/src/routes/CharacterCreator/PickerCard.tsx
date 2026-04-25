@@ -66,7 +66,7 @@ export function PickerCard({
         type="button"
         onClick={onOpen}
         disabled={disabled === true}
-        className="rounded border border-pf-border bg-white px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark disabled:cursor-not-allowed disabled:opacity-50"
       >
         Change
       </button>

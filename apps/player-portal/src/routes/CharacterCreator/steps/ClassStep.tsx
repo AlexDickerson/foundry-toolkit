@@ -142,7 +142,7 @@ function ClassFeaturesList({ state }: { state: ClassDocState }): React.ReactElem
         <li
           key={f.uuid}
           data-uuid={f.uuid}
-          className="inline-flex cursor-default items-center gap-1.5 rounded border border-pf-border bg-white px-2 py-1 text-xs text-pf-text"
+          className="inline-flex cursor-default items-center gap-1.5 rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text"
         >
           <img src={f.img} alt="" className="h-4 w-4 rounded bg-pf-bg-dark" />
           <span className="truncate">{f.name}</span>

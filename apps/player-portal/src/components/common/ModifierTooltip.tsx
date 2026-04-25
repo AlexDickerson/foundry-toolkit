@@ -19,17 +19,17 @@ export function ModifierTooltip({ title, breakdown, modifiers }: Props): React.R
       role="tooltip"
       className={[
         'invisible absolute left-0 top-full z-10 mt-1 w-72',
-        'rounded border border-neutral-300 bg-white p-3 text-xs shadow-lg',
+        'rounded border border-pf-border bg-pf-bg p-3 text-xs shadow-lg',
         'group-hover:visible',
       ].join(' ')}
     >
       <div className="mb-1 text-sm font-semibold text-neutral-900">{t(title)}</div>
-      <div className="mb-2 text-neutral-600">{breakdown}</div>
+      <div className="mb-2 text-pf-text-muted">{breakdown}</div>
       {active.length > 0 && (
         <ul className="space-y-0.5">
           {active.map((m) => (
             <li key={m.slug} className="flex items-center justify-between gap-2">
-              <span className="text-neutral-700">{t(m.label)}</span>
+              <span className="text-pf-text">{t(m.label)}</span>
               <span
                 className={['font-mono tabular-nums', m.kind === 'penalty' ? 'text-red-700' : 'text-emerald-800'].join(
                   ' ',

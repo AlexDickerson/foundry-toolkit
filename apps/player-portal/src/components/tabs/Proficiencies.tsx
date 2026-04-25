@@ -124,7 +124,7 @@ function SkillRow({ skill, spanFull }: { skill: SkillStatistic; spanFull?: boole
   return (
     <li
       className={[
-        'group relative flex items-center gap-3 rounded border border-neutral-200 bg-white px-3 py-2',
+        'group relative flex items-center gap-3 rounded border border-pf-border bg-pf-bg px-3 py-2',
         spanFull === true ? 'sm:col-span-2' : '',
       ].join(' ')}
       data-statistic={skill.slug}
@@ -151,7 +151,7 @@ function MartialRow({
   return (
     <li
       className={[
-        'flex items-center gap-3 rounded border border-neutral-200 bg-white px-3 py-2',
+        'flex items-center gap-3 rounded border border-pf-border bg-pf-bg px-3 py-2',
         spanFull === true ? 'sm:col-span-2' : '',
       ].join(' ')}
       data-slug={slug}
@@ -168,7 +168,7 @@ function ClassDCRow({ classDC, spanFull }: { classDC: ClassDC; spanFull: boolean
   return (
     <li
       className={[
-        'group relative flex items-center gap-3 rounded border border-neutral-200 bg-white px-3 py-2',
+        'group relative flex items-center gap-3 rounded border border-pf-border bg-pf-bg px-3 py-2',
         spanFull ? 'sm:col-span-2' : '',
       ].join(' ')}
     >
