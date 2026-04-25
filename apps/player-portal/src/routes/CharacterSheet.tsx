@@ -18,6 +18,7 @@ import { Spells } from '../components/tabs/Spells';
 import { useEventChannel } from '../lib/useEventChannel';
 import { fromPreparedCharacter } from '../prereqs';
 import { usePreferences } from '../lib/usePreferences';
+import { prefetchIcons } from '../lib/prefetchIcons';
 import { PromptQueue } from '../components/dialog/PromptQueue';
 
 type State =
@@ -88,7 +89,9 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
           });
           return;
         }
-        setState({ kind: 'ready', actor: actor as unknown as PreparedCharacter });
+        const preparedActor = actor as unknown as PreparedCharacter;
+        setState({ kind: 'ready', actor: preparedActor });
+        prefetchIcons(preparedActor);
       })
       .catch((err: unknown): void => {
         if (cancelled) return;
