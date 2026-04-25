@@ -11,6 +11,7 @@ import {
   PIN_LAYER,
   PIN_SOURCE,
   buildMapStyle,
+  createCloudsLayer,
   createStarsLayer,
   ensureDefaultImage,
   ensureIconImage,
@@ -82,6 +83,10 @@ export function Globe() {
     map.on('style.load', () => {
       map.setProjection({ type: 'globe' });
       startAutoRotate(map, { startDelayMs: 500 });
+      // Ambient cloud wash — player-portal only; not in dm-tool.
+      // Added after style.load so it sits above terrain/labels but below the
+      // pin icon layer, which is added in the 'load' handler below.
+      map.addLayer(createCloudsLayer());
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
