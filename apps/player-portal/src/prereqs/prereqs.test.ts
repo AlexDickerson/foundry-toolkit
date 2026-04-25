@@ -541,3 +541,146 @@ describe('Temperature Adjustment: "master in Crafting, Herbalism Lore, or Medici
     expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Lore skill patterns — "trained in Lore", specific lore, hyphenated names
+// ---------------------------------------------------------------------------
+
+describe('"trained in Lore" / "expert in Lore" — bare Lore wildcard', () => {
+  it('parses "trained in Lore" → skill-rank-any-lore', () => {
+    expect(parsePrerequisite('trained in Lore')).toEqual([{ kind: 'skill-rank-any-lore', min: 1 }]);
+  });
+
+  it('parses "expert in Lore" → skill-rank-any-lore with min 2', () => {
+    expect(parsePrerequisite('expert in Lore')).toEqual([{ kind: 'skill-rank-any-lore', min: 2 }]);
+  });
+
+  // Experienced Professional
+  it('Experienced Professional: passes when character has any lore skill trained', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['warfare lore', 1]]),
+      loreSkillSlugs: new Set(['warfare lore']),
+    });
+    expect(evaluateAll(parsePrerequisite('trained in Lore'), ctx)).toBe('meets');
+  });
+
+  it('Experienced Professional: fails when lore skill is untrained (rank 0)', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['warfare lore', 0]]),
+      loreSkillSlugs: new Set(['warfare lore']),
+    });
+    expect(evaluateAll(parsePrerequisite('trained in Lore'), ctx)).toBe('fails');
+  });
+
+  it('Experienced Professional: unknown when character has no lore skills at all', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['athletics', 1]]), loreSkillSlugs: new Set() });
+    expect(evaluateAll(parsePrerequisite('trained in Lore'), ctx)).toBe('unknown');
+  });
+
+  // Unmistakable Lore
+  it('Unmistakable Lore: passes when character has any lore skill at expert', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['legal lore', 2]]),
+      loreSkillSlugs: new Set(['legal lore']),
+    });
+    expect(evaluateAll(parsePrerequisite('expert in Lore'), ctx)).toBe('meets');
+  });
+
+  it('Unmistakable Lore: fails when lore skill is only trained', () => {
+    const ctx = makeCtx({
+      skillRanks: skillMap([['legal lore', 1]]),
+      loreSkillSlugs: new Set(['legal lore']),
+    });
+    expect(evaluateAll(parsePrerequisite('expert in Lore'), ctx)).toBe('fails');
+  });
+});
+
+describe('Specific lore skill prereqs', () => {
+  // Battle Planner — "expert in Warfare Lore"
+  it('Battle Planner: parses correctly and passes when expert in Warfare Lore', () => {
+    expect(parsePrerequisite('expert in Warfare Lore')).toEqual([
+      { kind: 'skill-rank', skill: 'warfare lore', min: 2 },
+    ]);
+    const ctx = makeCtx({ skillRanks: skillMap([['warfare lore', 2]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Warfare Lore'), ctx)).toBe('meets');
+  });
+
+  it('Battle Planner: fails when only trained in Warfare Lore', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['warfare lore', 1]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Warfare Lore'), ctx)).toBe('fails');
+  });
+
+  // Contract Negotiator — "trained in Legal Lore"
+  it('Contract Negotiator: passes when trained in Legal Lore', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['legal lore', 1]]) });
+    expect(evaluateAll(parsePrerequisite('trained in Legal Lore'), ctx)).toBe('meets');
+  });
+
+  // Ravening's Desperation — "trained in Zevgavizeb Lore"
+  it("Ravening's Desperation: passes when trained in Zevgavizeb Lore", () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['zevgavizeb lore', 1]]) });
+    expect(evaluateAll(parsePrerequisite('trained in Zevgavizeb Lore'), ctx)).toBe('meets');
+  });
+
+  // What's That up Your Sleeve — "expert in Gambling Lore"
+  it("What's That up Your Sleeve: passes when expert in Gambling Lore", () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['gambling lore', 2]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Gambling Lore'), ctx)).toBe('meets');
+  });
+
+  it("What's That up Your Sleeve: fails when only trained in Gambling Lore", () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['gambling lore', 1]]) });
+    expect(evaluateAll(parsePrerequisite('expert in Gambling Lore'), ctx)).toBe('fails');
+  });
+});
+
+describe('Hyphenated lore skill names in prereq strings', () => {
+  // Myth Hunter — "trained in Hero-God Lore or Legendary Beast Lore"
+  it('Myth Hunter: parses to skill-rank-any-of with normalised hyphenless keys', () => {
+    expect(parsePrerequisite('trained in Hero-God Lore or Legendary Beast Lore')).toEqual([
+      { kind: 'skill-rank-any-of', skills: ['hero god lore', 'legendary beast lore'], min: 1 },
+    ]);
+  });
+
+  it('Myth Hunter: passes when trained in Hero-God Lore (slug "hero-god-lore" → "hero god lore")', () => {
+    // Character context normalises "hero-god-lore" → "hero god lore"; parser
+    // normalises prereq "Hero-God Lore" → "hero god lore". Keys match.
+    const ctx = makeCtx({ skillRanks: skillMap([['hero god lore', 1], ['legendary beast lore', 0]]) });
+    expect(evaluateAll(parsePrerequisite('trained in Hero-God Lore or Legendary Beast Lore'), ctx)).toBe('meets');
+  });
+
+  it('Myth Hunter: passes when trained in Legendary Beast Lore', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['hero god lore', 0], ['legendary beast lore', 1]]) });
+    expect(evaluateAll(parsePrerequisite('trained in Hero-God Lore or Legendary Beast Lore'), ctx)).toBe('meets');
+  });
+
+  it('Myth Hunter: fails when trained in neither', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['hero god lore', 0], ['legendary beast lore', 0]]) });
+    expect(evaluateAll(parsePrerequisite('trained in Hero-God Lore or Legendary Beast Lore'), ctx)).toBe('fails');
+  });
+});
+
+describe('Armor Assist: "trained in Athletics or Warfare Lore"', () => {
+  const PREREQ = 'trained in Athletics or Warfare Lore';
+
+  it('parses to skill-rank-any-of with both options', () => {
+    expect(parsePrerequisite(PREREQ)).toEqual([
+      { kind: 'skill-rank-any-of', skills: ['athletics', 'warfare lore'], min: 1 },
+    ]);
+  });
+
+  it('passes when trained in Athletics', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['athletics', 1], ['warfare lore', 0]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('passes when trained in Warfare Lore only', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['athletics', 0], ['warfare lore', 1]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('meets');
+  });
+
+  it('fails when untrained in both', () => {
+    const ctx = makeCtx({ skillRanks: skillMap([['athletics', 0], ['warfare lore', 0]]) });
+    expect(evaluateAll(parsePrerequisite(PREREQ), ctx)).toBe('fails');
+  });
+});

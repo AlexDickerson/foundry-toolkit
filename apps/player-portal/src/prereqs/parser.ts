@@ -36,6 +36,11 @@ const ABILITY_KEY: Record<string, Predicate & { kind: 'ability' } extends { abil
   charisma: 'cha',
 } as const;
 
+// Normalises a skill name from a prereq string to match character-context map
+// keys: lowercase + hyphens replaced with spaces, mirroring the normalisation
+// applied to pf2e slugs ("hero-god-lore" → "hero god lore").
+const normSkill = (s: string): string => s.toLowerCase().replace(/-/g, ' ');
+
 // "trained in at least one skill" / "trained in any skill" / "trained at any skill"
 const SKILL_RANK_ANY_RE = /^\s*(trained|expert|master|legendary)\s+(?:in|at)\s+(?:at\s+least\s+one|any)\s+skill\s*$/i;
 // Captures "rank in/at <rest>" so we can detect or-lists before comma-splitting mangles them
@@ -80,7 +85,9 @@ function parseWholePhrase(phrase: string): Predicate[] | null {
       const skills: string[] = [];
       let hasLoreWildcard = false;
       for (const item of rawItems) {
-        if (/^(?:a|any)\s+lore\s+skill$/i.test(item)) {
+        // "a Lore skill" / "any Lore skill" / bare "Lore" (no topic) all mean
+        // "any lore skill the character has at the required rank".
+        if (/^(?:a|any)\s+lore\s+skill$/i.test(item) || /^lore$/i.test(item)) {
           hasLoreWildcard = true;
         } else {
           skills.push(item);
@@ -101,15 +108,15 @@ function parseWholePhrase(phrase: string): Predicate[] | null {
     if (/\band\b/i.test(rest) && !/\bor\b/i.test(rest)) {
       const parts = rest
         .split(/\s+and\s+/i)
-        .map((s) => s.trim().toLowerCase())
+        .map((s) => normSkill(s.trim()))
         .filter(Boolean);
       if (parts.length >= 2 && parts.every((s) => /^[a-z][a-z\s-]*$/.test(s))) {
         return parts.map((s) => ({ kind: 'skill-rank' as const, skill: s, min: rank }));
       }
     }
 
-    // Standalone lore wildcard: "trained in a Lore skill"
-    if (/^(?:a|any)\s+lore\s+skill$/i.test(rest)) {
+    // Standalone lore wildcard: "trained in a Lore skill" / "trained in Lore"
+    if (/^(?:a|any)\s+lore\s+skill$/i.test(rest) || /^lore$/i.test(rest)) {
       return [{ kind: 'skill-rank-any-lore', min: rank }];
     }
   }
@@ -118,12 +125,13 @@ function parseWholePhrase(phrase: string): Predicate[] | null {
 }
 
 // Splits "Arcana, Nature, Occultism, or Religion" or "Occultism or Religion"
-// into ["arcana", "nature", "occultism", "religion"].
+// into ["arcana", "nature", "occultism", "religion"]. Hyphens are normalised
+// to spaces so "Hero-God Lore" matches the slug "hero-god-lore" → "hero god lore".
 function parseSkillOrList(raw: string): string[] {
   return raw
     .replace(/,\s*or\s+/gi, ' or ')
     .split(/\s+or\s+|,\s*/i)
-    .map((s) => s.trim().toLowerCase())
+    .map((s) => normSkill(s.trim()))
     .filter((s) => s.length > 0 && /^[a-z]/i.test(s));
 }
 
@@ -132,7 +140,7 @@ function parsePhrase(phrase: string): Predicate {
   if (skill && skill[1] && skill[2]) {
     const rank = RANK_WORDS[skill[1].toLowerCase()];
     if (rank !== undefined) {
-      return { kind: 'skill-rank', skill: skill[2].trim().toLowerCase(), min: rank };
+      return { kind: 'skill-rank', skill: normSkill(skill[2].trim()), min: rank };
     }
   }
 
