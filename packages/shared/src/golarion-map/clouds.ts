@@ -22,10 +22,11 @@ export interface CloudsOptions {
   /** Overall cloud opacity, 0–1.  Default: 0.25 */
   opacity?: number;
   /**
-   * Drift speed in 3D sample-space units per second.  Default: 0.06
+   * Eastward drift speed in sample-space units per second.  Default: 0.06
    * (roughly one cloud-width per ~10 s — clearly perceptible without feeling
-   * rushed).  Drop toward 0.01–0.02 for a slower, more subtle drift; raise
-   * toward 0.15 for stormy skies.
+   * rushed).  The clouds rotate around the globe's north-pole axis, so the
+   * drift looks geographically correct at all latitudes.  Drop toward 0.01–0.02
+   * for a slower drift; raise toward 0.15 for stormy skies.
    */
   driftSpeed?: number;
   /** Scale factor for cloud cluster size (higher → larger patches).
@@ -130,9 +131,10 @@ const VERT_SRC = `
 /** FBM cloud fragment shader — samples noise in 3D sphere-position space.
  *
  *  Sampling in 3D (x,y,z on the unit sphere) is inherently seamless:
- *  there is no lon/lat wrapping, no equatorial integer-boundary artefacts,
- *  and no polar pinching.  Drift is a slow translation of the 3D sample
- *  point, producing a convincing cloud-mass movement. */
+ *  no lon/lat wrapping, no equatorial integer-boundary artefacts, no polar
+ *  pinching.  Drift is a rotation of the sample coordinates around the
+ *  north-pole axis (+z), which is the only transform that means "east" at
+ *  every latitude simultaneously. */
 const FRAG_SRC = `
   precision highp float;
 
@@ -180,17 +182,30 @@ const FRAG_SRC = `
 
   // -------------------------------------------------------------------------
 
+  // Rotate a vec3 around the z-axis (north-pole axis) by angle theta.
+  // rotate_z(p, -theta) samples from west, making the pattern appear to
+  // drift east — the only transform that means "east" at every latitude.
+  vec3 rotateZ(vec3 p, float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return vec3(p.x * c + p.y * s,
+               -p.x * s + p.y * c,
+                p.z);
+  }
+
   void main() {
     if (v_visible <= 0.0) discard;
 
-    float t  = u_time;
-    float ds = u_drift;
-    vec3  pos = v_sphere * u_scale;
+    vec3 pos = v_sphere * u_scale;
 
-    // Drift: translate the 3D sample point slowly — no seams, no wrapping
-    float n1 = fbm3(pos + vec3(ds * t,        ds * 0.3 * t,  ds * 0.15 * t));
-    float n2 = fbm3(pos * 1.6 + vec3(-ds * 0.7 * t, ds * 0.4 * t, -ds * 0.2 * t)
-                    + vec3(2.1, 1.3, 0.8));
+    // angle = driftSpeed * t / scale so the arc speed at the equator equals
+    // driftSpeed in sample-space units/sec (same semantics as before).
+    float angle = u_drift * u_time / u_scale;
+
+    // Rotate sample coords clockwise (negative angle) — pattern drifts east.
+    // Layer 2 rotates at 0.7× for a parallax feel (higher clouds, different speed).
+    float n1 = fbm3(rotateZ(pos,       -angle));
+    float n2 = fbm3(rotateZ(pos * 1.6, -angle * 0.7) + vec3(2.1, 1.3, 0.8));
 
     float cloud = mix(n1, n2, 0.4);
     cloud = smoothstep(0.38, 0.65, cloud);
