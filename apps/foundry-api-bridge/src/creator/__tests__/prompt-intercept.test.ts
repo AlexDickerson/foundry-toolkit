@@ -180,39 +180,30 @@ describe('installPromptInterception — renderDamageModifierDialog', () => {
     expect(names).toContain('renderDamageModifierDialog');
   });
 
-  it('clicks the submit button so the dialog closes via its own listener', () => {
+  it('uses $html.find() to locate and click the submit button', () => {
     installPromptInterception([]);
 
     const clickMock = jest.fn();
-    const submitBtn = { click: clickMock } as unknown as HTMLButtonElement;
-    const element = {
-      querySelector: jest.fn().mockReturnValue(submitBtn),
-    } as unknown as HTMLElement;
-    const app = {
-      isRolled: false,
-      element,
-      close: jest.fn().mockResolvedValue(undefined),
-    };
+    const submitBtn = { click: clickMock };
+    // $html is a JQuery-like object; find() returns an array-like of elements.
+    const $html = { find: jest.fn().mockReturnValue([submitBtn]) };
+    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
 
-    hooksMock.fire('renderDamageModifierDialog', app);
+    hooksMock.fire('renderDamageModifierDialog', app, $html);
 
-    expect(element.querySelector).toHaveBeenCalledWith('button[type=submit]');
+    expect($html.find).toHaveBeenCalledWith('button[type=submit]');
     expect(clickMock).toHaveBeenCalled();
-    // The app's own submit listener sets isRolled and closes — we don't do it.
+    // The app's own submit listener sets isRolled and calls close() — we don't.
     expect(app.close).not.toHaveBeenCalled();
   });
 
   it('falls back to direct close when no submit button exists', async () => {
     installPromptInterception([]);
 
-    const element = { querySelector: jest.fn().mockReturnValue(null) } as unknown as HTMLElement;
-    const app = {
-      isRolled: false,
-      element,
-      close: jest.fn().mockResolvedValue(undefined),
-    };
+    const $html = { find: jest.fn().mockReturnValue([]) }; // empty array-like
+    const app = { isRolled: false, close: jest.fn().mockResolvedValue(undefined) };
 
-    hooksMock.fire('renderDamageModifierDialog', app);
+    hooksMock.fire('renderDamageModifierDialog', app, $html);
     await Promise.resolve();
 
     expect(app.isRolled).toBe(true);

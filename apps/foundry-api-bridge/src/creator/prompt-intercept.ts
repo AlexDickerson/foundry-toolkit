@@ -97,19 +97,22 @@ export function installPromptInterception(wsClients: readonly WebSocketClient[])
   // preRenderDamageModifierDialog was tried but AppV2 uses Hooks.callAll
   // (unlike AppV1's Hooks.call), so returning false does not cancel the
   // render. renderDamageModifierDialog fires reliably with the element in DOM.
+  // The render hook fires with (app, $html) where $html is the JQuery-wrapped
+  // root element (AppV1 convention). app.element is also a JQuery object —
+  // it does NOT have querySelector; accessing it would silently return
+  // undefined and throw when called. Use $html.find() instead.
   // @ts-expect-error — Hooks is untyped
-  Hooks.on('renderDamageModifierDialog', (app: DamageModifierDialogApp) => {
-    console.info(
-      `Foundry API Bridge | Suppressing DamageModifierDialog — clicking submit`,
-    );
-    // app.element is the AppV2 root HTMLElement.
-    const submitBtn = (app as unknown as { element?: HTMLElement }).element
-      ?.querySelector<HTMLButtonElement>('button[type=submit]');
+  Hooks.on('renderDamageModifierDialog', (app: DamageModifierDialogApp, $html: unknown) => {
+    console.info('Foundry API Bridge | Suppressing DamageModifierDialog — clicking submit');
+    // JQuery duck-type: find() returns an array-like of native elements.
+    type JQueryLike = { find(sel: string): ArrayLike<HTMLElement> };
+    const html = $html as JQueryLike;
+    const submitBtn = html.find('button[type=submit]')[0];
     if (submitBtn) {
       submitBtn.click();
     } else {
-      // Fallback: no submit button found — set isRolled and close directly.
-      console.warn('Foundry API Bridge | DamageModifierDialog: submit button not found, closing directly');
+      // Fallback: template has no submit button — close directly.
+      console.warn('Foundry API Bridge | DamageModifierDialog: submit button not found, falling back to close()');
       app.isRolled = true;
       void app.close();
     }
