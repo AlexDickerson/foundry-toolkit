@@ -34,6 +34,15 @@ export default defineConfig(({ mode }) => {
   return {
     envDir: path.resolve(here, '../..'),
     plugins: [react(), ...(useMock ? [mockApi(fixturesDir)] : [])],
+    resolve: {
+      alias: {
+        // Allow CSS @import '@foundry-toolkit/shared/tokens/...' to resolve
+        // directly to the file system without going through exports-map
+        // resolution, which @tailwindcss/postcss's bundler doesn't support
+        // for bare package specifiers.
+        '@foundry-toolkit/shared/tokens': path.resolve(here, '../../packages/shared/tokens'),
+      },
+    },
     build: {
       outDir: 'dist',
       sourcemap: true,

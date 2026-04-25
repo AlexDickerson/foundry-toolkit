@@ -63,6 +63,11 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),
+        // Allow CSS @import '@foundry-toolkit/shared/tokens/...' to resolve
+        // directly to the file system without going through exports-map
+        // resolution, which @tailwindcss/postcss's bundler doesn't support
+        // for bare package specifiers.
+        '@foundry-toolkit/shared/tokens': resolve(__dirname, '../../packages/shared/tokens'),
       },
     },
     build: {
