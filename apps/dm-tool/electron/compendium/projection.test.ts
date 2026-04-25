@@ -26,6 +26,7 @@ import {
   monsterDocToRow,
   monsterDocToSummary,
   monsterMatchToSummary,
+  monsterSpells,
   priceToCopper,
 } from './projection';
 
@@ -469,6 +470,8 @@ describe('monsterDocToDetail', () => {
     expect(out.imageUrl).toBe('systems/pf2e/icons/classes/young-red-dragon.webp');
     expect(out.tokenUrl).toBe('systems/pf2e/icons/tokens/young-red-dragon-token.webp');
     expect(out.skills).toContain('Athletics +22');
+    // No items array on this fixture → empty spells array
+    expect(out.spells).toEqual([]);
   });
 
   it('returns null imageUrl and tokenUrl for default-icons placeholders', () => {
@@ -480,6 +483,148 @@ describe('monsterDocToDetail', () => {
     const out = monsterDocToDetail(doc);
     expect(out.imageUrl).toBeNull();
     expect(out.tokenUrl).toBeNull();
+  });
+});
+
+describe('monsterSpells', () => {
+  /** A minimal npc doc with one spellcastingEntry + two spells. */
+  function spellcasterDoc(): CompendiumDocument {
+    return {
+      id: 'caster1',
+      uuid: 'Compendium.pf2e.pathfinder-bestiary.Actor.caster1',
+      name: 'Accuser Devil',
+      type: 'npc',
+      img: '',
+      system: {
+        details: { level: { value: 6 } },
+        traits: { rarity: 'common', size: { value: 'sm' }, value: ['devil', 'fiend'] },
+        attributes: { hp: { max: 70 }, ac: { value: 22 }, immunities: [], weaknesses: [], resistances: [] },
+        saves: { fortitude: { value: 14 }, reflex: { value: 12 }, will: { value: 13 } },
+        perception: { mod: 13 },
+        abilities: {
+          str: { mod: 1 },
+          dex: { mod: 3 },
+          con: { mod: 2 },
+          int: { mod: 0 },
+          wis: { mod: 3 },
+          cha: { mod: 4 },
+        },
+        publication: { title: 'Bestiary 2' },
+      },
+      items: [
+        // Spellcasting entry
+        {
+          id: 'entry1',
+          type: 'spellcastingEntry',
+          name: 'Divine Innate Spells',
+          system: {
+            tradition: { value: 'divine' },
+            prepared: { value: 'innate' },
+            spelldc: { dc: 24, value: 16 },
+          },
+        },
+        // Cantrip
+        {
+          id: 'spell1',
+          type: 'spell',
+          name: 'Detect Magic',
+          system: {
+            level: { value: 0 },
+            location: { value: 'entry1', heightenedLevel: null, uses: {} },
+            time: { value: '2' },
+            range: { value: '30 feet' },
+            area: {},
+            target: { value: '' },
+            traits: { value: ['detection', 'uncommon'] },
+            description: { value: '<p>You sense magical auras.</p>' },
+          },
+        },
+        // Rank-3 innate spell
+        {
+          id: 'spell2',
+          type: 'spell',
+          name: 'Fear',
+          system: {
+            level: { value: 1 },
+            location: { value: 'entry1', heightenedLevel: 3, uses: { max: 2 } },
+            time: { value: 'reaction' },
+            range: { value: '30 feet' },
+            area: { value: 10, type: 'emanation' },
+            target: { value: '1 creature' },
+            traits: { value: ['emotion', 'fear', 'mental'] },
+            description: { value: '<p>The target <em>flees</em>.</p>' },
+          },
+        },
+      ],
+    };
+  }
+
+  it('returns an array with one group for a single spellcastingEntry', () => {
+    const groups = monsterSpells(spellcasterDoc().items);
+    expect(groups).toHaveLength(1);
+  });
+
+  it('group has correct entryName, tradition, castingType, dc, attack', () => {
+    const [group] = monsterSpells(spellcasterDoc().items);
+    expect(group.entryName).toBe('Divine Innate Spells');
+    expect(group.tradition).toBe('divine');
+    expect(group.castingType).toBe('innate');
+    expect(group.dc).toBe(24);
+    expect(group.attack).toBe(16);
+  });
+
+  it('groups spells by effective rank (cantrip + heightened rank-3)', () => {
+    const [group] = monsterSpells(spellcasterDoc().items);
+    expect(group.ranks).toHaveLength(2);
+    const ranks = group.ranks.map((r) => r.rank);
+    expect(ranks).toEqual([0, 3]); // cantrip first, then rank 3
+  });
+
+  it('cantrip spell has correct fields', () => {
+    const [group] = monsterSpells(spellcasterDoc().items);
+    const cantripRank = group.ranks.find((r) => r.rank === 0)!;
+    expect(cantripRank.spells).toHaveLength(1);
+    const spell = cantripRank.spells[0];
+    expect(spell.name).toBe('Detect Magic');
+    expect(spell.rank).toBe(0);
+    expect(spell.usesPerDay).toBeUndefined();
+    expect(spell.castTime).toBe('2');
+    expect(spell.range).toBe('30 feet');
+    expect(spell.area).toBe('');
+    // Rarity trait 'uncommon' should be filtered out
+    expect(spell.traits).toEqual(['detection']);
+    expect(spell.description).toBe('You sense magical auras.');
+  });
+
+  it('rank-3 spell has correct fields including usesPerDay, area, heightenedLevel', () => {
+    const [group] = monsterSpells(spellcasterDoc().items);
+    const rank3 = group.ranks.find((r) => r.rank === 3)!;
+    expect(rank3.spells).toHaveLength(1);
+    const spell = rank3.spells[0];
+    expect(spell.name).toBe('Fear');
+    expect(spell.rank).toBe(3);
+    expect(spell.usesPerDay).toBe(2);
+    expect(spell.castTime).toBe('reaction');
+    expect(spell.area).toBe('10-foot emanation');
+    expect(spell.target).toBe('1 creature');
+    expect(spell.traits).toEqual(['emotion', 'fear', 'mental']);
+    expect(spell.description).toBe('The target flees.');
+  });
+
+  it('returns empty array when items is undefined', () => {
+    expect(monsterSpells(undefined)).toEqual([]);
+  });
+
+  it('returns empty array when there are no spellcastingEntry items', () => {
+    expect(monsterSpells([])).toEqual([]);
+  });
+
+  it('monsterDocToDetail spells field is populated for spellcaster doc', () => {
+    const out = monsterDocToDetail(spellcasterDoc());
+    expect(out.spells).toHaveLength(1);
+    expect(out.spells[0].entryName).toBe('Divine Innate Spells');
+    expect(out.spells[0].dc).toBe(24);
+    expect(out.spells[0].tradition).toBe('divine');
   });
 });
 

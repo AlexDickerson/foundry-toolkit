@@ -24,6 +24,7 @@ import type {
   ItemBrowserRow,
   ItemVariant,
   MonsterDetail,
+  MonsterSpellGroup,
   MonsterSummary,
 } from '@foundry-toolkit/shared/types';
 import type { LootShortlistItem } from '@foundry-toolkit/ai/loot';
@@ -530,8 +531,10 @@ function monsterSkills(system: Record<string, unknown>): string {
 //   spell.system.location.uses.max             — charges for innate spells
 //   spell.system.location.heightenedLevel      — if heightened to a different level
 
-export function monsterSpells(items: CompendiumEmbeddedItem[] | undefined): string {
-  if (!items || items.length === 0) return '';
+const RARITY_SPELL_TRAITS = new Set(['common', 'uncommon', 'rare', 'unique']);
+
+export function monsterSpells(items: CompendiumEmbeddedItem[] | undefined): MonsterSpellGroup[] {
+  if (!items || items.length === 0) return [];
 
   // Build index of spellcasting entries by their ID.
   interface EntryInfo {
@@ -561,10 +564,14 @@ export function monsterSpells(items: CompendiumEmbeddedItem[] | undefined): stri
       })(),
     });
   }
-  if (entries.size === 0) return '';
+  if (entries.size === 0) return [];
 
-  // Group spells by entry ID then by effective rank.
-  const spellsByEntry = new Map<string, Map<number, string[]>>();
+  // Group spell info objects by entry ID then by effective rank.
+  interface SpellInfoByEntry {
+    [entryId: string]: Map<number, import('@foundry-toolkit/shared/types').MonsterSpellInfo[]>;
+  }
+  const spellsByEntry: SpellInfoByEntry = {};
+
   for (const item of items) {
     if (item.type !== 'spell') continue;
     const sys = item.system;
@@ -576,37 +583,59 @@ export function monsterSpells(items: CompendiumEmbeddedItem[] | undefined): stri
     const heightened = readPath(sys, ['location', 'heightenedLevel']);
     const rank = typeof heightened === 'number' ? heightened : baseLevel;
 
-    // Usage label for innate spells.
+    // usesPerDay for innate spells.
     const usesMax = readPath(sys, ['location', 'uses', 'max']);
-    const label = typeof usesMax === 'number' && usesMax > 0 ? `${item.name} (${usesMax.toString()}/day)` : item.name;
+    const usesPerDay = typeof usesMax === 'number' && usesMax > 0 ? usesMax : undefined;
 
-    if (!spellsByEntry.has(entryId)) spellsByEntry.set(entryId, new Map());
-    const byRank = spellsByEntry.get(entryId)!;
+    // Cast time.
+    const castTime = readString(readPath(sys, ['time', 'value']));
+
+    // Range.
+    const range = readString(readPath(sys, ['range', 'value']));
+
+    // Area: format as "15-foot emanation" if present.
+    const areaValue = readPath(sys, ['area', 'value']);
+    const areaType = readPath(sys, ['area', 'type']);
+    const area =
+      typeof areaValue === 'number' && typeof areaType === 'string' && areaType.length > 0
+        ? `${areaValue.toString()}-foot ${areaType}`
+        : '';
+
+    // Target.
+    const target = readString(readPath(sys, ['target', 'value']));
+
+    // Traits: filter out rarity tags.
+    const allTraits = readStringArray(readPath(sys, ['traits', 'value']));
+    const traits = allTraits.filter((t) => !RARITY_SPELL_TRAITS.has(t.toLowerCase()));
+
+    // Description.
+    const description = cleanDescription(readString(readPath(sys, ['description', 'value'])));
+
+    if (!spellsByEntry[entryId]) spellsByEntry[entryId] = new Map();
+    const byRank = spellsByEntry[entryId];
     if (!byRank.has(rank)) byRank.set(rank, []);
-    byRank.get(rank)!.push(label);
+    byRank.get(rank)!.push({ name: item.name, rank, usesPerDay, castTime, range, area, target, traits, description });
   }
 
-  const blocks: string[] = [];
+  const groups: MonsterSpellGroup[] = [];
   for (const [entryId, entry] of entries) {
-    const byRank = spellsByEntry.get(entryId);
+    const byRank = spellsByEntry[entryId];
     if (!byRank || byRank.size === 0) continue;
 
-    const dcPart = entry.dc ? `DC ${entry.dc.toString()}` : '';
-    const atkPart = entry.attack !== undefined ? `+${entry.attack.toString()} attack` : '';
-    const statParts = [entry.tradition, dcPart, atkPart].filter(Boolean).join(' ');
-    const header = statParts ? `${entry.name} (${statParts})` : entry.name;
+    // Sort ranks: cantrips (0) first, then ascending.
+    const ranks = [...byRank.keys()].sort((a, b) => a - b).map((rank) => ({ rank, spells: byRank.get(rank)! }));
 
-    const lines: string[] = [header];
-    // Sort: cantrips (rank 0) first, then ascending.
-    for (const rank of [...byRank.keys()].sort((a, b) => a - b)) {
-      const spells = byRank.get(rank)!;
-      const label = rank === 0 ? 'Cantrips' : `Rank ${rank.toString()}`;
-      lines.push(`  ${label}: ${spells.join(', ')}`);
-    }
-    blocks.push(lines.join('\n'));
+    groups.push({
+      entryName: entry.name,
+      tradition: entry.tradition,
+      castingType: entry.castingType,
+      dc: entry.dc,
+      attack: entry.attack,
+      ranks,
+    });
   }
 
-  return blocks.join('\n\n');
+  return groups;
 }
 
 /** Return null for Foundry's generic placeholder icons — they're not
