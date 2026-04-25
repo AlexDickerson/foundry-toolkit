@@ -73,7 +73,7 @@ export function mulberry32(seed: number): () => number {
 /** Merge user-supplied options with sensible defaults. */
 export function resolveStarsOptions(opts?: StarsOptions): ResolvedStarsOptions {
   return {
-    density: opts?.density ?? 50,
+    density: opts?.density ?? 65,
     color: opts?.color ?? [1.0, 0.97, 0.92],
     sizeRange: opts?.sizeRange ?? [1.0, 8.0],
     brightnessRange: opts?.brightnessRange ?? [0.4, 1.0],

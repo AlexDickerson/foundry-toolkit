@@ -57,7 +57,7 @@ describe('mulberry32', () => {
 describe('resolveStarsOptions', () => {
   it('applies all defaults when called with no arguments', () => {
     const opts = resolveStarsOptions();
-    expect(opts.density).toBe(50);
+    expect(opts.density).toBe(65);
     expect(opts.color).toEqual([1.0, 0.97, 0.92]);
     expect(opts.sizeRange).toEqual([1.0, 8.0]);
     expect(opts.brightnessRange).toEqual([0.4, 1.0]);
@@ -69,7 +69,7 @@ describe('resolveStarsOptions', () => {
 
   it('applies all defaults when called with an empty object', () => {
     const opts = resolveStarsOptions({});
-    expect(opts.density).toBe(50);
+    expect(opts.density).toBe(65);
     expect(opts.twinkle.speed).toBe(0.8);
   });
 
@@ -82,7 +82,7 @@ describe('resolveStarsOptions', () => {
   it('overrides opacity while keeping other defaults', () => {
     const opts = resolveStarsOptions({ opacity: 0.5 });
     expect(opts.opacity).toBe(0.5);
-    expect(opts.density).toBe(50);
+    expect(opts.density).toBe(65);
   });
 
   it('accepts a custom color', () => {
