@@ -11,6 +11,7 @@ import {
   PIN_LAYER,
   PIN_SOURCE,
   buildMapStyle,
+  createStarsLayer,
   ensureDefaultImage,
   ensureIconImage,
   pinsToGeoJson,
@@ -89,6 +90,15 @@ export function Globe() {
     });
 
     map.on('load', () => {
+      // Black void: remove the default blue atmosphere so stars read against
+      // actual darkness rather than MapLibre's atmospheric haze.
+      map.setSky({ 'atmosphere-blend': 0 });
+
+      // Starfield backdrop: screen-space stars rendered before all other layers
+      // so the globe and atmosphere paint over them in the void.
+      const firstLayerId = map.getStyle().layers[0]?.id;
+      map.addLayer(createStarsLayer(), firstLayerId);
+
       ensureDefaultImage(map);
 
       map.addSource(PIN_SOURCE, {
@@ -168,7 +178,7 @@ export function Globe() {
   }, [pins, syncSource]);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', backgroundColor: '#000' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
       {activeMission && <MissionBriefing mission={activeMission} onClose={() => setActiveMission(null)} />}
