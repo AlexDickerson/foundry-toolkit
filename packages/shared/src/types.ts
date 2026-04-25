@@ -832,6 +832,13 @@ export interface ElectronAPI {
    *  The folder name defaults to "The Party" and can be overridden by
    *  passing `?folder=` on the HTTP side. */
   listPartyMembers(): Promise<PartyMember[]>;
+  /** Fetch spellcasting entries + slot state for a Foundry actor by id.
+   *  Returns null when foundryMcpUrl is not configured or the bridge is
+   *  disconnected. */
+  getActorSpellcasting(actorId: string): Promise<ActorSpellcasting | null>;
+  /** Cast a spell from a specific spellcasting entry. The GM picks the rank to
+   *  cast at; for spontaneous casters the bridge consumes the matching slot. */
+  castActorSpell(args: { actorId: string; entryId: string; spellId: string; rank: number }): Promise<{ ok: boolean }>;
 }
 
 // --- Party inventory ---------------------------------------------------------
@@ -938,6 +945,10 @@ export interface Combatant {
   maxHp: number;
   /** Free-form conditions / status notes. */
   notes?: string;
+  /** Foundry actor document id. Set only when the PC was added from the party
+   *  picker (where we have the live actor id). Absent for manually-entered PCs
+   *  and monsters. Required by the spell cast + slot display features. */
+  foundryActorId?: string;
 }
 
 /** One monster combatant successfully turned into a Foundry actor. */
@@ -989,6 +1000,46 @@ export interface Encounter {
   allowInventedItems: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// --- Spell cast + slot display (combat panel) --------------------------------
+
+export type SpellPreparationMode = 'prepared' | 'spontaneous' | 'innate' | 'focus' | 'ritual' | 'items';
+
+export interface CombatSpellSummary {
+  id: string;
+  name: string;
+  /** Base spell rank (0 = cantrip). */
+  rank: number;
+  isCantrip: boolean;
+  /** PF2e action cost string: "1" | "2" | "3" | "reaction" | "free" | etc. */
+  actions: string;
+  /** Prepared mode only — true when this prepared slot has been expended today. */
+  expended?: boolean;
+}
+
+/** Per-rank slot count for spontaneous casters. */
+export interface CombatSpellSlot {
+  rank: number;
+  value: number;
+  max: number;
+}
+
+export interface CombatSpellEntry {
+  id: string;
+  name: string;
+  mode: SpellPreparationMode;
+  tradition: string;
+  spells: CombatSpellSummary[];
+  /** Spontaneous only — slot state per rank, ranks with max=0 omitted. */
+  slots?: CombatSpellSlot[];
+  /** Focus only — shared focus point pool. */
+  focusPoints?: { value: number; max: number };
+}
+
+export interface ActorSpellcasting {
+  actorId: string;
+  entries: CombatSpellEntry[];
 }
 
 // --- Player-map deploy -------------------------------------------------------
