@@ -100,35 +100,38 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
       <Separator variant="ornate" />
       <ScrollArea className="flex-1">
         <div className="space-y-4 p-3">
-          {/* Level range */}
-          <div>
-            <SectionLabel>Level</SectionLabel>
-            <div className="mt-1.5 flex items-center gap-2">
-              <Input
-                type="number"
-                placeholder="0"
-                value={params.levelMin ?? ''}
-                onChange={(e) => {
-                  const min = e.target.value === '' ? undefined : Number(e.target.value);
-                  onChange({ ...params, levelMin: min });
-                }}
-                className="h-7 w-16 px-1.5 text-xs"
-              />
-              <span className="text-xs text-muted-foreground">to</span>
-              <Input
-                type="number"
-                placeholder="28"
-                value={params.levelMax ?? ''}
-                onChange={(e) => {
-                  const max = e.target.value === '' ? undefined : Number(e.target.value);
-                  onChange({ ...params, levelMax: max });
-                }}
-                className="h-7 w-16 px-1.5 text-xs"
-              />
+          {/* Level range — grouped with its separator so space-y-4 doesn't
+              double the gap (16px above + 16px below) like it would if they
+              were separate children. */}
+          <div className="flex flex-col gap-2">
+            <div>
+              <SectionLabel>Level</SectionLabel>
+              <div className="mt-1.5 flex items-center gap-2">
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={params.levelMin ?? ''}
+                  onChange={(e) => {
+                    const min = e.target.value === '' ? undefined : Number(e.target.value);
+                    onChange({ ...params, levelMin: min });
+                  }}
+                  className="h-7 w-16 px-1.5 text-xs"
+                />
+                <span className="text-xs text-muted-foreground">to</span>
+                <Input
+                  type="number"
+                  placeholder="28"
+                  value={params.levelMax ?? ''}
+                  onChange={(e) => {
+                    const max = e.target.value === '' ? undefined : Number(e.target.value);
+                    onChange({ ...params, levelMax: max });
+                  }}
+                  className="h-7 w-16 px-1.5 text-xs"
+                />
+              </div>
             </div>
+            <Separator />
           </div>
-
-          <Separator />
 
           {/* Rarity pills */}
           <div>
