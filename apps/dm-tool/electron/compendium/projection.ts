@@ -1029,6 +1029,7 @@ export function itemDocToBrowserDetail(doc: CompendiumDocument): ItemBrowserDeta
     aonUrl: null,
     variants: readVariants(system),
     hasActivation: hasActivation(doc, system),
+    itemType: doc.type,
   };
 }
 

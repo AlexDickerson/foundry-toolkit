@@ -3,8 +3,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
-import { cleanFoundryMarkup } from '@/lib/foundry-markup';
 import { useItemDetail } from './useItems';
+import { formatItemType, formatUsage } from './item-display-helpers';
 import type { ItemBrowserRow } from '@foundry-toolkit/shared/types';
 
 interface ItemDetailPaneProps {
@@ -48,11 +48,18 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
       {detail && (
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-4 p-4">
-            {/* Level + rarity row */}
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold tabular-nums text-foreground">
-                {detail.level != null ? `Level ${detail.level}` : 'Level —'}
-              </span>
+            {/* Level + type + rarity row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-lg font-bold tabular-nums text-foreground">
+                  {detail.level != null ? `Level ${detail.level}` : 'Level —'}
+                </span>
+                {detail.itemType && (
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {formatItemType(detail.itemType)}
+                  </span>
+                )}
+              </div>
               <span
                 className={cn(
                   'rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize leading-none',
@@ -90,19 +97,14 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
 
             <Separator />
 
-            {/* Stats grid */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            {/* Stats — single-column, label left / value right */}
+            <div className="space-y-1.5 text-xs">
               <StatRow label="Price" value={detail.price ?? '—'} />
               <StatRow label="Bulk" value={detail.bulk ?? '—'} />
-              <StatRow label="Usage" value={detail.usage ?? '—'} />
+              {detail.usage && <StatRow label="Usage" value={formatUsage(detail.usage) ?? detail.usage} />}
+              {detail.hasActivation && <StatRow label="Activation" value="activatable" />}
               {detail.source && <StatRow label="Source" value={detail.source} />}
             </div>
-
-            {detail.hasActivation && (
-              <div className="flex items-center gap-1 text-[10px] text-amber-400">
-                <Sparkles className="h-3 w-3" /> Has activation
-              </div>
-            )}
 
             {/* Grade variants (siblings from grouping) */}
             {siblings && siblings.length > 1 && (
@@ -142,7 +144,7 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
               </>
             )}
 
-            {/* Variants (from item's own variant data) */}
+            {/* Variants (from item's own variant data — shown only when there are no grade siblings) */}
             {detail.variants.length > 0 && !(siblings && siblings.length > 1) && (
               <>
                 <Separator />
@@ -165,18 +167,18 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
               </>
             )}
 
-            {/* Description */}
+            {/* Description — already plain text from the projection layer.
+                `---` lines are rendered as visual section dividers. */}
             {detail.description && (
               <>
                 <Separator />
                 <div className="space-y-2 text-xs leading-relaxed text-foreground/90">
-                  {cleanFoundryMarkup(detail.description)
-                    .split('\n')
-                    .map((line) => line.trim())
-                    .filter(Boolean)
-                    .map((line, i) => (
-                      <p key={i}>{line}</p>
-                    ))}
+                  {detail.description.split('\n').map((line, i) => {
+                    const t = line.trim();
+                    if (t === '---') return <Separator key={i} />;
+                    if (!t) return null;
+                    return <p key={i}>{t}</p>;
+                  })}
                 </div>
               </>
             )}
@@ -204,9 +206,9 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground">{value}</span>
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="text-right font-medium text-foreground">{value}</span>
     </div>
   );
 }

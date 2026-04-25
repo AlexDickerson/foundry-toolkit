@@ -188,6 +188,8 @@ export interface ItemBrowserDetail extends ItemBrowserRow {
   aonUrl: string | null;
   variants: ItemVariant[];
   hasActivation: boolean;
+  /** Foundry document type slug: "weapon" | "armor" | "consumable" | "equipment" | "shield" | etc. */
+  itemType: string;
 }
 
 /** Distinct filter values for the item filter panel. */
