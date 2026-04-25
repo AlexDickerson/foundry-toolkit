@@ -22,7 +22,7 @@ export interface CloudsOptions {
   /** Overall cloud opacity, 0–1.  Default: 0.25 */
   opacity?: number;
   /**
-   * Eastward drift speed in sample-space units per second.  Default: 0.06
+   * Drift speed in sample-space units per second.  Default: 0.06
    * (roughly one cloud-width per ~10 s — clearly perceptible without feeling
    * rushed).  The clouds rotate around the globe's north-pole axis, so the
    * drift looks geographically correct at all latitudes.  Drop toward 0.01–0.02
@@ -201,12 +201,12 @@ const FRAG_SRC = `
 
     // Drift axis: geographic north (+z) tilted ~40° toward +y.
     // Pure z-axis rotation empirically drifts SW on screen in MapLibre's
-    // globe frame; the 40° tilt adds the northward correction to land on W.
-    // Negative angle = CW = sample from east = pattern drifts west.
+    // globe frame; the 40° tilt adds the northward correction to land on E.
+    // Positive angle = CCW = sample from west = pattern drifts east.
     vec3 driftAxis = normalize(vec3(0.0, 0.643, 0.766)); // sin/cos of 40°
 
-    float n1 = fbm3(rotateAxis(pos,       driftAxis, -angle));
-    float n2 = fbm3(rotateAxis(pos * 1.6, driftAxis, -angle * 0.7) + vec3(2.1, 1.3, 0.8));
+    float n1 = fbm3(rotateAxis(pos,       driftAxis, angle));
+    float n2 = fbm3(rotateAxis(pos * 1.6, driftAxis, angle * 0.7) + vec3(2.1, 1.3, 0.8));
 
     float cloud = mix(n1, n2, 0.4);
     cloud = smoothstep(0.38, 0.65, cloud);
