@@ -734,7 +734,7 @@ function GridTile({
           so both share the same right border edge. Panel uses left-0
           right-0 (spans exactly the <details> width) rather than a
           fixed pixel value so it always tracks the tile. */}
-      <details className="group relative rounded border border-pf-border bg-pf-bg open:min-w-[18rem] open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
+      <details className="group relative rounded border border-pf-border bg-pf-bg open:z-10 open:min-w-[18rem] open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
         <summary className="flex cursor-pointer list-none flex-col items-center gap-1 p-2 text-center hover:bg-pf-bg-dark/40">
           <div className="relative">
             <img src={item.img} alt="" className="h-14 w-14 rounded border border-pf-border bg-pf-bg-dark" />
