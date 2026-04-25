@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import type { PhysicalItem, PhysicalItemType, PreparedActorItem } from '../../api/types';
 import { isCoin, isContainer, isPhysicalItem } from '../../api/types';
+import { useExpandableCard } from '../../lib/useExpandableCard';
 import {
   coinItemsByDenom,
   coinSlugFor,
@@ -577,6 +578,7 @@ function ItemRow({
   contents: PhysicalItem[];
   sellContext: SellContext | undefined;
 }): React.ReactElement {
+  const card = useExpandableCard();
   const isContainerRow = isContainer(item);
   const bulk = item.system.bulk;
   const capacityText =
@@ -585,9 +587,15 @@ function ItemRow({
       : undefined;
 
   return (
-    <li className="rounded border border-pf-border bg-pf-bg" data-item-id={item.id} data-item-type={item.type}>
-      <details className="group">
-        <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2 hover:bg-pf-bg-dark/40">
+    <li className="relative rounded border border-pf-border bg-pf-bg" data-item-id={item.id} data-item-type={item.type}>
+      <details className="group" open={card.isOpen}>
+        <summary
+          className="flex cursor-pointer list-none items-center gap-3 px-3 py-2 hover:bg-pf-bg-dark/40"
+          onClick={(e): void => {
+            e.preventDefault();
+            card.toggle();
+          }}
+        >
           <img src={item.img} alt="" className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
@@ -608,7 +616,12 @@ function ItemRow({
           <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
           <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
-        <ItemDetailBody item={item} />
+        {/* Absolute-positioned panel — overlays rows below instead of
+            pushing them down. Containing block is the <li> (relative);
+            left/right span the full card width. */}
+        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
+          <ItemDescription item={item} />
+        </div>
       </details>
       {isContainerRow && contents.length > 0 && (
         <ul className="divide-y divide-neutral-100 border-t border-neutral-100 pl-6" data-container-contents={item.id}>
@@ -665,10 +678,17 @@ function formatShortCp(cp: number): string {
 }
 
 function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement {
+  const card = useExpandableCard();
   return (
-    <li data-item-id={item.id} data-item-type={item.type}>
-      <details className="group">
-        <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-1.5 hover:bg-pf-bg-dark/40">
+    <li className="relative" data-item-id={item.id} data-item-type={item.type}>
+      <details className="group" open={card.isOpen}>
+        <summary
+          className="flex cursor-pointer list-none items-center gap-3 px-3 py-1.5 hover:bg-pf-bg-dark/40"
+          onClick={(e): void => {
+            e.preventDefault();
+            card.toggle();
+          }}
+        >
           <img src={item.img} alt="" className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
           <div className="min-w-0 flex-1">
             <span className="truncate text-sm text-neutral-800">{item.name}</span>
@@ -678,7 +698,9 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
           <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
           <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
-        <ItemDetailBody item={item} />
+        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
+          <ItemDescription item={item} />
+        </div>
       </details>
     </li>
   );
@@ -715,22 +737,9 @@ function GridTile({
             descriptions stay readable even when the tile itself is
             narrow; overlaps neighbouring tiles rather than pushing
             the grid around. z-20 keeps it above nearby tiles but
-            below the tab bar / popovers. */}
+            below the tab bar / popovers. Image stays in the summary
+            above — no duplicate here. */}
         <div className="absolute left-0 top-full z-20 mt-1 w-72 rounded border border-pf-primary/60 bg-pf-bg p-3 text-left text-sm text-pf-text shadow-lg">
-          <div className="mb-2 flex items-center gap-2">
-            <img
-              src={item.img}
-              alt=""
-              className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-serif text-sm font-semibold text-pf-text">{item.name}</p>
-              <p className="text-[10px] uppercase tracking-widest text-pf-alt-dark">
-                {item.type}
-                {item.system.quantity > 1 && ` · ×${item.system.quantity.toString()}`}
-              </p>
-            </div>
-          </div>
           <ItemDescription item={item} />
         </div>
       </details>
@@ -738,17 +747,8 @@ function GridTile({
   );
 }
 
-function ItemDetailBody({ item }: { item: PhysicalItem }): React.ReactElement {
-  return (
-    <div className="border-t border-pf-border bg-pf-bg/60 px-3 py-2 text-sm text-pf-text">
-      <ItemDescription item={item} />
-    </div>
-  );
-}
-
-// Bare description block without wrapper chrome — used inside the
-// list-mode row (wrapped with its own border) and the grid-mode
-// floating card (which brings its own container styling).
+// Bare description block — used inside the list-mode absolute panel
+// and the grid-mode floating card (each brings its own container styling).
 function ItemDescription({ item }: { item: PhysicalItem }): React.ReactElement {
   const description = (item.system.description as { value?: unknown } | undefined)?.value;
   const enriched = typeof description === 'string' && description.length > 0 ? enrichDescription(description) : '';
