@@ -187,7 +187,6 @@ function StatsBlock({
           label="Perception"
           value={formatSignedInt(perception.value)}
           title={perception.breakdown}
-          rank={perception.rank}
           data-stat="perception"
           onRoll={() => { rollPerception.trigger(); }}
           pending={rollPerception.state === 'pending'}
@@ -300,7 +299,6 @@ function classDCTile(system: CharacterSystem): React.ReactElement {
       label="Class DC"
       value={classDC.dc.toString()}
       title={classDC.breakdown}
-      rank={classDC.rank}
       data-stat="class-dc"
     />
   );
@@ -320,7 +318,6 @@ function SaveTile({
       label={t(save.label)}
       value={formatSignedInt(save.value)}
       title={save.breakdown}
-      rank={save.rank}
       data-stat={`save-${save.slug}`}
       onRoll={onRoll}
       pending={pending}
@@ -332,7 +329,6 @@ function StatTile({
   label,
   value,
   title,
-  rank,
   onRoll,
   pending,
   ...rest
@@ -340,7 +336,6 @@ function StatTile({
   label: string;
   value: string;
   title?: string;
-  rank?: import('../../api/types').ProficiencyRank;
   /** When set, the tile becomes a clickable button that fires a
    *  roll. Omit to keep it as a display-only stat card. */
   onRoll?: () => void;
@@ -353,7 +348,6 @@ function StatTile({
       <span className="mt-0.5 font-mono text-xl font-semibold tabular-nums text-pf-text">
         {pending === true ? '…' : value}
       </span>
-      {rank !== undefined && <RankChip rank={rank} className="mt-1" />}
     </>
   );
 
