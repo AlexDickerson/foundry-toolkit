@@ -13,12 +13,14 @@
   ],
   "scripts": {
     "prepare": "husky",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:scripts": "vitest run scripts/",
     "lint": "eslint . && npm run lint --workspaces --if-present",
     "lint:fix": "eslint . --fix",
     "knip": "knip --include files,dependencies,unresolved",
     "build": "npm run build --workspaces --if-present",
+    "upscale-icons": "tsx scripts/upscale-icons.ts",
     "dev:dm-tool": "npm --workspace apps/dm-tool run dev",
     "dev:mcp": "npm --workspace apps/foundry-mcp run dev",
     "dev:player-portal": "npm --workspace apps/player-portal run dev",
@@ -37,6 +39,7 @@
     "@secretlint/secretlint-rule-github": "^12.3.0",
     "@secretlint/secretlint-rule-openai": "^12.3.0",
     "@secretlint/secretlint-rule-pattern": "^12.3.0",
+    "@types/node": "^25.6.0",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
@@ -44,8 +47,10 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
     "secretlint": "^12.3.0",
+    "tsx": "^4.19.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.58.2"
+    "typescript-eslint": "^8.58.2",
+    "vitest": "^4.1.4"
   },
   "lint-staged": {
     "*.{ts,tsx,js,json,md,html,css,scss,py}": "secretlint"

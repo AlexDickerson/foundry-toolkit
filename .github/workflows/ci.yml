@@ -38,6 +38,7 @@ jobs:
 
       - name: Tests
         run: |
+          npm run test:scripts
           npm run test --workspace apps/dm-tool
           npm run test --workspace apps/player-portal
           npm run test --workspace apps/foundry-api-bridge
