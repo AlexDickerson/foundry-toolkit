@@ -110,6 +110,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
   const [pendingInvestments, setPendingInvestments] = useState<Set<string>>(new Set());
   const [txError, setTxError] = useState<string | null>(null);
   const shopMode = useShopMode();
+  const [tileColumns, setTileColumns] = useState(5);
 
   const canTransact = actorId !== undefined && onActorChanged !== undefined;
 
@@ -233,7 +234,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
               {shopMode.enabled && canTransact && (
                 <ShopViewToggle view={effectiveShopView} onChange={setShopView} />
               )}
-              <ShopGearMenu shopMode={shopMode} />
+              <ShopGearMenu shopMode={shopMode} tileColumns={tileColumns} onTileColumnsChange={setTileColumns} />
             </div>
             <div className="flex items-center gap-4">
             {investiture !== undefined && investiture.max > 0 && (
@@ -253,6 +254,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
           ) : (
             <CategorizedInventory
               view={view}
+              tileColumns={tileColumns}
               topLevelByCategory={topLevelByCategory}
               allByCategory={allByCategory}
               byContainer={byContainer}
@@ -390,6 +392,7 @@ async function applyCoinChanges(
 // since tile layout doesn't carry the parent/child relationship.
 function CategorizedInventory({
   view,
+  tileColumns,
   topLevelByCategory,
   allByCategory,
   byContainer,
@@ -397,6 +400,7 @@ function CategorizedInventory({
   investContext,
 }: {
   view: ViewMode;
+  tileColumns: number;
   topLevelByCategory: Map<InventoryCategory, PhysicalItem[]>;
   allByCategory: Map<InventoryCategory, PhysicalItem[]>;
   byContainer: Map<string, PhysicalItem[]>;
@@ -429,7 +433,8 @@ function CategorizedInventory({
               </ul>
             ) : (
               <ul
-                className="grid grid-cols-5 gap-2"
+                className="grid gap-2"
+                style={{ gridTemplateColumns: `repeat(${tileColumns}, minmax(0, 1fr))` }}
                 data-view="grid"
               >
                 {bucket.map((item) => (
@@ -451,8 +456,12 @@ function CategorizedInventory({
 // the browser handles focus-trap and keyboard behaviour for free.
 function ShopGearMenu({
   shopMode,
+  tileColumns,
+  onTileColumnsChange,
 }: {
   shopMode: ReturnType<typeof useShopMode>;
+  tileColumns: number;
+  onTileColumnsChange: (n: number) => void;
 }): React.ReactElement {
   return (
     <details className="relative" data-section="shop-debug">
@@ -497,6 +506,19 @@ function ShopGearMenu({
             className="flex-1 accent-pf-primary"
           />
           <span className="w-10 text-right font-mono tabular-nums">{Math.round(shopMode.sellRatio * 100)}%</span>
+        </label>
+        <label className="mt-2 flex items-center gap-2">
+          <span className="w-16 shrink-0">Chip size</span>
+          <input
+            type="range"
+            min={2}
+            max={8}
+            step={1}
+            value={tileColumns}
+            onChange={(e): void => { onTileColumnsChange(Number(e.target.value)); }}
+            className="flex-1 accent-pf-primary"
+          />
+          <span className="w-10 text-right font-mono tabular-nums">{tileColumns} col</span>
         </label>
       </div>
     </details>
