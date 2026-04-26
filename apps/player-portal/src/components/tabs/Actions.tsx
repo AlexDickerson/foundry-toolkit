@@ -351,19 +351,8 @@ function ActionCostBadge({ kind, count }: { kind: string; count: number | null }
   else if (kind === 'free') label = '◇';
   else if (kind === 'passive') label = '—';
 
-  const palette: Record<string, string> = {
-    action: 'border-emerald-300 bg-emerald-50 text-emerald-800',
-    reaction: 'border-sky-300 bg-sky-50 text-sky-800',
-    free: 'border-violet-300 bg-violet-50 text-violet-800',
-    passive: 'border-pf-border bg-pf-bg text-pf-text-muted',
-  };
   return (
-    <span
-      className={[
-        'flex-shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums',
-        palette[kind] ?? palette['passive'] ?? '',
-      ].join(' ')}
-    >
+    <span className="flex-shrink-0 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums text-pf-alt-dark">
       {label}
     </span>
   );
