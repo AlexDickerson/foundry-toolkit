@@ -1,8 +1,9 @@
-// Thin WebSocket client with auto-reconnect. Used by Inventory and
-// Leaderboard routes to subscribe to the sidecar's streams. Exposed as a
-// hook so components get the latest snapshot + a connection status flag.
+// Thin SSE client for subscribing to foundry-mcp live-state streams.
+// Replaces the former WebSocket client — EventSource is simpler (plain HTTP,
+// not a custom protocol), auto-reconnects natively, and routes through the
+// existing /api/mcp/* proxy rather than requiring separate WS upgrade paths.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -13,15 +14,11 @@ export interface LiveState<T> {
   lastUpdated: number | null;
 }
 
-const INITIAL_BACKOFF_MS = 1000;
-const MAX_BACKOFF_MS = 30_000;
-
-/** Subscribe to a sidecar WebSocket stream with reconnect-on-close.
+/** Subscribe to a foundry-mcp SSE stream.
  *
- *  - `path` is the stream path (e.g. "/api/live/inventory/stream").
- *  - The base URL is same-origin; the Fastify server owns /api/live/*. For
- *    local dev against a server on a different origin, the caller can
- *    pass an absolute ws(s):// URL via `overrideUrl`.
+ *  `path` is a same-origin URL path (e.g. "/api/mcp/live/inventory/stream").
+ *  EventSource handles reconnection natively; `status` reflects the current
+ *  connection state and `data` always holds the last-received snapshot.
  */
 export function useLiveStream<T>(path: string, overrideUrl?: string): LiveState<T> {
   const [state, setState] = useState<LiveState<T>>({
@@ -29,59 +26,36 @@ export function useLiveStream<T>(path: string, overrideUrl?: string): LiveState<
     status: 'connecting',
     lastUpdated: null,
   });
-  const backoffRef = useRef(INITIAL_BACKOFF_MS);
 
   useEffect(() => {
-    let closed = false;
-    let socket: WebSocket | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    const url = overrideUrl ?? path;
+    const es = new EventSource(url);
 
-    const connect = () => {
-      if (closed) return;
-      setState((s) => ({ ...s, status: 'connecting' }));
-
-      const url = overrideUrl ?? buildWsUrl(path);
-      socket = new WebSocket(url);
-
-      socket.onopen = () => {
-        backoffRef.current = INITIAL_BACKOFF_MS;
-        setState((s) => ({ ...s, status: 'connected' }));
-      };
-
-      socket.onmessage = (event) => {
-        try {
-          const parsed = JSON.parse(event.data as string) as T;
-          setState({ data: parsed, status: 'connected', lastUpdated: Date.now() });
-        } catch (err) {
-          console.error('live-stream: failed to parse message', err);
-        }
-      };
-
-      socket.onclose = () => {
-        if (closed) return;
-        setState((s) => ({ ...s, status: 'disconnected' }));
-        reconnectTimer = setTimeout(connect, backoffRef.current);
-        backoffRef.current = Math.min(backoffRef.current * 2, MAX_BACKOFF_MS);
-      };
-
-      socket.onerror = () => {
-        // Let onclose handle reconnect; close will fire right after.
-      };
+    es.onopen = (): void => {
+      setState((s) => ({ ...s, status: 'connected' }));
     };
 
-    connect();
+    es.onmessage = (event): void => {
+      try {
+        const parsed = JSON.parse(event.data as string) as T;
+        setState({ data: parsed, status: 'connected', lastUpdated: Date.now() });
+      } catch (err) {
+        console.error('live-stream: failed to parse message', err);
+      }
+    };
 
-    return () => {
-      closed = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      socket?.close();
+    es.onerror = (): void => {
+      // EventSource auto-reconnects; mark disconnected so the UI can show a
+      // stale indicator. onopen fires again once the reconnect succeeds.
+      if (es.readyState !== EventSource.CLOSED) {
+        setState((s) => ({ ...s, status: 'disconnected' }));
+      }
+    };
+
+    return (): void => {
+      es.close();
     };
   }, [path, overrideUrl]);
 
   return state;
-}
-
-function buildWsUrl(path: string): string {
-  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}${path}`;
 }
