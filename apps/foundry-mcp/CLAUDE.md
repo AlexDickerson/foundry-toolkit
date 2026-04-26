@@ -87,23 +87,11 @@ The `actors` channel pushes a flattened `{ actorId, changedPaths }` diff for eve
 - All changes go through PRs to main. Never commit directly to main.
 - Run linting before committing. Fix lint errors before pushing.
 
-## Deployment
+## Running
 
-Primary deploy target: **Fly.io**, from a Docker image published to GHCR. The deploy workflows from the pre-consolidation `foundry-mcp` repo were not ported into the monorepo — re-point when productionizing.
+This server runs as a local Node.js process — no deployment infrastructure. It pairs with a self-hosted Foundry VTT instance via the `apps/foundry-api-bridge` module.
 
-- `Dockerfile` — multi-stage build: compiles the server, runs as a single Node process on `$PORT` (defaults to 8080 in the container, 8765 for local dev). The SPA used to be bundled here; that's gone — `apps/player-portal` is a separate deployable that proxies `/api/mcp/*` here.
-- `fly.toml` — Fly Machines config. `min_machines_running=1` + `auto_stop_machines=false` because the Foundry module's outbound WebSocket to `/foundry` must stay connected.
-
-First-time setup:
-
-```bash
-fly launch --no-deploy              # creates the app; adjust name in fly.toml if taken
-fly secrets set OPENAI_API_KEY=...  # required for edit_image
-```
-
-The Foundry module points its WebSocket at `wss://<app>.fly.dev/foundry`; MCP clients hit `https://<app>.fly.dev/mcp`. The player-portal SPA is deployed separately and proxies `/api/mcp/*` here.
-
-**Alternative — systemd on a Foundry host** (the old setup, still supported since the server is plain `node dist/index.js`):
+For a persistent background process, systemd works well:
 
 ```bash
 systemctl --user status foundry-mcp    # check status
@@ -117,5 +105,4 @@ journalctl --user -u foundry-mcp -f    # tail logs
 - REST `/api/*` exposes the same data the MCP tools see (actors, items, compendia, scenes, etc.). Currently consumed by `apps/player-portal` via its `/api/mcp/*` reverse proxy.
 - OpenAI SDK used specifically for GPT-image-1 map editing (not for chat).
 - Module and frontend live in sibling workspaces (`apps/foundry-api-bridge`, `apps/player-portal`); runtime contract between them stays WS (module) + REST (frontend). HTTP request/response schemas are shared via `@foundry-toolkit/shared/rpc` so server and frontend can't drift silently.
-- This repo's image is MCP server only. The character-creator SPA used to be co-bundled at build time via `COPY --from=ghcr.io/.../foundry-character-creator:latest`; that bundling went away when the SPA was absorbed into `apps/player-portal` and split out as its own deployable.
-- The Foundry + module Docker image still lives in foundry-api-bridge; this image only runs the MCP server.
+- The Foundry + module Docker image lives in `apps/foundry-api-bridge` (run via `./local.sh`); this server is a plain Node.js process that connects to it over the WebSocket bridge at `/foundry`.

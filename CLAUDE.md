@@ -137,7 +137,7 @@ Lint in this monorepo is slow — TypeScript-aware rules type-check across works
 
 - `tagger/` is a Python subtool with its own build system; `auto-wall-bin/` holds a prebuilt binary. Neither is an npm workspace — don't try to npm-build them. `apps/dm-tool`'s electron-builder config references `../../tagger/dist/map-tagger.exe` and `../../auto-wall-bin/Auto-Wall.exe` as `extraResources` — both must exist at packaging time.
 - `.env` at the monorepo root holds Foundry credentials, `OPENAI_API_KEY`, and `ALLOW_EVAL`. Never commit it.
-- A minimal lint/typecheck/test/knip pipeline runs in `.github/workflows/ci.yml` plus a dependency-review check. Per-app deployment workflows (Docker publish, Fly deploy) from the pre-consolidation repos were **not** ported. Per-app Dockerfile and fly.toml references still point at the pre-consolidation GHCR repos. Re-point when productionizing.
+- A minimal lint/typecheck/test/knip pipeline runs in `.github/workflows/ci.yml` plus a dependency-review check. No deployment workflows — this is a personal local-use project with no deployment story. `apps/foundry-api-bridge` has a local Docker workflow (`./local.sh`) for running Foundry VTT in a container.
 - The old SPA → MCP rebuild cascade is gone: the character creator now lives inside `player-portal`'s own Fastify server, which proxies `/api/mcp/*` → `foundry-mcp`. `foundry-mcp` no longer bundles an SPA.
 
 ## How to start a task

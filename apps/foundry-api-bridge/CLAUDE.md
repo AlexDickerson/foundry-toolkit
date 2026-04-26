@@ -21,11 +21,10 @@ Part of the foundry-toolkit monorepo at `apps/foundry-api-bridge` — see the ro
 - `npm run all` — lint + test + build
 
 ## Docker
-- `docker compose up --build` — production image (Foundry + module), port 30000
-- `./local.sh up` / `./local.sh rebuild` — local Docker Desktop workflow
+- `./local.sh up` / `./local.sh rebuild` — local Docker Desktop workflow (Foundry + module, port 30000)
 - `./dev.sh deploy` — sync + build + restart on remote `server.ad`
 
-Note: the Dockerfile **only** bundles Foundry + this module. The MCP server lives in a separate repo ([AlexDickerson/foundry-mcp](https://github.com/AlexDickerson/foundry-mcp)) and runs as its own process — point its `FOUNDRY_WS_URL` at this container's `:8765/foundry` endpoint once the module is enabled.
+Note: the Dockerfile **only** bundles Foundry + this module. The MCP server runs from `apps/foundry-mcp` in this monorepo (`npm run dev:mcp`). Once the module is enabled inside Foundry, configure its WebSocket URL to point at the MCP server's `/foundry` endpoint (default `ws://localhost:8765/foundry`).
 
 ## Project Structure
 - `src/commands/` — Command router and handlers (actors, scenes, tokens, walls, etc.)
