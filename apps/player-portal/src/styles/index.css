@@ -102,14 +102,12 @@
   border-color: var(--item-invested-border);
 }
 
-/* Reserve scrollbar-gutter space so the page doesn't shift when content
-   overflows, but hide the scrollbar visually. */
-html {
-  scrollbar-gutter: stable;
-  scrollbar-width: none;
+/* Hide the main window scrollbar while keeping scroll functional. */
+:root {
+  scrollbar-width: none !important;
 }
-html::-webkit-scrollbar {
-  display: none;
+::-webkit-scrollbar {
+  display: none !important;
 }
 
 /* Palette-matched thin scrollbar for in-sheet scroll regions. */
