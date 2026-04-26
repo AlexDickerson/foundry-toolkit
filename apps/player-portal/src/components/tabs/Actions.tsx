@@ -39,7 +39,7 @@ export function Actions({ actions, items, abilities, actorId, onItemUsed }: Prop
       {strikes.length > 0 && (
         <div>
           <SectionHeader band>Strikes</SectionHeader>
-          <ul className="space-y-2">
+          <ul className="grid grid-cols-2 gap-2">
             {strikes.map((strike) => (
               <StrikeCard key={strike.slug} strike={strike} abilities={abilities} actorId={actorId} />
             ))}
@@ -71,7 +71,7 @@ function StrikeCard({
   abilities: Record<AbilityKey, Ability> | undefined;
   actorId: string;
 }): React.ReactElement {
-  const allTraits = [...strike.traits, ...strike.weaponTraits];
+  const allTraits = [...strike.traits, ...strike.weaponTraits].filter((t) => t.name !== 'attack');
   const damageText = formatStrikeDamage(strike, abilities);
   const range = strike.item.system.range;
 
@@ -115,12 +115,28 @@ function StrikeCard({
               </span>
             )}
           </div>
-          <VariantStrip
-            variants={strike.variants}
-            onVariant={(i) => { attack.trigger(i); }}
-            pending={attack.state === 'pending'}
-          />
-          <div className="mt-1.5 flex flex-wrap gap-1.5" data-role="strike-damage-actions">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5" role="group" aria-label="Attack and damage">
+            {strike.variants.map((v, i) => {
+              const bonus = v.label.split(' ')[0] ?? v.label;
+              const color =
+                i === 0 ? 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+                : i === 1 ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                : 'border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100';
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => { attack.trigger(i); }}
+                  disabled={attack.state === 'pending'}
+                  title={v.label}
+                  data-variant-index={i}
+                  className={`rounded border px-1.5 py-0.5 font-mono text-xs tabular-nums disabled:opacity-50 ${color}`}
+                >
+                  {bonus}
+                </button>
+              );
+            })}
+            <span aria-hidden className="mx-0.5 h-4 w-px bg-pf-border" />
             <button
               type="button"
               onClick={() => { damage.trigger(); }}
@@ -220,41 +236,6 @@ function computeDamageAbilityMod(
     return 0;
   }
   return 0;
-}
-
-function VariantStrip({
-  variants,
-  onVariant,
-  pending,
-}: {
-  variants: { label: string }[];
-  onVariant: (index: number) => void;
-  pending: boolean;
-}): React.ReactElement {
-  return (
-    <ul className="mt-1 flex flex-wrap gap-1.5" role="group" aria-label="Attack variants">
-      {variants.map((v, i) => (
-        <li key={`${i.toString()}-${v.label}`}>
-          <button
-            type="button"
-            onClick={() => {
-              onVariant(i);
-            }}
-            disabled={pending}
-            data-variant-index={i}
-            className={[
-              'rounded border px-1.5 py-0.5 font-mono text-xs tabular-nums disabled:opacity-50',
-              i === 0
-                ? 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
-                : 'border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg-dark',
-            ].join(' ')}
-          >
-            {v.label}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 // ─── Action section (Actions / Reactions / Free Actions) ──────────────
