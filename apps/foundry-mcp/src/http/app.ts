@@ -1,12 +1,15 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod/v4';
 import { log } from '../logger.js';
+import { LiveDb } from '../db/live-db.js';
+import { LIVE_DB_PATH, SHARED_SECRET } from '../config.js';
 import { registerActorRoutes } from './routes/actors.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerCompendiumRoutes } from './routes/compendium.js';
 import { registerDispatchRoute } from './routes/dispatch.js';
 import { registerEvalRoutes } from './routes/eval.js';
 import { registerEventRoutes } from './routes/events.js';
+import { registerLiveRoutes } from './routes/live.js';
 import { registerPromptRoutes } from './routes/prompts.js';
 import { registerUploadRoutes } from './routes/uploads.js';
 
@@ -75,6 +78,7 @@ export async function buildHttpApp(): Promise<FastifyInstance> {
   registerCompendiumRoutes(app);
   registerEvalRoutes(app);
   registerEventRoutes(app);
+  registerLiveRoutes(app, new LiveDb(LIVE_DB_PATH), SHARED_SECRET);
   registerPromptRoutes(app);
   registerUploadRoutes(app);
 
