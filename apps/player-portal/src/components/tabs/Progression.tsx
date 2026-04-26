@@ -240,8 +240,7 @@ export function Progression({ characterLevel, items, characterContext }: Props):
     <section className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4" data-section="progression">
       <div>
         <SectionHeader band>{classItem.name} Progression</SectionHeader>
-      </div>
-      <ol className="space-y-1.5" {...pickedHover.delegationHandlers}>
+        <ol className="space-y-1.5" {...pickedHover.delegationHandlers}>
         {/* eslint-disable-next-line react-hooks/refs -- cache snapshot taken per render; docsVersion bump in useEffect re-renders whenever either cache mutates */}
         {LEVELS.map((level) => {
           const features = featuresByLevel.get(level) ?? [];
@@ -261,7 +260,8 @@ export function Progression({ characterLevel, items, characterContext }: Props):
             />
           );
         })}
-      </ol>
+        </ol>
+      </div>
       {pickedHover.popover}
       {pickerTarget && pickerFilters && (
         <FeatPicker
