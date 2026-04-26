@@ -5,15 +5,14 @@ import { ipcMain } from 'electron';
 import type { DmToolConfig } from '../config.js';
 import type { AurusTeam } from '@foundry-toolkit/shared/types';
 import { deleteAurusTeam, listAurusTeams, upsertAurusTeam } from '@foundry-toolkit/db/pf2e';
-import { pushToSidecar } from '../sidecar-client.js';
+import { pushToFoundryMcp, pushToSidecar } from '../sidecar-client.js';
 
 async function pushSnapshot(cfg: DmToolConfig): Promise<void> {
-  await pushToSidecar(
-    cfg,
-    '/api/live/aurus',
-    { teams: listAurusTeams(), updatedAt: new Date().toISOString() },
-    'aurus',
-  );
+  const payload = { teams: listAurusTeams(), updatedAt: new Date().toISOString() };
+  await Promise.all([
+    pushToSidecar(cfg, '/api/live/aurus', payload, 'aurus'),
+    pushToFoundryMcp(cfg, '/api/live/aurus', payload, 'aurus'),
+  ]);
 }
 
 export function registerAurusHandlers(cfg: DmToolConfig): void {
