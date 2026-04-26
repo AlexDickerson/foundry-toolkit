@@ -438,7 +438,7 @@ function SpellCardWithCast({
             type="button"
             disabled={castDisabled}
             onClick={(e) => { e.preventDefault(); trigger(); }}
-            className="ml-auto flex-shrink-0 rounded border border-pf-primary/60 bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary transition-colors hover:bg-pf-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="ml-auto flex-shrink-0 rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pf-text hover:bg-pf-bg-dark disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={pending ? 'Casting…' : `Cast ${spell.name}`}
           >
             {pending ? '…' : 'Cast'}
