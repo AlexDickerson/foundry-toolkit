@@ -102,26 +102,14 @@
   border-color: var(--item-invested-border);
 }
 
-/* Reserve scrollbar-gutter space always so the page doesn't horizontally
-   shift when content grows past the viewport and a scrollbar appears.
-   Also applies the palette-matched thin scrollbar to the main window. */
+/* Reserve scrollbar-gutter space so the page doesn't shift when content
+   overflows, but hide the scrollbar visually. */
 html {
   scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-pf-border) transparent;
+  scrollbar-width: none;
 }
 html::-webkit-scrollbar {
-  width: 6px;
-}
-html::-webkit-scrollbar-track {
-  background: transparent;
-}
-html::-webkit-scrollbar-thumb {
-  background-color: var(--color-pf-border);
-  border-radius: 9999px;
-}
-html::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-pf-alt);
+  display: none;
 }
 
 /* Palette-matched thin scrollbar for in-sheet scroll regions. */
