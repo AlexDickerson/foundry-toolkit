@@ -896,6 +896,10 @@ export interface PartyMember {
   /** Perception modifier (PF2e `system.perception.mod`), used as the
    *  default initiative modifier in the combat tracker. */
   initiativeMod: number;
+  /** Current HP at the time the picker fetched the party. The combat
+   *  tracker uses this as the combatant's starting HP so a PC mid-fight
+   *  isn't reset to full when added to the encounter. */
+  hp: number;
   maxHp: number;
 }
 

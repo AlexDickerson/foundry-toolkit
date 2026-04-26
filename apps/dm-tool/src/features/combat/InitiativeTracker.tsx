@@ -134,14 +134,22 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
    *  combatants array — calling this in a loop would lose all but the
    *  last because each call closes over the same stale snapshot. */
   const addPcs = useCallback(
-    (pcs: ReadonlyArray<{ name: string; initiativeMod: number; maxHp: number; foundryActorId?: string }>) => {
+    (
+      pcs: ReadonlyArray<{
+        name: string;
+        initiativeMod: number;
+        hp?: number;
+        maxHp: number;
+        foundryActorId?: string;
+      }>,
+    ) => {
       const newCombatants: Combatant[] = pcs.map((pc) => ({
         id: crypto.randomUUID(),
         kind: 'pc',
         displayName: pc.name,
         initiativeMod: pc.initiativeMod,
         initiative: null,
-        hp: pc.maxHp,
+        hp: pc.hp ?? pc.maxHp,
         maxHp: pc.maxHp,
         ...(pc.foundryActorId !== undefined ? { foundryActorId: pc.foundryActorId } : {}),
       }));
@@ -540,7 +548,7 @@ function AddMonsterPanel({
   );
 }
 
-type PcInput = { name: string; initiativeMod: number; maxHp: number; foundryActorId?: string };
+type PcInput = { name: string; initiativeMod: number; hp?: number; maxHp: number; foundryActorId?: string };
 
 /** Party picker: fetches characters from the PF2e party actor and
  *  presents them as a multi-select list.  Falls back to the manual
@@ -582,6 +590,7 @@ function PartyPickerPanel({
   const toPcInput = (m: PartyMember): PcInput => ({
     name: m.name,
     initiativeMod: m.initiativeMod,
+    hp: m.hp,
     maxHp: m.maxHp,
     foundryActorId: m.id,
   });
