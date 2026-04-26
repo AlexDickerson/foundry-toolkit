@@ -81,8 +81,8 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
           <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
           <span aria-hidden className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
-        {/* Right panel: level + traits beside the chip at the same height. */}
-        <div className="absolute left-full top-0 z-20 min-h-full w-44 rounded-r border border-l-0 border-pf-primary/60 bg-pf-bg px-4 py-2 text-sm text-pf-text shadow-lg">
+        {/* Right panel: all expand content beside the chip, grows freely downward. */}
+        <div className="absolute left-full top-0 z-20 min-h-full w-60 rounded-r border border-l-0 border-pf-primary/60 bg-pf-bg px-4 py-3 text-sm text-pf-text shadow-lg">
           <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {level}</p>
           {traits.length > 0 && <TraitChips traits={traits} />}
           {prereqs.length > 0 && (
@@ -90,16 +90,13 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
               <span className="font-semibold uppercase tracking-widest">Prerequisites</span> {prereqs.join('; ')}
             </p>
           )}
-        </div>
-        {/* Description panel: below chip + right panel combined. */}
-        <div className="absolute left-0 top-full z-20 w-[calc(100%+11rem)] rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-5 py-3 text-sm text-pf-text shadow-lg">
           {enriched.length > 0 ? (
             <div
-              className="max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+              className="mt-2 max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
               dangerouslySetInnerHTML={{ __html: enriched }}
             />
           ) : (
-            <p className="italic text-neutral-400">No description.</p>
+            <p className="mt-2 italic text-neutral-400">No description.</p>
           )}
         </div>
       </details>
