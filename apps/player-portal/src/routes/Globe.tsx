@@ -57,7 +57,7 @@ export function Globe() {
 
   // Live-stream pin data from the portal server. The DM pushes on every
   // edit; we re-render whenever a new snapshot arrives.
-  const live = useLiveStream<GlobeSnapshot>('/api/mcp/live/globe/stream');
+  const live = useLiveStream<GlobeSnapshot>('/api/live/globe/stream');
   useEffect(() => {
     if (!live.data) return;
     setPins(live.data.pins);

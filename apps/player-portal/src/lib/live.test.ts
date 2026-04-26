@@ -63,8 +63,8 @@ interface Snap {
 
 describe('useLiveStream', () => {
   it('opens an EventSource on the given path', () => {
-    renderHook(() => useLiveStream('/api/mcp/live/inventory/stream'));
-    expect(MockEventSourceClass).toHaveBeenCalledWith('/api/mcp/live/inventory/stream');
+    renderHook(() => useLiveStream('/api/live/inventory/stream'));
+    expect(MockEventSourceClass).toHaveBeenCalledWith('/api/live/inventory/stream');
   });
 
   it('uses overrideUrl when provided', () => {
@@ -73,14 +73,14 @@ describe('useLiveStream', () => {
   });
 
   it('starts with status "connecting" and no data', () => {
-    const { result } = renderHook(() => useLiveStream<Snap>('/api/mcp/live/inventory/stream'));
+    const { result } = renderHook(() => useLiveStream<Snap>('/api/live/inventory/stream'));
     expect(result.current.status).toBe('connecting');
     expect(result.current.data).toBeNull();
     expect(result.current.lastUpdated).toBeNull();
   });
 
   it('sets status to "connected" on open', () => {
-    const { result } = renderHook(() => useLiveStream<Snap>('/api/mcp/live/inventory/stream'));
+    const { result } = renderHook(() => useLiveStream<Snap>('/api/live/inventory/stream'));
     act(() => {
       capturedSources[0]?._open();
     });
@@ -88,7 +88,7 @@ describe('useLiveStream', () => {
   });
 
   it('updates data and lastUpdated on message', () => {
-    const { result } = renderHook(() => useLiveStream<Snap>('/api/mcp/live/inventory/stream'));
+    const { result } = renderHook(() => useLiveStream<Snap>('/api/live/inventory/stream'));
     const snap: Snap = { items: ['sword'], updatedAt: '2024-01-01T00:00:00.000Z' };
 
     act(() => {
@@ -101,7 +101,7 @@ describe('useLiveStream', () => {
   });
 
   it('sets status to "disconnected" on error when not closed', () => {
-    const { result } = renderHook(() => useLiveStream<Snap>('/api/mcp/live/inventory/stream'));
+    const { result } = renderHook(() => useLiveStream<Snap>('/api/live/inventory/stream'));
     act(() => {
       capturedSources[0]?._open();
     });
@@ -115,7 +115,7 @@ describe('useLiveStream', () => {
   });
 
   it('does not change status on error when readyState is CLOSED', () => {
-    const { result } = renderHook(() => useLiveStream<Snap>('/api/mcp/live/inventory/stream'));
+    const { result } = renderHook(() => useLiveStream<Snap>('/api/live/inventory/stream'));
     act(() => {
       capturedSources[0]?._open();
     });
@@ -128,7 +128,7 @@ describe('useLiveStream', () => {
   });
 
   it('preserves data across a disconnect-reconnect cycle', () => {
-    const { result } = renderHook(() => useLiveStream<Snap>('/api/mcp/live/inventory/stream'));
+    const { result } = renderHook(() => useLiveStream<Snap>('/api/live/inventory/stream'));
     const snap: Snap = { items: ['potion'], updatedAt: '2024-01-01T00:00:00.000Z' };
 
     act(() => {
@@ -150,7 +150,7 @@ describe('useLiveStream', () => {
   });
 
   it('tolerates malformed JSON in messages', () => {
-    const { result } = renderHook(() => useLiveStream<Snap>('/api/mcp/live/inventory/stream'));
+    const { result } = renderHook(() => useLiveStream<Snap>('/api/live/inventory/stream'));
     act(() => {
       capturedSources[0]?._message('not valid json');
     });
@@ -158,7 +158,7 @@ describe('useLiveStream', () => {
   });
 
   it('closes the EventSource on unmount', () => {
-    const { unmount } = renderHook(() => useLiveStream('/api/mcp/live/inventory/stream'));
+    const { unmount } = renderHook(() => useLiveStream('/api/live/inventory/stream'));
     const source = capturedSources[0];
     unmount();
     expect(source?.close).toHaveBeenCalled();
@@ -166,11 +166,11 @@ describe('useLiveStream', () => {
 
   it('recreates the EventSource when path changes', () => {
     const { rerender } = renderHook(({ p }: { p: string }) => useLiveStream(p), {
-      initialProps: { p: '/api/mcp/live/inventory/stream' },
+      initialProps: { p: '/api/live/inventory/stream' },
     });
-    rerender({ p: '/api/mcp/live/aurus/stream' });
+    rerender({ p: '/api/live/aurus/stream' });
     // First source was closed, second was opened for the new path
     expect(capturedSources[0]?.close).toHaveBeenCalled();
-    expect(capturedSources[1]?.url).toBe('/api/mcp/live/aurus/stream');
+    expect(capturedSources[1]?.url).toBe('/api/live/aurus/stream');
   });
 });

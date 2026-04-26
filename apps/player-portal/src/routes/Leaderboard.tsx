@@ -23,7 +23,7 @@ function scoreOf(team: AurusTeam): number {
 }
 
 export function Leaderboard() {
-  const { data, status, lastUpdated } = useLiveStream<AurusSnapshot>('/api/mcp/live/aurus/stream');
+  const { data, status, lastUpdated } = useLiveStream<AurusSnapshot>('/api/live/aurus/stream');
 
   const ranked = useMemo(() => {
     return [...(data?.teams ?? [])].sort((a, b) => scoreOf(b) - scoreOf(a));
