@@ -139,43 +139,102 @@ describe('createPf2eClient', () => {
     });
   });
 
+  // ─── weapon().rollAttack ─────────────────────────────────────────────────
+
+  describe('weapon().rollAttack', () => {
+    it('dispatches with the variants[N] numeric-index convention', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollAttack(0);
+
+      expect(spy).toHaveBeenCalledWith({
+        class: 'CharacterPF2e',
+        id: 'actor-001',
+        method: 'system.actions[@slug:longsword].variants[0].roll',
+        args: [{ skipDialog: true }],
+      });
+    });
+
+    it('encodes variantIndex 1 (MAP -5) in the method path', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollAttack(1);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ method: 'system.actions[@slug:longsword].variants[1].roll' }),
+      );
+    });
+
+    it('encodes variantIndex 2 (MAP -10) in the method path', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollAttack(2);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ method: 'system.actions[@slug:longsword].variants[2].roll' }),
+      );
+    });
+
+    it('always includes skipDialog: true in args', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollAttack(0);
+      const req = (spy.mock.calls[0] as [{ args: unknown[] }])[0];
+      expect((req.args[0] as Record<string, unknown>)['skipDialog']).toBe(true);
+    });
+
+    it('merges additional opts while preserving skipDialog', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollAttack(0, { rollMode: 'gmroll' });
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ args: [{ skipDialog: true, rollMode: 'gmroll' }] }));
+    });
+
+    it('interpolates arbitrary slugs into the method path', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).weapon('actor-001', 'my-battle-axe').rollAttack(0);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ method: 'system.actions[@slug:my-battle-axe].variants[0].roll' }),
+      );
+    });
+  });
+
   // ─── weapon().rollDamage ─────────────────────────────────────────────────
 
   describe('weapon().rollDamage', () => {
-    it('dispatches with the @slug array-lookup convention', async () => {
+    it('dispatches to .damage() for normal rolls (critical=false default)', async () => {
       const { dispatch, spy } = makeDispatch();
       await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollDamage();
 
       expect(spy).toHaveBeenCalledWith({
         class: 'CharacterPF2e',
         id: 'actor-001',
-        method: 'system.actions[@slug:longsword].rollDamage',
+        method: 'system.actions[@slug:longsword].damage',
         args: [{}],
       });
     });
 
-    it('interpolates arbitrary strike slugs into the method path', async () => {
+    it('dispatches to .critical() for critical rolls (critical=true)', async () => {
+      const { dispatch, spy } = makeDispatch();
+      await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollDamage(true);
+
+      expect(spy).toHaveBeenCalledWith({
+        class: 'CharacterPF2e',
+        id: 'actor-001',
+        method: 'system.actions[@slug:longsword].critical',
+        args: [{}],
+      });
+    });
+
+    it('interpolates arbitrary slugs into the method path', async () => {
       const { dispatch, spy } = makeDispatch();
       await createPf2eClient(dispatch).weapon('actor-001', 'my-battle-axe').rollDamage();
       expect(spy).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'system.actions[@slug:my-battle-axe].rollDamage' }),
+        expect.objectContaining({ method: 'system.actions[@slug:my-battle-axe].damage' }),
       );
     });
 
     it('passes opts through in args[0]', async () => {
       const { dispatch, spy } = makeDispatch();
-      const opts = { critical: true };
-      await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollDamage(opts);
+      const opts = { bonus: 2 };
+      await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollDamage(false, opts);
       expect(spy).toHaveBeenCalledWith(expect.objectContaining({ args: [opts] }));
     });
 
-    it('defaults opts to {} when omitted', async () => {
-      const { dispatch, spy } = makeDispatch();
-      await createPf2eClient(dispatch).weapon('actor-001', 'longsword').rollDamage();
-      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ args: [{}] }));
-    });
-
-    it('uses the actorId supplied to weapon(), not character()', async () => {
+    it('uses the actorId supplied to weapon()', async () => {
       const { dispatch, spy } = makeDispatch();
       await createPf2eClient(dispatch).weapon('specific-actor', 'dagger').rollDamage();
       expect(spy).toHaveBeenCalledWith(expect.objectContaining({ id: 'specific-actor' }));

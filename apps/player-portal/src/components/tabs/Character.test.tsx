@@ -238,13 +238,12 @@ describe('Character tab', () => {
   });
 });
 
-// ─── Dispatcher end-to-end: fortitude save button ───────────────────────────
+// ─── Dispatcher end-to-end: all three save buttons ──────────────────────────
 //
-// Verifies that the fortitude save tile calls api.dispatch with the expected
-// DispatchRequest shape.  This is the end-to-end spike test validating that
-// the pf2e-rules Layer 1 client is wired into the Character sheet correctly.
+// Verifies that all three save tiles call api.dispatch with the expected
+// DispatchRequest shapes (saves.fortitude/reflex/will.roll).
 
-describe('Character tab — fortitude save wired through dispatcher', () => {
+describe('Character tab — saves wired through dispatcher', () => {
   beforeEach(() => {
     vi.mocked(api.dispatch).mockClear();
     vi.mocked(api.dispatch).mockResolvedValue({ result: null });
@@ -254,44 +253,42 @@ describe('Character tab — fortitude save wired through dispatcher', () => {
     cleanup();
   });
 
-  it('clicking the Fortitude save tile calls api.dispatch with the right DispatchRequest', async () => {
+  it.each([
+    ['save-fortitude', 'saves.fortitude.roll'],
+    ['save-reflex', 'saves.reflex.roll'],
+    ['save-will', 'saves.will.roll'],
+  ])('clicking the %s tile dispatches method=%s', async (dataStat, expectedMethod) => {
     const { container } = render(
       <Character system={system} actorId="test-actor" onActorChanged={() => undefined} />,
     );
 
-    const fortTile = container.querySelector('[data-stat="save-fortitude"]') as HTMLButtonElement;
-    expect(fortTile, 'fortitude tile should render as a button').toBeTruthy();
+    const tile = container.querySelector(`[data-stat="${dataStat}"]`) as HTMLButtonElement;
+    expect(tile, `${dataStat} tile should render as a button`).toBeTruthy();
 
     await act(async () => {
-      fireEvent.click(fortTile);
+      fireEvent.click(tile);
     });
 
     expect(api.dispatch).toHaveBeenCalledWith({
       class: 'CharacterPF2e',
       id: 'test-actor',
-      method: 'saves.fortitude.roll',
+      method: expectedMethod,
       args: [{}],
     });
   });
 
-  it('reflex and will tiles still call rollActorStatistic (not dispatch)', async () => {
+  it('none of the save tiles call rollActorStatistic', async () => {
     const { container } = render(
       <Character system={system} actorId="test-actor" onActorChanged={() => undefined} />,
     );
 
-    const reflexTile = container.querySelector('[data-stat="save-reflex"]') as HTMLButtonElement;
-    const willTile = container.querySelector('[data-stat="save-will"]') as HTMLButtonElement;
+    for (const stat of ['save-fortitude', 'save-reflex', 'save-will']) {
+      const tile = container.querySelector(`[data-stat="${stat}"]`) as HTMLButtonElement;
+      await act(async () => {
+        fireEvent.click(tile);
+      });
+    }
 
-    await act(async () => {
-      fireEvent.click(reflexTile);
-    });
-    await act(async () => {
-      fireEvent.click(willTile);
-    });
-
-    // Only fortitude goes through dispatch — reflex and will still use rollActorStatistic.
-    expect(api.dispatch).not.toHaveBeenCalled();
-    expect(api.rollActorStatistic).toHaveBeenCalledWith('test-actor', 'reflex');
-    expect(api.rollActorStatistic).toHaveBeenCalledWith('test-actor', 'will');
+    expect(api.rollActorStatistic).not.toHaveBeenCalled();
   });
 });

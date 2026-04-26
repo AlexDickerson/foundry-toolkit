@@ -145,30 +145,56 @@ export function createPf2eClient(dispatch: DispatchFn, invokeAction?: InvokeActi
      *
      * @param actorId    - Foundry document id of the actor.
      * @param strikeSlug - slug of the weapon / strike action
-     *   (matched against action.item.slug in actor.system.actions).
+     *   (matched against action.slug in actor.system.actions).
      */
     weapon(actorId: string, strikeSlug: string) {
       return {
         /**
-         * Roll damage for a named strike via the dispatcher.
+         * Roll one MAP variant of a named strike attack via the dispatcher.
          *
-         * Dispatches: `actor.system.actions[@slug:<strikeSlug>].rollDamage(opts)`
+         * Dispatches: `actor.system.actions[@slug:X].variants[N].roll({ skipDialog: true })`
          *
-         * The `[@slug:X]` notation is the dispatcher's array-lookup convention:
-         * it finds the first element in actor.system.actions where
-         * item.slug === strikeSlug (also checks .slug / .item.name).
+         * `[@slug:X]` finds the action by slug; `[N]` is a numeric index into
+         * the `variants` array (0 = full attack, 1 = −5 MAP, 2 = −10 MAP).
+         * `skipDialog: true` suppresses CheckModifiersDialog consistent with
+         * the existing rollStatisticAction behavior; the renderCheckModifiersDialog
+         * hook in prompt-intercept.ts also handles it unconditionally.
          *
-         * @param opts - PF2e DamageRollParams, e.g. `{ critical: true }`.
-         *
-         * Known limitation (spike): if the strikeSlug contains characters that
-         * conflict with the `[@slug:X]` parser (e.g. `]`) the lookup will fail.
-         * Follow-up: sanitize or encode the slug in the dispatcher resolver.
+         * @param variantIndex - 0 (full attack), 1 (−5 MAP), or 2 (−10 MAP).
+         * @param opts         - additional PF2e CheckRollContext options.
          */
-        rollDamage(opts: Record<string, unknown> = {}): Promise<DispatchResponse> {
+        rollAttack(variantIndex: number, opts: Record<string, unknown> = {}): Promise<DispatchResponse> {
           return dispatch({
             class: 'CharacterPF2e',
             id: actorId,
-            method: `system.actions[@slug:${strikeSlug}].rollDamage`,
+            method: `system.actions[@slug:${strikeSlug}].variants[${String(variantIndex)}].roll`,
+            args: [{ skipDialog: true, ...opts }],
+          });
+        },
+
+        /**
+         * Roll damage for a named strike via the dispatcher.
+         *
+         * Dispatches to `actor.system.actions[@slug:X].damage(opts)` for normal
+         * rolls, or `actor.system.actions[@slug:X].critical(opts)` for critical
+         * rolls. These are separate functions on the PF2e CharacterStrike object —
+         * not a single `rollDamage` method.
+         *
+         * DamageModifierDialog is suppressed by the existing renderDamageModifierDialog
+         * hook in prompt-intercept.ts. `skipDialog` is not in DamageRollParams so
+         * passing it would have no effect; the hook handles suppression unconditionally.
+         *
+         * @param critical - true to roll critical damage (default: false).
+         * @param opts     - PF2e DamageRollParams passed through verbatim.
+         */
+        rollDamage(critical = false, opts: Record<string, unknown> = {}): Promise<DispatchResponse> {
+          const method = critical
+            ? `system.actions[@slug:${strikeSlug}].critical`
+            : `system.actions[@slug:${strikeSlug}].damage`;
+          return dispatch({
+            class: 'CharacterPF2e',
+            id: actorId,
+            method,
             args: [opts],
           });
         },

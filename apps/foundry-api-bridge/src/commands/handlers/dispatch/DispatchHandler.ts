@@ -96,7 +96,10 @@ function unmarshalArgs(args: unknown[], gameObj: Record<string, unknown>): unkno
 //
 // The LAST segment is the method name; all prior segments traverse properties.
 
+// Matches 'actions[@slug:my-sword]' — array element lookup by slug.
 const ARRAY_SLUG_RE = /^(.+)\[@slug:(.+)\]$/;
+// Matches 'variants[0]' — array element lookup by numeric index.
+const ARRAY_INDEX_RE = /^(.+)\[(\d+)\]$/;
 
 function resolvePath(target: object, path: string): (...args: unknown[]) => unknown {
   const segments = path.split('.');
@@ -109,12 +112,13 @@ function resolvePath(target: object, path: string): (...args: unknown[]) => unkn
   let current: unknown = target;
 
   for (const segment of segments) {
-    const match = ARRAY_SLUG_RE.exec(segment);
+    const slugMatch = ARRAY_SLUG_RE.exec(segment);
+    const indexMatch = slugMatch === null ? ARRAY_INDEX_RE.exec(segment) : null;
 
-    if (match !== null) {
-      // Array-element lookup: 'actions[@slug:my-sword]'
-      const prop = match[1] as string;
-      const slug = match[2] as string;
+    if (slugMatch !== null) {
+      // Array-element lookup by slug: 'actions[@slug:my-sword]'
+      const prop = slugMatch[1] as string;
+      const slug = slugMatch[2] as string;
 
       const arr = (current as Record<string, unknown>)[prop];
       if (!Array.isArray(arr)) {
@@ -131,6 +135,19 @@ function resolvePath(target: object, path: string): (...args: unknown[]) => unkn
 
       if (current == null) {
         throw new Error(`Dispatcher: no element with slug '${slug}' found in '${prop}'`);
+      }
+    } else if (indexMatch !== null) {
+      // Array-element lookup by numeric index: 'variants[0]'
+      const prop = indexMatch[1] as string;
+      const idx = parseInt(indexMatch[2] as string, 10);
+
+      const arr = (current as Record<string, unknown>)[prop];
+      if (!Array.isArray(arr)) {
+        throw new Error(`Dispatcher: '${prop}' is not an array (segment '${segment}')`);
+      }
+      current = arr[idx];
+      if (current == null) {
+        throw new Error(`Dispatcher: no element at index ${idx.toString()} in '${prop}'`);
       }
     } else {
       // Plain property traversal

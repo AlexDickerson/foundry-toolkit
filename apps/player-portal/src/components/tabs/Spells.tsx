@@ -1,3 +1,4 @@
+import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import type { FocusPool, PreparedActorItem, SpellItem, SpellcastingEntryItem } from '../../api/types';
 import { isCantripSpell, isSpellItem, isSpellcastingEntryItem } from '../../api/types';
 import { api } from '../../api/client';
@@ -405,7 +406,7 @@ function SpellCardWithCast({
   const noFocus = !isCantrip && mode === 'focus' && focusPoints.value <= 0;
 
   const { state, trigger } = useActorAction({
-    run: () => api.castSpell(actorId, entry.id, spell.id, rank),
+    run: () => createPf2eClient(api.dispatch, api.invokeActorAction).spellEntry(actorId, entry.id).cast(spell.id, rank),
     onSuccess: onCast,
   });
   const pending = state === 'pending';

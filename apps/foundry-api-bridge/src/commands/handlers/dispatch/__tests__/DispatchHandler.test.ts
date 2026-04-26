@@ -6,6 +6,8 @@ const rollSaveMock = jest.fn();
 const applyDamageMock = jest.fn();
 const longswordRollDamageMock = jest.fn();
 const shortswordRollDamageMock = jest.fn();
+// Variant roll mocks: [0] = full attack, [1] = MAP -5, [2] = MAP -10
+const variantRollMocks = [jest.fn(), jest.fn(), jest.fn()];
 
 const mockActor = {
   id: 'actor-001',
@@ -22,11 +24,14 @@ const mockActor = {
         slug: 'longsword',
         item: { slug: 'longsword', name: 'Longsword' },
         rollDamage: longswordRollDamageMock,
+        // PF2e strike variants (full attack, MAP -5, MAP -10)
+        variants: [{ roll: variantRollMocks[0] }, { roll: variantRollMocks[1] }, { roll: variantRollMocks[2] }],
       },
       {
         slug: 'shortsword',
         item: { slug: 'shortsword', name: 'Shortsword' },
         rollDamage: shortswordRollDamageMock,
+        variants: [{ roll: jest.fn() }],
       },
     ],
   },
@@ -55,6 +60,9 @@ describe('dispatchHandler', () => {
     applyDamageMock.mockResolvedValue(undefined);
     longswordRollDamageMock.mockResolvedValue({ formula: '2d6+4', total: 10 });
     shortswordRollDamageMock.mockResolvedValue({ formula: '1d6+4', total: 7 });
+    for (const vm of variantRollMocks) {
+      vm.mockResolvedValue({ total: 15, formula: '1d20+7' });
+    }
   });
 
   // ─── Happy path ────────────────────────────────────────────────────────────
@@ -104,6 +112,30 @@ describe('dispatchHandler', () => {
       expect(longswordRollDamageMock).toHaveBeenCalledWith({});
       expect(shortswordRollDamageMock).not.toHaveBeenCalled();
       expect(result).toEqual({ result: { formula: '2d6+4', total: 10 } });
+    });
+
+    it('resolves array elements by numeric index via [N] convention', async () => {
+      // Simulates: actor.system.actions[@slug:longsword].variants[1].roll({ skipDialog: true })
+      const result = await dispatchHandler({
+        class: 'CharacterPF2e',
+        id: 'actor-001',
+        method: 'system.actions[@slug:longsword].variants[1].roll',
+        args: [{ skipDialog: true }],
+      });
+      expect(variantRollMocks[1]).toHaveBeenCalledWith({ skipDialog: true });
+      expect(variantRollMocks[0]).not.toHaveBeenCalled();
+      expect(variantRollMocks[2]).not.toHaveBeenCalled();
+      expect(result).toEqual({ result: { total: 15, formula: '1d20+7' } });
+    });
+
+    it('throws when numeric index is out of bounds', async () => {
+      await expect(
+        dispatchHandler({
+          class: 'CharacterPF2e',
+          id: 'actor-001',
+          method: 'system.actions[@slug:longsword].variants[99].roll',
+        }),
+      ).rejects.toThrow(/no element at index 99 in 'variants'/i);
     });
 
     it('routes to the Item collection for class=Item', async () => {

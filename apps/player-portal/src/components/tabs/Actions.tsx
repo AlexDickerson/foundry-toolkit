@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import { api } from '../../api/client';
 import type { Ability, AbilityKey, ActionItem, PreparedActorItem, Strike } from '../../api/types';
 import { isActionItem } from '../../api/types';
@@ -74,9 +75,15 @@ function StrikeCard({
   const damageText = formatStrikeDamage(strike, abilities);
   const range = strike.item.system.range;
 
-  const attack = useActorAction({ run: (variantIndex: number) => api.rollStrike(actorId, strike.slug, variantIndex) });
-  const damage = useActorAction({ run: () => api.rollStrikeDamage(actorId, strike.slug, false) });
-  const crit = useActorAction({ run: () => api.rollStrikeDamage(actorId, strike.slug, true) });
+  const attack = useActorAction({
+    run: (variantIndex: number) => createPf2eClient(api.dispatch).weapon(actorId, strike.slug).rollAttack(variantIndex),
+  });
+  const damage = useActorAction({
+    run: () => createPf2eClient(api.dispatch).weapon(actorId, strike.slug).rollDamage(false),
+  });
+  const crit = useActorAction({
+    run: () => createPf2eClient(api.dispatch).weapon(actorId, strike.slug).rollDamage(true),
+  });
   const error = firstError(attack.state, damage.state, crit.state);
 
   return (
