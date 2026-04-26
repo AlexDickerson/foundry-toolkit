@@ -16,7 +16,6 @@ import { ABILITY_KEYS, isCantripSpell, isActionItem, isSpellItem, isSpellcasting
 import { t } from '../../i18n/t';
 import { formatSignedInt } from '../../lib/format';
 import { useActorAction, type ActorActionState } from '../../lib/useActorAction';
-import { ModifierTooltip } from '../common/ModifierTooltip';
 import { RankChip } from '../common/RankChip';
 import { SectionHeader } from '../common/SectionHeader';
 import { QuickActionPicker, type QuickActionOption, type QAStrike, type QAItem, type QASpell } from '../sheet/QuickActionPicker';
@@ -649,11 +648,11 @@ function SkillItem({
   });
 
   return (
-    <li className="group relative rounded border border-pf-border bg-pf-bg shadow-sm" data-statistic={skill.slug}>
+    <li className="rounded border border-pf-border shadow-sm" data-statistic={skill.slug}>
       <button
         type="button"
         className={[
-          'flex w-full items-center hover:bg-pf-bg-dark disabled:opacity-50',
+          'flex w-full items-center rounded bg-pf-bg hover:border-pf-tertiary-dark hover:bg-pf-tertiary/40 disabled:opacity-50',
           condensed ? 'gap-1.5 px-1.5 py-1' : 'gap-2 px-3 py-2',
         ].join(' ')}
         onClick={() => {
@@ -661,7 +660,7 @@ function SkillItem({
         }}
         disabled={roll.state === 'pending'}
       >
-        <span className="inline-flex w-8 justify-end font-mono text-sm tabular-nums text-pf-secondary">
+        <span className="inline-flex w-8 justify-end font-mono text-sm font-semibold tabular-nums text-pf-text">
           {formatSignedInt(skill.value)}
         </span>
         <span className="flex-1 truncate text-sm text-pf-text">
@@ -669,7 +668,6 @@ function SkillItem({
         </span>
         <RankChip rank={skill.rank} condensed={condensed} />
       </button>
-      <ModifierTooltip title={skill.label} breakdown={skill.breakdown} modifiers={skill.modifiers} />
     </li>
   );
 }
