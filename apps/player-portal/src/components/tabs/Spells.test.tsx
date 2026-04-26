@@ -4,15 +4,15 @@ import type { FocusPool, PreparedActorItem, SpellcastingEntryItem, SpellItem } f
 
 // ─── API mock ─────────────────────────────────────────────────────────────
 
-const castSpellMock = vi.fn().mockResolvedValue({ ok: true });
-
 vi.mock('../../api/client', () => ({
   api: {
-    castSpell: (...args: unknown[]) => castSpellMock(...args),
+    dispatch: vi.fn().mockResolvedValue({ result: null }),
+    invokeActorAction: vi.fn().mockResolvedValue({ ok: true }),
   },
   ApiRequestError: class ApiRequestError extends Error {},
 }));
 
+import { api } from '../../api/client';
 import { Spells } from './Spells';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────
@@ -75,8 +75,8 @@ function renderSpells(
 
 describe('Spells tab', () => {
   beforeEach(() => {
-    castSpellMock.mockReset();
-    castSpellMock.mockResolvedValue({ ok: true });
+    vi.mocked(api.invokeActorAction).mockReset();
+    vi.mocked(api.invokeActorAction).mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -103,7 +103,7 @@ describe('Spells tab', () => {
     expect(castBtn.hasAttribute('disabled')).toBe(false);
   });
 
-  it('calls api.castSpell with correct args when Cast is clicked', async () => {
+  it('routes Cast through pf2eClient.spellEntry().cast() → invokeActorAction', async () => {
     const onCast = vi.fn();
     const items = [makeEntry(), makeSpell()] as PreparedActorItem[];
     renderSpells(items, { onCast });
@@ -112,8 +112,12 @@ describe('Spells tab', () => {
     fireEvent.click(castBtn);
 
     await vi.waitFor(() => {
-      expect(castSpellMock).toHaveBeenCalledOnce();
-      expect(castSpellMock).toHaveBeenCalledWith('actor-1', 'entry-1', 'spell-1', 1);
+      expect(api.invokeActorAction).toHaveBeenCalledOnce();
+      expect(api.invokeActorAction).toHaveBeenCalledWith('actor-1', 'cast-spell', {
+        entryId: 'entry-1',
+        spellId: 'spell-1',
+        rank: 1,
+      });
     });
     await vi.waitFor(() => expect(onCast).toHaveBeenCalledOnce());
   });
