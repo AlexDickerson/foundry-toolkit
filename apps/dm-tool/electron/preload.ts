@@ -12,6 +12,7 @@ import type {
   ActorUpdate,
   AonPreviewData,
   AurusTeam,
+  CombatantInitiativeEvent,
   Encounter,
   LootItem,
   PartyMember,
@@ -194,6 +195,11 @@ const api: ElectronAPI = {
   listPartyMembers: (): Promise<PartyMember[]> => ipcRenderer.invoke('listPartyMembers'),
   getActorSpellcasting: (actorId: string): Promise<ActorSpellcasting | null> =>
     ipcRenderer.invoke('getActorSpellcasting', actorId),
+  onCombatantInitiativeUpdate: (callback: (event: CombatantInitiativeEvent) => void): (() => void) => {
+    const handler = (_event: unknown, update: CombatantInitiativeEvent) => callback(update);
+    ipcRenderer.on('combatant-initiative-update', handler);
+    return () => ipcRenderer.removeListener('combatant-initiative-update', handler);
+  },
 
   // Auto-Wall
   autoWallAvailable: (): Promise<boolean> => ipcRenderer.invoke('autoWallAvailable'),

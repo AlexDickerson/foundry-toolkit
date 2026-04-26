@@ -1,4 +1,4 @@
-import type { Combatant } from '@foundry-toolkit/shared/types';
+import type { Combatant, Encounter } from '@foundry-toolkit/shared/types';
 
 /** Sort combatants by initiative descending, tiebreaking on initiativeMod
  *  (PF2e houserules vary — mod is a reasonable default). Unrolled combatants
@@ -45,4 +45,29 @@ export function reserveMonsterName(combatants: Combatant[], baseName: string): {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Apply a Foundry `updateCombatant` initiative-change event to a list of
+ *  encounters.  Finds every combatant whose `foundryActorId` matches and
+ *  stamps the new initiative value.  Returns the same array reference when
+ *  nothing matched — callers can identity-check to skip unnecessary re-renders
+ *  or persistence writes. */
+export function applyFoundryInitiativeUpdate(
+  encounters: Encounter[],
+  actorId: string,
+  initiative: number,
+): Encounter[] {
+  let changed = false;
+  const now = new Date().toISOString();
+  const next = encounters.map((enc) => {
+    const hasMatch = enc.combatants.some((c) => c.foundryActorId === actorId);
+    if (!hasMatch) return enc;
+    changed = true;
+    return {
+      ...enc,
+      combatants: enc.combatants.map((c) => (c.foundryActorId === actorId ? { ...c, initiative } : c)),
+      updatedAt: now,
+    };
+  });
+  return changed ? next : encounters;
 }

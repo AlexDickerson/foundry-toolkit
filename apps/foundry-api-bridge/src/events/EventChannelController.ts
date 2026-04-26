@@ -61,6 +61,16 @@ interface CombatantWithParent extends CombatantForEvent {
   combat: { id: string } | null;
 }
 
+// Used for updateCombatant — includes actorId so dm-tool can match
+// the Foundry combatant back to its local Combatant by foundryActorId.
+interface CombatantUpdateForEvent {
+  id: string;
+  actorId: string;
+  initiative: number | null;
+  defeated: boolean;
+  combat: { id: string } | null;
+}
+
 interface CombatForEvent {
   id: string;
   round: number;
@@ -226,6 +236,25 @@ export class EventChannelController {
             this.publisher.pushEvent('combat', { eventType: 'end', encounterId: raw.id });
           }),
         );
+        handles.push(
+          this.reg('updateCombatant', (...args: unknown[]) => {
+            const [rawCombatant, rawChanges] = args;
+            if (!isCombatantUpdateForEvent(rawCombatant) || !rawCombatant.combat) return;
+            // Only push when initiative was explicitly set (not cleared to null).
+            const changes = rawChanges as Record<string, unknown>;
+            if (typeof changes['initiative'] !== 'number') return;
+            this.publisher.pushEvent('combat', {
+              eventType: 'combatant-update',
+              encounterId: rawCombatant.combat.id,
+              combatant: {
+                id: rawCombatant.id,
+                actorId: rawCombatant.actorId,
+                initiative: rawCombatant.initiative,
+                defeated: rawCombatant.defeated,
+              },
+            });
+          }),
+        );
         break;
       }
     }
@@ -384,6 +413,17 @@ function isCombatantWithParent(value: unknown): value is CombatantWithParent {
   // `combat` may be null for a combatant mid-creation; the caller
   // checks before pushing.
   return true;
+}
+
+function isCombatantUpdateForEvent(value: unknown): value is CombatantUpdateForEvent {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj['id'] === 'string' &&
+    typeof obj['actorId'] === 'string' &&
+    (typeof obj['initiative'] === 'number' || obj['initiative'] === null) &&
+    typeof obj['defeated'] === 'boolean'
+  );
 }
 
 function isFoundryActorForEvent(value: unknown): value is FoundryActorForEvent {
