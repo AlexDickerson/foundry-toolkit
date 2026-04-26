@@ -77,7 +77,7 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
             alt=""
             className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
-          <span className="min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-snug text-pf-text">{feat.name}</span>
+          <span className="line-clamp-2 min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-snug text-pf-text">{feat.name}</span>
           <span className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
             Lv {level}
           </span>
