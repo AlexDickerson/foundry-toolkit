@@ -7,7 +7,7 @@ import type {
   CraftingFormulaEntry,
   PreparedFormulaData,
 } from '../../api/types';
-import { enrichDescription } from '../../lib/foundry-enrichers';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useActorAction } from '../../lib/useActorAction';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { SectionHeader } from '../common/SectionHeader';

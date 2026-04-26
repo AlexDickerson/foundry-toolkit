@@ -692,9 +692,10 @@ async function getSpellcastingAction(
         }
       }
 
-      const rawDesc = String(nested(spellSys, 'description', 'value') ?? '');
-      // Strip HTML tags and normalize whitespace for plain-text display.
-      const description = rawDesc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      // Description ships as raw Foundry HTML (with @UUID / @Damage / etc.
+      // enricher tokens). Consumers run it through enrichDescription() from
+      // @foundry-toolkit/shared/foundry-enrichers before rendering.
+      const description = String(nested(spellSys, 'description', 'value') ?? '');
 
       let expended: boolean | undefined;
       if (mode === 'prepared') {

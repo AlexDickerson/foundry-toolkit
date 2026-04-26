@@ -13,7 +13,7 @@ import {
   sumActorCoinsCp,
   type Denom,
 } from '../../lib/coins';
-import { enrichDescription } from '../../lib/foundry-enrichers';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useShopMode } from '../../lib/useShopMode';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { SectionHeader } from '../common/SectionHeader';

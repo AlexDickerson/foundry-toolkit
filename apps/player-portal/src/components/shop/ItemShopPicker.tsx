@@ -8,7 +8,7 @@ import type {
   PreparedActorItem,
 } from '../../api/types';
 import { formatCp, priceToCp, sumActorCoinsCp } from '../../lib/coins';
-import { enrichDescription } from '../../lib/foundry-enrichers';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 
 export interface BuyRequest {
   match: CompendiumMatch;

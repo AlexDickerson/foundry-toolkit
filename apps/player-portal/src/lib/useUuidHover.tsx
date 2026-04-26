@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api, ApiRequestError } from '../api/client';
 import type { CompendiumDocument } from '../api/types';
-import { enrichDescription } from './foundry-enrichers';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 
 // Hover previews for `@UUID[...]` enricher links inside a rendered
 // description. The caller keeps their own `dangerouslySetInnerHTML`

@@ -11,7 +11,7 @@ import type {
   ProficiencyRank,
 } from '../../api/types';
 import { isClassItem, isFeatItem } from '../../api/types';
-import { enrichDescription } from '../../lib/foundry-enrichers';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useUuidHover } from '../../lib/useUuidHover';
 import type { CharacterContext } from '../../prereqs';
 import { SectionHeader } from '../common/SectionHeader';

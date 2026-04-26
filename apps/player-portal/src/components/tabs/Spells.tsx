@@ -1,7 +1,7 @@
 import type { FocusPool, PreparedActorItem, SpellItem, SpellcastingEntryItem } from '../../api/types';
 import { isCantripSpell, isSpellItem, isSpellcastingEntryItem } from '../../api/types';
 import { api } from '../../api/client';
-import { enrichDescription } from '../../lib/foundry-enrichers';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { useActorAction } from '../../lib/useActorAction';
 import { SectionHeader } from '../common/SectionHeader';

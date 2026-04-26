@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiRequestError } from '../../api/client';
 import type { CompendiumDocument } from '../../api/types';
-import { enrichDescription } from '../../lib/foundry-enrichers';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import type { PendingPrompt } from '../../lib/usePendingPrompts';
 import { useUuidHover } from '../../lib/useUuidHover';
 
