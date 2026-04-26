@@ -115,10 +115,10 @@ consumers (dm-tool, player-portal, Discord bots, stream overlays) subscribe with
 
 ## Status and scope
 
-Personal-use project, not aimed at distribution. Some deployment artifacts are vestigial: Fly.io
-configs and GHCR references still point at pre-consolidation per-repo identifiers. Deployment
-workflows weren't ported when the four source repos were consolidated here. Re-point before
-productionizing.
+Personal-use project, not aimed at distribution. All four apps run locally against a self-hosted
+Foundry VTT instance. `apps/foundry-api-bridge` has a Docker workflow (`./local.sh`) for running
+Foundry VTT in a container; `apps/player-portal` has a compose file (`deploy-compose.yml`) for
+deploying the portal to a local server.
 
 `tagger/` and `auto-wall-bin/` are not npm workspaces and must be built separately before
 `dm-tool` can be packaged.
