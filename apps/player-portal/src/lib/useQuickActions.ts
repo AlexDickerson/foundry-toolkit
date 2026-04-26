@@ -1,7 +1,5 @@
 import { useState, useCallback } from 'react';
 
-const MAX_QUICK_ACTIONS = 5;
-
 export function useQuickActions(actorId: string): [string[], (ids: string[]) => void] {
   const key = `qt:${actorId}`;
 
@@ -16,10 +14,9 @@ export function useQuickActions(actorId: string): [string[], (ids: string[]) => 
 
   const setAndPersist = useCallback(
     (next: string[]) => {
-      const clamped = next.slice(0, MAX_QUICK_ACTIONS);
-      setIds(clamped);
+      setIds(next);
       try {
-        localStorage.setItem(key, JSON.stringify(clamped));
+        localStorage.setItem(key, JSON.stringify(next));
       } catch {
         // localStorage unavailable — state still updates in memory
       }

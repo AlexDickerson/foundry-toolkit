@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import { api } from '../../api/client';
 import type {
@@ -40,9 +40,24 @@ interface Props {
 export function Character({ system, actorId, items, characterLevel, onActorChanged }: Props): React.ReactElement {
   const keyAbility = system.details.keyability.value;
   const classDC = system.attributes.classDC;
+  const skillsCardRef = useRef<HTMLDivElement>(null);
+  const [qaMaxHeight, setQaMaxHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const el = skillsCardRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const h = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height + 34;
+      setQaMaxHeight(h);
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); };
+  }, []);
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4">
       <AbilityBlock abilities={system.abilities} keyAbility={keyAbility} />
 
       <StatsBlock system={system} actorId={actorId} onActorChanged={onActorChanged} />
@@ -53,8 +68,8 @@ export function Character({ system, actorId, items, characterLevel, onActorChang
         resistances={system.attributes.resistances}
       />
 
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">
+      <div className="flex items-start gap-4 !rounded-none !border-0 !bg-transparent !p-0">
+        <div ref={skillsCardRef} className="min-w-0 flex-1 rounded-lg border border-pf-border bg-pf-bg-dark p-4">
           <SkillsBlock skills={system.skills} actorId={actorId} condensed />
         </div>
         <QuickActionsBlock
@@ -64,6 +79,7 @@ export function Character({ system, actorId, items, characterLevel, onActorChang
           focusPoints={system.resources.focus}
           actorId={actorId}
           onActorChanged={onActorChanged}
+          maxHeight={qaMaxHeight}
         />
       </div>
 
@@ -637,8 +653,8 @@ function SkillItem({
       <button
         type="button"
         className={[
-          'flex w-full items-center gap-2 hover:bg-pf-bg-dark disabled:opacity-50',
-          condensed ? 'px-2 py-1' : 'px-3 py-2',
+          'flex w-full items-center hover:bg-pf-bg-dark disabled:opacity-50',
+          condensed ? 'gap-1.5 px-1.5 py-1' : 'gap-2 px-3 py-2',
         ].join(' ')}
         onClick={() => {
           roll.trigger();
@@ -707,6 +723,7 @@ function QuickActionsBlock({
   focusPoints,
   actorId,
   onActorChanged,
+  maxHeight,
 }: {
   strikes: Strike[];
   items: PreparedActorItem[];
@@ -714,6 +731,7 @@ function QuickActionsBlock({
   focusPoints: { value: number; max: number };
   actorId: string;
   onActorChanged: () => void;
+  maxHeight?: number;
 }): React.ReactElement {
   const [selectedIds, setSelectedIds] = useQuickActions(actorId);
   const [showPicker, setShowPicker] = useState(false);
@@ -724,8 +742,11 @@ function QuickActionsBlock({
     .filter((o): o is QuickActionOption => o !== undefined);
 
   return (
-    <div className="w-48 shrink-0">
-      <div className="mb-3 flex items-center justify-between">
+    <div
+      className="flex w-60 shrink-0 flex-col overflow-hidden rounded-lg border border-pf-border bg-pf-bg-dark p-4"
+      style={maxHeight !== undefined ? { maxHeight } : undefined}
+    >
+      <div className="mb-3 flex shrink-0 items-center justify-between">
         <h2 className="border-l-2 border-pf-primary pl-3 font-serif text-sm font-bold uppercase tracking-wider text-pf-alt-dark">
           Quick Actions
         </h2>
@@ -743,7 +764,7 @@ function QuickActionsBlock({
       {selected.length === 0 ? (
         <p className="text-xs italic text-pf-text-muted">Tap the pencil to add quick actions.</p>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
           {selected.map((opt) => {
             if (opt.kind === 'strike') {
               return <StrikeQuickRow key={opt.id} option={opt} actorId={actorId} />;

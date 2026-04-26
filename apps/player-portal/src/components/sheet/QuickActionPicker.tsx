@@ -41,7 +41,7 @@ export function QuickActionPicker({ options, selectedIds, onSelectionChange, onC
   const toggle = (id: string): void => {
     if (selectedIds.includes(id)) {
       onSelectionChange(selectedIds.filter((x) => x !== id));
-    } else if (selectedIds.length < 5) {
+    } else {
       onSelectionChange([...selectedIds, id]);
     }
   };
@@ -61,7 +61,7 @@ export function QuickActionPicker({ options, selectedIds, onSelectionChange, onC
               Quick Actions
             </h2>
             <p className="mt-0.5 pl-3 text-[10px] text-pf-text-muted">
-              {selectedIds.length} / 5 selected
+              {selectedIds.length} selected
             </p>
           </div>
           <button
@@ -109,20 +109,17 @@ function PickerGroup({
       <ul className="space-y-1">
         {options.map((opt) => {
           const selected = selectedIds.includes(opt.id);
-          const disabled = !selected && selectedIds.length >= 5;
           const imgSrc = opt.img ? (opt.img.startsWith('/') ? opt.img : `/${opt.img}`) : '';
           return (
             <li key={opt.id}>
               <button
                 type="button"
                 onClick={() => { onToggle(opt.id); }}
-                disabled={disabled}
                 className={[
                   'flex w-full items-center gap-2 rounded border px-2 py-1.5 text-left transition-colors',
                   selected
                     ? 'border-pf-primary bg-pf-primary/5 text-pf-text'
                     : 'border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg-dark',
-                  disabled ? 'cursor-not-allowed opacity-40' : '',
                 ].join(' ')}
               >
                 {imgSrc && (
