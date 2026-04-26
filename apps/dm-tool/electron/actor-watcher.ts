@@ -22,10 +22,15 @@ async function fetchActorSystem(
   actorId: string,
   signal: AbortSignal,
 ): Promise<Record<string, unknown> | null> {
+  // Use the `/prepared` endpoint, not `/api/actors/:id`. The latter returns
+  // `actor.getRollData()`, which in PF2e wraps the actor under an `actor`
+  // key and drops fields like `system.attributes.hp.max`. The prepared
+  // endpoint runs `actor.toObject(false)` and returns the standard
+  // `system.attributes.*` shape with derived/prepared values merged in.
   try {
-    const res = await fetch(`${base}/api/actors/${actorId}`, { signal });
+    const res = await fetch(`${base}/api/actors/${actorId}/prepared`, { signal });
     if (!res.ok) {
-      console.warn(`actor-watcher: GET /api/actors/${actorId} returned HTTP ${res.status}`);
+      console.warn(`actor-watcher: GET /api/actors/${actorId}/prepared returned HTTP ${res.status}`);
       return null;
     }
     const actor = (await res.json()) as { system?: unknown };

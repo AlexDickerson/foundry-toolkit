@@ -36,19 +36,7 @@ export function useFoundryHpSync(encounter: Encounter, onChange: (next: Encounte
       }
       const hpValues = extractHp(update.system);
       if (!hpValues) {
-        const actorWrap = update.system['actor'] as Record<string, unknown> | undefined;
-        console.warn(
-          `useFoundryHpSync: ${update.actorId} HP extraction failed. system keys=`,
-          Object.keys(update.system),
-          'system.actor keys=',
-          actorWrap ? Object.keys(actorWrap) : null,
-          'system.actor.system keys=',
-          actorWrap?.['system'] ? Object.keys(actorWrap['system'] as Record<string, unknown>) : null,
-          'system.actor.attributes=',
-          actorWrap?.['attributes'],
-          'system.actor.system.attributes=',
-          (actorWrap?.['system'] as Record<string, unknown> | undefined)?.['attributes'],
-        );
+        console.warn(`useFoundryHpSync: ${update.actorId} HP path changed but extraction failed`);
         return;
       }
 
