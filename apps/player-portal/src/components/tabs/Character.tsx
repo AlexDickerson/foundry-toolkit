@@ -861,7 +861,7 @@ function ItemQuickRow({
           type="button"
           onClick={() => { use.trigger(); }}
           disabled={use.state === 'pending'}
-          className="shrink-0 rounded border border-pf-primary/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pf-primary hover:bg-pf-primary/10 disabled:opacity-50"
+          className="w-12 shrink-0 rounded border border-pf-primary/40 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-pf-primary hover:bg-pf-primary/10 disabled:opacity-50"
         >
           Use
         </button>
@@ -920,7 +920,7 @@ function SpellQuickRow({
           type="button"
           onClick={() => { cast.trigger(); }}
           disabled={cast.state === 'pending' || unavailable}
-          className="shrink-0 rounded border border-pf-primary/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pf-primary hover:bg-pf-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className="w-12 shrink-0 rounded border border-pf-primary/40 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-pf-primary hover:bg-pf-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Cast
         </button>
@@ -944,13 +944,17 @@ function VariantAttackButton({
     run: () => createPf2eClient(api.dispatch).weapon(actorId, slug).rollAttack(variantIndex),
   });
   const bonus = label.split(' ')[0];
+  const color =
+    variantIndex === 0 ? 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+    : variantIndex === 1 ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+    : 'border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100';
   return (
     <button
       type="button"
       onClick={() => { roll.trigger(); }}
       disabled={roll.state === 'pending'}
       title={label}
-      className="rounded border border-pf-border bg-pf-bg-dark px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-pf-secondary hover:border-pf-tertiary-dark hover:bg-pf-tertiary/40 disabled:opacity-50"
+      className={`rounded border px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums disabled:opacity-50 ${color}`}
     >
       {bonus}
     </button>
