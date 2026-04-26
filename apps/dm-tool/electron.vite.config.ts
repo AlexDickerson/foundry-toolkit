@@ -13,11 +13,6 @@ import react from '@vitejs/plugin-react';
 // Vite transform them during build.
 const workspaceBundled = ['@foundry-toolkit/ai', '@foundry-toolkit/db', '@foundry-toolkit/shared'];
 
-// Native modules pulled in transitively by bundled workspace packages must be
-// re-externalized so their `.node` binaries resolve at runtime instead of
-// being inlined by Rollup (which breaks the `bindings` loader).
-const nativeDeps = ['better-sqlite3'];
-
 // Monorepo root holds the single .env. All three build targets point at it
 // so Vite's `import.meta.env.VITE_*` resolution reads the same file. The
 // main process also calls loadRootEnv() at startup (via
@@ -27,7 +22,7 @@ const rootEnvDir = resolve(__dirname, '../..');
 export default defineConfig({
   main: {
     envDir: rootEnvDir,
-    plugins: [externalizeDepsPlugin({ exclude: workspaceBundled, include: nativeDeps })],
+    plugins: [externalizeDepsPlugin({ exclude: workspaceBundled })],
     build: {
       rollupOptions: {
         input: {
