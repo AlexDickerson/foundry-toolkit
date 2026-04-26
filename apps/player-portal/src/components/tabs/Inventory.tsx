@@ -161,8 +161,8 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
   const handleToggleInvestment = async (item: PhysicalItem): Promise<void> => {
     if (!canTransact || investiture === undefined) return;
     setTxError(null);
-    if (wouldExceedInvestmentCap(investiture, item)) {
-      setTxError(`Investment limit reached (${investiture.value.toString()}/${investiture.max.toString()} items invested).`);
+    if (wouldExceedInvestmentCap({ value: investedCount, max: investiture.max }, item)) {
+      setTxError(`Investment limit reached (${investedCount.toString()}/${investiture.max.toString()} items invested).`);
       return;
     }
     setPendingInvestments((prev) => new Set(prev).add(item.id));
@@ -183,6 +183,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
   };
 
   const physical = items.filter(isPhysicalItem);
+  const investedCount = physical.filter((i) => supportsInvestment(i) && i.system.equipped.invested === true).length;
 
   const coins = physical.filter(isCoin);
   // Treasure coins get their own dedicated strip at the top; strip
@@ -239,7 +240,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
               <div className="flex items-center gap-2" data-stat="investiture">
                 <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">Invested</span>
                 <span className="font-mono text-sm tabular-nums text-pf-text">
-                  {investiture.value}
+                  {investedCount}
                   <span className="text-pf-text-muted">/{investiture.max}</span>
                 </span>
               </div>
