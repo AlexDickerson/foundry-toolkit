@@ -851,7 +851,7 @@ function GridTile({
     equipped || invested ? 'hover:brightness-95' : 'hover:bg-pf-bg-dark/40';
 
   return (
-    <li className="relative" data-item-id={item.id} data-item-type={item.type}>
+    <li className="relative [&:has(details[open])]:z-30" data-item-id={item.id} data-item-type={item.type}>
       <details className={detailsClass} style={detailsStyle}>
         <summary className={[
           'flex cursor-pointer list-none flex-col items-center p-2',
