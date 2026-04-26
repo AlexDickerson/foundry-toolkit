@@ -828,7 +828,7 @@ function GridTile({
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
       <details className={[
-        'group relative rounded border open:z-10 open:min-w-[18rem] open:rounded-b-none open:border-pf-primary/60 open:shadow-lg',
+        'group relative rounded border open:z-10 open:rounded-r-none open:border-pf-primary/60 open:shadow-lg',
         equipped ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-pf-border bg-pf-bg',
       ].join(' ')}>
         <summary className={[
@@ -851,7 +851,7 @@ function GridTile({
           {hasInvestButton && <InvestButton item={item} context={investContext} />}
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
-        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 text-left text-sm text-pf-text shadow-lg">
+        <div className="absolute left-full top-0 z-20 min-h-full w-[300%] overflow-y-auto rounded-r border border-l-0 border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg">
           <ItemDescription item={item} />
         </div>
       </details>
