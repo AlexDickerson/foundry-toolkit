@@ -32,7 +32,10 @@ interface GlobeSnapshot {
 
 // Tile URLs go through nginx's /map/ reverse proxy (same-origin) so the
 // browser doesn't hit CORS on range requests against map.pathfinderwiki.com.
-const mapStyle = buildMapStyle(`pmtiles://${window.location.origin}/map/golarion.pmtiles`);
+const mapStyle = buildMapStyle(
+  `pmtiles://${window.location.origin}/map/golarion.pmtiles`,
+  `${window.location.origin}/map`,
+);
 
 // ---- Protocol registration ------------------------------------------------
 

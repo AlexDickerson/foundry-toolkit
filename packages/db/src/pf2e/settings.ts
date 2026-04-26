@@ -5,7 +5,7 @@
 // a richer shape), the raw column value is passed through unchanged.
 
 import { getPf2eDb } from './connection.js';
-import { tryParseJson } from './internal.js';
+import { transact, tryParseJson } from './internal.js';
 
 export function getSetting(key: string): string | null {
   const row = getPf2eDb().prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
@@ -41,11 +41,10 @@ export function replaceSettings(settings: Record<string, string>): void {
   const db = getPf2eDb();
   const deleteAll = db.prepare('DELETE FROM settings');
   const insert = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
-  const tx = db.transaction(() => {
+  transact(db, () => {
     deleteAll.run();
     for (const [key, value] of Object.entries(settings)) {
       insert.run(key, JSON.stringify(value));
     }
   });
-  tx();
 }

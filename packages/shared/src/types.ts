@@ -410,13 +410,8 @@ export interface ConfigPaths {
   autoWallBinPath: string;
   foundryMcpUrl: string;
   obsidianVaultPath: string;
-  /** Public URL players visit; shown in the resync-complete toast. */
-  playerMapPublicUrl: string;
-  /** Base URL of the player portal's live-sync API (e.g.
-   *  "http://server.ad:30002"). Empty = live features disabled. */
-  sidecarUrl: string;
-  /** Shared secret for DM writes to the portal's live-sync API. Empty =
-   *  live features disabled. */
+  /** Bearer token for foundry-mcp's /api/live/* POST endpoints. Empty =
+   *  live-state pushes skip auth (only safe on a trusted local network). */
   sidecarSecret: string;
 }
 
@@ -785,16 +780,8 @@ export interface ElectronAPI {
   /** Export all pins + parsed mission data to a JSON file via save dialog.
    *  The output file is designed for the player-map static site. */
   globeExportPlayerData(): Promise<boolean>;
-  /** Run the full player-map deploy pipeline: export pins + missions,
-   *  (re)build the player-map SPA if source is newer than dist, SCP the
-   *  artifacts to the configured host, and ensure the docker container is
-   *  running. Progress streams via onGlobeDeployProgress. */
-  globeDeployPlayer(): Promise<GlobeDeployResult>;
-  /** Subscribe to deploy progress events. Returns an unsubscribe fn. */
-  onGlobeDeployProgress(callback: (p: GlobeDeployProgress) => void): () => void;
-
   // -----------------------------------------------------------------------
-  // Party inventory (live-synced via sidecar)
+  // Party inventory (live-synced via foundry-mcp)
   // -----------------------------------------------------------------------
 
   inventoryList(): Promise<PartyInventoryItem[]>;
@@ -802,7 +789,7 @@ export interface ElectronAPI {
   inventoryDelete(id: string): Promise<void>;
 
   // -----------------------------------------------------------------------
-  // Aurus leaderboard (live-synced via sidecar)
+  // Aurus leaderboard (live-synced via foundry-mcp)
   // -----------------------------------------------------------------------
 
   aurusList(): Promise<AurusTeam[]>;
@@ -1090,24 +1077,4 @@ export interface CombatSpellEntry {
 export interface ActorSpellcasting {
   actorId: string;
   entries: CombatSpellEntry[];
-}
-
-// --- Player-map deploy -------------------------------------------------------
-
-/** Named stages of the deploy pipeline, surfaced to the UI so the button
- *  can label itself ("Building...", "Uploading...", etc). */
-export type GlobeDeployStage = 'export' | 'write' | 'install' | 'build' | 'mkdir' | 'scp' | 'docker' | 'done';
-
-export interface GlobeDeployProgress {
-  stage: GlobeDeployStage;
-  /** Human-readable one-liner for the UI. */
-  message: string;
-}
-
-export interface GlobeDeployResult {
-  ok: boolean;
-  /** Error message to surface to the user. Only present when ok === false. */
-  error?: string;
-  /** The URL players should visit. Only present when ok === true. */
-  url?: string;
 }

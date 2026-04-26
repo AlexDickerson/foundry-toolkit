@@ -6,15 +6,15 @@
 // Single module-level handle: callers open once at startup, then every
 // domain module imports getPf2eDb() from here.
 
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { migratePf2eDb } from './migrations.js';
 
-let db: Database.Database | null = null;
+let db: DatabaseSync | null = null;
 
 export function openPf2eDb(path: string): void {
   if (db) return;
-  db = new Database(path);
-  db.pragma('journal_mode = WAL');
+  db = new DatabaseSync(path);
+  db.exec('PRAGMA journal_mode = WAL');
   migratePf2eDb(db);
 }
 
@@ -32,7 +32,7 @@ export function closePf2eDb(): void {
 /** Returns the open handle; throws if openPf2eDb() hasn't been called yet.
  *  Exposed so callers (BookDb, loot gen) can query directly without going
  *  through a wrapper. */
-export function getPf2eDb(): Database.Database {
+export function getPf2eDb(): DatabaseSync {
   if (!db) throw new Error('PF2e database not initialized');
   return db;
 }

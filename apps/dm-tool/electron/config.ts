@@ -100,14 +100,9 @@ export interface DmToolConfig {
   /** Absolute path to an Obsidian vault folder. Optional — if set, globe
    *  pins can be linked to Obsidian notes for rich annotation. */
   obsidianVaultPath?: string;
-  /** URL players should visit to see the map. Shown in the resync-
-   *  complete toast. Optional. */
-  playerMapPublicUrl?: string;
-  /** Base URL of the live-sync sidecar (e.g. "http://server.ad:30002"). If
-   *  unset, live features (inventory, aurus leaderboard, globe pins) are
-   *  local-only. */
-  sidecarUrl?: string;
-  /** Shared secret for authenticating DM writes to the sidecar. */
+  /** Bearer token for foundry-mcp's /api/live/* POST endpoints. Optional —
+   *  when unset, pushes are unauthenticated (only safe on a trusted local
+   *  network). Must match foundry-mcp's SHARED_SECRET env var. */
   sidecarSecret?: string;
 }
 
@@ -285,10 +280,6 @@ export function loadConfigFromDb(): DmToolConfig {
   const obsidianRaw = asTrimmedString(s.obsidianVaultPath);
   const obsidianVaultPath = obsidianRaw ? resolve(obsidianRaw) : undefined;
 
-  const playerMapPublicUrl = asTrimmedString(s.playerMapPublicUrl);
-
-  const sidecarRaw = asTrimmedString(s.sidecarUrl);
-  const sidecarUrl = sidecarRaw ? sidecarRaw.replace(/\/+$/, '') : undefined;
   const sidecarSecret = asTrimmedString(s.sidecarSecret);
 
   return {
@@ -301,8 +292,6 @@ export function loadConfigFromDb(): DmToolConfig {
     autoWallBinPath,
     foundryMcpUrl,
     obsidianVaultPath,
-    playerMapPublicUrl,
-    sidecarUrl,
     sidecarSecret,
   };
 }

@@ -25,12 +25,10 @@
     "dev:player-portal:mock": "npm --workspace apps/player-portal run dev:mock",
     "dev:api-bridge": "npm --workspace apps/foundry-api-bridge run dev",
     "launcher": "npm --workspace tools/launcher start",
-    "rebuild-sqlite": "electron-rebuild -f -w better-sqlite3",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.0.3",
     "@eslint/js": "^10.0.1",
     "@secretlint/secretlint-rule-anthropic": "^12.3.0",
     "@secretlint/secretlint-rule-aws": "^12.3.0",

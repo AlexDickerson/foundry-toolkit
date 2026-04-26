@@ -1,18 +1,19 @@
-// Aurus team CRUD + live-sync push to the sidecar. Same pattern as
-// inventory — SQLite is source of truth, sidecar gets best-effort pushes.
+// Aurus team CRUD + live-sync push to foundry-mcp. Same pattern as
+// inventory — SQLite is source of truth, foundry-mcp gets best-effort pushes.
 
 import { ipcMain } from 'electron';
 import type { DmToolConfig } from '../config.js';
 import type { AurusTeam } from '@foundry-toolkit/shared/types';
 import { deleteAurusTeam, listAurusTeams, upsertAurusTeam } from '@foundry-toolkit/db/pf2e';
-import { pushToFoundryMcp, pushToSidecar } from '../sidecar-client.js';
+import { pushToFoundryMcp } from '../sidecar-client.js';
 
 async function pushSnapshot(cfg: DmToolConfig): Promise<void> {
-  const payload = { teams: listAurusTeams(), updatedAt: new Date().toISOString() };
-  await Promise.all([
-    pushToSidecar(cfg, '/api/live/aurus', payload, 'aurus'),
-    pushToFoundryMcp(cfg, '/api/live/aurus', payload, 'aurus'),
-  ]);
+  await pushToFoundryMcp(
+    cfg,
+    '/api/live/aurus',
+    { teams: listAurusTeams(), updatedAt: new Date().toISOString() },
+    'aurus',
+  );
 }
 
 export function registerAurusHandlers(cfg: DmToolConfig): void {

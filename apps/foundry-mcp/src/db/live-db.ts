@@ -8,16 +8,19 @@
 // The subscribe* methods drive the SSE streams in routes/live.ts: when
 // set* is called, every subscribed fn is called synchronously with the new
 // snapshot so the SSE route can write `data: <json>\n\n` immediately.
+//
+// Uses node:sqlite (built-in since Node 22.5) instead of better-sqlite3 so
+// there is no native addon to compile — no ABI conflicts with Electron.
 
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import type { AurusSnapshot, GlobeSnapshot, InventorySnapshot } from '@foundry-toolkit/shared/rpc';
 
 type SnapshotListener<T> = (snapshot: T) => void;
 
 export class LiveDb {
-  private readonly db: Database.Database;
+  private readonly db: DatabaseSync;
   private readonly inventoryListeners = new Set<SnapshotListener<InventorySnapshot>>();
   private readonly aurusListeners = new Set<SnapshotListener<AurusSnapshot>>();
   private readonly globeListeners = new Set<SnapshotListener<GlobeSnapshot>>();
@@ -26,8 +29,8 @@ export class LiveDb {
     if (dbPath !== ':memory:') {
       mkdirSync(dirname(dbPath), { recursive: true });
     }
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
+    this.db = new DatabaseSync(dbPath);
+    this.db.exec('PRAGMA journal_mode = WAL');
     this.migrate();
   }
 

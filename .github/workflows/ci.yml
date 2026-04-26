@@ -16,15 +16,10 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 20.19.0
+          node-version: 24.x
           cache: npm
 
       - run: npm ci --ignore-scripts
-
-      # better-sqlite3 ships a prebuilt binary that --ignore-scripts skips.
-      # Rebuild specifically for the current Node ABI so foundry-mcp tests pass.
-      - name: Rebuild better-sqlite3
-        run: npm rebuild better-sqlite3
 
       - name: Audit dependencies
         run: npm audit --audit-level=high
@@ -61,7 +56,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 20.19.0
+          node-version: 24.x
 
       - uses: doyensec/electronegativity-action@v2
         with:

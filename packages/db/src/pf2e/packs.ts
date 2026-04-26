@@ -3,6 +3,7 @@
 // (from the Claude paste flow) and touched up by mergePacks.
 
 import { getPf2eDb } from './connection.js';
+import { transact } from './internal.js';
 
 export function listPackMappings(): Record<string, string> {
   const rows = getPf2eDb().prepare('SELECT file_name, pack_name FROM pack_mappings').all() as Array<{
@@ -23,13 +24,12 @@ export function replacePackMappings(mapping: Record<string, string>): void {
   const db = getPf2eDb();
   const deleteAll = db.prepare('DELETE FROM pack_mappings');
   const insert = db.prepare('INSERT INTO pack_mappings (file_name, pack_name) VALUES (?, ?)');
-  const tx = db.transaction(() => {
+  transact(db, () => {
     deleteAll.run();
     for (const [fileName, packName] of Object.entries(mapping)) {
       insert.run(fileName, packName);
     }
   });
-  tx();
 }
 
 export function upsertPackMapping(fileName: string, packName: string): void {

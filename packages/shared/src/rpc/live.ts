@@ -45,6 +45,7 @@ export const globePinSchema = z.object({
   lat: z.number(),
   label: z.string(),
   icon: z.string(),
+  iconColor: z.string().optional(),
   zoom: z.number(),
   note: z.string(),
   kind: z.enum(['note', 'mission']),

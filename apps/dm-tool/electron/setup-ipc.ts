@@ -26,8 +26,6 @@ export function registerSetupIpcHandlers(_getMainWindow: () => Electron.BrowserW
       autoWallBinPath: '',
       foundryMcpUrl: '',
       obsidianVaultPath: '',
-      playerMapPublicUrl: '',
-      sidecarUrl: '',
       sidecarSecret: '',
     }),
   );
@@ -50,8 +48,6 @@ export function writeSettings(paths: ConfigPaths): void {
     'autoWallBinPath',
     'foundryMcpUrl',
     'obsidianVaultPath',
-    'playerMapPublicUrl',
-    'sidecarUrl',
     'sidecarSecret',
   ];
   for (const key of optional) {

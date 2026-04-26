@@ -21,8 +21,6 @@ const EMPTY_PATHS: ConfigPaths = {
   autoWallBinPath: '',
   foundryMcpUrl: '',
   obsidianVaultPath: '',
-  playerMapPublicUrl: '',
-  sidecarUrl: '',
   sidecarSecret: '',
 };
 
