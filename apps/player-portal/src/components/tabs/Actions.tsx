@@ -311,18 +311,6 @@ function ActionCard({
             {typeof use.state === 'object' && (
               <p className="mt-1 text-[11px] text-red-700">{use.state.error}</p>
             )}
-            {traits.length > 0 && (
-              <ul className="mt-1 flex flex-wrap gap-1">
-                {traits.map((slug) => (
-                  <li
-                    key={slug}
-                    className="rounded-full border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[10px] text-pf-text-muted"
-                  >
-                    {capitaliseSlug(slug)}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
           <span aria-hidden className="flex-shrink-0 self-center text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
         </summary>
@@ -330,6 +318,18 @@ function ActionCard({
           className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 shadow-lg"
           data-role="action-description"
         >
+          {traits.length > 0 && (
+            <ul className="mb-2 flex flex-wrap gap-1">
+              {traits.map((slug) => (
+                <li
+                  key={slug}
+                  className="rounded-full border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[10px] text-pf-text-muted"
+                >
+                  {capitaliseSlug(slug)}
+                </li>
+              ))}
+            </ul>
+          )}
           {hasDescription ? (
             <div
               className="text-sm leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
