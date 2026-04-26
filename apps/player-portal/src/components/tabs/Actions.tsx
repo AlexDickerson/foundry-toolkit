@@ -324,6 +324,7 @@ function ActionCard({
               </ul>
             )}
           </div>
+          <span aria-hidden className="flex-shrink-0 self-center text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
         </summary>
         <div
           className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 shadow-lg"
