@@ -157,7 +157,7 @@ export function SettingsDialog({
                 );
               })}
             </div>
-            <p className="text-[11px] text-pf-alt">Recolors the primary/secondary/tertiary palette used across the sheet.</p>
+            <p className="text-[11px] text-pf-alt">Controls the sheet's surface and accent palette. The nav dark mode toggle is independent.</p>
           </section>
 
           <section className="flex flex-col gap-2 border-t border-pf-border/60 pt-4">

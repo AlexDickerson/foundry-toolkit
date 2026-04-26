@@ -12,6 +12,7 @@ export const COLOR_SCHEMES = [
   { id: 'arcane', label: 'Arcane' },
   { id: 'verdant', label: 'Verdant' },
   { id: 'frost', label: 'Frost' },
+  { id: 'dark', label: 'Dark' },
 ] as const;
 
 export type ColorScheme = (typeof COLOR_SCHEMES)[number]['id'];

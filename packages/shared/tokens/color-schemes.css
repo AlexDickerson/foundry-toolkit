@@ -107,6 +107,31 @@
   --pf-bg-overlay: rgba(241, 245, 239, 0.88);
 }
 
+/* Dark — navy midnight surfaces + brightened classic palette for legibility. */
+[data-color-scheme='dark'] {
+  /* Surfaces */
+  --color-pf-bg: #0d111e;
+  --color-pf-bg-dark: #141928;
+  --color-pf-border: #252e45;
+  --color-pf-text: #e8e4dc;
+  --color-pf-text-muted: #8a8fa5;
+  --color-pf-sub: #8a8fa5;
+  --pf-bg-overlay: rgba(13, 17, 30, 0.88);
+  /* Palette — brightened for legibility on dark surfaces */
+  --color-pf-primary: #b50000;
+  --color-pf-primary-dark: #8a0000;
+  --color-pf-primary-light: #d01010;
+  --color-pf-secondary: #3b56d4;
+  --color-pf-secondary-dark: #2a3fb5;
+  --color-pf-secondary-light: #5a70e8;
+  --color-pf-tertiary: #b08828;
+  --color-pf-tertiary-dark: #7a5e10;
+  --color-pf-tertiary-light: #d4a840;
+  --color-pf-alt: #a89070;
+  --color-pf-alt-dark: #c4b098;
+  --color-pf-alt-light: #d4c0a8;
+}
+
 /* Frost — pale blue-white + steel blue + slate indigo + sky. */
 [data-color-scheme='frost'] {
   /* Palette */
