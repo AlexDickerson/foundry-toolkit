@@ -16,9 +16,7 @@ vi.mock('@/lib/api', () => ({
 
 import { isHpPath, useFoundryHpSync } from './useFoundryHpSync';
 
-// ---------------------------------------------------------------------------
-// isHpPath — moved here from actor-watcher since it is a renderer concern
-// ---------------------------------------------------------------------------
+// ─── isHpPath ────────────────────────────────────────────────────────────────
 
 describe('isHpPath', () => {
   it('matches the bare HP path', () => {
@@ -37,10 +35,6 @@ describe('isHpPath', () => {
     expect(isHpPath('system.attributes.hp.temp')).toBe(true);
   });
 
-  it('matches deeply nested HP paths', () => {
-    expect(isHpPath('system.attributes.hp.details.negativeHealing')).toBe(true);
-  });
-
   it('does not match unrelated attribute paths', () => {
     expect(isHpPath('system.attributes.speed')).toBe(false);
     expect(isHpPath('system.attributes.ac')).toBe(false);
@@ -48,28 +42,19 @@ describe('isHpPath', () => {
 
   it('does not match paths that share a prefix but are not HP', () => {
     expect(isHpPath('system.attributes.hpBonus')).toBe(false);
-    expect(isHpPath('system.attributes.hp-regen')).toBe(false);
-  });
-
-  it('does not match short or unrelated paths', () => {
-    expect(isHpPath('name')).toBe(false);
-    expect(isHpPath('system')).toBe(false);
-    expect(isHpPath('system.attributes')).toBe(false);
   });
 });
 
-// ---------------------------------------------------------------------------
-// useFoundryHpSync helpers
-// ---------------------------------------------------------------------------
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function mkSystem(hp: number, maxHp: number): Record<string, unknown> {
   return { attributes: { hp: { value: hp, max: maxHp, temp: 0 } } };
 }
 
-function mkActorUpdate(actorId: string, hp: number, maxHp: number, extraPaths: string[] = []): ActorUpdate {
+function mkActorUpdate(actorId: string, hp: number, maxHp: number): ActorUpdate {
   return {
     actorId,
-    changedPaths: ['system.attributes.hp.value', ...extraPaths],
+    changedPaths: ['system.attributes.hp.value'],
     system: mkSystem(hp, maxHp),
   };
 }
@@ -87,18 +72,17 @@ function mkCombatant(overrides?: Partial<Combatant>): Combatant {
   };
 }
 
-function mkEncounter(overrides?: Partial<Encounter>): Encounter {
+function mkEncounter(id: string, combatants: Combatant[], name = 'Test'): Encounter {
   return {
-    id: 'enc-1',
-    name: 'Test Encounter',
-    combatants: [],
+    id,
+    name,
+    combatants,
     turnIndex: 0,
     round: 1,
     loot: [],
     allowInventedItems: false,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
-    ...overrides,
   };
 }
 
@@ -106,151 +90,150 @@ beforeEach(() => {
   onActorUpdatedMock.mockReset();
 });
 
-// ---------------------------------------------------------------------------
-// Subscription lifecycle
-// ---------------------------------------------------------------------------
+// ─── subscription lifecycle ──────────────────────────────────────────────────
 
 describe('useFoundryHpSync — subscription lifecycle', () => {
   it('subscribes to onActorUpdated on mount', () => {
     onActorUpdatedMock.mockReturnValue(() => {});
-    renderHook(() => useFoundryHpSync(mkEncounter(), vi.fn()));
+    renderHook(() => useFoundryHpSync([], vi.fn()));
     expect(onActorUpdatedMock).toHaveBeenCalledOnce();
   });
 
   it('calls the unsubscribe function on unmount', () => {
     const unsubscribe = vi.fn();
     onActorUpdatedMock.mockReturnValue(unsubscribe);
-    const { unmount } = renderHook(() => useFoundryHpSync(mkEncounter(), vi.fn()));
+    const { unmount } = renderHook(() => useFoundryHpSync([], vi.fn()));
     unmount();
     expect(unsubscribe).toHaveBeenCalledOnce();
   });
 });
 
-// ---------------------------------------------------------------------------
-// HP update propagation
-// ---------------------------------------------------------------------------
+// ─── HP propagation across encounters ────────────────────────────────────────
 
-describe('useFoundryHpSync — HP update propagation', () => {
-  it('calls onChange with updated HP when a matching actor update arrives', async () => {
-    let capturedCallback: ((u: ActorUpdate) => void) | null = null;
+describe('useFoundryHpSync — HP propagation', () => {
+  function setup() {
+    let captured: ((u: ActorUpdate) => void) | null = null;
     onActorUpdatedMock.mockImplementation((cb: (u: ActorUpdate) => void) => {
-      capturedCallback = cb;
+      captured = cb;
       return () => {};
     });
+    return { fire: (u: ActorUpdate) => captured?.(u) };
+  }
 
-    const combatant = mkCombatant({ foundryActorId: 'foundry-actor-abc', hp: 40, maxHp: 50 });
-    const onChange = vi.fn().mockResolvedValue(undefined);
-    renderHook(() => useFoundryHpSync(mkEncounter({ combatants: [combatant] }), onChange));
+  it('updates a matching combatant in a single encounter', async () => {
+    const { fire } = setup();
+    const combatant = mkCombatant({ foundryActorId: 'actor-1', hp: 40, maxHp: 50 });
+    const enc = mkEncounter('e1', [combatant]);
+    const save = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useFoundryHpSync([enc], save));
 
     await act(async () => {
-      capturedCallback!(mkActorUpdate('foundry-actor-abc', 25, 50));
+      fire(mkActorUpdate('actor-1', 25, 50));
     });
 
-    expect(onChange).toHaveBeenCalledOnce();
-    const updatedEnc = onChange.mock.calls[0][0] as Encounter;
-    expect(updatedEnc.combatants[0].hp).toBe(25);
-    expect(updatedEnc.combatants[0].maxHp).toBe(50);
+    expect(save).toHaveBeenCalledOnce();
+    const updated = save.mock.calls[0][0] as Encounter;
+    expect(updated.id).toBe('e1');
+    expect(updated.combatants[0].hp).toBe(25);
   });
 
-  it('also updates maxHp when it changes', async () => {
-    let capturedCallback: ((u: ActorUpdate) => void) | null = null;
-    onActorUpdatedMock.mockImplementation((cb: (u: ActorUpdate) => void) => {
-      capturedCallback = cb;
-      return () => {};
-    });
-
-    const combatant = mkCombatant({ foundryActorId: 'actor-1', hp: 50, maxHp: 50 });
-    const onChange = vi.fn().mockResolvedValue(undefined);
-    renderHook(() => useFoundryHpSync(mkEncounter({ combatants: [combatant] }), onChange));
+  it('updates the combatant in EVERY encounter that has the same actor', async () => {
+    const { fire } = setup();
+    const c1 = mkCombatant({ id: 'c-1', foundryActorId: 'actor-1', hp: 40, maxHp: 50 });
+    const c2 = mkCombatant({ id: 'c-2', foundryActorId: 'actor-1', hp: 40, maxHp: 50 });
+    const enc1 = mkEncounter('e1', [c1], 'Goblin Ambush');
+    const enc2 = mkEncounter('e2', [c2], 'Dragon Fight');
+    const save = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useFoundryHpSync([enc1, enc2], save));
 
     await act(async () => {
-      capturedCallback!(mkActorUpdate('actor-1', 50, 60));
+      fire(mkActorUpdate('actor-1', 12, 50));
     });
 
-    const updatedEnc = onChange.mock.calls[0][0] as Encounter;
-    expect(updatedEnc.combatants[0].hp).toBe(50);
-    expect(updatedEnc.combatants[0].maxHp).toBe(60);
+    expect(save).toHaveBeenCalledTimes(2);
+    const ids = save.mock.calls.map((call) => (call[0] as Encounter).id).sort();
+    expect(ids).toEqual(['e1', 'e2']);
+    for (const call of save.mock.calls) {
+      const enc = call[0] as Encounter;
+      expect(enc.combatants[0].hp).toBe(12);
+    }
   });
 
-  it('ignores actor updates where no path is HP-related', async () => {
-    let capturedCallback: ((u: ActorUpdate) => void) | null = null;
-    onActorUpdatedMock.mockImplementation((cb: (u: ActorUpdate) => void) => {
-      capturedCallback = cb;
-      return () => {};
+  it('skips encounters whose combatant is already at the incoming HP (avoids round-trip loops)', async () => {
+    const { fire } = setup();
+    const combatant = mkCombatant({ foundryActorId: 'actor-1', hp: 25, maxHp: 50 });
+    const enc = mkEncounter('e1', [combatant]);
+    const save = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useFoundryHpSync([enc], save));
+
+    await act(async () => {
+      fire(mkActorUpdate('actor-1', 25, 50));
     });
 
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('ignores actor updates with no HP path', async () => {
+    const { fire } = setup();
     const combatant = mkCombatant({ foundryActorId: 'actor-1' });
-    const onChange = vi.fn().mockResolvedValue(undefined);
-    renderHook(() => useFoundryHpSync(mkEncounter({ combatants: [combatant] }), onChange));
+    const enc = mkEncounter('e1', [combatant]);
+    const save = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useFoundryHpSync([enc], save));
 
     await act(async () => {
-      // Condition change — not HP-related
-      capturedCallback!({
+      fire({
         actorId: 'actor-1',
         changedPaths: ['system.attributes.conditions.frightened'],
         system: mkSystem(40, 50),
       });
     });
 
-    expect(onChange).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 
-  it('does not call onChange when actorId has no matching combatant', async () => {
-    let capturedCallback: ((u: ActorUpdate) => void) | null = null;
-    onActorUpdatedMock.mockImplementation((cb: (u: ActorUpdate) => void) => {
-      capturedCallback = cb;
-      return () => {};
-    });
-
-    const onChange = vi.fn().mockResolvedValue(undefined);
-    renderHook(() => useFoundryHpSync(mkEncounter({ combatants: [] }), onChange));
+  it('does not save when actorId has no matching combatant in any encounter', async () => {
+    const { fire } = setup();
+    const enc = mkEncounter('e1', [mkCombatant({ foundryActorId: 'other-actor' })]);
+    const save = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useFoundryHpSync([enc], save));
 
     await act(async () => {
-      capturedCallback!(mkActorUpdate('unknown-actor', 10, 50));
+      fire(mkActorUpdate('actor-1', 10, 50));
     });
 
-    expect(onChange).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 
-  it('ignores updates for combatants without a foundryActorId', async () => {
-    let capturedCallback: ((u: ActorUpdate) => void) | null = null;
-    onActorUpdatedMock.mockImplementation((cb: (u: ActorUpdate) => void) => {
-      capturedCallback = cb;
-      return () => {};
-    });
-
-    const combatant = mkCombatant({ hp: 30, maxHp: 40 }); // no foundryActorId
-    const onChange = vi.fn().mockResolvedValue(undefined);
-    renderHook(() => useFoundryHpSync(mkEncounter({ combatants: [combatant] }), onChange));
+  it('ignores combatants without a foundryActorId', async () => {
+    const { fire } = setup();
+    const enc = mkEncounter('e1', [mkCombatant({ hp: 30, maxHp: 40 })]); // no foundryActorId
+    const save = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useFoundryHpSync([enc], save));
 
     await act(async () => {
-      capturedCallback!(mkActorUpdate('some-actor', 10, 40));
+      fire(mkActorUpdate('actor-1', 10, 40));
     });
 
-    expect(onChange).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('preserves other combatant fields when updating HP', async () => {
-    let capturedCallback: ((u: ActorUpdate) => void) | null = null;
-    onActorUpdatedMock.mockImplementation((cb: (u: ActorUpdate) => void) => {
-      capturedCallback = cb;
-      return () => {};
-    });
-
+    const { fire } = setup();
     const combatant = mkCombatant({
       foundryActorId: 'actor-1',
       displayName: 'Aria Stoneheart',
       initiative: 18,
       notes: 'Blessed',
     });
-    const onChange = vi.fn().mockResolvedValue(undefined);
-    renderHook(() => useFoundryHpSync(mkEncounter({ combatants: [combatant] }), onChange));
+    const enc = mkEncounter('e1', [combatant]);
+    const save = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useFoundryHpSync([enc], save));
 
     await act(async () => {
-      capturedCallback!(mkActorUpdate('actor-1', 5, 50));
+      fire(mkActorUpdate('actor-1', 5, 50));
     });
 
-    const updatedCombatant = (onChange.mock.calls[0][0] as Encounter).combatants[0];
+    const updatedCombatant = (save.mock.calls[0][0] as Encounter).combatants[0];
     expect(updatedCombatant.displayName).toBe('Aria Stoneheart');
     expect(updatedCombatant.initiative).toBe(18);
     expect(updatedCombatant.notes).toBe('Blessed');

@@ -841,6 +841,10 @@ export interface ElectronAPI {
    *  handlers filter to the fields they care about. Returns an unsubscribe
    *  function. */
   onActorUpdated(callback: (update: ActorUpdate) => void): () => void;
+  /** Push a manual HP change from dm-tool back to Foundry. PATCHes
+   *  `system.attributes.hp.value` (and `.max` if provided) on the actor
+   *  via foundry-mcp. No-op when foundryMcpUrl is not configured. */
+  pushActorHp(actorId: string, hp: number, maxHp?: number): Promise<void>;
 }
 
 // --- Party inventory ---------------------------------------------------------

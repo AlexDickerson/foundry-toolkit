@@ -182,6 +182,8 @@ const api: ElectronAPI = {
     ipcRenderer.on('actor-updated', handler);
     return () => ipcRenderer.removeListener('actor-updated', handler);
   },
+  pushActorHp: (actorId: string, hp: number, maxHp?: number): Promise<void> =>
+    ipcRenderer.invoke('pushActorHp', actorId, hp, maxHp),
   encountersList: (): Promise<Encounter[]> => ipcRenderer.invoke('encountersList'),
   encountersUpsert: (enc: Encounter): Promise<void> => ipcRenderer.invoke('encountersUpsert', enc),
   encountersDelete: (id: string): Promise<void> => ipcRenderer.invoke('encountersDelete', id),
