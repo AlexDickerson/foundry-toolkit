@@ -103,7 +103,7 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
           {/* Level range — grouped with its separator so space-y-4 doesn't
               double the gap (16px above + 16px below) like it would if they
               were separate children. */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col">
             <div>
               <SectionLabel>Level</SectionLabel>
               <div className="mt-1.5 flex items-center gap-2">
