@@ -15,6 +15,7 @@ import { Feats } from '../components/tabs/Feats';
 import { Inventory } from '../components/tabs/Inventory';
 import { Proficiencies } from '../components/tabs/Proficiencies';
 import { Progression } from '../components/tabs/Progression';
+
 import { Spells } from '../components/tabs/Spells';
 import { useEventChannel } from '../lib/useEventChannel';
 import { fromPreparedCharacter } from '../prereqs';
@@ -37,9 +38,8 @@ const TABS: readonly Tab<TabId>[] = [
   { id: 'spells', label: 'Spells' },
   { id: 'inventory', label: 'Inventory' },
   { id: 'feats', label: 'Feats' },
-  { id: 'proficiencies', label: 'Proficiencies' },
   { id: 'progression', label: 'Progression' },
-  { id: 'background', label: 'Background' },
+  { id: 'details', label: 'Details' },
 ];
 
 export function CharacterSheet(): React.ReactElement {
@@ -205,7 +205,6 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
             </>
           )}
           {activeTab === 'feats' && <Feats items={state.actor.items} />}
-          {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} />}
           {activeTab === 'progression' && (
             <Progression
               characterLevel={state.actor.system.details.level.value}
@@ -213,8 +212,11 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
               characterContext={fromPreparedCharacter(state.actor)}
             />
           )}
-          {activeTab === 'background' && (
-            <Background details={state.actor.system.details} traits={state.actor.system.traits.value} />
+          {activeTab === 'details' && (
+            <div className="space-y-6">
+              <Background details={state.actor.system.details} traits={state.actor.system.traits.value} />
+              <Proficiencies system={state.actor.system} />
+            </div>
           )}
         </div>
       )}

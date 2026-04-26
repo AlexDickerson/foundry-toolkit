@@ -2,9 +2,9 @@
  * Canonical character-sheet tab IDs.
  *
  * 'crafting' was removed as a standalone tab; its content is now rendered as
- * a section within the 'inventory' tab. Any serialised reference to the old
- * 'crafting' id (e.g. from localStorage or a future URL-param scheme) is
- * redirected to 'inventory' by {@link normalizeTabId}.
+ * a section within the 'inventory' tab.
+ * 'proficiencies' and 'background' were merged into 'details'.
+ * Any serialised reference to old IDs is redirected by {@link normalizeTabId}.
  */
 export type TabId =
   | 'character'
@@ -12,9 +12,8 @@ export type TabId =
   | 'spells'
   | 'inventory'
   | 'feats'
-  | 'proficiencies'
-  | 'progression'
-  | 'background';
+  | 'details'
+  | 'progression';
 
 // Compile-time guard: the literal array must cover every TabId exactly.
 const VALID_TABS = new Set<string>(
@@ -24,15 +23,16 @@ const VALID_TABS = new Set<string>(
     'spells',
     'inventory',
     'feats',
-    'proficiencies',
+    'details',
     'progression',
-    'background',
   ] satisfies TabId[],
 );
 
 /** Removed tab IDs and the canonical tab they redirect to. */
 const LEGACY_REDIRECTS: Readonly<Record<string, TabId>> = {
   crafting: 'inventory',
+  proficiencies: 'details',
+  background: 'details',
 };
 
 /**

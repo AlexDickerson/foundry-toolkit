@@ -3,7 +3,7 @@ import { normalizeTabId } from './tabUtils';
 
 describe('normalizeTabId', () => {
   it('passes through all valid tab IDs unchanged', () => {
-    const valid = ['character', 'actions', 'spells', 'inventory', 'feats', 'proficiencies', 'progression', 'background'];
+    const valid = ['character', 'actions', 'spells', 'inventory', 'feats', 'details', 'progression'];
     for (const id of valid) {
       expect(normalizeTabId(id), `valid id: ${id}`).toBe(id);
     }
@@ -11,6 +11,11 @@ describe('normalizeTabId', () => {
 
   it('redirects the removed "crafting" tab to "inventory"', () => {
     expect(normalizeTabId('crafting')).toBe('inventory');
+  });
+
+  it('redirects the removed "proficiencies" and "background" tabs to "details"', () => {
+    expect(normalizeTabId('proficiencies')).toBe('details');
+    expect(normalizeTabId('background')).toBe('details');
   });
 
   it('falls back to "character" for unrecognised IDs', () => {
