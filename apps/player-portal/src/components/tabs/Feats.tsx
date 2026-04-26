@@ -77,7 +77,7 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
             alt=""
             className="mt-0.5 h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
-          <span className="line-clamp-2 min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-snug text-pf-text">{feat.name}</span>
+          <span className="line-clamp-2 min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-tight text-pf-text">{feat.name}</span>
           <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
           <span aria-hidden className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
