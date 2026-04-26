@@ -15,6 +15,24 @@
  * Derived from foundryvtt/pf2e (Apache-2.0) — see NOTICE.
  */
 
+/* Classic — default PF2e palette (heraldic red + navy + parchment gold).
+ * Explicit block so every scheme is applied via the same setAttribute path;
+ * Classic is no longer a special "remove the attribute" case in JS. */
+[data-color-scheme='classic'] {
+  --color-pf-primary: #5e0000;
+  --color-pf-primary-dark: #4a0000;
+  --color-pf-primary-light: #7a0000;
+  --color-pf-secondary: #171f69;
+  --color-pf-secondary-dark: #0f1547;
+  --color-pf-secondary-light: #2a358f;
+  --color-pf-tertiary: #e9d7a1;
+  --color-pf-tertiary-dark: #cbb77a;
+  --color-pf-tertiary-light: #f3e6be;
+  --color-pf-alt: #786452;
+  --color-pf-alt-dark: #443730;
+  --color-pf-alt-light: #9a8471;
+}
+
 /* Arcane — violet + deep teal, muted lilac accents. */
 [data-color-scheme='arcane'] {
   --color-pf-primary: #4a1a6b;

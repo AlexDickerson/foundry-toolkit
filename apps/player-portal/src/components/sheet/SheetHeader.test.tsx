@@ -12,7 +12,7 @@ describe('SheetHeader', () => {
   });
 
   it('renders name, level, class, background, and ancestry', () => {
-    const { container } = render(<SheetHeader character={character} />);
+    const { container } = render(<SheetHeader character={character} actorId="test-actor" onActorChanged={() => undefined} />);
     expect(container.textContent).toContain('Amiri');
     const identity = container.querySelector('[data-section="identity"]');
     expect(identity, 'identity line').toBeTruthy();
@@ -28,19 +28,19 @@ describe('SheetHeader', () => {
       ...character,
       items: character.items.filter((i) => i.type !== 'background'),
     };
-    const { container } = render(<SheetHeader character={withoutBg} />);
+    const { container } = render(<SheetHeader character={withoutBg} actorId="test-actor" onActorChanged={() => undefined} />);
     expect(container.querySelector('[data-section="identity"]')?.textContent).not.toContain('Hunter');
   });
 
   it('renders rarity badge when non-common (Amiri is unique)', () => {
-    const { container } = render(<SheetHeader character={character} />);
+    const { container } = render(<SheetHeader character={character} actorId="test-actor" onActorChanged={() => undefined} />);
     const badge = container.querySelector('[data-badge="rarity"]');
     expect(badge, 'rarity badge').toBeTruthy();
     expect(badge?.textContent).toBe('Unique');
   });
 
   it('renders alliance badge for party members', () => {
-    const { container } = render(<SheetHeader character={character} />);
+    const { container } = render(<SheetHeader character={character} actorId="test-actor" onActorChanged={() => undefined} />);
     const badge = container.querySelector('[data-badge="alliance"]');
     expect(badge, 'alliance badge').toBeTruthy();
     expect(badge?.textContent).toBe('Party');
@@ -54,7 +54,7 @@ describe('SheetHeader', () => {
         traits: { ...character.system.traits, rarity: 'common' },
       },
     };
-    const { container } = render(<SheetHeader character={common} />);
+    const { container } = render(<SheetHeader character={common} actorId="test-actor" onActorChanged={() => undefined} />);
     expect(container.querySelector('[data-badge="rarity"]')).toBeNull();
   });
 
@@ -66,7 +66,7 @@ describe('SheetHeader', () => {
         details: { ...character.system.details, alliance: null },
       },
     };
-    const { container } = render(<SheetHeader character={neutral} />);
+    const { container } = render(<SheetHeader character={neutral} actorId="test-actor" onActorChanged={() => undefined} />);
     expect(container.querySelector('[data-badge="alliance"]')).toBeNull();
   });
 
@@ -84,14 +84,14 @@ describe('SheetHeader', () => {
         },
       },
     };
-    const { container } = render(<SheetHeader character={vishkanya} />);
+    const { container } = render(<SheetHeader character={vishkanya} actorId="test-actor" onActorChanged={() => undefined} />);
     const identity = container.querySelector('[data-section="identity"]');
     expect(identity?.textContent).toContain('Venom-Resistant Vishkanya');
     expect(identity?.textContent).not.toContain('Venom-Resistant Vishkanya Vishkanya');
   });
 
   it('renders portrait img with a leading-slash asset path', () => {
-    const { container } = render(<SheetHeader character={character} />);
+    const { container } = render(<SheetHeader character={character} actorId="test-actor" onActorChanged={() => undefined} />);
     const img = container.querySelector('[data-testid="character-portrait"]') as HTMLImageElement | null;
     expect(img, 'portrait img element').toBeTruthy();
     // Amiri fixture: "systems/pf2e/icons/iconics/portraits/amiri.webp"
@@ -100,7 +100,7 @@ describe('SheetHeader', () => {
 
   it('renders portrait placeholder when img is empty', () => {
     const noImg: PreparedCharacter = { ...character, img: '' };
-    const { container } = render(<SheetHeader character={noImg} />);
+    const { container } = render(<SheetHeader character={noImg} actorId="test-actor" onActorChanged={() => undefined} />);
     expect(container.querySelector('[data-testid="character-portrait"]')).toBeNull();
     expect(container.querySelector('[data-testid="character-portrait-placeholder"]')).toBeTruthy();
   });

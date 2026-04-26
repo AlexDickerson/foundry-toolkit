@@ -38,7 +38,6 @@ interface Props {
 // read-only (no input widgets) and Tailwind-styled.
 export function Character({ system, actorId, items, characterLevel, onActorChanged }: Props): React.ReactElement {
   const keyAbility = system.details.keyability.value;
-  const classDC = system.attributes.classDC;
   const skillsCardRef = useRef<HTMLDivElement>(null);
   const [qaMaxHeight, setQaMaxHeight] = useState<number | undefined>(undefined);
 
@@ -78,7 +77,7 @@ export function Character({ system, actorId, items, characterLevel, onActorChang
           focusPoints={system.resources.focus}
           actorId={actorId}
           onActorChanged={onActorChanged}
-          maxHeight={qaMaxHeight}
+          {...(qaMaxHeight !== undefined ? { maxHeight: qaMaxHeight } : {})}
         />
       </div>
 
