@@ -902,7 +902,7 @@ function GridTile({
           <div className="relative w-full">
             <div className="relative aspect-square w-full overflow-hidden rounded border border-pf-border bg-pf-bg-dark">
               <img src={item.img} alt="" className="h-full w-full object-contain" />
-              <div className="absolute inset-x-0 bottom-0 bg-black/30 px-1.5 py-1">
+              <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
                 <span className="line-clamp-2 block text-[10px] font-medium leading-tight text-white" title={item.name}>
                   {item.name}
                 </span>
