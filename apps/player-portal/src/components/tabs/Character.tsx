@@ -60,12 +60,6 @@ export function Character({ system, actorId, items, characterLevel, onActorChang
 
       <StatsBlock system={system} actorId={actorId} onActorChanged={onActorChanged} />
 
-      <IWRBlock
-        immunities={system.attributes.immunities}
-        weaknesses={system.attributes.weaknesses}
-        resistances={system.attributes.resistances}
-      />
-
       <div className="flex items-start gap-4 !rounded-none !border-0 !bg-transparent !p-0">
         <div ref={skillsCardRef} className="min-w-0 flex-1 rounded-lg border border-pf-border bg-pf-bg-dark p-4">
           <SkillsBlock skills={system.skills} actorId={actorId} condensed />
@@ -80,6 +74,12 @@ export function Character({ system, actorId, items, characterLevel, onActorChang
           {...(qaMaxHeight !== undefined ? { maxHeight: qaMaxHeight } : {})}
         />
       </div>
+
+      <IWRBlock
+        immunities={system.attributes.immunities}
+        weaknesses={system.attributes.weaknesses}
+        resistances={system.attributes.resistances}
+      />
 
       <div data-section="conditions">
         <SectionHeader band>Conditions</SectionHeader>

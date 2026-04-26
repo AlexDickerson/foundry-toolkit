@@ -199,7 +199,7 @@ function LongRestButton({ actorId, onRested }: { actorId: string; onRested: () =
           type="button"
           onClick={() => { trigger(); }}
           disabled={state === 'pending'}
-          className="rounded border border-pf-tertiary-dark bg-pf-tertiary px-3 py-1.5 text-sm font-semibold text-pf-alt-dark hover:bg-pf-tertiary-dark hover:text-white disabled:opacity-50"
+          className="rounded border border-pf-border bg-pf-bg px-3 py-1.5 text-sm font-semibold text-pf-text hover:border-pf-tertiary-dark hover:bg-pf-tertiary/40 disabled:opacity-50"
         >
           {state === 'pending' ? 'Resting…' : 'Long Rest'}
         </button>
