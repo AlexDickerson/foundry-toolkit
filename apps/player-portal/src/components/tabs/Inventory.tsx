@@ -821,6 +821,10 @@ function isInvestedItem(item: PhysicalItem): boolean {
 const EQUIPPED_BG = 'var(--item-equipped)';
 const INVESTED_BG = 'var(--item-invested)';
 
+// Each tile that opens claims the next value, ensuring the most recently
+// opened tile always renders above all other open tiles.
+let tileOpenCounter = 30;
+
 function GridTile({
   item,
   sellContext,
@@ -850,10 +854,12 @@ function GridTile({
   const summaryHover =
     equipped || invested ? 'hover:brightness-95' : 'hover:bg-pf-bg-dark/40';
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [zIndex, setZIndex] = useState<number | undefined>(undefined);
   return (
-    <li className={`relative ${isOpen ? 'z-30' : ''}`} data-item-id={item.id} data-item-type={item.type}>
-      <details className={detailsClass} style={detailsStyle} onToggle={(e) => { setIsOpen(e.currentTarget.open); }}>
+    <li className="relative" style={zIndex !== undefined ? { zIndex } : undefined} data-item-id={item.id} data-item-type={item.type}>
+      <details className={detailsClass} style={detailsStyle} onToggle={(e) => {
+        setZIndex(e.currentTarget.open ? ++tileOpenCounter : undefined);
+      }}>
         <summary className={[
           'flex cursor-pointer list-none flex-col items-center p-2',
           summaryHover,
