@@ -1,14 +1,9 @@
-// Player portal server. One Fastify process serves the built SPA and four
-// namespaces of routes.
+// Player portal server. One Fastify process serves the built SPA and routes.
 //
-// Live-sync API — three datasets (inventory, aurus, globe), each with:
-//   GET   /api/live/<name>           — read current snapshot (in-memory store)
-//   POST  /api/live/<name>           — overwrite snapshot (DM only, bearer auth)
-//   GET   /api/live/<name>/stream    — SSE proxy → foundry-mcp stream (public)
-// The GET/POST routes still serve the in-memory store (written by dm-tool's
-// dual-write); the /stream routes now pipe from foundry-mcp's SSE instead of
-// the old @fastify/websocket handlers. In-memory store + POST routes retire
-// in the next PR once foundry-mcp is the sole writer.
+// Live-sync streams — /api/live/<name>/stream SSE routes proxy to foundry-mcp.
+//   GET /api/live/<name>/stream  — SSE proxy → foundry-mcp (public, read-only)
+// GET/POST snapshot routes were retired in this PR; foundry-mcp is now the
+// sole live-state store.
 //
 // MCP proxy — /api/mcp/* is transparently proxied to foundry-mcp (default
 // http://localhost:8765). The Authorization header is passed through
@@ -26,10 +21,6 @@
 //
 // Map proxy — /map/* → https://map.pathfinderwiki.com/ so PMTiles tile
 // requests are same-origin.
-//
-// Live-sync auth: single shared bearer secret on writes. Reads + SSE streams
-// are unauthed since players need them and nothing private lives in these
-// feeds (DM notes stay in dm-tool's SQLite / Obsidian vault).
 
 import './load-env.js';
 import http from 'node:http';
@@ -40,14 +31,11 @@ import { existsSync } from 'node:fs';
 import Fastify, { type FastifyRequest, type FastifyReply } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyHttpProxy from '@fastify/http-proxy';
-import { createStores } from './store.js';
-import type { AurusSnapshot, GlobeSnapshot, InventorySnapshot } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const HOST = process.env.HOST ?? '0.0.0.0';
-const SHARED_SECRET = process.env.SHARED_SECRET;
 const MCP_URL = process.env.MCP_URL ?? 'http://localhost:8765';
 // In prod the compiled server sits at server-dist/index.js and the SPA
 // build is at dist/. In dev Vite serves static from memory on :5173 and
@@ -59,13 +47,6 @@ const STATIC_DIR = process.env.STATIC_DIR ?? join(__dirname, '..', 'dist');
 // serves them. `/assets` is deliberately excluded because Vite's built SPA
 // uses it for bundled chunks — proxying it would break client JS loading.
 const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds'];
-
-if (!SHARED_SECRET) {
-  console.error('SHARED_SECRET env var is required');
-  process.exit(1);
-}
-
-const stores = createStores();
 
 /** Proxy a long-lived SSE GET from foundry-mcp through to the client.
  *  Using raw http/https instead of @fastify/http-proxy because the proxy
@@ -112,12 +93,6 @@ async function main(): Promise<void> {
     if (req.method === 'OPTIONS') reply.code(204).send();
   });
 
-  function requireAuth(req: { headers: { authorization?: string } }): boolean {
-    const header = req.headers.authorization;
-    if (!header || !header.startsWith('Bearer ')) return false;
-    return header.slice(7) === SHARED_SECRET;
-  }
-
   app.get('/health', async () => ({ ok: true }));
 
   // Reverse-proxy /map/ to map.pathfinderwiki.com — tiles appear to come
@@ -141,8 +116,6 @@ async function main(): Promise<void> {
   // registration per prefix because the plugin only accepts a single
   // `prefix` string. rewritePrefix matches prefix so paths pass through
   // unchanged (e.g. /icons/foo.webp → upstream /icons/foo.webp).
-  // foundry-mcp handles these at the root level via its own asset routes
-  // (which use the WS bridge to fetch from Foundry and cache the result).
   for (const prefix of FOUNDRY_ASSET_PREFIXES) {
     await app.register(fastifyHttpProxy, {
       upstream: MCP_URL,
@@ -152,64 +125,10 @@ async function main(): Promise<void> {
     });
   }
 
-  // --- Inventory ---------------------------------------------------------
-
-  app.get('/api/live/inventory', async () => stores.inventory.get());
-
-  app.post<{ Body: InventorySnapshot }>('/api/live/inventory', async (req, reply) => {
-    if (!requireAuth(req)) return reply.code(401).send({ error: 'unauthorized' });
-    const body = req.body;
-    if (!body || !Array.isArray(body.items)) {
-      return reply.code(400).send({ error: 'invalid body' });
-    }
-    const snapshot: InventorySnapshot = {
-      items: body.items,
-      updatedAt: new Date().toISOString(),
-    };
-    stores.inventory.set(snapshot);
-    return { ok: true, updatedAt: snapshot.updatedAt };
-  });
+  // --- Live-state SSE streams (proxy to foundry-mcp) ----------------------
 
   app.get('/api/live/inventory/stream', makeSseProxy(MCP_URL, '/api/live/inventory/stream'));
-
-  // --- Aurus leaderboard --------------------------------------------------
-
-  app.get('/api/live/aurus', async () => stores.aurus.get());
-
-  app.post<{ Body: AurusSnapshot }>('/api/live/aurus', async (req, reply) => {
-    if (!requireAuth(req)) return reply.code(401).send({ error: 'unauthorized' });
-    const body = req.body;
-    if (!body || !Array.isArray(body.teams)) {
-      return reply.code(400).send({ error: 'invalid body' });
-    }
-    const snapshot: AurusSnapshot = {
-      teams: body.teams,
-      updatedAt: new Date().toISOString(),
-    };
-    stores.aurus.set(snapshot);
-    return { ok: true, updatedAt: snapshot.updatedAt };
-  });
-
   app.get('/api/live/aurus/stream', makeSseProxy(MCP_URL, '/api/live/aurus/stream'));
-
-  // --- Globe pins --------------------------------------------------------
-
-  app.get('/api/live/globe', async () => stores.globe.get());
-
-  app.post<{ Body: GlobeSnapshot }>('/api/live/globe', async (req, reply) => {
-    if (!requireAuth(req)) return reply.code(401).send({ error: 'unauthorized' });
-    const body = req.body;
-    if (!body || !Array.isArray(body.pins)) {
-      return reply.code(400).send({ error: 'invalid body' });
-    }
-    const snapshot: GlobeSnapshot = {
-      pins: body.pins,
-      updatedAt: new Date().toISOString(),
-    };
-    stores.globe.set(snapshot);
-    return { ok: true, updatedAt: snapshot.updatedAt };
-  });
-
   app.get('/api/live/globe/stream', makeSseProxy(MCP_URL, '/api/live/globe/stream'));
 
   // --- Static SPA --------------------------------------------------------

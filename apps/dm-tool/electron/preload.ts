@@ -29,8 +29,6 @@ import type {
   Facets,
   FinalizeIngestArgs,
   GlobePin,
-  GlobeDeployProgress,
-  GlobeDeployResult,
   MissionData,
   ItemBrowserDetail,
   ItemBrowserRow,
@@ -160,14 +158,8 @@ const api: ElectronAPI = {
   globePinGetMission: (pin: GlobePin): Promise<MissionData | null> => ipcRenderer.invoke('globePinGetMission', pin),
   globePinLinkNote: (pin: GlobePin): Promise<GlobePin | null> => ipcRenderer.invoke('globePinLinkNote', pin),
   globeExportPlayerData: (): Promise<boolean> => ipcRenderer.invoke('globeExportPlayerData'),
-  globeDeployPlayer: (): Promise<GlobeDeployResult> => ipcRenderer.invoke('globeDeployPlayer'),
-  onGlobeDeployProgress: (callback: (p: GlobeDeployProgress) => void): (() => void) => {
-    const handler = (_event: unknown, p: GlobeDeployProgress) => callback(p);
-    ipcRenderer.on('globe-deploy-progress', handler);
-    return () => ipcRenderer.removeListener('globe-deploy-progress', handler);
-  },
 
-  // Party inventory (live-synced via sidecar)
+  // Party inventory (live-synced via foundry-mcp)
   inventoryList: (): Promise<PartyInventoryItem[]> => ipcRenderer.invoke('inventoryList'),
   inventoryUpsert: (item: PartyInventoryItem): Promise<void> => ipcRenderer.invoke('inventoryUpsert', item),
   inventoryDelete: (id: string): Promise<void> => ipcRenderer.invoke('inventoryDelete', id),

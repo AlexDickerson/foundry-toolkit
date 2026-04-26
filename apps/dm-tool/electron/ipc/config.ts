@@ -78,8 +78,6 @@ export function registerConfigHandlers(db: MapDb, cfg: DmToolConfig): void {
       autoWallBinPath: cfg.autoWallBinPath ?? '',
       foundryMcpUrl: cfg.foundryMcpUrl ?? '',
       obsidianVaultPath: cfg.obsidianVaultPath ?? '',
-      playerMapPublicUrl: cfg.playerMapPublicUrl ?? '',
-      sidecarUrl: cfg.sidecarUrl ?? '',
       sidecarSecret: cfg.sidecarSecret ?? '',
     }),
   );

@@ -4,32 +4,25 @@ import { existsSync } from 'node:fs';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import type { DmToolConfig } from '../config.js';
 import { listGlobePins, upsertGlobePin, deleteGlobePin, setMissionMarkdown } from '@foundry-toolkit/db/pf2e';
-import type { GlobePin, GlobeDeployProgress, GlobeDeployResult, MissionData } from '@foundry-toolkit/shared/types';
+import type { GlobePin, MissionData } from '@foundry-toolkit/shared/types';
 import { missionNoteTemplate, parseMissionNote } from '../mission-parser.js';
 import { findNoteByPinId, safeFileName, stampPinId } from '../mission-notes.js';
-import { pushToFoundryMcp, pushToSidecar } from '../sidecar-client.js';
+import { pushToFoundryMcp } from '../sidecar-client.js';
 
-/** Default public URL shown in the "Pushed" toast if not configured. */
-const DEFAULT_PUBLIC_URL = 'http://server.ad:30002';
-
-export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => Electron.BrowserWindow | null): void {
-  /** Best-effort POST of the current pin snapshot to the player portal's
-   *  /api/live/globe endpoint. Silent no-op if sidecarUrl/secret aren't
-   *  configured. Network/5xx errors log and swallow — the SQLite write
-   *  has already succeeded and the next successful push will reconcile. */
+export function registerGlobeHandlers(cfg: DmToolConfig, _getMainWindow: () => Electron.BrowserWindow | null): void {
   async function pushSnapshot(): Promise<void> {
     const payload = await buildExportPayload();
-    const body = { pins: payload.pins, updatedAt: new Date().toISOString() };
-    await Promise.all([
-      pushToSidecar(cfg, '/api/live/globe', body, 'globe'),
-      pushToFoundryMcp(cfg, '/api/live/globe', body, 'globe'),
-    ]);
+    await pushToFoundryMcp(
+      cfg,
+      '/api/live/globe',
+      { pins: payload.pins, updatedAt: new Date().toISOString() },
+      'globe',
+    );
   }
 
   /** Collect every pin and, for mission pins with an Obsidian vault
    *  configured, inline the parsed MissionData (minus dmNotes — players
-   *  don't get to see those). Shared by the live-sync push, the manual
-   *  file export, and the deploy "push now" flow. */
+   *  don't get to see those). Shared by the live-sync push and manual export. */
   async function buildExportPayload(): Promise<{ exportedAt: string; pins: GlobePin[] }> {
     const pins = listGlobePins();
     const exportPins = await Promise.all(
@@ -157,7 +150,6 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
     const notesDir = join(cfg.obsidianVaultPath, 'Golarion');
     if (!existsSync(notesDir)) await mkdir(notesDir, { recursive: true });
 
-    // Resolve the note path using the same cache → scan → create fallback chain
     let filePath: string | null = null;
 
     if (pin.note) {
@@ -186,10 +178,7 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
     return parseMissionNote(raw, pin.label || 'Mission');
   });
 
-  /** Associate a pin with an existing Obsidian note chosen via file picker.
-   *  Stamps the pin's id into the selected note's frontmatter so rename-
-   *  resilient lookup still works, then updates the pin's cached note path.
-   *  Returns the updated pin, or null if the user cancelled. */
+  /** Associate a pin with an existing Obsidian note chosen via file picker. */
   ipcMain.handle('globePinLinkNote', async (_e, pin: GlobePin): Promise<GlobePin | null> => {
     if (!cfg.obsidianVaultPath) return null;
 
@@ -203,16 +192,9 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
 
     const filePath = result.filePaths[0];
 
-    // Safety: must be inside the vault so Obsidian can open it and the
-    // relative path we store is meaningful.
     const rel = relative(cfg.obsidianVaultPath, filePath);
-    if (!rel || rel.startsWith('..')) {
-      // Not under the vault root — reject.
-      return null;
-    }
+    if (!rel || rel.startsWith('..')) return null;
 
-    // Stamp the pin id into the file's frontmatter so the scan-by-pin-id
-    // fallback continues to find it after future renames.
     const raw = await readFile(filePath, 'utf-8');
     const stamped = stampPinId(raw, pin.id, pin.kind);
     if (stamped !== raw) {
@@ -225,9 +207,7 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
     return pin;
   });
 
-  /** Export all pins (with parsed mission data) to a JSON file chosen by
-   *  the user. The exported file is designed to be dropped into the
-   *  player-map static site as data.json. */
+  /** Export all pins (with parsed mission data) to a JSON file chosen by the user. */
   ipcMain.handle('globeExportPlayerData', async (): Promise<boolean> => {
     const payload = await buildExportPayload();
 
@@ -240,55 +220,5 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
 
     await writeFile(result.filePath, JSON.stringify(payload, null, 2), 'utf-8');
     return true;
-  });
-
-  /** Push the current pin snapshot to the player portal's /api/live/globe.
-   *  Replaces the old build-data.json + scp + docker-compose dance —
-   *  since the portal now treats pins as a live-sync dataset (same as
-   *  inventory + aurus), all a "deploy" needs to do is POST the latest
-   *  snapshot. Container restarts / image rebuilds are handled out-of-
-   *  band when portal server code itself changes. */
-  ipcMain.handle('globeDeployPlayer', async (): Promise<GlobeDeployResult> => {
-    const publicUrl = cfg.playerMapPublicUrl ?? DEFAULT_PUBLIC_URL;
-
-    const sendProgress = (p: GlobeDeployProgress): void => {
-      const win = getMainWindow();
-      if (win && !win.isDestroyed()) win.webContents.send('globe-deploy-progress', p);
-    };
-
-    if (!cfg.sidecarUrl || !cfg.sidecarSecret) {
-      return {
-        ok: false,
-        error: 'sidecarUrl and sidecarSecret must be set in config.json for live-sync push to the player portal.',
-      };
-    }
-
-    try {
-      sendProgress({ stage: 'export', message: 'Collecting pins and mission notes...' });
-      const payload = await buildExportPayload();
-
-      sendProgress({ stage: 'docker', message: 'Pushing to player portal...' });
-      const deployBody = { pins: payload.pins, updatedAt: new Date().toISOString() };
-      const res = await fetch(`${cfg.sidecarUrl.replace(/\/+$/, '')}/api/live/globe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${cfg.sidecarSecret}`,
-        },
-        body: JSON.stringify(deployBody),
-      });
-      if (!res.ok) {
-        return { ok: false, error: `push failed: ${res.status} ${res.statusText}` };
-      }
-
-      // Best-effort mirror to foundry-mcp (dual-write; failures don't block the user).
-      void pushToFoundryMcp(cfg, '/api/live/globe', deployBody, 'globe deploy');
-
-      sendProgress({ stage: 'done', message: `Live at ${publicUrl}` });
-      return { ok: true, url: publicUrl };
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: message };
-    }
   });
 }
