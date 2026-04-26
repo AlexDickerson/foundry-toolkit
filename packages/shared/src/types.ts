@@ -836,9 +836,6 @@ export interface ElectronAPI {
    *  Returns null when foundryMcpUrl is not configured or the bridge is
    *  disconnected. */
   getActorSpellcasting(actorId: string): Promise<ActorSpellcasting | null>;
-  /** Cast a spell from a specific spellcasting entry. The GM picks the rank to
-   *  cast at; for spontaneous casters the bridge consumes the matching slot. */
-  castActorSpell(args: { actorId: string; entryId: string; spellId: string; rank: number }): Promise<{ ok: boolean }>;
 }
 
 // --- Party inventory ---------------------------------------------------------
@@ -1016,6 +1013,16 @@ export interface CombatSpellSummary {
   actions: string;
   /** Prepared mode only — true when this prepared slot has been expended today. */
   expended?: boolean;
+  /** Trait slugs (cantrip excluded). Used for hover card display. */
+  traits: string[];
+  /** Plain-text range string, e.g. "30 feet". Empty string when absent. */
+  range: string;
+  /** Plain-text area string, e.g. "15-foot cone". Empty string when absent. */
+  area: string;
+  /** Plain-text targets string. Empty string when absent. */
+  target: string;
+  /** Plain text description (Foundry markup stripped). May be empty. */
+  description: string;
 }
 
 /** Per-rank slot count for spontaneous casters. */

@@ -206,7 +206,7 @@ function SpellsSection({ groups }: { groups: MonsterSpellGroup[] }) {
   );
 }
 
-function SpellChip({ spell }: { spell: MonsterSpellInfo }) {
+export function SpellChip({ spell }: { spell: MonsterSpellInfo }) {
   const label = spell.usesPerDay !== undefined ? `${spell.name} (${spell.usesPerDay.toString()}/day)` : spell.name;
 
   return (

@@ -69,8 +69,32 @@ describe('isSpellUsable — prepared', () => {
   const entry = makeEntry({
     mode: 'prepared',
     spells: [
-      { id: 'spell-ready', name: 'Magic Missile', rank: 1, isCantrip: false, actions: '1', expended: false },
-      { id: 'spell-used', name: 'Shield', rank: 1, isCantrip: false, actions: '1', expended: true },
+      {
+        id: 'spell-ready',
+        name: 'Magic Missile',
+        rank: 1,
+        isCantrip: false,
+        actions: '1',
+        expended: false,
+        traits: [],
+        range: '',
+        area: '',
+        target: '',
+        description: '',
+      },
+      {
+        id: 'spell-used',
+        name: 'Shield',
+        rank: 1,
+        isCantrip: false,
+        actions: '1',
+        expended: true,
+        traits: [],
+        range: '',
+        area: '',
+        target: '',
+        description: '',
+      },
     ],
   });
 

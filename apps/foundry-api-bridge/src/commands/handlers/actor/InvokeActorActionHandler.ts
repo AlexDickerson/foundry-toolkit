@@ -672,11 +672,29 @@ async function getSpellcastingAction(
     const spellSummaries = entrySpells.map((rawSpell) => {
       const spellSys = itemSystem(rawSpell);
       const rank = Number(nested(spellSys, 'level', 'value') ?? 0);
-      const traits = nested(spellSys, 'traits', 'value');
-      const isCantrip = Array.isArray(traits) && traits.includes('cantrip');
+      const rawTraits = nested(spellSys, 'traits', 'value');
+      const allTraits = Array.isArray(rawTraits) ? (rawTraits as string[]) : [];
+      const isCantrip = allTraits.includes('cantrip');
+      const traits = allTraits.filter((t) => t !== 'cantrip');
       const actions = String(nested(spellSys, 'time', 'value') ?? '');
       const spellId = String((rawSpell as Record<string, unknown>)['id'] ?? '');
       const spellName = String((rawSpell as Record<string, unknown>)['name'] ?? '');
+      const range = String(nested(spellSys, 'range', 'value') ?? '');
+      const target = String(nested(spellSys, 'target', 'value') ?? '');
+
+      const areaRaw = nested(spellSys, 'area') as Record<string, unknown> | null | undefined;
+      let area = '';
+      if (areaRaw && typeof areaRaw === 'object') {
+        const aVal = areaRaw['value'];
+        const aType = areaRaw['type'];
+        if (aVal !== undefined && aVal !== '' && aVal !== 0) {
+          area = `${String(aVal)}-foot${aType ? ` ${String(aType)}` : ''}`;
+        }
+      }
+
+      const rawDesc = String(nested(spellSys, 'description', 'value') ?? '');
+      // Strip HTML tags and normalize whitespace for plain-text display.
+      const description = rawDesc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
       let expended: boolean | undefined;
       if (mode === 'prepared') {
@@ -686,7 +704,7 @@ async function getSpellcastingAction(
           slot?.prepared?.find((p: { id: string | null; expended?: boolean }) => p.id === spellId)?.expended ?? false;
       }
 
-      return { id: spellId, name: spellName, rank, isCantrip, actions, expended };
+      return { id: spellId, name: spellName, rank, isCantrip, actions, expended, traits, range, area, target, description };
     });
 
     // Slot state for spontaneous casters.

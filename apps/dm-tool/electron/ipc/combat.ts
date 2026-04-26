@@ -101,23 +101,4 @@ export function registerCombatHandlers(cfg: DmToolConfig): void {
     }
     return res.json() as Promise<ActorSpellcasting>;
   });
-
-  ipcMain.handle(
-    'castActorSpell',
-    async (_e, args: { actorId: string; entryId: string; spellId: string; rank: number }): Promise<{ ok: boolean }> => {
-      if (!cfg.foundryMcpUrl) throw new Error('foundryMcpUrl not configured');
-      const { actorId, entryId, spellId, rank } = args;
-      const base = cfg.foundryMcpUrl.replace(/\/$/, '');
-      const res = await fetch(`${base}/api/actors/${encodeURIComponent(actorId)}/actions/cast-spell`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ params: { entryId, spellId, rank } }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`cast-spell failed: HTTP ${res.status.toString()} — ${text}`);
-      }
-      return res.json() as Promise<{ ok: boolean }>;
-    },
-  );
 }
