@@ -236,7 +236,7 @@ function RankGroup({
   return (
     <div data-spell-rank={label}>
       <h3 className="mb-1 font-serif text-xs font-semibold uppercase tracking-widest text-pf-alt-dark">{label}</h3>
-      <ul className="space-y-1">
+      <ul className="grid grid-cols-2 gap-2">
         {spells.map((spell) => (
           <SpellCard key={spell.id} spell={spell} characterLevel={characterLevel} />
         ))}
@@ -290,7 +290,7 @@ function RankGroupWithEntry({
         {label}
         {slotBadge}
       </h3>
-      <ul className="space-y-1">
+      <ul className="grid grid-cols-2 gap-2">
         {spells.map((spell) => (
           <SpellCardWithCast
             key={spell.id}
@@ -318,11 +318,11 @@ function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel
 
   return (
     <li
-      className="rounded border border-pf-border bg-pf-bg"
+      className="relative rounded border border-pf-border bg-pf-bg"
       data-item-id={spell.id}
       data-spell-slug={spell.system.slug ?? ''}
     >
-      <details className="group">
+      <details className="group open:rounded-b-none open:border-pf-primary/60 open:shadow-md">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 hover:bg-pf-bg-dark/40">
           <img src={spell.img} alt="" className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
           <span className="truncate text-sm font-medium text-pf-text">{spell.name}</span>
@@ -334,9 +334,13 @@ function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel
               {castCost}
             </span>
           )}
+          <span className="ml-auto text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
+          <span className="ml-auto hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
+        </summary>
+        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
           {traits.length > 0 && (
-            <ul className="flex flex-wrap gap-1">
-              {traits.slice(0, 6).map((t) => (
+            <ul className="mb-2 flex flex-wrap gap-1">
+              {traits.map((t) => (
                 <li
                   key={t}
                   className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
@@ -346,10 +350,6 @@ function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel
               ))}
             </ul>
           )}
-          <span className="ml-auto text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span className="ml-auto hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
-        </summary>
-        <div className="border-t border-pf-border bg-pf-bg/60 px-3 py-2 text-sm text-pf-text">
           <SpellMeta spell={spell} />
           {enriched.length > 0 ? (
             <div
@@ -357,7 +357,7 @@ function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel
               dangerouslySetInnerHTML={{ __html: enriched }}
             />
           ) : (
-            <p className="mt-2 italic text-neutral-400">No description.</p>
+            <p className="mt-2 italic text-pf-text-muted">No description.</p>
           )}
         </div>
       </details>
@@ -415,20 +415,14 @@ function SpellCardWithCast({
 
   return (
     <li
-      className="rounded border border-pf-border bg-pf-bg"
+      className="relative rounded border border-pf-border bg-pf-bg"
       data-item-id={spell.id}
       data-spell-slug={spell.system.slug ?? ''}
     >
-      <details className="group">
+      <details className="group open:rounded-b-none open:border-pf-primary/60 open:shadow-md">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 hover:bg-pf-bg-dark/40">
           <img src={spell.img} alt="" className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
-          <span
-            className={
-              isExpended
-                ? 'truncate text-sm font-medium text-pf-text-muted line-through'
-                : 'truncate text-sm font-medium text-pf-text'
-            }
-          >
+          <span className={['truncate text-sm font-medium', isExpended ? 'text-pf-text-muted line-through' : 'text-pf-text'].join(' ')}>
             {spell.name}
           </span>
           {castCost !== null && (
@@ -439,9 +433,28 @@ function SpellCardWithCast({
               {castCost}
             </span>
           )}
+          {/* Cast button — stopPropagation prevents toggling the <details>. */}
+          <button
+            type="button"
+            disabled={castDisabled}
+            onClick={(e) => { e.preventDefault(); trigger(); }}
+            className="ml-auto flex-shrink-0 rounded border border-pf-primary/60 bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary transition-colors hover:bg-pf-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={pending ? 'Casting…' : `Cast ${spell.name}`}
+          >
+            {pending ? '…' : 'Cast'}
+          </button>
+          <span className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
+          <span className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
+        </summary>
+        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
+          {castError !== null && (
+            <p className="mb-2 rounded border border-red-400/40 bg-red-400/10 px-2 py-1 text-xs text-red-400">
+              {castError}
+            </p>
+          )}
           {traits.length > 0 && (
-            <ul className="flex flex-wrap gap-1">
-              {traits.slice(0, 6).map((t) => (
+            <ul className="mb-2 flex flex-wrap gap-1">
+              {traits.map((t) => (
                 <li
                   key={t}
                   className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
@@ -451,28 +464,6 @@ function SpellCardWithCast({
               ))}
             </ul>
           )}
-          {/* Cast button — stopPropagation prevents toggling the <details>. */}
-          <button
-            type="button"
-            disabled={castDisabled}
-            onClick={(e) => {
-              e.preventDefault();
-              trigger();
-            }}
-            className="ml-auto flex-shrink-0 rounded border border-pf-primary/60 bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary transition-colors hover:bg-pf-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label={pending ? 'Casting…' : `Cast ${spell.name}`}
-          >
-            {pending ? '…' : 'Cast'}
-          </button>
-          <span className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
-        </summary>
-        <div className="border-t border-pf-border bg-pf-bg/60 px-3 py-2 text-sm text-pf-text">
-          {castError !== null && (
-            <p className="mb-2 rounded border border-red-400/40 bg-red-400/10 px-2 py-1 text-xs text-red-400">
-              {castError}
-            </p>
-          )}
           <SpellMeta spell={spell} />
           {enriched.length > 0 ? (
             <div
@@ -480,7 +471,7 @@ function SpellCardWithCast({
               dangerouslySetInnerHTML={{ __html: enriched }}
             />
           ) : (
-            <p className="mt-2 italic text-neutral-400">No description.</p>
+            <p className="mt-2 italic text-pf-text-muted">No description.</p>
           )}
         </div>
       </details>

@@ -50,13 +50,17 @@ describe('Actions tab — strikes', () => {
     }
   });
 
-  it("renders each strike's three attack variants with MAP labels", () => {
+  it("renders each strike's three attack variants (bonus only, MAP in title)", () => {
     const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     for (const [slug, { variants }] of Object.entries(EXPECTED_STRIKES)) {
       const card = container.querySelector(`[data-strike-slug="${slug}"]`);
-      for (const label of variants) {
-        expect(within(card as HTMLElement).getByText(label), `${slug} variant ${label}`).toBeTruthy();
-      }
+      variants.forEach((label, i) => {
+        const bonus = label.split(' ')[0] ?? label;
+        const btn = (card as HTMLElement).querySelector(`[data-variant-index="${i.toString()}"]`);
+        expect(btn, `${slug} variant ${i.toString()} button`).toBeTruthy();
+        expect(btn?.textContent?.trim(), `${slug} variant ${i.toString()} text`).toBe(bonus);
+        expect(btn?.getAttribute('title'), `${slug} variant ${i.toString()} title`).toBe(label);
+      });
     }
   });
 
