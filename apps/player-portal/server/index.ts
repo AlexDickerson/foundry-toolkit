@@ -2,11 +2,13 @@
 // namespaces of routes.
 //
 // Live-sync API — three datasets (inventory, aurus, globe), each with:
-//   GET   /api/live/<name>           — read current snapshot (public)
+//   GET   /api/live/<name>           — read current snapshot (in-memory store)
 //   POST  /api/live/<name>           — overwrite snapshot (DM only, bearer auth)
-//   WS    /api/live/<name>/stream    — subscribe to updates (public, read-only)
-// State is in-memory only. Portal restart loses it; the DM auto-pushes on
-// every edit, so the cache refills within seconds of play resuming.
+//   GET   /api/live/<name>/stream    — SSE proxy → foundry-mcp stream (public)
+// The GET/POST routes still serve the in-memory store (written by dm-tool's
+// dual-write); the /stream routes now pipe from foundry-mcp's SSE instead of
+// the old @fastify/websocket handlers. In-memory store + POST routes retire
+// in the next PR once foundry-mcp is the sole writer.
 //
 // MCP proxy — /api/mcp/* is transparently proxied to foundry-mcp (default
 // http://localhost:8765). The Authorization header is passed through
@@ -25,16 +27,17 @@
 // Map proxy — /map/* → https://map.pathfinderwiki.com/ so PMTiles tile
 // requests are same-origin.
 //
-// Live-sync auth: single shared bearer secret on writes. Reads + WS are
-// unauthed since players need them and nothing private lives in these
+// Live-sync auth: single shared bearer secret on writes. Reads + SSE streams
+// are unauthed since players need them and nothing private lives in these
 // feeds (DM notes stay in dm-tool's SQLite / Obsidian vault).
 
 import './load-env.js';
+import http from 'node:http';
+import https from 'node:https';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
-import Fastify from 'fastify';
-import websocketPlugin from '@fastify/websocket';
+import Fastify, { type FastifyRequest, type FastifyReply } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyHttpProxy from '@fastify/http-proxy';
 import { createStores } from './store.js';
@@ -64,9 +67,41 @@ if (!SHARED_SECRET) {
 
 const stores = createStores();
 
+/** Proxy a long-lived SSE GET from foundry-mcp through to the client.
+ *  Using raw http/https instead of @fastify/http-proxy because the proxy
+ *  plugin's request timeout would close the stream prematurely. */
+function makeSseProxy(mcpUrl: string, upstreamPath: string) {
+  return (req: FastifyRequest, reply: FastifyReply): void => {
+    const target = new URL(`${mcpUrl}${upstreamPath}`);
+    const transport = target.protocol === 'https:' ? https : http;
+    const proxyReq = transport.request(
+      {
+        hostname: target.hostname,
+        port: target.port || (target.protocol === 'https:' ? 443 : 80),
+        path: target.pathname,
+        method: 'GET',
+        headers: { Accept: 'text/event-stream' },
+      },
+      (proxyRes) => {
+        reply.raw.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+          'X-Accel-Buffering': 'no',
+        });
+        proxyRes.pipe(reply.raw);
+      },
+    );
+    req.raw.on('close', () => proxyReq.destroy());
+    proxyReq.on('error', () => {
+      if (!reply.raw.headersSent) reply.raw.end();
+    });
+    proxyReq.end();
+  };
+}
+
 async function main(): Promise<void> {
   const app = Fastify({ logger: true });
-  await app.register(websocketPlugin);
 
   // CORS — in prod the SPA and API share an origin so this is a no-op.
   // Only matters in dev when Vite on :5173 hits the server on :3000.
@@ -135,17 +170,7 @@ async function main(): Promise<void> {
     return { ok: true, updatedAt: snapshot.updatedAt };
   });
 
-  app.get('/api/live/inventory/stream', { websocket: true }, (socket) => {
-    socket.send(JSON.stringify(stores.inventory.get()));
-    const unsub = stores.inventory.subscribe((snap) => {
-      try {
-        socket.send(JSON.stringify(snap));
-      } catch {
-        /* socket closing — unsub will fire via close */
-      }
-    });
-    socket.on('close', unsub);
-  });
+  app.get('/api/live/inventory/stream', makeSseProxy(MCP_URL, '/api/live/inventory/stream'));
 
   // --- Aurus leaderboard --------------------------------------------------
 
@@ -165,17 +190,7 @@ async function main(): Promise<void> {
     return { ok: true, updatedAt: snapshot.updatedAt };
   });
 
-  app.get('/api/live/aurus/stream', { websocket: true }, (socket) => {
-    socket.send(JSON.stringify(stores.aurus.get()));
-    const unsub = stores.aurus.subscribe((snap) => {
-      try {
-        socket.send(JSON.stringify(snap));
-      } catch {
-        /* ignore */
-      }
-    });
-    socket.on('close', unsub);
-  });
+  app.get('/api/live/aurus/stream', makeSseProxy(MCP_URL, '/api/live/aurus/stream'));
 
   // --- Globe pins --------------------------------------------------------
 
@@ -195,17 +210,7 @@ async function main(): Promise<void> {
     return { ok: true, updatedAt: snapshot.updatedAt };
   });
 
-  app.get('/api/live/globe/stream', { websocket: true }, (socket) => {
-    socket.send(JSON.stringify(stores.globe.get()));
-    const unsub = stores.globe.subscribe((snap) => {
-      try {
-        socket.send(JSON.stringify(snap));
-      } catch {
-        /* ignore */
-      }
-    });
-    socket.on('close', unsub);
-  });
+  app.get('/api/live/globe/stream', makeSseProxy(MCP_URL, '/api/live/globe/stream'));
 
   // --- Static SPA --------------------------------------------------------
   // Only register if dist/ exists — in dev, Vite serves static itself and
