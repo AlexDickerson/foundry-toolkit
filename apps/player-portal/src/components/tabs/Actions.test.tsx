@@ -131,10 +131,10 @@ describe('Actions tab — action items', () => {
     expect(section, 'Actions section').toBeTruthy();
     expect(section?.textContent).toContain('Rage');
     expect(section?.textContent).toContain('Demoralize');
-    // Both are 1-action so the cost badge reads "1A".
+    // Both are 1-action so the cost badge shows the ◆ glyph.
     const cards = section?.querySelectorAll('[data-action-kind="action"]');
     for (const card of Array.from(cards ?? [])) {
-      expect(card.textContent).toContain('1A');
+      expect(card.textContent).toContain('◆');
     }
   });
 

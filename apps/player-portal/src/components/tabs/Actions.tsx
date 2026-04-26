@@ -344,14 +344,12 @@ function ActionCard({
 }
 
 function ActionCostBadge({ kind, count }: { kind: string; count: number | null }): React.ReactElement {
-  // PF2e renders these as decorative glyphs; we use short text so the
-  // viewer reads the same on any font/render surface.
   let label = '—';
   if (kind === 'action') {
-    label = count === 1 ? '1A' : count === 2 ? '2A' : count === 3 ? '3A' : 'A';
-  } else if (kind === 'reaction') label = 'R';
-  else if (kind === 'free') label = 'F';
-  else if (kind === 'passive') label = 'P';
+    label = count === 1 ? '◆' : count === 2 ? '◆◆' : count === 3 ? '◆◆◆' : '◆';
+  } else if (kind === 'reaction') label = '↺';
+  else if (kind === 'free') label = '◇';
+  else if (kind === 'passive') label = '—';
 
   const palette: Record<string, string> = {
     action: 'border-emerald-300 bg-emerald-50 text-emerald-800',
