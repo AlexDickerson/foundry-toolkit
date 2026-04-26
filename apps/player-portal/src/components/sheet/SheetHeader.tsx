@@ -252,7 +252,7 @@ function CharacterPortrait({ src, name }: { src: string; name: string }): React.
     <>
       <button
         type="button"
-        onClick={(): void => setExpanded(true)}
+        onClick={(): void => { setExpanded(true); }}
         data-testid="character-portrait-button"
         aria-label={`View ${name} portrait`}
         title="View full portrait"
@@ -262,13 +262,13 @@ function CharacterPortrait({ src, name }: { src: string; name: string }): React.
           src={src}
           alt={`${name} portrait`}
           data-testid="character-portrait"
-          onError={(): void => setFailed(true)}
+          onError={(): void => { setFailed(true); }}
           className="h-24 w-20 rounded border border-pf-border object-cover object-top"
         />
       </button>
       {expanded &&
         createPortal(
-          <PortraitLightbox src={src} name={name} onClose={(): void => setExpanded(false)} />,
+          <PortraitLightbox src={src} name={name} onClose={(): void => { setExpanded(false); }} />,
           document.body,
         )}
     </>
@@ -306,7 +306,7 @@ function PortraitLightbox({
         src={src}
         alt={`${name} portrait`}
         className="max-h-[90vh] max-w-[90vw] rounded object-contain shadow-2xl"
-        onClick={(e): void => e.stopPropagation()}
+        onClick={(e): void => { e.stopPropagation(); }}
       />
     </div>
   );
