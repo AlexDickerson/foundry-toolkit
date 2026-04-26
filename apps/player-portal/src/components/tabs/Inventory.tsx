@@ -814,6 +814,13 @@ function isEquippedItem(item: PhysicalItem): boolean {
   return false;
 }
 
+function isInvestedItem(item: PhysicalItem): boolean {
+  return item.system.equipped.invested === true && item.system.traits.value.includes('invested');
+}
+
+const EQUIPPED_BG = 'var(--item-equipped)';
+const INVESTED_BG = 'var(--item-invested)';
+
 function GridTile({
   item,
   sellContext,
@@ -825,15 +832,30 @@ function GridTile({
 }): React.ReactElement {
   const hasInvestButton = investContext !== undefined && supportsInvestment(item);
   const equipped = isEquippedItem(item);
+  const invested = isInvestedItem(item);
+  const both = equipped && invested;
+
+  const detailsClass = [
+    'group relative rounded border open:z-10 open:rounded-r-none open:border-pf-primary/60 open:shadow-lg',
+    both ? 'border-item-equipped' :
+    equipped ? 'border-item-equipped bg-item-equipped' :
+    invested ? 'border-item-invested bg-item-invested' :
+    'border-pf-border bg-pf-bg',
+  ].join(' ');
+
+  const detailsStyle: React.CSSProperties | undefined = both
+    ? { background: `linear-gradient(135deg, ${EQUIPPED_BG} 50%, ${INVESTED_BG} 50%)` }
+    : undefined;
+
+  const summaryHover =
+    equipped || invested ? 'hover:brightness-95' : 'hover:bg-pf-bg-dark/40';
+
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
-      <details className={[
-        'group relative rounded border open:z-10 open:rounded-r-none open:border-pf-primary/60 open:shadow-lg',
-        equipped ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-pf-border bg-pf-bg',
-      ].join(' ')}>
+      <details className={detailsClass} style={detailsStyle}>
         <summary className={[
           'flex cursor-pointer list-none flex-col items-center gap-1.5 p-2 text-center',
-          equipped ? 'hover:bg-emerald-500/20' : 'hover:bg-pf-bg-dark/40',
+          summaryHover,
         ].join(' ')}>
           <div className="relative w-full">
             <div className="aspect-square w-full overflow-hidden rounded border border-pf-border bg-pf-bg-dark">
@@ -848,10 +870,14 @@ function GridTile({
           <span className="line-clamp-2 min-h-[2.5em] text-[11px] font-medium leading-tight text-pf-text" title={item.name}>
             {item.name}
           </span>
-          {hasInvestButton && <InvestButton item={item} context={investContext} />}
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
-        <div className="absolute left-full top-0 z-20 min-h-full w-[300%] overflow-y-auto rounded-r border border-l-0 border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg">
+        <div className="absolute left-full top-0 z-20 min-h-full w-max min-w-[150%] max-w-[300%] overflow-y-auto rounded-r border border-l-0 border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg">
+          {hasInvestButton && (
+            <div className="mb-3">
+              <InvestButton item={item} context={investContext} />
+            </div>
+          )}
           <ItemDescription item={item} />
         </div>
       </details>

@@ -80,6 +80,28 @@
   background: linear-gradient(to bottom, var(--portal-bg), transparent);
 }
 
+/* Item state tokens — used for inventory grid tiles and any other surface
+ * that needs to communicate equipped / invested status via colour. */
+:root {
+  --item-equipped: rgba(34, 197, 94, 0.20);   /* emerald-500 @ 20% */
+  --item-invested: rgba(139, 92, 246, 0.20);   /* violet-500  @ 20% */
+  --item-equipped-border: rgba(34, 197, 94, 0.60);
+  --item-invested-border: rgba(139, 92, 246, 0.60);
+}
+
+@utility bg-item-equipped {
+  background-color: var(--item-equipped);
+}
+@utility bg-item-invested {
+  background-color: var(--item-invested);
+}
+@utility border-item-equipped {
+  border-color: var(--item-equipped-border);
+}
+@utility border-item-invested {
+  border-color: var(--item-invested-border);
+}
+
 /* Reserve scrollbar-gutter space always so the page doesn't horizontally
    shift when content grows past the viewport and a scrollbar appears. */
 html {
