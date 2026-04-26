@@ -84,7 +84,7 @@ export function Character({ system, actorId, items, characterLevel, onActorChang
       </div>
 
       <div data-section="conditions">
-        <SectionHeader>Conditions</SectionHeader>
+        <SectionHeader band>Conditions</SectionHeader>
         <div className="space-y-3">
           <ConditionsRow
             dying={system.attributes.dying}
@@ -111,7 +111,7 @@ function AbilityBlock({
 }): React.ReactElement {
   return (
     <div>
-      <SectionHeader>Ability Modifiers</SectionHeader>
+      <SectionHeader band>Ability Modifiers</SectionHeader>
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         {ABILITY_KEYS.map((ak) => {
           const a = abilities[ak];
@@ -181,7 +181,7 @@ function StatsBlock({
 
   return (
     <div>
-      <SectionHeader>Key Stats</SectionHeader>
+      <SectionHeader band>Key Stats</SectionHeader>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <StatTile label="AC" value={ac.value.toString()} title={ac.breakdown} />
         <HpTile hp={hp} actorId={actorId} onActorChanged={onActorChanged} />
@@ -566,7 +566,7 @@ function IWRBlock({
   if (immunities.length === 0 && weaknesses.length === 0 && resistances.length === 0) return null;
   return (
     <div data-section="iwr" className="space-y-2">
-      <SectionHeader>Defenses</SectionHeader>
+      <SectionHeader band>Defenses</SectionHeader>
       <IWRRow label="Immunities" entries={immunities} />
       <IWRRow label="Weaknesses" entries={weaknesses} />
       <IWRRow label="Resistances" entries={resistances} />
@@ -618,7 +618,7 @@ function SkillsBlock({
 
   return (
     <div>
-      <SectionHeader>Skills</SectionHeader>
+      <SectionHeader band>Skills</SectionHeader>
       <ul className={condensed ? 'grid grid-cols-2 gap-1' : 'grid grid-cols-1 gap-2 sm:grid-cols-2'}>
         {coreSkills.map((skill) => (
           <SkillItem key={skill.slug} skill={skill} actorId={actorId} condensed={condensed} />
@@ -746,15 +746,15 @@ function QuickActionsBlock({
       className="flex w-60 shrink-0 flex-col overflow-hidden rounded-lg border border-pf-border bg-pf-bg-dark p-4"
       style={maxHeight !== undefined ? { maxHeight } : undefined}
     >
-      <div className="mb-3 flex shrink-0 items-center justify-between">
-        <h2 className="border-l-2 border-pf-primary pl-3 font-serif text-sm font-bold uppercase tracking-wider text-pf-alt-dark">
+      <div className="-mx-4 -mt-4 mb-3 flex shrink-0 items-center justify-between rounded-t-lg border-b border-pf-border bg-pf-bg px-4 pb-2.5 pt-3">
+        <h2 className="font-serif text-sm font-bold uppercase tracking-wider text-pf-alt-dark">
           Quick Actions
         </h2>
         <button
           type="button"
           onClick={() => { setShowPicker(true); }}
           title="Configure quick actions"
-          className="flex h-5 w-5 items-center justify-center rounded border border-pf-border text-pf-text-muted hover:bg-pf-bg-dark"
+          className="flex h-5 w-5 items-center justify-center rounded border border-pf-primary/30 text-pf-text-muted hover:bg-pf-primary/10"
           aria-label="Configure quick actions"
         >
           <PencilIcon />
