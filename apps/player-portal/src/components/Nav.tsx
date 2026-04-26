@@ -15,7 +15,7 @@ interface Props {
 
 export function Nav({ theme, onToggleTheme }: Props) {
   return (
-    <nav className="flex flex-shrink-0 items-center border-b border-portal-border bg-portal-surface">
+    <nav className="flex flex-shrink-0 items-center border-b border-portal-border bg-portal-surface shadow-sm">
       {tabs.map((tab) => (
         <NavLink
           key={tab.to}

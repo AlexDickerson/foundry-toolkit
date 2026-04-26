@@ -103,7 +103,7 @@ function EntryBlock({
           <span className="text-[10px] uppercase tracking-widest text-pf-alt-dark">{meta.join(' · ')}</span>
         )}
         {isFocus && focusPoints.max > 0 && (
-          <FocusDots value={focusPoints.value} max={focusPoints.max} />
+          <FocusControl focusPoints={focusPoints} actorId={actorId} onChanged={onCast} />
         )}
       </div>
       {spells.length === 0 ? (
@@ -485,6 +485,42 @@ function SpellCardWithCast({
         </div>
       </details>
     </li>
+  );
+}
+
+function FocusControl({
+  focusPoints,
+  actorId,
+  onChanged,
+}: {
+  focusPoints: FocusPool;
+  actorId: string;
+  onChanged: () => void;
+}): React.ReactElement {
+  const adjust = useActorAction({
+    run: (delta: number) => api.adjustActorResource(actorId, 'focus-points', delta),
+    onSuccess: onChanged,
+  });
+  return (
+    <span className="flex items-center gap-1" data-stat="focus">
+      <button
+        type="button"
+        onClick={() => { adjust.trigger(-1); }}
+        disabled={adjust.state === 'pending'}
+        className="rounded border border-pf-border bg-pf-bg px-1 py-0.5 font-mono text-[10px] text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
+      >
+        −
+      </button>
+      <FocusDots value={focusPoints.value} max={focusPoints.max} />
+      <button
+        type="button"
+        onClick={() => { adjust.trigger(1); }}
+        disabled={adjust.state === 'pending'}
+        className="rounded border border-pf-border bg-pf-bg px-1 py-0.5 font-mono text-[10px] text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
+      >
+        +
+      </button>
+    </span>
   );
 }
 

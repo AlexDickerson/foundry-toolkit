@@ -3,15 +3,19 @@ import { SectionHeader } from '../common/SectionHeader';
 
 interface Props {
   details: CharacterDetails;
+  traits: string[];
 }
 
 // Background tab — pf2e system.details.biography + demographic fields.
 // Read-only viewer. HTML fields (appearance, backstory, campaignNotes)
 // are rendered as raw HTML because the source is our self-hosted
 // Foundry; there's no untrusted-user input path into these fields.
-export function Background({ details }: Props): React.ReactElement {
+export function Background({ details, traits }: Props): React.ReactElement {
   const bio = details.biography;
-  if (!hasAnyBackgroundContent(details)) {
+  const languages = details.languages.value;
+  const hasIdentity = languages.length > 0 || traits.length > 0;
+
+  if (!hasAnyBackgroundContent(details, traits)) {
     return (
       <section className="space-y-6" data-section="background-empty">
         <p className="text-sm italic text-neutral-500">
@@ -22,6 +26,7 @@ export function Background({ details }: Props): React.ReactElement {
   }
   return (
     <section className="space-y-6">
+      {hasIdentity && <IdentityBlock languages={languages} traits={traits} />}
       <DemographicsBlock details={details} />
       <TextBlock title="Appearance" html={bio.appearance} />
       <TextBlock title="Backstory" html={bio.backstory} dataSection="backstory" />
@@ -33,7 +38,8 @@ export function Background({ details }: Props): React.ReactElement {
   );
 }
 
-function hasAnyBackgroundContent(details: CharacterDetails): boolean {
+function hasAnyBackgroundContent(details: CharacterDetails, traits: string[]): boolean {
+  if (traits.length > 0 || details.languages.value.length > 0) return true;
   const bio = details.biography;
   const demographicValues = [
     details.gender.value,
@@ -43,6 +49,7 @@ function hasAnyBackgroundContent(details: CharacterDetails): boolean {
     details.height.value,
     details.weight.value,
     bio.birthPlace,
+    details.deity?.value ?? '',
   ];
   const textValues = [
     bio.appearance,
@@ -65,6 +72,50 @@ function hasAnyBackgroundContent(details: CharacterDetails): boolean {
 
 // ─── Sub-sections ──────────────────────────────────────────────────────
 
+function IdentityBlock({ languages, traits }: { languages: string[]; traits: string[] }): React.ReactElement {
+  return (
+    <div data-section="identity">
+      {languages.length > 0 && (
+        <div className="mb-4">
+          <SectionHeader>Languages</SectionHeader>
+          <ul className="flex flex-wrap gap-1.5">
+            {languages.map((lang) => (
+              <li
+                key={lang}
+                className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-2.5 py-0.5 text-xs text-pf-alt-dark"
+              >
+                {humaniseSlug(lang)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {traits.length > 0 && (
+        <div>
+          <SectionHeader>Traits</SectionHeader>
+          <ul className="flex flex-wrap gap-1.5">
+            {traits.map((trait) => (
+              <li
+                key={trait}
+                className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-2.5 py-0.5 text-xs text-pf-alt-dark"
+              >
+                {humaniseSlug(trait)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function humaniseSlug(slug: string): string {
+  return slug
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 function DemographicsBlock({ details }: { details: CharacterDetails }): React.ReactElement | null {
   const fields: Array<[label: string, value: string]> = [
     ['Gender', details.gender.value],
@@ -74,6 +125,7 @@ function DemographicsBlock({ details }: { details: CharacterDetails }): React.Re
     ['Height', details.height.value],
     ['Weight', details.weight.value],
     ['Birthplace', details.biography.birthPlace],
+    ['Deity', details.deity?.value ?? ''],
   ];
   const populated = fields.filter(([, v]) => v.trim() !== '');
   if (populated.length === 0) return null;

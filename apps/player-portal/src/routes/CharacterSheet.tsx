@@ -155,6 +155,8 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
         >
           <SheetHeader
             character={state.actor}
+            actorId={actorId}
+            onActorChanged={reloadActor}
             onBack={onBack}
             onSettingsOpen={(): void => {
               setSettingsOpen(true);
@@ -162,7 +164,13 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
           />
           <TabStrip tabs={TABS} active={activeTab} onChange={setActiveTab} />
           {activeTab === 'character' && (
-            <Character system={state.actor.system} actorId={actorId} onActorChanged={reloadActor} />
+            <Character
+              system={state.actor.system}
+              actorId={actorId}
+              items={state.actor.items}
+              characterLevel={state.actor.system.details.level.value}
+              onActorChanged={reloadActor}
+            />
           )}
           {activeTab === 'actions' && (
             <Actions
@@ -197,7 +205,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
             </>
           )}
           {activeTab === 'feats' && <Feats items={state.actor.items} />}
-          {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} actorId={actorId} />}
+          {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} />}
           {activeTab === 'progression' && (
             <Progression
               characterLevel={state.actor.system.details.level.value}
@@ -205,7 +213,9 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
               characterContext={fromPreparedCharacter(state.actor)}
             />
           )}
-          {activeTab === 'background' && <Background details={state.actor.system.details} />}
+          {activeTab === 'background' && (
+            <Background details={state.actor.system.details} traits={state.actor.system.traits.value} />
+          )}
         </div>
       )}
       {settingsOpen && state.kind === 'ready' && (
