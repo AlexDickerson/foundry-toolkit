@@ -124,12 +124,9 @@ describe('Character tab', () => {
     }
   });
 
-  it('shows investiture resource for Amiri (0/10)', () => {
+  it('does not render an investiture counter (moved to Inventory tab)', () => {
     const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} />);
-    const inv = container.querySelector('[data-stat="investiture"]');
-    expect(inv, 'investiture').toBeTruthy();
-    expect(inv?.textContent).toContain('0');
-    expect(inv?.textContent).toContain('/10');
+    expect(container.querySelector('[data-stat="investiture"]')).toBeNull();
   });
 
   it('omits Focus and Mythic resources when max is zero', () => {

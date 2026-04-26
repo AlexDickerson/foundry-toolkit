@@ -400,7 +400,7 @@ function ResourcesRow({
   actorId: string;
   onActorChanged: () => void;
 }): React.ReactElement {
-  const { heroPoints, focus, investiture, mythicPoints } = resources;
+  const { heroPoints, focus, mythicPoints } = resources;
   const adjustHero = useActorAction({
     run: (delta: number) => api.adjustActorResource(actorId, 'hero-points', delta),
     onSuccess: onActorChanged,
@@ -447,9 +447,6 @@ function ResourcesRow({
             colorOn="border-amber-400 bg-amber-500"
             data-stat="mythic-points"
           />
-        )}
-        {investiture.max > 0 && (
-          <CountResource label="Invested" value={investiture.value} max={investiture.max} data-stat="investiture" />
         )}
       </div>
       {error !== null && (
@@ -504,28 +501,6 @@ function PipResource({
       )}
       <span className="font-mono text-xs tabular-nums text-pf-text-muted">
         {value}/{max}
-      </span>
-    </div>
-  );
-}
-
-function CountResource({
-  label,
-  value,
-  max,
-  ...rest
-}: {
-  label: string;
-  value: number;
-  max: number;
-  'data-stat'?: string;
-}): React.ReactElement {
-  return (
-    <div className="flex items-center gap-2" {...rest}>
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">{label}</span>
-      <span className="font-mono text-sm tabular-nums text-pf-text">
-        {value}
-        <span className="text-pf-text-muted">/{max}</span>
       </span>
     </div>
   );

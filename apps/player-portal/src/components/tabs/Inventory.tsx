@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { api } from '../../api/client';
-import type { PhysicalItem, PhysicalItemType, PreparedActorItem } from '../../api/types';
+import type { PhysicalItem, PhysicalItemType, PointPool, PreparedActorItem } from '../../api/types';
 import { isCoin, isContainer, isPhysicalItem } from '../../api/types';
 import { useExpandableCard } from '../../lib/useExpandableCard';
+import { supportsInvestment, wouldExceedInvestmentCap } from '../../lib/investment';
 import {
   coinItemsByDenom,
   coinSlugFor,
@@ -22,6 +23,7 @@ interface Props {
   items: PreparedActorItem[];
   actorId?: string;
   onActorChanged?: () => void;
+  investiture?: PointPool;
 }
 
 type ViewMode = 'list' | 'grid';
@@ -96,7 +98,7 @@ function groupByCategory(items: readonly PhysicalItem[]): Map<InventoryCategory,
 // Ported in spirit from pf2e's static/templates/actors/character/tabs/
 // inventory.hbs, but flattened — our read-only viewer doesn't need
 // stow/carry/drop controls or quantity adjusters.
-export function Inventory({ items, actorId, onActorChanged }: Props): React.ReactElement {
+export function Inventory({ items, actorId, onActorChanged, investiture }: Props): React.ReactElement {
   // One uuid-hover instance for every expanded item description —
   // event delegation on the section picks up anchors produced by
   // `enrichDescription` regardless of which item was expanded.
@@ -105,6 +107,7 @@ export function Inventory({ items, actorId, onActorChanged }: Props): React.Reac
   const [shopView, setShopView] = useState<ShopView>('inventory');
   const [pendingBuys, setPendingBuys] = useState<Set<string>>(new Set());
   const [pendingSells, setPendingSells] = useState<Set<string>>(new Set());
+  const [pendingInvestments, setPendingInvestments] = useState<Set<string>>(new Set());
   const [txError, setTxError] = useState<string | null>(null);
   const shopMode = useShopMode();
 
@@ -155,7 +158,32 @@ export function Inventory({ items, actorId, onActorChanged }: Props): React.Reac
     }
   };
 
+  const handleToggleInvestment = async (item: PhysicalItem): Promise<void> => {
+    if (!canTransact || investiture === undefined) return;
+    setTxError(null);
+    if (wouldExceedInvestmentCap({ value: investedCount, max: investiture.max }, item)) {
+      setTxError(`Investment limit reached (${investedCount.toString()}/${investiture.max.toString()} items invested).`);
+      return;
+    }
+    setPendingInvestments((prev) => new Set(prev).add(item.id));
+    try {
+      await api.updateActorItem(actorId, item.id, {
+        system: { 'equipped.invested': !item.system.equipped.invested },
+      });
+      onActorChanged();
+    } catch (err) {
+      setTxError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPendingInvestments((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
   const physical = items.filter(isPhysicalItem);
+  const investedCount = physical.filter((i) => supportsInvestment(i) && i.system.equipped.invested === true).length;
 
   const coins = physical.filter(isCoin);
   // Treasure coins get their own dedicated strip at the top; strip
@@ -207,7 +235,18 @@ export function Inventory({ items, actorId, onActorChanged }: Props): React.Reac
               )}
               <ShopGearMenu shopMode={shopMode} />
             </div>
+            <div className="flex items-center gap-4">
+            {investiture !== undefined && investiture.max > 0 && (
+              <div className="flex items-center gap-2" data-stat="investiture">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">Invested</span>
+                <span className="font-mono text-sm tabular-nums text-pf-text">
+                  {investedCount}
+                  <span className="text-pf-text-muted">/{investiture.max}</span>
+                </span>
+              </div>
+            )}
             {effectiveShopView === 'inventory' && <ViewToggle view={view} onChange={setView} />}
+          </div>
           </div>
           {effectiveShopView === 'shop' && canTransact ? (
             <ItemShopPicker items={items} onBuy={handleBuy} pending={pendingBuys} />
@@ -220,6 +259,11 @@ export function Inventory({ items, actorId, onActorChanged }: Props): React.Reac
               sellContext={
                 shopMode.enabled && canTransact
                   ? { sellRatio: shopMode.sellRatio, pending: pendingSells, onSell: handleSell }
+                  : undefined
+              }
+              investContext={
+                canTransact && investiture !== undefined
+                  ? { investiture, pending: pendingInvestments, onToggle: handleToggleInvestment }
                   : undefined
               }
             />
@@ -235,6 +279,12 @@ interface SellContext {
   sellRatio: number;
   pending: Set<string>;
   onSell: (item: PhysicalItem) => Promise<void>;
+}
+
+interface InvestContext {
+  investiture: PointPool;
+  pending: Set<string>;
+  onToggle: (item: PhysicalItem) => Promise<void>;
 }
 
 // ─── Shop transactions ─────────────────────────────────────────────────
@@ -344,12 +394,14 @@ function CategorizedInventory({
   allByCategory,
   byContainer,
   sellContext,
+  investContext,
 }: {
   view: ViewMode;
   topLevelByCategory: Map<InventoryCategory, PhysicalItem[]>;
   allByCategory: Map<InventoryCategory, PhysicalItem[]>;
   byContainer: Map<string, PhysicalItem[]>;
   sellContext: SellContext | undefined;
+  investContext: InvestContext | undefined;
 }): React.ReactElement {
   const buckets = view === 'list' ? topLevelByCategory : allByCategory;
   const presentCategories = CATEGORY_ORDER.filter((c) => (buckets.get(c)?.length ?? 0) > 0);
@@ -371,6 +423,7 @@ function CategorizedInventory({
                     item={item}
                     contents={isContainer(item) ? (byContainer.get(item.id) ?? []) : []}
                     sellContext={sellContext}
+                    investContext={investContext}
                   />
                 ))}
               </ul>
@@ -381,7 +434,7 @@ function CategorizedInventory({
                 data-view="grid"
               >
                 {bucket.map((item) => (
-                  <GridTile key={item.id} item={item} sellContext={sellContext} />
+                  <GridTile key={item.id} item={item} sellContext={sellContext} investContext={investContext} />
                 ))}
               </ul>
             )}
@@ -573,10 +626,12 @@ function ItemRow({
   item,
   contents,
   sellContext,
+  investContext,
 }: {
   item: PhysicalItem;
   contents: PhysicalItem[];
   sellContext: SellContext | undefined;
+  investContext: InvestContext | undefined;
 }): React.ReactElement {
   const card = useExpandableCard();
   const isContainerRow = isContainer(item);
@@ -585,6 +640,7 @@ function ItemRow({
     isContainerRow && typeof bulk.capacity === 'number'
       ? `capacity ${bulk.capacity.toString()}${typeof bulk.ignored === 'number' ? ` (${bulk.ignored.toString()} ignored)` : ''}`
       : undefined;
+  const hasInvestButton = investContext !== undefined && supportsInvestment(item);
 
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
@@ -619,7 +675,8 @@ function ItemRow({
               )}
             </div>
           </div>
-          <EquippedBadge item={item} />
+          <EquippedBadge item={item} suppressInvested={hasInvestButton} />
+          {hasInvestButton && <InvestButton item={item} context={investContext} />}
           <BulkLabel value={bulk.value} />
           {sellContext && <SellButton item={item} context={sellContext} />}
           <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
@@ -676,6 +733,36 @@ function SellButton({ item, context }: { item: PhysicalItem; context: SellContex
   );
 }
 
+function InvestButton({ item, context }: { item: PhysicalItem; context: InvestContext }): React.ReactElement {
+  const busy = context.pending.has(item.id);
+  const isInvested = item.system.equipped.invested === true;
+  return (
+    <button
+      type="button"
+      data-testid="invest-button"
+      disabled={busy}
+      onClick={(e): void => {
+        e.preventDefault();
+        e.stopPropagation();
+        void context.onToggle(item);
+      }}
+      className={[
+        'shrink-0 rounded border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
+        busy
+          ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
+          : isInvested
+            ? 'border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100'
+            : 'border-violet-200 bg-white text-violet-500 hover:bg-violet-50',
+      ].join(' ')}
+      title={isInvested ? 'Click to uninvest' : 'Click to invest'}
+      aria-pressed={isInvested}
+      aria-label={isInvested ? `Uninvest ${item.name}` : `Invest ${item.name}`}
+    >
+      {busy ? (isInvested ? 'Uninvesting…' : 'Investing…') : isInvested ? '◆ Invested' : '◇ Invest'}
+    </button>
+  );
+}
+
 // Compact denomination label for the sell button ("4 gp 8 sp"). The
 // full breakdown is already in formatCp; this keeps the chip narrow by
 // collapsing to the two largest non-zero denominations.
@@ -724,10 +811,13 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
 function GridTile({
   item,
   sellContext,
+  investContext,
 }: {
   item: PhysicalItem;
   sellContext: SellContext | undefined;
+  investContext: InvestContext | undefined;
 }): React.ReactElement {
+  const hasInvestButton = investContext !== undefined && supportsInvestment(item);
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
       {/* open:min-w-[18rem] expands the tile rightward to match the panel
@@ -748,8 +838,9 @@ function GridTile({
             {item.name}
           </span>
           <div className="flex min-h-[16px] flex-wrap gap-1">
-            <EquippedBadge item={item} />
+            <EquippedBadge item={item} suppressInvested={hasInvestButton} />
           </div>
+          {hasInvestButton && <InvestButton item={item} context={investContext} />}
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
         <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 text-left text-sm text-pf-text shadow-lg">
@@ -776,7 +867,13 @@ function ItemDescription({ item }: { item: PhysicalItem }): React.ReactElement {
   );
 }
 
-function EquippedBadge({ item }: { item: PhysicalItem }): React.ReactElement | null {
+function EquippedBadge({
+  item,
+  suppressInvested = false,
+}: {
+  item: PhysicalItem;
+  suppressInvested?: boolean;
+}): React.ReactElement | null {
   const eq = item.system.equipped;
   if (eq.handsHeld !== undefined && eq.handsHeld > 0) {
     return <Badge color="emerald">Held ({eq.handsHeld}H)</Badge>;
@@ -793,7 +890,7 @@ function EquippedBadge({ item }: { item: PhysicalItem }): React.ReactElement | n
   // and most other items can have `equipped.invested === true` left
   // on them from Foundry defaults, so we gate the badge on the trait
   // instead of trusting the flag alone.
-  if (eq.invested === true && item.system.traits.value.includes('invested')) {
+  if (!suppressInvested && eq.invested === true && item.system.traits.value.includes('invested')) {
     return <Badge color="violet">Invested</Badge>;
   }
   return null;
