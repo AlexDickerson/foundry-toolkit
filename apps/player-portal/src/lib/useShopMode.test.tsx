@@ -11,10 +11,11 @@ afterEach(() => {
 });
 
 describe('useShopMode', () => {
-  it('defaults to disabled / sellRatio 0.5', () => {
+  it('defaults to disabled / sellRatio 0.5 / rare+unique hidden', () => {
     const { result } = renderHook(() => useShopMode());
     expect(result.current.enabled).toBe(false);
     expect(result.current.sellRatio).toBe(0.5);
+    expect(result.current.disabledRarities).toEqual(['rare', 'unique']);
   });
 
   it('setEnabled updates state and persists to localStorage', () => {
@@ -62,6 +63,6 @@ describe('window.__shopMode programmatic API', () => {
       .__shopMode;
     expect(api).toBeDefined();
     api?.set({ enabled: true, sellRatio: 0.25 });
-    expect(api?.get()).toEqual({ enabled: true, sellRatio: 0.25 });
+    expect(api?.get()).toEqual({ enabled: true, sellRatio: 0.25, disabledRarities: ['rare', 'unique'] });
   });
 });
