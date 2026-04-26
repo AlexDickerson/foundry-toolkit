@@ -1,6 +1,15 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
+    ".": {
+      "ignoreDependencies": [
+        "@secretlint/secretlint-rule-anthropic",
+        "@secretlint/secretlint-rule-aws",
+        "@secretlint/secretlint-rule-github",
+        "@secretlint/secretlint-rule-openai",
+        "@secretlint/secretlint-rule-pattern"
+      ]
+    },
     "apps/dm-tool": {
       "entry": ["electron.vite.config.ts", "electron/main.ts", "electron/preload.ts"],
       "project": ["electron/**/*.ts", "src/**/*.{ts,tsx}"],
@@ -8,8 +17,7 @@
     },
     "apps/foundry-mcp": {
       "entry": ["test/**/*.test.ts"],
-      "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["husky", "lint-staged"]
+      "project": ["src/**/*.ts"]
     },
     "apps/foundry-api-bridge": {
       "entry": ["src/main.ts"],
