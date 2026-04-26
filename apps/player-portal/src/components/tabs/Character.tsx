@@ -861,7 +861,7 @@ function ItemQuickRow({
           type="button"
           onClick={() => { use.trigger(); }}
           disabled={use.state === 'pending'}
-          className="w-12 shrink-0 rounded border border-pf-primary/40 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-pf-primary hover:bg-pf-primary/10 disabled:opacity-50"
+          className="w-12 shrink-0 rounded border border-pf-border bg-pf-bg py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
         >
           Use
         </button>
@@ -920,7 +920,7 @@ function SpellQuickRow({
           type="button"
           onClick={() => { cast.trigger(); }}
           disabled={cast.state === 'pending' || unavailable}
-          className="w-12 shrink-0 rounded border border-pf-primary/40 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-pf-primary hover:bg-pf-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className="w-12 shrink-0 rounded border border-pf-border bg-pf-bg py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-pf-text hover:bg-pf-bg-dark disabled:cursor-not-allowed disabled:opacity-40"
         >
           Cast
         </button>
