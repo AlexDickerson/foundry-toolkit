@@ -119,6 +119,10 @@ function createWindow(): void {
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
+    // Auto-open DevTools in dev so renderer logs are visible without
+    // hunting for the menu shortcut. Detached so it doesn't steal layout
+    // space inside the main window.
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }

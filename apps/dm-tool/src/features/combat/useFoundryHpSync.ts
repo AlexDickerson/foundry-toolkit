@@ -36,7 +36,12 @@ export function useFoundryHpSync(encounter: Encounter, onChange: (next: Encounte
       }
       const hpValues = extractHp(update.system);
       if (!hpValues) {
-        console.warn(`useFoundryHpSync: ${update.actorId} HP path changed but extraction failed`);
+        console.warn(
+          `useFoundryHpSync: ${update.actorId} HP path changed but extraction failed. system keys=`,
+          Object.keys(update.system),
+          'attributes=',
+          update.system['attributes'],
+        );
         return;
       }
 
