@@ -12,23 +12,30 @@ describe('PARTY_ACTOR_NAME', () => {
 // ─── Filter predicate ─────────────────────────────────────────────────────────
 
 describe('isAlreadyInEncounter', () => {
-  it('returns true for a PC combatant whose name matches', () => {
+  const member = { id: 'actor-1', name: 'Amiri' };
+
+  it('returns true when a PC combatant has the same foundryActorId', () => {
+    const combatants = [{ kind: 'pc', displayName: 'Renamed Hero', foundryActorId: 'actor-1' }];
+    expect(isAlreadyInEncounter(combatants, member)).toBe(true);
+  });
+
+  it('returns true when a PC combatant has the same displayName (legacy/no actor id)', () => {
     const combatants = [{ kind: 'pc', displayName: 'Amiri' }];
-    expect(isAlreadyInEncounter(combatants, 'Amiri')).toBe(true);
+    expect(isAlreadyInEncounter(combatants, member)).toBe(true);
+  });
+
+  it('returns false when foundryActorId differs and displayName differs', () => {
+    const combatants = [{ kind: 'pc', displayName: 'Harsk', foundryActorId: 'actor-2' }];
+    expect(isAlreadyInEncounter(combatants, member)).toBe(false);
   });
 
   it('returns false for a monster combatant with the same name', () => {
     const combatants = [{ kind: 'monster', displayName: 'Amiri' }];
-    expect(isAlreadyInEncounter(combatants, 'Amiri')).toBe(false);
-  });
-
-  it('returns false when no PC has that name', () => {
-    const combatants = [{ kind: 'pc', displayName: 'Harsk' }];
-    expect(isAlreadyInEncounter(combatants, 'Amiri')).toBe(false);
+    expect(isAlreadyInEncounter(combatants, member)).toBe(false);
   });
 
   it('returns false for an empty encounter', () => {
-    expect(isAlreadyInEncounter([], 'Amiri')).toBe(false);
+    expect(isAlreadyInEncounter([], member)).toBe(false);
   });
 
   it('returns true even when other combatants exist', () => {
@@ -37,12 +44,17 @@ describe('isAlreadyInEncounter', () => {
       { kind: 'pc', displayName: 'Amiri' },
       { kind: 'pc', displayName: 'Harsk' },
     ];
-    expect(isAlreadyInEncounter(combatants, 'Amiri')).toBe(true);
+    expect(isAlreadyInEncounter(combatants, member)).toBe(true);
   });
 
-  it('is case-sensitive (display names are user-typed)', () => {
+  it('is case-sensitive on the displayName fallback (display names are user-typed)', () => {
     const combatants = [{ kind: 'pc', displayName: 'amiri' }];
-    expect(isAlreadyInEncounter(combatants, 'Amiri')).toBe(false);
+    expect(isAlreadyInEncounter(combatants, member)).toBe(false);
+  });
+
+  it('matches by id even when displayName has been edited', () => {
+    const combatants = [{ kind: 'pc', displayName: 'Sal the Bard', foundryActorId: 'actor-1' }];
+    expect(isAlreadyInEncounter(combatants, member)).toBe(true);
   });
 });
 

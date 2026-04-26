@@ -836,6 +836,15 @@ export interface ElectronAPI {
    *  Returns null when foundryMcpUrl is not configured or the bridge is
    *  disconnected. */
   getActorSpellcasting(actorId: string): Promise<ActorSpellcasting | null>;
+  /** Subscribe to live actor state changes from Foundry via the `actors`
+   *  SSE channel. Fires on any `updateActor` hook; `changedPaths` lets
+   *  handlers filter to the fields they care about. Returns an unsubscribe
+   *  function. */
+  onActorUpdated(callback: (update: ActorUpdate) => void): () => void;
+  /** Push a manual HP change from dm-tool back to Foundry. PATCHes
+   *  `system.attributes.hp.value` (and `.max` if provided) on the actor
+   *  via foundry-mcp. No-op when foundryMcpUrl is not configured. */
+  pushActorHp(actorId: string, hp: number, maxHp?: number): Promise<void>;
 }
 
 // --- Party inventory ---------------------------------------------------------
@@ -891,6 +900,10 @@ export interface PartyMember {
   /** Perception modifier (PF2e `system.perception.mod`), used as the
    *  default initiative modifier in the combat tracker. */
   initiativeMod: number;
+  /** Current HP at the time the picker fetched the party. The combat
+   *  tracker uses this as the combatant's starting HP so a PC mid-fight
+   *  isn't reset to full when added to the encounter. */
+  hp: number;
   maxHp: number;
 }
 
@@ -944,8 +957,20 @@ export interface Combatant {
   notes?: string;
   /** Foundry actor document id. Set only when the PC was added from the party
    *  picker (where we have the live actor id). Absent for manually-entered PCs
-   *  and monsters. Required by the spell cast + slot display features. */
+   *  and monsters. Required by the spell cast + slot display features and the
+   *  live HP sync via the `actors` SSE channel. */
   foundryActorId?: string;
+}
+
+/** Payload pushed from the Electron main process to the renderer whenever
+ *  a Foundry actor changes via the `actors` SSE channel. `changedPaths` is
+ *  the dot-notation diff from the `updateActor` hook; `system` is the full
+ *  PF2e `actor.getRollData()` snapshot at the time of the event. Renderer
+ *  hooks filter by path and extract the fields they care about. */
+export interface ActorUpdate {
+  actorId: string;
+  changedPaths: string[];
+  system: Record<string, unknown>;
 }
 
 /** One monster combatant successfully turned into a Foundry actor. */

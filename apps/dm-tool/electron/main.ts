@@ -24,6 +24,7 @@ import { registerSetupIpcHandlers } from './setup-ipc.js';
 import { scanBookRoot } from './book-scanner.js';
 import { closePf2eDb, getPf2eDb, openPf2eDb } from '@foundry-toolkit/db/pf2e';
 import { getPreparedCompendium, initPreparedCompendium } from './compendium/singleton.js';
+import { startActorWatcher } from './actor-watcher.js';
 
 // `map-file://` and `book-file://` must be registered as privileged
 // schemes BEFORE app.ready fires, otherwise the CSP rules in index.html
@@ -118,6 +119,10 @@ function createWindow(): void {
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
+    // Auto-open DevTools in dev so renderer logs are visible without
+    // hunting for the menu shortcut. Detached so it doesn't steal layout
+    // space inside the main window.
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
@@ -436,6 +441,12 @@ async function startup(): Promise<void> {
   registerBookFileProtocol(() => bookDb);
   registerMonsterFileProtocol(bootstrap.dbPath);
   registerIpcHandlers(db, bookDb, cfg, () => mainWindow);
+
+  if (cfg.foundryMcpUrl) {
+    const watcher = startActorWatcher(cfg.foundryMcpUrl, () => mainWindow);
+    app.on('will-quit', () => watcher.stop());
+    console.info('actor-watcher: started for', cfg.foundryMcpUrl);
+  }
 
   // Renderer-driven runtime resize of the native window-control overlay.
   // This lives in main.ts (rather than ipc.ts) because it needs the

@@ -16,6 +16,7 @@ import { InitiativeTracker } from './InitiativeTracker';
 import { CombatantStatBlock } from './CombatantStatBlock';
 import { LootPanel } from './LootPanel';
 import { sortedCombatants } from './util';
+import { useFoundryHpSync } from './useFoundryHpSync';
 
 interface CombatTabProps {
   partyLevel: number;
@@ -76,6 +77,11 @@ export function CombatTab({ partyLevel, anthropicApiKey }: CombatTabProps) {
     },
     [refresh],
   );
+
+  // Live-sync HP across ALL encounters, not just the active one. Mounted
+  // here so a non-active encounter still picks up Foundry HP changes —
+  // switching to it never shows stale state.
+  useFoundryHpSync(encounters, saveEncounter);
 
   const active = useMemo(() => encounters.find((e) => e.id === activeId) ?? null, [encounters, activeId]);
 

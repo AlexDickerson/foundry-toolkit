@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Dice5, Heart, Skull, Trash2, UploadCloud, UserPlus, X } from 'lucide-react';
 import type {
   Combatant,
@@ -129,16 +129,32 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
 
   /** Add one or more PCs in a single update so all land in the same
    *  combatants array — calling this in a loop would lose all but the
-   *  last because each call closes over the same stale snapshot. */
+   *  last because each call closes over the same stale snapshot.
+   *
+   *  Defensively skips PCs already in the encounter (matched by
+   *  foundryActorId, then displayName) so a UI bug or double-click can't
+   *  add a duplicate. */
   const addPcs = useCallback(
-    (pcs: ReadonlyArray<{ name: string; initiativeMod: number; maxHp: number; foundryActorId?: string }>) => {
-      const newCombatants: Combatant[] = pcs.map((pc) => ({
+    (
+      pcs: ReadonlyArray<{
+        name: string;
+        initiativeMod: number;
+        hp?: number;
+        maxHp: number;
+        foundryActorId?: string;
+      }>,
+    ) => {
+      const fresh = pcs.filter(
+        (pc) => !isAlreadyInEncounter(encounter.combatants, { id: pc.foundryActorId ?? '', name: pc.name }),
+      );
+      if (fresh.length === 0) return;
+      const newCombatants: Combatant[] = fresh.map((pc) => ({
         id: crypto.randomUUID(),
         kind: 'pc',
         displayName: pc.name,
         initiativeMod: pc.initiativeMod,
         initiative: null,
-        hp: pc.maxHp,
+        hp: pc.hp ?? pc.maxHp,
         maxHp: pc.maxHp,
         ...(pc.foundryActorId !== undefined ? { foundryActorId: pc.foundryActorId } : {}),
       }));
@@ -342,6 +358,26 @@ function CombatantRow({
   const hpPct = combatant.maxHp > 0 ? (combatant.hp / combatant.maxHp) * 100 : 0;
   const hpColor = hpPct > 60 ? '#4ade80' : hpPct > 30 ? '#facc15' : '#f87171';
 
+  // Track HP/maxHp at focus time so we only push to Foundry when the value
+  // actually changed during this edit. Also avoids pushing the live-sync
+  // round-trip back to Foundry.
+  const hpOnFocus = useRef<number>(combatant.hp);
+  const maxHpOnFocus = useRef<number>(combatant.maxHp);
+
+  const pushHpIfChanged = () => {
+    if (!combatant.foundryActorId) return;
+    if (combatant.hp === hpOnFocus.current && combatant.maxHp === maxHpOnFocus.current) return;
+    void api
+      .pushActorHp(
+        combatant.foundryActorId,
+        combatant.hp,
+        combatant.maxHp !== maxHpOnFocus.current ? combatant.maxHp : undefined,
+      )
+      .catch((e: Error) => {
+        console.warn(`pushActorHp failed for ${combatant.displayName}:`, e.message);
+      });
+  };
+
   return (
     <li
       onClick={onSetCurrent}
@@ -414,6 +450,11 @@ function CombatantRow({
             type="number"
             value={combatant.hp}
             onChange={(e) => onPatch({ hp: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+            onFocus={() => {
+              hpOnFocus.current = combatant.hp;
+              maxHpOnFocus.current = combatant.maxHp;
+            }}
+            onBlur={pushHpIfChanged}
             className="h-7 w-14 px-1 text-center text-xs tabular-nums"
           />
           <span style={{ fontSize: 10, color: 'hsl(var(--muted-foreground))' }}>/</span>
@@ -421,6 +462,11 @@ function CombatantRow({
             type="number"
             value={combatant.maxHp}
             onChange={(e) => onPatch({ maxHp: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+            onFocus={() => {
+              hpOnFocus.current = combatant.hp;
+              maxHpOnFocus.current = combatant.maxHp;
+            }}
+            onBlur={pushHpIfChanged}
             className="h-7 w-14 px-1 text-center text-xs tabular-nums"
           />
         </div>
@@ -537,7 +583,7 @@ function AddMonsterPanel({
   );
 }
 
-type PcInput = { name: string; initiativeMod: number; maxHp: number; foundryActorId?: string };
+type PcInput = { name: string; initiativeMod: number; hp?: number; maxHp: number; foundryActorId?: string };
 
 /** Party picker: fetches characters from the PF2e party actor and
  *  presents them as a multi-select list.  Falls back to the manual
@@ -579,19 +625,22 @@ function PartyPickerPanel({
   const toPcInput = (m: PartyMember): PcInput => ({
     name: m.name,
     initiativeMod: m.initiativeMod,
+    hp: m.hp,
     maxHp: m.maxHp,
     foundryActorId: m.id,
   });
 
   const handleAddSelected = () => {
-    const chosen = members.filter((m) => selected.has(m.id)).map(toPcInput);
+    const chosen = members.filter((m) => selected.has(m.id) && !isAlreadyInEncounter(existing, m)).map(toPcInput);
     if (chosen.length === 0) return;
     onAdd(chosen);
     setSelected(new Set());
   };
 
   const handleAddAll = () => {
-    onAdd(members.map(toPcInput));
+    const fresh = members.filter((m) => !isAlreadyInEncounter(existing, m)).map(toPcInput);
+    if (fresh.length === 0) return;
+    onAdd(fresh);
     setSelected(new Set());
   };
 
@@ -638,15 +687,18 @@ function PartyPickerPanel({
         >
           {members.map((m) => {
             const sel = selected.has(m.id);
-            const added = isAlreadyInEncounter(existing, m.name);
+            const added = isAlreadyInEncounter(existing, m);
             return (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => handleToggle(m.id)}
+                disabled={added}
+                title={added ? 'Already in this encounter' : undefined}
                 className={cn(
                   'flex w-full items-center gap-2 border-b border-border/40 px-2 py-1.5 text-left text-xs last:border-b-0 hover:bg-accent/40',
                   sel && 'bg-accent/60',
+                  added && 'cursor-not-allowed opacity-60 hover:bg-transparent',
                 )}
               >
                 {/* Checkbox indicator */}

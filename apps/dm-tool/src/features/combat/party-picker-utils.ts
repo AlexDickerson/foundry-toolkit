@@ -18,12 +18,13 @@ export function togglePartySelection(current: ReadonlySet<string>, id: string): 
   return next;
 }
 
-/** Returns true when a PC combatant with `memberName` is already present
- *  in the encounter.  Used to mark party members that have already been
- *  added so the picker can provide a visual hint. */
+/** Returns true when a PC combatant for the given party member is already
+ *  present in the encounter. Matches by `foundryActorId` first (robust
+ *  against renames), falling back to `displayName` for legacy combatants
+ *  added before the foundryActorId field existed. */
 export function isAlreadyInEncounter(
-  combatants: ReadonlyArray<{ kind: string; displayName: string }>,
-  memberName: string,
+  combatants: ReadonlyArray<{ kind: string; displayName: string; foundryActorId?: string }>,
+  member: { id: string; name: string },
 ): boolean {
-  return combatants.some((c) => c.kind === 'pc' && c.displayName === memberName);
+  return combatants.some((c) => c.kind === 'pc' && (c.foundryActorId === member.id || c.displayName === member.name));
 }

@@ -101,4 +101,29 @@ export function registerCombatHandlers(cfg: DmToolConfig): void {
     }
     return res.json() as Promise<ActorSpellcasting>;
   });
+
+  // PATCH /api/actors/:id deep-merges system, so we can update just the
+  // HP value (and optionally max) without disturbing the rest of the
+  // actor's data. Used when the DM edits HP directly in the combat
+  // tracker — Foundry then re-emits the updateActor event, which
+  // useFoundryHpSync skips as a no-op since the local value already
+  // matches.
+  ipcMain.handle('pushActorHp', async (_e, actorId: string, hp: number, maxHp?: number): Promise<void> => {
+    if (!cfg.foundryMcpUrl) {
+      console.info('pushActorHp: foundryMcpUrl not configured — skipping');
+      return;
+    }
+    const base = cfg.foundryMcpUrl.replace(/\/$/, '');
+    const hpBlock: Record<string, number> = { value: hp };
+    if (typeof maxHp === 'number') hpBlock['max'] = maxHp;
+    const res = await fetch(`${base}/api/actors/${encodeURIComponent(actorId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system: { attributes: { hp: hpBlock } } }),
+    });
+    if (!res.ok) {
+      throw new Error(`pushActorHp ${actorId}: HTTP ${res.status.toString()}`);
+    }
+    console.info(`pushActorHp: pushed hp=${hp.toString()} for ${actorId}`);
+  });
 }

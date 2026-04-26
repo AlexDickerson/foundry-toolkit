@@ -78,12 +78,16 @@ export function getPartyMembersHandler(params: GetPartyMembersParams): Promise<P
       0;
 
     const maxHp = getNestedNumber(sys, 'attributes.hp.max') ?? 0;
+    // Current HP lives at system.attributes.hp.value; default to maxHp if
+    // missing so a malformed actor still shows a sensible value.
+    const hp = getNestedNumber(sys, 'attributes.hp.value') ?? maxHp;
 
     members.push({
       id: member.id,
       name: member.name,
       img: member.img ?? '',
       initiativeMod,
+      hp,
       maxHp,
     });
   }

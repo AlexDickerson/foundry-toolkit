@@ -68,10 +68,11 @@ describe('getPartyMembersHandler', () => {
     expect(result[0]).toMatchObject({ id: 'char-1', name: 'Amiri', img: 'tokens/amiri.webp' });
   });
 
-  it('extracts perception mod and max HP from PF2e system data', async () => {
+  it('extracts perception mod, current HP, and max HP from PF2e system data', async () => {
     setGame([makePartyActor()]);
     const [member] = await getPartyMembersHandler({});
     expect(member?.initiativeMod).toBe(8);
+    expect(member?.hp).toBe(45);
     expect(member?.maxHp).toBe(60);
   });
 
@@ -80,20 +81,29 @@ describe('getPartyMembersHandler', () => {
       makePartyActor({
         members: [
           makeMember({
-            system: { attributes: { perception: { value: 5 }, hp: { max: 40 } } },
+            system: { attributes: { perception: { value: 5 }, hp: { value: 30, max: 40 } } },
           }),
         ],
       }),
     ]);
     const [member] = await getPartyMembersHandler({});
     expect(member?.initiativeMod).toBe(5);
+    expect(member?.hp).toBe(30);
     expect(member?.maxHp).toBe(40);
   });
 
-  it('defaults initiativeMod and maxHp to 0 when system data is missing', async () => {
+  it('defaults hp to maxHp when only max is present (no current value stored)', async () => {
+    setGame([makePartyActor({ members: [makeMember({ system: { attributes: { hp: { max: 40 } } } })] })]);
+    const [member] = await getPartyMembersHandler({});
+    expect(member?.hp).toBe(40);
+    expect(member?.maxHp).toBe(40);
+  });
+
+  it('defaults initiativeMod, hp, and maxHp to 0 when system data is missing', async () => {
     setGame([makePartyActor({ members: [makeMember({ system: {} })] })]);
     const [member] = await getPartyMembersHandler({});
     expect(member?.initiativeMod).toBe(0);
+    expect(member?.hp).toBe(0);
     expect(member?.maxHp).toBe(0);
   });
 
