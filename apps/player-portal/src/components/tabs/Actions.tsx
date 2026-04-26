@@ -288,32 +288,28 @@ function ActionCard({
   return (
     <li className="relative" data-action-id={item.id} data-action-kind={kind}>
       <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-md">
-        <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden">
           <img
             src={item.img}
             alt=""
-            className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+            className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="min-w-0 truncate text-sm font-medium text-pf-text">{item.name}</span>
-              <ActionCostBadge kind={kind} count={count} />
-              <button
-                type="button"
-                onClick={(e) => { e.preventDefault(); use.trigger(); }}
-                disabled={use.state === 'pending'}
-                className="ml-auto rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
-                data-role="action-use"
-              >
-                {use.state === 'pending' ? 'Using…' : 'Use'}
-              </button>
-            </div>
-            {typeof use.state === 'object' && (
-              <p className="mt-1 text-[11px] text-red-700">{use.state.error}</p>
-            )}
-          </div>
-          <span aria-hidden className="flex-shrink-0 self-center text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
+          <span className="min-w-0 truncate text-sm font-medium text-pf-text">{item.name}</span>
+          <ActionCostBadge kind={kind} count={count} />
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); use.trigger(); }}
+            disabled={use.state === 'pending'}
+            className="ml-auto rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
+            data-role="action-use"
+          >
+            {use.state === 'pending' ? 'Using…' : 'Use'}
+          </button>
+          <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
         </summary>
+        {typeof use.state === 'object' && (
+          <p className="px-3 pb-1 text-[11px] text-red-700">{use.state.error}</p>
+        )}
         <div
           className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 shadow-lg"
           data-role="action-description"
