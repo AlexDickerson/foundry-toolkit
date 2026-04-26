@@ -44,7 +44,7 @@ export function Feats({ items }: Props): React.ReactElement {
             {inCategory.length === 0 ? (
               <p className="text-xs italic text-pf-text-muted">None yet</p>
             ) : (
-              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {inCategory.map((feat) => (
                   <FeatCard key={feat.id} feat={feat} />
                 ))}
@@ -77,7 +77,7 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
             alt=""
             className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-pf-text">{feat.name}</span>
+          <span className="min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-snug text-pf-text">{feat.name}</span>
           <span className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
             Lv {level}
           </span>
@@ -153,7 +153,7 @@ function renderUnknownCategories(grouped: Map<string, FeatItem[]>): React.ReactE
       {extras.map(([category, feats]) => (
         <div key={category} data-feat-category={category}>
           <SectionHeader band>{FEAT_CATEGORY_LABEL[category] ?? capitaliseSlug(category)}</SectionHeader>
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {feats.map((feat) => (
               <FeatCard key={feat.id} feat={feat} />
             ))}
