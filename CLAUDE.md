@@ -7,7 +7,6 @@ Monorepo consolidating four Foundry VTT companion tools. npm-workspaces, no Turb
 - TypeScript 6, shared strict config in `tsconfig.base.json` (ES2022, Bundler moduleResolution, `noUnusedLocals` / `noUnusedParameters` on).
 - ESLint 10 flat config (`eslint.config.js`), `typescript-eslint`, `eslint-config-prettier`.
 - Prettier 3 (`.prettierrc`): 120-col, `trailingComma: all`, `singleQuote: true`, `semi: true`.
-- `@electron/rebuild` at root; `apps/dm-tool` owns the `better-sqlite3` rebuild via its own `postinstall`.
 - ESM throughout (`"type": "module"` at root).
 
 ## Workspaces
@@ -31,8 +30,7 @@ Every workspace has its own `CLAUDE.md` covering app-specific details.
 
 ## Commands (root)
 
-- `npm install` — installs all workspaces; `apps/dm-tool`'s own `postinstall` rebuilds `better-sqlite3` against Electron's ABI. Other workspaces don't pay that cost.
-- `npm run rebuild-sqlite` — manual escape hatch if the native module ever gets out of sync.
+- `npm install` — installs all workspaces.
 - `npm run dev:dm-tool` / `dev:mcp` / `dev:player-portal` / `dev:player-portal:mock` / `dev:api-bridge` — each targets one workspace.
 - `npm run typecheck` / `test` / `build` / `format` / `format:check` — fan out via `--workspaces --if-present`.
 - `npm run lint` — runs the root ESLint pass **and** each workspace's own lint script.
