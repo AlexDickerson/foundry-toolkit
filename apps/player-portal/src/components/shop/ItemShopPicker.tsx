@@ -55,13 +55,12 @@ const SEARCH_LIMIT = 10_000;
 // measured the grid yet (e.g. first render, or in unit tests that
 // render outside a real DOM). The visible page adapts to the grid's
 // actual dimensions on mount via `useFitPageSize` below.
-const FALLBACK_PAGE_SIZE = 24;
+const FALLBACK_PAGE_SIZE = 25;
 
-// Approximate tile box (including gap). Used with ResizeObserver to
-// compute how many whole tiles fit in the available grid area without
-// introducing a scroll bar. The grid itself uses
-// `minmax(9rem, 1fr)` columns + `gap-2` (8px); 9rem = 144px.
-const TILE_WIDTH_PX = 144;
+// Grid column count — fixed to match the `repeat(5, ...)` template.
+const GRID_COLS = 5;
+// Approximate tile height (including gap). Used with ResizeObserver to
+// compute how many whole rows fit in the available grid area.
 const TILE_HEIGHT_PX = 146; // ≈ img h-12 + name line + level + price + buy btn + padding
 const GRID_GAP_PX = 8;
 // Floor for the computed page size so we never land on "0 tiles per
@@ -103,11 +102,8 @@ function useFitPageSize(): {
       const availableHeight = Math.max(200, window.innerHeight - rect.top - VIEWPORT_BOTTOM_MARGIN_PX);
       setMaxHeight(availableHeight);
 
-      const widthForGrid = gridEl.clientWidth || rect.width;
-      if (widthForGrid === 0) return;
-      const cols = Math.max(1, Math.floor((widthForGrid + GRID_GAP_PX) / (TILE_WIDTH_PX + GRID_GAP_PX)));
       const rows = Math.max(1, Math.floor((availableHeight + GRID_GAP_PX) / (TILE_HEIGHT_PX + GRID_GAP_PX)));
-      setPageSize(Math.max(MIN_FIT_PAGE_SIZE, cols * rows));
+      setPageSize(Math.max(MIN_FIT_PAGE_SIZE, GRID_COLS * rows));
     };
     recompute();
     const ro = new ResizeObserver(recompute);
