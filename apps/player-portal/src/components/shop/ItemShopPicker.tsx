@@ -558,8 +558,8 @@ function ShopTile({
         </div>
       </div>
       {/* Price + buy chip */}
-      <div className="flex flex-col gap-1 border-t border-pf-border p-1.5">
-        <span className="text-center font-mono text-[10px] tabular-nums text-pf-alt-dark" data-role="tile-price">
+      <div className="flex items-center gap-1.5 border-t border-pf-border px-1.5 py-1">
+        <span className="min-w-0 flex-1 truncate font-mono text-[10px] tabular-nums text-pf-alt-dark" data-role="tile-price">
           {priceText}
         </span>
         <button
@@ -571,7 +571,7 @@ function ShopTile({
           disabled={!canAfford || buying}
           data-testid="shop-buy"
           className={[
-            'w-full rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+            'flex-shrink-0 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
             !canAfford
               ? 'cursor-not-allowed border-neutral-200 bg-neutral-50 text-neutral-400'
               : buying
