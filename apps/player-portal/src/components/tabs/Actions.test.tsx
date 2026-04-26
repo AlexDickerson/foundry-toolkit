@@ -164,13 +164,14 @@ describe('Actions tab — action items', () => {
       .getAllByText(/Rage/i)[0]
       ?.closest('[data-action-id]') as HTMLElement | null;
     expect(rage, 'Rage card').toBeTruthy();
-    expect(rage?.getAttribute('data-expanded')).toBe('false');
-    expect(rage?.querySelector('[data-role="action-description"]')).toBeNull();
 
-    const toggle = rage?.querySelector('[data-testid="action-card-toggle"]') as HTMLElement;
-    fireEvent.click(toggle);
+    const details = rage?.querySelector('details') as HTMLDetailsElement | null;
+    expect(details?.open, 'collapsed by default').toBe(false);
 
-    expect(rage?.getAttribute('data-expanded')).toBe('true');
+    const summary = rage?.querySelector('summary') as HTMLElement;
+    fireEvent.click(summary);
+
+    expect(details?.open, 'expanded after click').toBe(true);
     const body = rage?.querySelector('[data-role="action-description"]');
     expect(body, 'description body').toBeTruthy();
     // Rage's description starts with "You tap into your inner fury".
