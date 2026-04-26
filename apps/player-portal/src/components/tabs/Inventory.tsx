@@ -212,6 +212,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
   // inventory pane so the toggle doesn't strand the user on an empty
   // shop tab.
   const effectiveShopView: ShopView = shopMode.enabled && canTransact ? shopView : 'inventory';
+  const effectiveTileColumns = shopMode.enabled ? 5 : tileColumns;
 
   return (
     <section
@@ -254,7 +255,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
           ) : (
             <CategorizedInventory
               view={view}
-              tileColumns={tileColumns}
+              tileColumns={effectiveTileColumns}
               topLevelByCategory={topLevelByCategory}
               allByCategory={allByCategory}
               byContainer={byContainer}
