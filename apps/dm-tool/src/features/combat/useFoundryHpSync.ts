@@ -30,14 +30,30 @@ export function useFoundryHpSync(encounter: Encounter, onChange: (next: Encounte
 
   useEffect(() => {
     return api.onActorUpdated((update) => {
-      if (!update.changedPaths.some(isHpPath)) return;
+      if (!update.changedPaths.some(isHpPath)) {
+        console.debug(`useFoundryHpSync: ignored ${update.actorId}, no HP path in [${update.changedPaths.join(',')}]`);
+        return;
+      }
       const hpValues = extractHp(update.system);
-      if (!hpValues) return;
+      if (!hpValues) {
+        console.warn(`useFoundryHpSync: ${update.actorId} HP path changed but extraction failed`);
+        return;
+      }
 
       const current = encounterRef.current;
       const target = current.combatants.find((c) => c.foundryActorId === update.actorId);
-      if (!target) return;
+      if (!target) {
+        const ids = current.combatants
+          .filter((c) => c.foundryActorId)
+          .map((c) => `${c.displayName}=${c.foundryActorId ?? ''}`)
+          .join(', ');
+        console.info(`useFoundryHpSync: HP update for ${update.actorId} but no matching combatant (have: ${ids})`);
+        return;
+      }
 
+      console.info(
+        `useFoundryHpSync: applying HP ${hpValues.hp}/${hpValues.maxHp} to ${target.displayName} (${update.actorId})`,
+      );
       void onChange({
         ...current,
         combatants: current.combatants.map((c) =>

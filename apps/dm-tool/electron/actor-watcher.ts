@@ -63,6 +63,7 @@ async function runStream(base: string, signal: AbortSignal, onUpdate: (u: ActorU
         if (!trimmed.startsWith('data:')) continue;
         const evt = parseActorsEvent(trimmed.slice(5).trim());
         if (!evt) continue;
+        console.info(`actor-watcher: SSE event for ${evt.actorId} paths=[${evt.changedPaths.join(',')}]`);
         void fetchActorSystem(base, evt.actorId, signal).then((system) => {
           if (system) onUpdate({ actorId: evt.actorId, changedPaths: evt.changedPaths, system });
         });
@@ -83,6 +84,7 @@ export function startActorWatcher(
   const onUpdate = (update: ActorUpdate) => {
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
+      console.info(`actor-watcher: forwarding update for ${update.actorId} to renderer`);
       win.webContents.send('actor-updated', update);
     }
   };
