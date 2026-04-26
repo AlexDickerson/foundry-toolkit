@@ -73,3 +73,60 @@ export type GlobePin = z.infer<typeof globePinSchema>;
 export type InventorySnapshot = z.infer<typeof inventorySnapshotSchema>;
 export type AurusSnapshot = z.infer<typeof aurusSnapshotSchema>;
 export type GlobeSnapshot = z.infer<typeof globeSnapshotSchema>;
+
+// ── Chat relay wire types ──────────────────────────────────────────────────
+// Mirrors the output of serializeChatMessage() in foundry-api-bridge, plus
+// the speakerOwnerIds field added in PR 1. PR 2 uses these to type the
+// filtered SSE stream and backfill route; PR 3 uses them in the portal.
+
+export const chatSpeakerSchema = z.object({
+  alias: z.string().optional(),
+  actor: z.string().optional(),
+  scene: z.string().optional(),
+  token: z.string().optional(),
+});
+
+export const chatRollDieResultSchema = z.object({
+  result: z.number(),
+  active: z.boolean(),
+});
+
+export const chatRollDiceTermSchema = z.object({
+  faces: z.number(),
+  results: z.array(chatRollDieResultSchema),
+});
+
+export const chatRollSchema = z.object({
+  formula: z.string(),
+  total: z.number(),
+  isCritical: z.boolean(),
+  isFumble: z.boolean(),
+  dice: z.array(chatRollDiceTermSchema),
+});
+
+// All nullable fields match the ?? null / ?? [] fallbacks in serializeChatMessage.
+export const chatMessageSnapshotSchema = z.object({
+  id: z.string(),
+  uuid: z.string().nullable(),
+  type: z.number().nullable(),
+  author: z.object({ id: z.string(), name: z.string() }).nullable(),
+  timestamp: z.number().nullable(),
+  flavor: z.string(),
+  content: z.string(),
+  speaker: chatSpeakerSchema.nullable(),
+  speakerOwnerIds: z.array(z.string()),
+  whisper: z.array(z.string()),
+  isRoll: z.boolean(),
+  rolls: z.array(chatRollSchema),
+  flags: z.record(z.string(), z.unknown()),
+});
+
+export const chatLogBackfillSchema = z.object({
+  messages: z.array(chatMessageSnapshotSchema),
+  truncated: z.boolean(),
+});
+
+export type ChatSpeaker = z.infer<typeof chatSpeakerSchema>;
+export type ChatRoll = z.infer<typeof chatRollSchema>;
+export type ChatMessageSnapshot = z.infer<typeof chatMessageSnapshotSchema>;
+export type ChatLogBackfill = z.infer<typeof chatLogBackfillSchema>;

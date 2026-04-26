@@ -217,4 +217,107 @@ describe('EventChannelController', () => {
       ]);
     });
   });
+
+  describe('speakerOwnerIds enrichment', () => {
+    function makeGameMock(actorId: string, ownership: Record<string, number>) {
+      (global as unknown as Record<string, unknown>)['game'] = {
+        actors: {
+          get(id: string) {
+            return id === actorId ? { ownership } : null;
+          },
+        },
+      };
+    }
+
+    afterEach(() => {
+      delete (global as unknown as Record<string, unknown>)['game'];
+    });
+
+    it('returns an empty array when the message has no speaker actor', () => {
+      const { publisher, pushEvent } = makePublisher();
+      const controller = new EventChannelController(publisher);
+      controller.enable('chat', {});
+
+      hooksMock.fire('createChatMessage', { id: 'msg1', isRoll: false, content: 'hi' });
+
+      const payload = pushEvent.mock.calls[0]?.[1] as { eventType: string; data: Record<string, unknown> };
+      expect(payload.data['speakerOwnerIds']).toEqual([]);
+    });
+
+    it('returns an empty array when the actor is not found in game.actors', () => {
+      (global as unknown as Record<string, unknown>)['game'] = { actors: { get: () => null } };
+      const { publisher, pushEvent } = makePublisher();
+      const controller = new EventChannelController(publisher);
+      controller.enable('chat', {});
+
+      hooksMock.fire('createChatMessage', { id: 'msg1', isRoll: false, speaker: { actor: 'missing-id' } });
+
+      const payload = pushEvent.mock.calls[0]?.[1] as { eventType: string; data: Record<string, unknown> };
+      expect(payload.data['speakerOwnerIds']).toEqual([]);
+    });
+
+    it('returns only user IDs with ownership level 3 (OWNER)', () => {
+      makeGameMock('actor-001', { userA: 3, userB: 1, userC: 2 });
+      const { publisher, pushEvent } = makePublisher();
+      const controller = new EventChannelController(publisher);
+      controller.enable('chat', {});
+
+      hooksMock.fire('createChatMessage', { id: 'msg1', isRoll: false, speaker: { actor: 'actor-001' } });
+
+      const payload = pushEvent.mock.calls[0]?.[1] as { eventType: string; data: Record<string, unknown> };
+      expect(payload.data['speakerOwnerIds']).toEqual(['userA']);
+    });
+
+    it('returns all owner user IDs when there are multiple owners', () => {
+      makeGameMock('actor-001', { userA: 3, userB: 3, userC: 1 });
+      const { publisher, pushEvent } = makePublisher();
+      const controller = new EventChannelController(publisher);
+      controller.enable('chat', {});
+
+      hooksMock.fire('createChatMessage', { id: 'msg1', isRoll: false, speaker: { actor: 'actor-001' } });
+
+      const payload = pushEvent.mock.calls[0]?.[1] as { eventType: string; data: Record<string, unknown> };
+      expect((payload.data['speakerOwnerIds'] as string[]).sort()).toEqual(['userA', 'userB']);
+    });
+
+    it('excludes the special "default" key even if its level is 3', () => {
+      makeGameMock('actor-001', { default: 3, userA: 3 });
+      const { publisher, pushEvent } = makePublisher();
+      const controller = new EventChannelController(publisher);
+      controller.enable('chat', {});
+
+      hooksMock.fire('createChatMessage', { id: 'msg1', isRoll: false, speaker: { actor: 'actor-001' } });
+
+      const payload = pushEvent.mock.calls[0]?.[1] as { eventType: string; data: Record<string, unknown> };
+      expect(payload.data['speakerOwnerIds']).toEqual(['userA']);
+    });
+
+    it('existing serialized fields are unchanged (regression)', () => {
+      makeGameMock('actor-001', { userA: 3 });
+      const { publisher, pushEvent } = makePublisher();
+      const controller = new EventChannelController(publisher);
+      controller.enable('chat', {});
+
+      hooksMock.fire('createChatMessage', {
+        id: 'msg-reg',
+        isRoll: false,
+        content: '<p>Hello</p>',
+        flavor: 'IC',
+        speaker: { actor: 'actor-001', alias: 'Valeros' },
+        whisper: [],
+        author: { id: 'u1', name: 'Player' },
+        flags: { pf2e: {} },
+      });
+
+      const payload = pushEvent.mock.calls[0]?.[1] as { eventType: string; data: Record<string, unknown> };
+      const data = payload.data;
+      expect(data['id']).toBe('msg-reg');
+      expect(data['content']).toBe('<p>Hello</p>');
+      expect(data['flavor']).toBe('IC');
+      expect(data['whisper']).toEqual([]);
+      expect(data['isRoll']).toBe(false);
+      expect(data['author']).toEqual({ id: 'u1', name: 'Player' });
+      expect(data['speakerOwnerIds']).toEqual(['userA']);
+    });
+  });
 });

@@ -313,6 +313,19 @@ export class EventChannelController {
 
 // ---- Serializers --------------------------------------------------------
 
+function computeSpeakerOwnerIds(speaker: FoundrySpeaker | null | undefined): string[] {
+  const actorId = speaker?.actor;
+  if (!actorId) return [];
+  const g = (globalThis as Record<string, unknown>)['game'] as
+    | { actors?: { get(id: string): { ownership?: Record<string, number> } | null | undefined } }
+    | undefined;
+  const actor = g?.actors?.get(actorId);
+  if (!actor?.ownership) return [];
+  return Object.entries(actor.ownership)
+    .filter(([userId, level]) => userId !== 'default' && level === 3)
+    .map(([userId]) => userId);
+}
+
 function serializeChatMessage(m: FoundryChatMessage): Record<string, unknown> {
   return {
     id: m.id,
@@ -338,6 +351,7 @@ function serializeChatMessage(m: FoundryChatMessage): Record<string, unknown> {
           })) ?? [],
       })) ?? [],
     flags: m.flags ?? {},
+    speakerOwnerIds: computeSpeakerOwnerIds(m.speaker),
   };
 }
 
