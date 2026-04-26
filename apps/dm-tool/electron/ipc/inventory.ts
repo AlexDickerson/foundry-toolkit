@@ -8,15 +8,14 @@ import { ipcMain } from 'electron';
 import type { DmToolConfig } from '../config.js';
 import type { PartyInventoryItem } from '@foundry-toolkit/shared/types';
 import { deleteInventory, listInventory, upsertInventory } from '@foundry-toolkit/db/pf2e';
-import { pushToSidecar } from '../sidecar-client.js';
+import { pushToFoundryMcp, pushToSidecar } from '../sidecar-client.js';
 
 async function pushSnapshot(cfg: DmToolConfig): Promise<void> {
-  await pushToSidecar(
-    cfg,
-    '/api/live/inventory',
-    { items: listInventory(), updatedAt: new Date().toISOString() },
-    'inventory',
-  );
+  const payload = { items: listInventory(), updatedAt: new Date().toISOString() };
+  await Promise.all([
+    pushToSidecar(cfg, '/api/live/inventory', payload, 'inventory'),
+    pushToFoundryMcp(cfg, '/api/live/inventory', payload, 'inventory'),
+  ]);
 }
 
 export function registerInventoryHandlers(cfg: DmToolConfig): void {

@@ -7,7 +7,7 @@ import { listGlobePins, upsertGlobePin, deleteGlobePin, setMissionMarkdown } fro
 import type { GlobePin, GlobeDeployProgress, GlobeDeployResult, MissionData } from '@foundry-toolkit/shared/types';
 import { missionNoteTemplate, parseMissionNote } from '../mission-parser.js';
 import { findNoteByPinId, safeFileName, stampPinId } from '../mission-notes.js';
-import { pushToSidecar } from '../sidecar-client.js';
+import { pushToFoundryMcp, pushToSidecar } from '../sidecar-client.js';
 
 /** Default public URL shown in the "Pushed" toast if not configured. */
 const DEFAULT_PUBLIC_URL = 'http://server.ad:30002';
@@ -19,7 +19,11 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
    *  has already succeeded and the next successful push will reconcile. */
   async function pushSnapshot(): Promise<void> {
     const payload = await buildExportPayload();
-    await pushToSidecar(cfg, '/api/live/globe', { pins: payload.pins, updatedAt: new Date().toISOString() }, 'globe');
+    const body = { pins: payload.pins, updatedAt: new Date().toISOString() };
+    await Promise.all([
+      pushToSidecar(cfg, '/api/live/globe', body, 'globe'),
+      pushToFoundryMcp(cfg, '/api/live/globe', body, 'globe'),
+    ]);
   }
 
   /** Collect every pin and, for mission pins with an Obsidian vault
@@ -264,17 +268,21 @@ export function registerGlobeHandlers(cfg: DmToolConfig, getMainWindow: () => El
       const payload = await buildExportPayload();
 
       sendProgress({ stage: 'docker', message: 'Pushing to player portal...' });
+      const deployBody = { pins: payload.pins, updatedAt: new Date().toISOString() };
       const res = await fetch(`${cfg.sidecarUrl.replace(/\/+$/, '')}/api/live/globe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${cfg.sidecarSecret}`,
         },
-        body: JSON.stringify({ pins: payload.pins, updatedAt: new Date().toISOString() }),
+        body: JSON.stringify(deployBody),
       });
       if (!res.ok) {
         return { ok: false, error: `push failed: ${res.status} ${res.statusText}` };
       }
+
+      // Best-effort mirror to foundry-mcp (dual-write; failures don't block the user).
+      void pushToFoundryMcp(cfg, '/api/live/globe', deployBody, 'globe deploy');
 
       sendProgress({ stage: 'done', message: `Live at ${publicUrl}` });
       return { ok: true, url: publicUrl };
