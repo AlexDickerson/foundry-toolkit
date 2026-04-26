@@ -850,9 +850,10 @@ function GridTile({
   const summaryHover =
     equipped || invested ? 'hover:brightness-95' : 'hover:bg-pf-bg-dark/40';
 
+  const [isOpen, setIsOpen] = useState(false);
   return (
-    <li className="relative [&:has(details[open])]:z-30" data-item-id={item.id} data-item-type={item.type}>
-      <details className={detailsClass} style={detailsStyle}>
+    <li className={`relative ${isOpen ? 'z-30' : ''}`} data-item-id={item.id} data-item-type={item.type}>
+      <details className={detailsClass} style={detailsStyle} onToggle={(e) => { setIsOpen(e.currentTarget.open); }}>
         <summary className={[
           'flex cursor-pointer list-none flex-col items-center p-2',
           summaryHover,
