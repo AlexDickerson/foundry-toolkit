@@ -162,15 +162,18 @@ function PcSpellsSection({ actorId }: { actorId: string }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api
-      .getActorSpellcasting(actorId)
-      .then((data) => {
+    const doLoad = async () => {
+      try {
+        const data = await api.getActorSpellcasting(actorId);
         if (!cancelled) setSpellcasting(data);
-      })
-      .catch((e) => console.error('getActorSpellcasting failed:', e))
-      .finally(() => {
+      } catch (e) {
+        console.error('getActorSpellcasting failed:', e);
+        if (!cancelled) setSpellcasting(null);
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+    void doLoad();
     return () => {
       cancelled = true;
     };
@@ -255,16 +258,18 @@ function PcSpellEntry({ entry }: { entry: CombatSpellEntry }) {
   );
 }
 
-/** Adapt a CombatSpellSummary to the MonsterSpellInfo shape expected by SpellChip. */
+/** Adapt a CombatSpellSummary to the MonsterSpellInfo shape expected by SpellChip.
+ *  Uses nullish coalescing on every field so older api-bridge versions that
+ *  pre-date the display-field additions can't crash the renderer. */
 function toMonsterSpellInfo(spell: CombatSpellSummary): MonsterSpellInfo {
   return {
     name: spell.name,
     rank: spell.rank,
-    castTime: spell.actions,
-    range: spell.range,
-    area: spell.area,
-    target: spell.target,
-    traits: spell.traits,
-    description: spell.description,
+    castTime: spell.actions ?? '',
+    range: spell.range ?? '',
+    area: spell.area ?? '',
+    target: spell.target ?? '',
+    traits: spell.traits ?? [],
+    description: spell.description ?? '',
   };
 }
