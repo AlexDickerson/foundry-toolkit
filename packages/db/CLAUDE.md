@@ -11,7 +11,7 @@ Part of the foundry-toolkit monorepo at `packages/db` — see the root [CLAUDE.m
 ## Tech stack
 
 - TypeScript (raw — consumers transpile)
-- `better-sqlite3` (native module; rebuild handled by the root `postinstall`)
+- `node:sqlite` (Node built-in, no native compilation)
 
 ## Build & run
 
@@ -29,7 +29,6 @@ Subpath exports map to `src/<name>/index.ts`:
 ## Key decisions / gotchas
 
 - Consumed **only** by dm-tool's Electron main process — never the renderer. If you find yourself importing from the renderer (`src/`), stop and route through IPC instead.
-- `better-sqlite3` native rebuild: root `postinstall` covers it; `npm run rebuild-sqlite` is the manual escape hatch.
 - `MapDb` is read-only — the `tagger/` Python subtool is the writer of its index.
 - `BookDb` shares the `pf2e.db` connection; its constructor runs a `CREATE TABLE` migration for the books table.
 

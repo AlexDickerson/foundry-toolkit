@@ -42,7 +42,6 @@ Workspace deps (raw TS, transpiled by electron-vite): `@foundry-toolkit/ai`, `@f
 - **Session hook** on `defaultSession.webRequest.onHeadersReceived`: strips `X-Frame-Options` and `frame-ancestors` (so external sites embed in iframes), and injects `Access-Control-Allow-Origin: *` for `https://map.pathfinderwiki.com/` so MapLibre can fetch PMTiles, sprites, and font glyphs from the renderer.
 - `sandbox: false` on the BrowserWindow — preload needs `fs` access via `ipcRenderer`.
 - **Packaging pulls external binaries** that aren't npm modules: `../../tagger/dist/map-tagger.exe` and `../../auto-wall-bin/Auto-Wall.exe`. Both must exist at `package` time.
-- **`better-sqlite3` rebuild** is covered by root `postinstall` + electron-builder's `npmRebuild: true`. If the renderer shows ABI-mismatch errors, run `npm run rebuild-sqlite` from the monorepo root.
 - `MapDb` is a read-only consumer of the map-tagger index (the `tagger/` Python subtool is the writer). `BookDb` shares the `pf2e.db` connection opened at startup.
 - **Tailwind 4 JIT + HMR quirk**: newly-introduced utility classes occasionally fail to materialize during hot reload. For layout-critical sizing, prefer inline styles until a full reload.
 

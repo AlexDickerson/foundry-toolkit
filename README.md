@@ -52,7 +52,7 @@ Internal dependency graph:
 ## Getting started
 
 ```bash
-npm install   # installs all workspaces; rebuilds better-sqlite3 for dm-tool's Electron ABI
+npm install   # installs all workspaces
 ```
 
 Then launch whichever app you need:
