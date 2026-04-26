@@ -531,14 +531,10 @@ function ShopTile({
 
   return (
     <li
-      className="flex flex-col items-center gap-1 rounded border border-pf-border bg-white p-2 text-center transition-shadow hover:cursor-pointer hover:shadow-md"
+      className="flex flex-col overflow-hidden rounded border border-pf-border bg-pf-bg transition-shadow hover:cursor-pointer hover:shadow-md"
       data-item-uuid={match.uuid}
       data-affordable={canAfford ? 'true' : 'false'}
       onClick={(e): void => {
-        // The Buy button lives inside this tile, so clicks on the
-        // button would otherwise fall through to the tile click
-        // handler and pop the detail overlay. Skip when the click
-        // target is (or is inside) an interactive child.
         if ((e.target as HTMLElement).closest('button, a, input')) return;
         onOpen();
       }}
@@ -552,38 +548,40 @@ function ShopTile({
       }}
       data-testid="shop-tile"
     >
-      <img src={match.img} alt="" className="h-12 w-12 rounded border border-pf-border bg-pf-bg-dark" />
-      <span className="line-clamp-2 text-[11px] font-medium leading-tight text-pf-text" title={match.name}>
-        {match.name}
-      </span>
-      {typeof match.level === 'number' && (
-        <span className="text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {match.level}</span>
-      )}
-      <span className="font-mono text-[10px] tabular-nums text-pf-alt-dark" data-role="tile-price">
-        {priceText}
-      </span>
-      <button
-        type="button"
-        onClick={(e): void => {
-          // Stop the tile's click handler from also firing and
-          // popping the detail overlay — the user's intent with a
-          // Buy click is purchase, not inspect.
-          e.stopPropagation();
-          void onBuy(unitPriceCp);
-        }}
-        disabled={!canAfford || buying}
-        data-testid="shop-buy"
-        className={[
-          'mt-auto w-full rounded border px-2 py-0.5 text-xs font-semibold uppercase tracking-wider',
-          !canAfford
-            ? 'cursor-not-allowed border-neutral-200 bg-neutral-50 text-neutral-400'
-            : buying
-              ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
-              : 'border-pf-primary bg-pf-primary text-white hover:bg-pf-primary-dark',
-        ].join(' ')}
-      >
-        {buying ? 'Buying…' : canAfford ? 'Buy' : 'Too rich'}
-      </button>
+      {/* Square art with name overlay — mirrors the inventory GridTile */}
+      <div className="relative aspect-square w-full overflow-hidden bg-pf-bg-dark">
+        <img src={match.img} alt="" className="h-full w-full object-contain" />
+        <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
+          <span className="line-clamp-2 block text-[10px] font-medium leading-tight text-white" title={match.name}>
+            {match.name}
+          </span>
+        </div>
+      </div>
+      {/* Price + buy chip */}
+      <div className="flex flex-col gap-1 border-t border-pf-border p-1.5">
+        <span className="text-center font-mono text-[10px] tabular-nums text-pf-alt-dark" data-role="tile-price">
+          {priceText}
+        </span>
+        <button
+          type="button"
+          onClick={(e): void => {
+            e.stopPropagation();
+            void onBuy(unitPriceCp);
+          }}
+          disabled={!canAfford || buying}
+          data-testid="shop-buy"
+          className={[
+            'w-full rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+            !canAfford
+              ? 'cursor-not-allowed border-neutral-200 bg-neutral-50 text-neutral-400'
+              : buying
+                ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
+                : 'border-pf-primary bg-pf-primary text-white hover:bg-pf-primary-dark',
+          ].join(' ')}
+        >
+          {buying ? 'Buying…' : canAfford ? 'Buy' : 'Too rich'}
+        </button>
+      </div>
     </li>
   );
 }
