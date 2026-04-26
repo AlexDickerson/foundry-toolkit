@@ -579,18 +579,10 @@ function readFormulas(actor: FoundryActor): CraftingFormulaEntry[] {
 type SpellPreparationMode = 'prepared' | 'spontaneous' | 'innate' | 'focus' | 'ritual' | 'items';
 
 interface Pf2eSpellcasting {
-  contents: Pf2eSpellcastingEntry[];
   get(id: string): Pf2eSpellcastingEntry | undefined;
 }
 
 interface Pf2eSpellcastingEntry {
-  id: string;
-  name: string;
-  system: {
-    prepared: { value: SpellPreparationMode; flexible?: boolean };
-    tradition: { value: string };
-    slots?: Record<string, { max: number; value?: number; prepared?: Array<{ id: string | null; expended?: boolean }> }>;
-  };
   cast(spell: Pf2eSpellItem, opts: { rank?: number; slot?: number }): Promise<unknown>;
 }
 
@@ -614,74 +606,108 @@ async function getSpellcastingAction(
   actor: FoundryActor,
   _params: Record<string, unknown>,
 ): Promise<InvokeActorActionResult> {
-  const pf2eActor = actor as Pf2eActorWithSpells;
-  const spellcasting = pf2eActor.spellcasting;
-  if (!spellcasting) {
+  const focus = (actor.system as { resources?: { focus?: { value?: number; max?: number } } }).resources?.focus;
+  const focusPoints =
+    focus && typeof focus.max === 'number' && focus.max > 0
+      ? { value: typeof focus.value === 'number' ? focus.value : 0, max: focus.max }
+      : null;
+
+  // Pull all items from the actor via actor.items (a Foundry Collection that
+  // always exposes embedded documents with full .system). Avoid
+  // actor.spellcasting.contents — it returns synthetic wrappers in current
+  // PF2e that don't expose .system directly.
+  const allItems: unknown[] = [];
+  const itemColl = actor.items as unknown as {
+    contents?: unknown[];
+    forEach?: (fn: (i: unknown) => void) => void;
+  };
+  if (Array.isArray(itemColl.contents)) {
+    allItems.push(...itemColl.contents);
+  } else if (typeof itemColl.forEach === 'function') {
+    itemColl.forEach((item) => allItems.push(item));
+  }
+
+  function itemType(i: unknown): string {
+    return typeof (i as Record<string, unknown>)['type'] === 'string'
+      ? ((i as Record<string, unknown>)['type'] as string)
+      : '';
+  }
+  function itemSystem(i: unknown): Record<string, unknown> {
+    const sys = (i as Record<string, unknown>)['system'];
+    return typeof sys === 'object' && sys !== null ? (sys as Record<string, unknown>) : {};
+  }
+  function nested(obj: Record<string, unknown>, ...keys: string[]): unknown {
+    let cur: unknown = obj;
+    for (const k of keys) {
+      if (typeof cur !== 'object' || cur === null) return undefined;
+      cur = (cur as Record<string, unknown>)[k];
+    }
+    return cur;
+  }
+
+  const entryItems = allItems.filter((i) => itemType(i) === 'spellcastingEntry');
+  const spellItems = allItems.filter((i) => itemType(i) === 'spell');
+
+  if (entryItems.length === 0) {
     return { actorId: actor.id, entries: [] };
   }
 
-  const focus = (actor.system as { resources?: { focus?: { value?: number; max?: number } } }).resources?.focus;
-  const focusPoints = focus && typeof focus.max === 'number' && focus.max > 0
-    ? { value: typeof focus.value === 'number' ? focus.value : 0, max: focus.max }
-    : null;
+  const entries = entryItems.map((rawEntry) => {
+    const entryId = String((rawEntry as Record<string, unknown>)['id'] ?? '');
+    const entryName = String((rawEntry as Record<string, unknown>)['name'] ?? '');
+    const sys = itemSystem(rawEntry);
+    const preparedSys = nested(sys, 'prepared') as Record<string, unknown> | undefined;
+    const mode = (preparedSys?.['value'] as SpellPreparationMode | undefined) ?? 'innate';
+    const traditionSys = nested(sys, 'tradition') as Record<string, unknown> | undefined;
+    const tradition = String(traditionSys?.['value'] ?? '');
+    const rawSlots = (nested(sys, 'slots') as Record<string, unknown> | undefined) ?? {};
 
-  const spellItems = actor.items.get
-    ? // actor.items is a Collection — iterate via the global items fallback
-      null
-    : null;
-  void spellItems; // unused; we use the filter approach below
+    type SlotEntry = { max: number; value?: number; prepared?: Array<{ id: string | null; expended?: boolean }> };
 
-  // Collect all spell items from the actor.
-  const allSpells: Pf2eSpellItem[] = [];
-  // actor.items is a Collection with a `contents` array in Foundry.
-  const itemColl = actor.items as unknown as { contents?: Pf2eSpellItem[]; forEach?: (fn: (i: Pf2eSpellItem) => void) => void };
-  if (Array.isArray(itemColl.contents)) {
-    for (const item of itemColl.contents) {
-      if (item.type === 'spell') allSpells.push(item);
-    }
-  } else if (typeof itemColl.forEach === 'function') {
-    itemColl.forEach((item) => { if (item.type === 'spell') allSpells.push(item); });
-  }
+    const entrySpells = spellItems.filter((s) => {
+      const loc = nested(itemSystem(s), 'location', 'value');
+      return loc === entryId;
+    });
 
-  const entries = spellcasting.contents.map((entry) => {
-    const mode: SpellPreparationMode = entry.system.prepared.value;
-    const tradition = entry.system.tradition.value;
-    const rawSlots = entry.system.slots ?? {};
-
-    // Spells belonging to this entry.
-    const entrySpells = allSpells.filter((s) => s.system.location?.value === entry.id);
-
-    const spellSummaries = entrySpells.map((spell) => {
-      const rank = spell.system.level.value;
-      const isCantrip = spell.system.traits.value.includes('cantrip');
-      const actions = spell.system.time?.value ?? '';
+    const spellSummaries = entrySpells.map((rawSpell) => {
+      const spellSys = itemSystem(rawSpell);
+      const rank = Number(nested(spellSys, 'level', 'value') ?? 0);
+      const traits = nested(spellSys, 'traits', 'value');
+      const isCantrip = Array.isArray(traits) && traits.includes('cantrip');
+      const actions = String(nested(spellSys, 'time', 'value') ?? '');
+      const spellId = String((rawSpell as Record<string, unknown>)['id'] ?? '');
+      const spellName = String((rawSpell as Record<string, unknown>)['name'] ?? '');
 
       let expended: boolean | undefined;
       if (mode === 'prepared') {
         const slotKey = `slot${rank.toString()}`;
-        const slot = rawSlots[slotKey];
-        expended = slot?.prepared?.find((p) => p.id === spell.id)?.expended ?? false;
+        const slot = rawSlots[slotKey] as SlotEntry | undefined;
+        expended =
+          slot?.prepared?.find((p: { id: string | null; expended?: boolean }) => p.id === spellId)?.expended ?? false;
       }
 
-      return { id: spell.id, name: spell.name, rank, isCantrip, actions, expended };
+      return { id: spellId, name: spellName, rank, isCantrip, actions, expended };
     });
 
     // Slot state for spontaneous casters.
     let slots: Array<{ rank: number; value: number; max: number }> | undefined;
     if (mode === 'spontaneous') {
       slots = Object.entries(rawSlots)
-        .map(([key, slot]) => ({
-          rank: parseInt(key.replace('slot', ''), 10),
-          value: slot.value ?? 0,
-          max: slot.max,
-        }))
+        .map(([key, slotRaw]) => {
+          const slot = slotRaw as SlotEntry;
+          return {
+            rank: parseInt(key.replace('slot', ''), 10),
+            value: slot.value ?? 0,
+            max: slot.max,
+          };
+        })
         .filter((s) => !isNaN(s.rank) && s.max > 0)
         .sort((a, b) => a.rank - b.rank);
     }
 
     return {
-      id: entry.id,
-      name: entry.name,
+      id: entryId,
+      name: entryName,
       mode,
       tradition,
       spells: spellSummaries,

@@ -16,6 +16,7 @@ interface MockSpellItem {
 interface MockSpellcastingEntry {
   id: string;
   name: string;
+  type: 'spellcastingEntry';
   system: {
     prepared: { value: 'prepared' | 'spontaneous' | 'innate' | 'focus' };
     tradition: { value: string };
@@ -25,7 +26,6 @@ interface MockSpellcastingEntry {
 }
 
 interface MockSpellcasting {
-  contents: MockSpellcastingEntry[];
   get: jest.Mock;
 }
 
@@ -36,7 +36,7 @@ interface MockActor {
   system: Record<string, unknown>;
   items: {
     get: jest.Mock;
-    contents?: MockSpellItem[];
+    contents?: Array<MockSpellItem | MockSpellcastingEntry>;
   };
   update: jest.Mock;
   spellcasting?: MockSpellcasting;
@@ -71,6 +71,7 @@ function makeEntry(overrides: Partial<MockSpellcastingEntry> = {}): MockSpellcas
   return {
     id: 'entry-1',
     name: 'Arcane Spellcasting',
+    type: 'spellcastingEntry',
     system: {
       prepared: { value: 'prepared' },
       tradition: { value: 'arcane' },
@@ -85,7 +86,6 @@ function makeEntry(overrides: Partial<MockSpellcastingEntry> = {}): MockSpellcas
 
 function makeActor(entry: MockSpellcastingEntry, spellItem: MockSpellItem): MockActor {
   const spellcasting: MockSpellcasting = {
-    contents: [entry],
     get: jest.fn((id: string) => (id === entry.id ? entry : undefined)),
   };
   return {
@@ -96,8 +96,10 @@ function makeActor(entry: MockSpellcastingEntry, spellItem: MockSpellItem): Mock
       resources: { focus: { value: 3, max: 3 } },
     },
     items: {
+      // items.contents is what get-spellcasting iterates — include both the
+      // spellcastingEntry and the spell item so the handler can find both.
       get: jest.fn((id: string) => (id === spellItem.id ? spellItem : undefined)),
-      contents: [spellItem],
+      contents: [entry, spellItem],
     },
     update: jest.fn(),
     spellcasting,
@@ -313,9 +315,10 @@ describe('invokeActorActionHandler — get-spellcasting', () => {
     expect(entryResult?.focusPoints).toEqual({ value: 3, max: 3 });
   });
 
-  it('returns empty entries when actor has no spellcasting', async () => {
+  it('returns empty entries when actor has no spellcastingEntry items', async () => {
+    // Actor with no spellcasting entry items in its items collection.
     const actor = makeActor(makeEntry(), makeSpellItem());
-    delete actor.spellcasting;
+    actor.items.contents = []; // strip all items — no entry, no spells
     setupFoundry(actor);
 
     const result = await invokeActorActionHandler({
