@@ -93,7 +93,7 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
               </p>
             )}
           </div>
-          <div className="mt-px min-w-0 flex-1 border-t border-pf-primary/60 px-4 py-3 text-sm text-pf-text">
+          <div className="min-w-0 flex-1 border-t border-pf-primary/60 px-4 py-3 text-sm text-pf-text">
             {enriched.length > 0 ? (
               <div
                 className="max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
