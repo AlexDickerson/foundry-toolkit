@@ -71,18 +71,20 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
   return (
     <li className="relative" data-item-id={feat.id} data-feat-slug={feat.system.slug ?? ''}>
       <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
-        <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-2 hover:bg-pf-bg-dark/40">
+        <summary className="flex cursor-pointer list-none items-start gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden hover:bg-pf-bg-dark/40">
           <img
             src={feat.img}
             alt=""
-            className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+            className="mt-0.5 h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
-          <span className="line-clamp-2 min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-snug text-pf-text">{feat.name}</span>
-          <span className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
-            Lv {level}
-          </span>
-          <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
+          <div className="min-w-0 flex-1">
+            <span className="line-clamp-2 block text-sm font-medium leading-snug text-pf-text">{feat.name}</span>
+            <div className="mt-0.5 flex items-center gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Lv {level}</span>
+              <span aria-hidden className="ml-auto text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
+              <span aria-hidden className="ml-auto hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
+            </div>
+          </div>
         </summary>
         {/* Absolute-positioned body overlays the grid below instead of
             pushing siblings down. Containing block is the `<li>`
