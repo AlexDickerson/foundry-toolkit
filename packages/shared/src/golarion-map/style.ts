@@ -39,10 +39,20 @@ function layer(id: string, sourceLayer: string, base: Partial<LayerSpecification
   } as LayerSpecification;
 }
 
+const MAP_UPSTREAM = 'https://map.pathfinderwiki.com';
+
 /** Build the MapLibre style for a given PMTiles URL. Consumers pass
  *  their environment-specific URL (upstream for the DM app; proxied
- *  same-origin for the player portal). */
-export function buildMapStyle(pmtilesUrl: string = DEFAULT_PMTILES_URL): StyleSpecification {
+ *  same-origin for the player portal).
+ *
+ *  `mapBaseUrl` controls where sprites and glyphs are fetched from.
+ *  Default is the upstream host (fine for Electron/dm-tool). The player
+ *  portal passes its same-origin proxy base (e.g. `${origin}/map`) so
+ *  the browser doesn't hit the upstream directly and get CORS-blocked. */
+export function buildMapStyle(
+  pmtilesUrl: string = DEFAULT_PMTILES_URL,
+  mapBaseUrl: string = MAP_UPSTREAM,
+): StyleSpecification {
   return {
     version: 8,
     sources: {
@@ -53,8 +63,8 @@ export function buildMapStyle(pmtilesUrl: string = DEFAULT_PMTILES_URL): StyleSp
           '<a href="https://paizo.com/licenses/communityuse">Paizo CUP</a>, <a href="https://github.com/pf-wikis/mapping#acknowledgments">Acknowledgments</a>',
       },
     },
-    sprite: 'https://map.pathfinderwiki.com/sprites/sprites',
-    glyphs: 'https://map.pathfinderwiki.com/fonts/{fontstack}/{range}.pbf',
+    sprite: `${mapBaseUrl}/sprites/sprites`,
+    glyphs: `${mapBaseUrl}/fonts/{fontstack}/{range}.pbf`,
     transition: { duration: 300, delay: 0 },
     sky: { 'atmosphere-blend': 0.5 },
     layers: [

@@ -97,11 +97,13 @@ async function main(): Promise<void> {
 
   // Reverse-proxy /map/ to map.pathfinderwiki.com — tiles appear to come
   // from our origin so the browser's CORS check passes.
+  // logLevel: 'warn' suppresses per-request info logs for tile fetches (very noisy).
   await app.register(fastifyHttpProxy, {
     upstream: 'https://map.pathfinderwiki.com',
     prefix: '/map',
     rewritePrefix: '/',
     http2: false,
+    logLevel: 'warn',
   });
 
   // Proxy /api/mcp/* → foundry-mcp, passing Authorization through unchanged.

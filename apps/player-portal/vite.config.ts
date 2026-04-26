@@ -56,6 +56,9 @@ export default defineConfig(({ mode }) => {
               target: 'http://localhost:3000',
               changeOrigin: true,
               ws: true,
+              // Prevent Vite's proxy from timing out long-lived SSE connections.
+              proxyTimeout: 0,
+              timeout: 0,
             },
             '/map': {
               target: 'http://localhost:3000',

@@ -602,7 +602,7 @@ interface Pf2eActorWithSpells extends FoundryActor {
   spellcasting?: Pf2eSpellcasting;
 }
 
-async function getSpellcastingAction(
+function getSpellcastingAction(
   actor: FoundryActor,
   _params: Record<string, unknown>,
 ): Promise<InvokeActorActionResult> {
@@ -627,6 +627,11 @@ async function getSpellcastingAction(
     itemColl.forEach((item) => allItems.push(item));
   }
 
+  function toStr(v: unknown): string {
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+    return '';
+  }
   function itemType(i: unknown): string {
     return typeof (i as Record<string, unknown>)['type'] === 'string'
       ? ((i as Record<string, unknown>)['type'] as string)
@@ -653,13 +658,13 @@ async function getSpellcastingAction(
   }
 
   const entries = entryItems.map((rawEntry) => {
-    const entryId = String((rawEntry as Record<string, unknown>)['id'] ?? '');
-    const entryName = String((rawEntry as Record<string, unknown>)['name'] ?? '');
+    const entryId = toStr((rawEntry as Record<string, unknown>)['id']);
+    const entryName = toStr((rawEntry as Record<string, unknown>)['name']);
     const sys = itemSystem(rawEntry);
     const preparedSys = nested(sys, 'prepared') as Record<string, unknown> | undefined;
     const mode = (preparedSys?.['value'] as SpellPreparationMode | undefined) ?? 'innate';
     const traditionSys = nested(sys, 'tradition') as Record<string, unknown> | undefined;
-    const tradition = String(traditionSys?.['value'] ?? '');
+    const tradition = toStr(traditionSys?.['value']);
     const rawSlots = (nested(sys, 'slots') as Record<string, unknown> | undefined) ?? {};
 
     type SlotEntry = { max: number; value?: number; prepared?: Array<{ id: string | null; expended?: boolean }> };
@@ -676,11 +681,11 @@ async function getSpellcastingAction(
       const allTraits = Array.isArray(rawTraits) ? (rawTraits as string[]) : [];
       const isCantrip = allTraits.includes('cantrip');
       const traits = allTraits.filter((t) => t !== 'cantrip');
-      const actions = String(nested(spellSys, 'time', 'value') ?? '');
-      const spellId = String((rawSpell as Record<string, unknown>)['id'] ?? '');
-      const spellName = String((rawSpell as Record<string, unknown>)['name'] ?? '');
-      const range = String(nested(spellSys, 'range', 'value') ?? '');
-      const target = String(nested(spellSys, 'target', 'value') ?? '');
+      const actions = toStr(nested(spellSys, 'time', 'value'));
+      const spellId = toStr((rawSpell as Record<string, unknown>)['id']);
+      const spellName = toStr((rawSpell as Record<string, unknown>)['name']);
+      const range = toStr(nested(spellSys, 'range', 'value'));
+      const target = toStr(nested(spellSys, 'target', 'value'));
 
       const areaRaw = nested(spellSys, 'area') as Record<string, unknown> | null | undefined;
       let area = '';
@@ -688,14 +693,14 @@ async function getSpellcastingAction(
         const aVal = areaRaw['value'];
         const aType = areaRaw['type'];
         if (aVal !== undefined && aVal !== '' && aVal !== 0) {
-          area = `${String(aVal)}-foot${aType ? ` ${String(aType)}` : ''}`;
+          area = `${toStr(aVal)}-foot${aType ? ` ${toStr(aType)}` : ''}`;
         }
       }
 
       // Description ships as raw Foundry HTML (with @UUID / @Damage / etc.
       // enricher tokens). Consumers run it through enrichDescription() from
       // @foundry-toolkit/shared/foundry-enrichers before rendering.
-      const description = String(nested(spellSys, 'description', 'value') ?? '');
+      const description = toStr(nested(spellSys, 'description', 'value'));
 
       let expended: boolean | undefined;
       if (mode === 'prepared') {
@@ -735,7 +740,7 @@ async function getSpellcastingAction(
     };
   });
 
-  return { actorId: actor.id, entries };
+  return Promise.resolve({ actorId: actor.id, entries });
 }
 
 // ─── cast-spell ────────────────────────────────────────────────────────
