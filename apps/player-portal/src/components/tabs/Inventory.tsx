@@ -874,7 +874,7 @@ function GridTile({
           </div>
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
-        <div className="absolute left-full top-0 z-20 min-h-full w-max min-w-[150%] max-w-[300%] overflow-y-auto rounded-r border border-l-0 border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg">
+        <div className="absolute left-full top-0 z-20 min-h-full w-max min-w-[150%] max-w-[300%] overflow-y-auto rounded-r border border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg">
           {hasInvestButton && (
             <div className="mb-3">
               <InvestButton item={item} context={investContext} />
