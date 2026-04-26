@@ -70,11 +70,12 @@ describe('createSceneFromUvttHandler', () => {
     mockGame.scenes.documentClass.create.mockResolvedValue(mockScene);
   });
 
-  // Regression: background image was being passed as `levels[0].background.src`
-  // (the third-party Levels module schema) instead of the vanilla Foundry
-  // `background.src` field. Scenes created via the "Create scene" button in the
-  // dm-tool map browser appeared with no background image.
-  it('puts the background image on background.src, not in a levels array', async () => {
+  // Regression: In Foundry v14, Scene#background is a deprecated shim getter
+  // that reads from scene.firstLevel.background.src. Setting background.src
+  // directly on the scene creation data is silently ignored — the field is not
+  // in the v14 Scene schema. The background must be passed via a Level embedded
+  // document in the levels array, which Foundry uses to populate firstLevel.
+  it('puts the background image in levels[0].background.src for Foundry v14', async () => {
     await createSceneFromUvttHandler({
       name: 'My Map',
       img: 'maps/dungeon.jpg',
@@ -84,14 +85,16 @@ describe('createSceneFromUvttHandler', () => {
     expect(mockGame.scenes.documentClass.create).toHaveBeenCalledTimes(1);
     const sceneData = mockGame.scenes.documentClass.create.mock.calls[0][0] as Record<string, unknown>;
 
-    // Must carry background.src
-    expect(sceneData['background']).toEqual({ src: 'maps/dungeon.jpg' });
+    // Must carry the image on the Level document, not directly on the scene.
+    const levels = sceneData['levels'] as Array<Record<string, unknown>>;
+    expect(levels).toHaveLength(1);
+    expect((levels[0]!['background'] as Record<string, unknown>)['src']).toBe('maps/dungeon.jpg');
 
-    // Must NOT carry a levels array (that was the wrong fix)
-    expect(sceneData['levels']).toBeUndefined();
+    // Must NOT set background.src directly on the scene (Foundry v14 ignores it).
+    expect(sceneData['background']).toBeUndefined();
   });
 
-  it('omits background entirely when img is not provided', async () => {
+  it('omits the levels array when img is not provided', async () => {
     await createSceneFromUvttHandler({
       name: 'No Image',
       uvtt: baseUvtt,

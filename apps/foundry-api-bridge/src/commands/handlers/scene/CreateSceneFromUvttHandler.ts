@@ -49,11 +49,20 @@ export async function createSceneFromUvttHandler(
     },
   };
 
-  // Foundry v12+: the background image lives on `background.src` on the scene
-  // document itself. (The "levels" approach used here previously was specific to
-  // the third-party Levels module and had no effect on vanilla Foundry.)
+  // Foundry v14: Scene#background is a deprecated shim getter that reads from
+  // scene.firstLevel.background.src. The scene's background image must be set
+  // on a Level embedded document — not on the scene itself. Passing a levels
+  // array at create time overrides the auto-created defaultLevel0000.
+  // (These are Foundry's native Level documents, distinct from the third-party
+  // Levels module.)
   if (params.img) {
-    sceneData['background'] = { src: params.img };
+    sceneData['levels'] = [
+      {
+        name: 'Ground',
+        elevation: { bottom: 0, top: 20 },
+        background: { src: params.img },
+      },
+    ];
   }
 
   const scene = await game.scenes.documentClass.create(sceneData);
