@@ -47,6 +47,7 @@ async function runStream(base: string, signal: AbortSignal, onUpdate: (u: ActorU
   if (!res.ok || !res.body) {
     throw new Error(`actors SSE: HTTP ${res.status}`);
   }
+  console.info(`actor-watcher: SSE stream open at ${base}/api/events/actors/stream`);
 
   const decoder = new TextDecoder();
   const reader = res.body.getReader();
