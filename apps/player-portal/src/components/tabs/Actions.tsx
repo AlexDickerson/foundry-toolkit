@@ -300,7 +300,7 @@ function ActionCard({
             type="button"
             onClick={(e) => { e.preventDefault(); use.trigger(); }}
             disabled={use.state === 'pending'}
-            className="ml-auto rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
+            className="ml-auto rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
             data-role="action-use"
           >
             {use.state === 'pending' ? 'Using…' : 'Use'}
