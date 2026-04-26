@@ -110,7 +110,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
   const [pendingInvestments, setPendingInvestments] = useState<Set<string>>(new Set());
   const [txError, setTxError] = useState<string | null>(null);
   const shopMode = useShopMode();
-  const [tileColumns, setTileColumns] = useState(5);
+  const [tileColumns, setTileColumns] = useState(6);
 
   const canTransact = actorId !== undefined && onActorChanged !== undefined;
 
