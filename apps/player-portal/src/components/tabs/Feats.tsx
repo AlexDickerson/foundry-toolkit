@@ -71,11 +71,11 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
   return (
     <li className="relative" data-item-id={feat.id} data-feat-slug={feat.system.slug ?? ''}>
       <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
-        <summary className="flex cursor-pointer list-none items-start gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden hover:bg-pf-bg-dark/40">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden hover:bg-pf-bg-dark/40">
           <img
             src={feat.img}
             alt=""
-            className="mt-0.5 h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+            className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
           <span className="line-clamp-2 min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-tight text-pf-text">{feat.name}</span>
           <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
