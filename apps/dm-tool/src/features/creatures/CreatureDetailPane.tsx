@@ -11,6 +11,7 @@ import { ExternalLink } from 'lucide-react';
 import { cleanFoundryMarkup } from '@/lib/foundry-markup';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import type { MonsterDetail, MonsterSpellGroup, MonsterSpellInfo } from '@foundry-toolkit/shared/types';
 import { formatSkills } from './monster-skills';
 
@@ -206,7 +207,7 @@ function SpellsSection({ groups }: { groups: MonsterSpellGroup[] }) {
   );
 }
 
-function SpellChip({ spell }: { spell: MonsterSpellInfo }) {
+export function SpellChip({ spell }: { spell: MonsterSpellInfo }) {
   const label = spell.usesPerDay !== undefined ? `${spell.name} (${spell.usesPerDay.toString()}/day)` : spell.name;
 
   return (
@@ -269,7 +270,10 @@ function SpellChip({ spell }: { spell: MonsterSpellInfo }) {
             )}
 
             {spell.description && (
-              <p className="whitespace-pre-wrap leading-relaxed text-foreground/80">{spell.description}</p>
+              <div
+                className="leading-relaxed text-foreground/80 [&_.pf-damage-heightened]:font-semibold [&_.pf-damage-heightened]:text-amber-400 [&_.pf-damage]:font-semibold [&_.pf-damage]:text-primary [&_.pf-template]:italic [&_.pf-template]:text-foreground/70 [&_.pf-uuid-link]:cursor-default [&_.pf-uuid-link]:text-primary [&_p]:my-1.5"
+                dangerouslySetInnerHTML={{ __html: enrichDescription(spell.description) }}
+              />
             )}
           </div>
         </HoverCard.Content>

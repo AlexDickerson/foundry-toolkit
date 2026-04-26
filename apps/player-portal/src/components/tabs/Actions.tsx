@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import type { Ability, AbilityKey, ActionItem, PreparedActorItem, Strike } from '../../api/types';
 import { isActionItem } from '../../api/types';
-import { enrichDescription } from '../../lib/foundry-enrichers';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useActorAction, type ActorActionState } from '../../lib/useActorAction';
 import { SectionHeader } from '../common/SectionHeader';
 

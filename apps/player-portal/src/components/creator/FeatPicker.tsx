@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiRequestError } from '../../api/client';
 import type { CompendiumDocument, CompendiumMatch, CompendiumSearchOptions, CompendiumSource } from '../../api/types';
-import { enrichDescription } from '../../lib/foundry-enrichers';
+import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useDebounce } from '../../lib/useDebounce';
 import { type RemoteDataState, useRemoteData } from '../../lib/useRemoteData';
 import { usePaginatedSearch } from '../../lib/usePaginatedSearch';

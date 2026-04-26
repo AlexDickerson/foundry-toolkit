@@ -1,15 +1,24 @@
 // Compact stat block pinned to the right of the combat tab. Renders the
 // current actor — monsters load their stat block from the DB and compose
-// CombatHpBanner with CreatureDetailPane; PCs show name + HP only (no stat
-// block available in the tool).
+// CombatHpBanner with CreatureDetailPane; PCs show initiative info and
+// their spells as hover chips (when a Foundry actor id is available).
 
 import { useEffect, useState } from 'react';
-import { ShieldAlert } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import type { Combatant, MonsterDetail } from '@foundry-toolkit/shared/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import type {
+  ActorSpellcasting,
+  CombatSpellEntry,
+  CombatSpellSummary,
+  Combatant,
+  MonsterDetail,
+  MonsterSpellInfo,
+} from '@foundry-toolkit/shared/types';
 import { CombatHpBanner } from './CombatHpBanner';
-import { CreatureDetailPane } from '../creatures/CreatureDetailPane';
+import { CreatureDetailPane, SpellChip } from '../creatures/CreatureDetailPane';
 
 const RARITY_BADGE: Record<string, string> = {
   common: 'bg-zinc-600 text-zinc-100',
@@ -66,8 +75,7 @@ export function CombatantStatBlock({ combatant, round }: Props) {
         <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">Loading stat block…</div>
       ) : detail ? (
         <>
-          {/* Compact identity row: level, rarity, size, traits — combat chrome
-              kept here since CreatureDetailPane is content-only. */}
+          {/* Compact identity row: level, rarity, size, traits */}
           <div
             style={{
               padding: '8px 12px',
@@ -120,23 +128,148 @@ export function CombatantStatBlock({ combatant, round }: Props) {
 
 function PcBody({ combatant }: { combatant: Combatant }) {
   return (
-    <div className="flex flex-1 flex-col gap-3 p-4 text-xs text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <ShieldAlert className="h-3.5 w-3.5" />
-        <span>
-          Initiative mod {combatant.initiativeMod >= 0 ? '+' : ''}
-          {combatant.initiativeMod}
-          {combatant.initiative != null && (
-            <>
-              {' · rolled '}
-              <span className="font-medium text-foreground">{combatant.initiative}</span>
-            </>
-          )}
-        </span>
+    <ScrollArea className="min-h-0 flex-1">
+      <div className="flex flex-col gap-3 p-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-3.5 w-3.5" />
+          <span>
+            Initiative mod {combatant.initiativeMod >= 0 ? '+' : ''}
+            {combatant.initiativeMod}
+            {combatant.initiative != null && (
+              <>
+                {' · rolled '}
+                <span className="font-medium text-foreground">{combatant.initiative}</span>
+              </>
+            )}
+          </span>
+        </div>
+        {combatant.foundryActorId ? (
+          <PcSpellsSection actorId={combatant.foundryActorId} />
+        ) : (
+          <p className="text-[11px] italic">Add via party picker to see spells.</p>
+        )}
       </div>
-      <p className="text-[11px] italic">
-        PCs don&rsquo;t have a stored stat block — consult the player&rsquo;s character sheet.
-      </p>
+    </ScrollArea>
+  );
+}
+
+// ─── PC spell display ────────────────────────────────────────────────────────
+
+function PcSpellsSection({ actorId }: { actorId: string }) {
+  const [spellcasting, setSpellcasting] = useState<ActorSpellcasting | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const doLoad = async () => {
+      try {
+        const data = await api.getActorSpellcasting(actorId);
+        if (!cancelled) setSpellcasting(data);
+      } catch (e) {
+        console.error('getActorSpellcasting failed:', e);
+        if (!cancelled) setSpellcasting(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void doLoad();
+    return () => {
+      cancelled = true;
+    };
+  }, [actorId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Loading spells…
+      </div>
+    );
+  }
+
+  if (!spellcasting || spellcasting.entries.length === 0) {
+    return <p className="text-[11px] italic">No spellcasting entries found.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {spellcasting.entries.map((entry, i) => (
+        <div key={entry.id}>
+          {i > 0 && <Separator className="my-1" />}
+          <PcSpellEntry entry={entry} />
+        </div>
+      ))}
     </div>
   );
+}
+
+function PcSpellEntry({ entry }: { entry: CombatSpellEntry }) {
+  if (entry.spells.length === 0) return null;
+
+  const cantrips = entry.spells.filter((s) => s.isCantrip);
+  const regular = entry.spells.filter((s) => !s.isCantrip);
+
+  const byRank = new Map<number, CombatSpellSummary[]>();
+  for (const spell of regular) {
+    const arr = byRank.get(spell.rank) ?? [];
+    arr.push(spell);
+    byRank.set(spell.rank, arr);
+  }
+  const ranks = [...byRank.keys()].sort((a, b) => a - b);
+
+  const subtitle: string[] = [];
+  if (entry.tradition) subtitle.push(entry.tradition);
+  if (entry.mode !== 'innate' && entry.mode !== 'ritual') subtitle.push(entry.mode);
+
+  return (
+    <div className="text-xs">
+      <p className="mb-1 font-semibold text-foreground/90">
+        {entry.name}
+        {subtitle.length > 0 && <span className="ml-1 font-normal text-muted-foreground">({subtitle.join(', ')})</span>}
+      </p>
+
+      {cantrips.length > 0 && (
+        <div className="mb-1 flex flex-wrap items-baseline gap-1 pl-3">
+          <span className="shrink-0 text-muted-foreground">Cantrips:</span>
+          {cantrips.map((spell) => (
+            <SpellChip key={spell.id} spell={toMonsterSpellInfo(spell)} />
+          ))}
+        </div>
+      )}
+
+      {ranks.map((rank) => {
+        const spells = byRank.get(rank) ?? [];
+        const slot = entry.slots?.find((s) => s.rank === rank);
+        const slotLabel = slot ? ` (${slot.value.toString()}/${slot.max.toString()})` : '';
+        return (
+          <div key={rank} className="mb-1 flex flex-wrap items-baseline gap-1 pl-3">
+            <span className="shrink-0 text-muted-foreground">
+              Rank {rank}
+              {slotLabel}:
+            </span>
+            {spells.map((spell) => (
+              <SpellChip key={spell.id} spell={toMonsterSpellInfo(spell)} />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Adapt a CombatSpellSummary to the MonsterSpellInfo shape expected by SpellChip.
+ *  Uses nullish coalescing on every field so older api-bridge versions that
+ *  pre-date the display-field additions can't crash the renderer. */
+function toMonsterSpellInfo(spell: CombatSpellSummary): MonsterSpellInfo {
+  return {
+    name: spell.name,
+    rank: spell.rank,
+    castTime: spell.actions ?? '',
+    range: spell.range ?? '',
+    area: spell.area ?? '',
+    target: spell.target ?? '',
+    traits: spell.traits ?? [],
+    description: spell.description ?? '',
+  };
 }

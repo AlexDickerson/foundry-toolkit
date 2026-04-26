@@ -10,6 +10,7 @@
     "./env": "./src/env.ts",
     "./env-auto": "./src/env-auto.ts",
     "./foundry-api": "./src/foundry-api.ts",
+    "./foundry-enrichers": "./src/foundry-enrichers.ts",
     "./foundry-markup": "./src/foundry-markup.ts",
     "./http": "./src/http.ts",
     "./map-stem": "./src/map-stem.ts",

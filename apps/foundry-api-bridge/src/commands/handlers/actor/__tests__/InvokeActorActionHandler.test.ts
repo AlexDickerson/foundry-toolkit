@@ -109,6 +109,8 @@ describe('invokeActorActionHandler — dispatch', () => {
         'post-item-to-chat',
         'add-formula',
         'remove-formula',
+        'get-spellcasting',
+        'cast-spell',
       ]),
     );
   });
