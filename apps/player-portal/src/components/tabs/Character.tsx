@@ -182,7 +182,7 @@ function StatsBlock({
       <SectionHeader band>Key Stats</SectionHeader>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <StatTile label="AC" value={ac.value.toString()} title={ac.breakdown} />
-        <HpTile hp={hp} actorId={actorId} onActorChanged={onActorChanged} />
+        <HpTile hp={hp} />
         <StatTile
           label="Perception"
           value={formatSignedInt(perception.value)}
@@ -232,25 +232,8 @@ function firstError(...states: ActorActionState[]): string | null {
   return null;
 }
 
-// Replaces the plain HP `StatTile` with a stepper. Keeps the stat-card
-// shape (label + value on top) and tucks −5 / −1 / +1 / +5 buttons
-// below so the tile still sits flush with the other stats in the grid.
-function HpTile({
-  hp,
-  actorId,
-  onActorChanged,
-}: {
-  hp: CharacterSystem['attributes']['hp'];
-  actorId: string;
-  onActorChanged: () => void;
-}): React.ReactElement {
+function HpTile({ hp }: { hp: CharacterSystem['attributes']['hp'] }): React.ReactElement {
   const value = hp.temp > 0 ? `${hp.value.toString()} (+${hp.temp.toString()})` : `${hp.value.toString()} / ${hp.max.toString()}`;
-  const { state, trigger } = useActorAction({
-    run: (delta: number) => api.adjustActorResource(actorId, 'hp', delta),
-    onSuccess: onActorChanged,
-  });
-  const isError = typeof state === 'object';
-
   return (
     <div
       className="flex flex-col items-center rounded border border-pf-border bg-pf-bg px-2 py-2 shadow-sm"
@@ -259,13 +242,6 @@ function HpTile({
     >
       <span className="text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">HP</span>
       <span className="mt-0.5 font-mono text-xl font-semibold tabular-nums text-pf-text">{value}</span>
-      <div className="mt-1 flex gap-0.5" data-role="hp-stepper">
-        <StepButton label="−5" disabled={state === 'pending'} onClick={() => { trigger(-5); }} />
-        <StepButton label="−1" disabled={state === 'pending'} onClick={() => { trigger(-1); }} />
-        <StepButton label="+1" disabled={state === 'pending'} onClick={() => { trigger(1); }} />
-        <StepButton label="+5" disabled={state === 'pending'} onClick={() => { trigger(5); }} />
-      </div>
-      {isError && <span className="mt-1 text-[10px] text-red-700">{state.error}</span>}
     </div>
   );
 }
