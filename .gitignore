@@ -33,6 +33,9 @@ apps/dm-tool/config.json
 # Claude Code (worktrees, session data, plans, etc.)
 .claude/
 
+# Upscaled icon output (scripts/upscale-icons.ts)
+output/
+
 # Python artifacts (tagger/)
 __pycache__/
 *.pyc
