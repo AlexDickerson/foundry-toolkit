@@ -4,7 +4,12 @@ import { homedir } from 'node:os';
 export const PORT = parseInt(process.env.PORT ?? '8765', 10);
 export const HOST = process.env.HOST ?? '0.0.0.0';
 export const COMMAND_TIMEOUT_MS = 30_000;
-export const FOUNDRY_DATA_DIR = process.env.FOUNDRY_DATA_DIR ?? resolve(homedir(), 'foundrydata', 'Data');
+// FOUNDRY_DATA_DIR: explicit path to Foundry's Data directory (e.g. /data/Data).
+// FOUNDRY_DATA: path to the Foundry data root (e.g. /data); Data/ is appended.
+// Falls back to ~/foundrydata/Data if neither is set.
+export const FOUNDRY_DATA_DIR =
+  process.env.FOUNDRY_DATA_DIR ??
+  (process.env.FOUNDRY_DATA ? resolve(process.env.FOUNDRY_DATA, 'Data') : resolve(homedir(), 'foundrydata', 'Data'));
 
 // Gates POST /api/eval. When off (the default), the route isn't registered
 // at all — a request returns 404 with our envelope, indistinguishable from
