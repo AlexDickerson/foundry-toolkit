@@ -171,6 +171,13 @@ export const api = {
   // `use-item` command, which runs the full activation pipeline.
   useItem: (id: string, itemId: string): Promise<{ ok: boolean; itemId: string; itemName: string }> =>
     api.invokeActorAction<{ ok: boolean; itemId: string; itemName: string }>(id, 'post-item-to-chat', { itemId }),
+  // Casts a spell via the spellcasting entry. Consumes the appropriate
+  // slot (spontaneous: decrements value; prepared: marks expended) and
+  // creates the chat card. `rank` is the rank to cast at — pass the
+  // spell's effective rank for standard casts, a higher rank to
+  // heighten. Actor state refresh comes via the `actors` event channel.
+  castSpell: (id: string, entryId: string, spellId: string, rank: number): Promise<{ ok: boolean }> =>
+    api.invokeActorAction<{ ok: boolean }>(id, 'cast-spell', { entryId, spellId, rank }),
   // Formula book management. Add/remove dedupe on the bridge, so the
   // SPA can fire-and-forget; the `added`/`removed` flag in the
   // response tells callers whether a write actually happened.

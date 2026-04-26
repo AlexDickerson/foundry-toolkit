@@ -174,7 +174,13 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
             />
           )}
           {activeTab === 'spells' && (
-            <Spells items={state.actor.items} characterLevel={state.actor.system.details.level.value} />
+            <Spells
+              items={state.actor.items}
+              characterLevel={state.actor.system.details.level.value}
+              actorId={actorId}
+              onCast={reloadActor}
+              focusPoints={state.actor.system.resources.focus}
+            />
           )}
           {activeTab === 'inventory' && (
             <>

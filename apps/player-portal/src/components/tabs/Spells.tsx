@@ -1,19 +1,20 @@
-import type { PreparedActorItem, SpellItem, SpellcastingEntryItem } from '../../api/types';
+import type { FocusPool, PreparedActorItem, SpellItem, SpellcastingEntryItem } from '../../api/types';
 import { isCantripSpell, isSpellItem, isSpellcastingEntryItem } from '../../api/types';
+import { api } from '../../api/client';
 import { enrichDescription } from '../../lib/foundry-enrichers';
 import { useUuidHover } from '../../lib/useUuidHover';
+import { useActorAction } from '../../lib/useActorAction';
 import { SectionHeader } from '../common/SectionHeader';
 
 interface Props {
   items: PreparedActorItem[];
   characterLevel: number;
+  actorId: string;
+  onCast: () => void;
+  focusPoints: FocusPool;
 }
 
-// Spells tab — read-only view of the character's spellcastingEntry +
-// spell items, grouped by entry then by rank (cantrips first). Slot
-// counts, prepared/spontaneous daily prep, and heightening choices are
-// intentionally out of scope; those stay on the Foundry sheet for now.
-export function Spells({ items, characterLevel }: Props): React.ReactElement {
+export function Spells({ items, characterLevel, actorId, onCast, focusPoints }: Props): React.ReactElement {
   // Hook first — must run on every render regardless of empty-state.
   const uuidHover = useUuidHover();
   const entries = items.filter(isSpellcastingEntryItem);
@@ -44,11 +45,20 @@ export function Spells({ items, characterLevel }: Props): React.ReactElement {
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
       {entries.map((entry) => (
-        <EntryBlock key={entry.id} entry={entry} spells={byEntry.get(entry.id) ?? []} characterLevel={characterLevel} />
+        <EntryBlock
+          key={entry.id}
+          entry={entry}
+          spells={byEntry.get(entry.id) ?? []}
+          characterLevel={characterLevel}
+          actorId={actorId}
+          onCast={onCast}
+          focusPoints={focusPoints}
+        />
       ))}
       {orphans.length > 0 && (
         <div data-testid="spells-orphans">
           <SectionHeader>Orphaned Spells</SectionHeader>
+          {/* Orphaned spells have no entry context — render read-only. */}
           <RankedSpellList spells={orphans} characterLevel={characterLevel} />
         </div>
       )}
@@ -61,10 +71,16 @@ function EntryBlock({
   entry,
   spells,
   characterLevel,
+  actorId,
+  onCast,
+  focusPoints,
 }: {
   entry: SpellcastingEntryItem;
   spells: SpellItem[];
   characterLevel: number;
+  actorId: string;
+  onCast: () => void;
+  focusPoints: FocusPool;
 }): React.ReactElement {
   const traditionRaw = entry.system.tradition.value;
   const tradition = traditionRaw !== '' ? traditionRaw : null;
@@ -75,6 +91,9 @@ function EntryBlock({
     tradition !== null ? capitalise(tradition) : null,
     prep !== null ? (flexible ? `Flexible ${capitalise(prep)}` : capitalise(prep)) : null,
   ].filter((s): s is string => s !== null);
+
+  const isFocus = prepRaw === 'focus';
+
   return (
     <div data-spellcasting-entry-id={entry.id}>
       <div className="mb-2 flex flex-wrap items-baseline gap-x-2 border-b border-pf-border pb-1">
@@ -82,16 +101,27 @@ function EntryBlock({
         {meta.length > 0 && (
           <span className="text-[10px] uppercase tracking-widest text-pf-alt-dark">{meta.join(' · ')}</span>
         )}
+        {isFocus && focusPoints.max > 0 && (
+          <FocusDots value={focusPoints.value} max={focusPoints.max} />
+        )}
       </div>
       {spells.length === 0 ? (
         <p className="text-xs italic text-neutral-400">No spells.</p>
       ) : (
-        <RankedSpellList spells={spells} characterLevel={characterLevel} />
+        <RankedSpellListWithEntry
+          entry={entry}
+          spells={spells}
+          characterLevel={characterLevel}
+          actorId={actorId}
+          onCast={onCast}
+          focusPoints={focusPoints}
+        />
       )}
     </div>
   );
 }
 
+// Read-only ranked list (used for orphaned spells with no entry context).
 function RankedSpellList({
   spells,
   characterLevel,
@@ -110,18 +140,18 @@ function RankedSpellList({
     byRank.set(rank, arr);
   }
   const ranks = [...byRank.keys()].sort((a, b) => a - b);
-
   const sortByName = (a: SpellItem, b: SpellItem): number => a.name.localeCompare(b.name);
 
   return (
     <div className="space-y-4">
       {cantrips.length > 0 && (
-        <RankGroup label="Cantrips" spells={[...cantrips].sort(sortByName)} characterLevel={characterLevel} />
+        <RankGroup label="Cantrips" rank={null} spells={[...cantrips].sort(sortByName)} characterLevel={characterLevel} />
       )}
       {ranks.map((r) => (
         <RankGroup
           key={r}
           label={`${ordinal(r)}-Rank Spells`}
+          rank={r}
           spells={[...(byRank.get(r) ?? [])].sort(sortByName)}
           characterLevel={characterLevel}
         />
@@ -130,12 +160,75 @@ function RankedSpellList({
   );
 }
 
+// Interactive ranked list with entry context — used for all entries.
+function RankedSpellListWithEntry({
+  entry,
+  spells,
+  characterLevel,
+  actorId,
+  onCast,
+  focusPoints,
+}: {
+  entry: SpellcastingEntryItem;
+  spells: SpellItem[];
+  characterLevel: number;
+  actorId: string;
+  onCast: () => void;
+  focusPoints: FocusPool;
+}): React.ReactElement {
+  const cantrips = spells.filter(isCantripSpell);
+  const regular = spells.filter((s) => !isCantripSpell(s));
+
+  const byRank = new Map<number, SpellItem[]>();
+  for (const s of regular) {
+    const rank = effectiveRank(s, characterLevel);
+    const arr = byRank.get(rank) ?? [];
+    arr.push(s);
+    byRank.set(rank, arr);
+  }
+  const ranks = [...byRank.keys()].sort((a, b) => a - b);
+  const sortByName = (a: SpellItem, b: SpellItem): number => a.name.localeCompare(b.name);
+
+  return (
+    <div className="space-y-4">
+      {cantrips.length > 0 && (
+        <RankGroupWithEntry
+          label="Cantrips"
+          rank={null}
+          spells={[...cantrips].sort(sortByName)}
+          characterLevel={characterLevel}
+          entry={entry}
+          actorId={actorId}
+          onCast={onCast}
+          focusPoints={focusPoints}
+        />
+      )}
+      {ranks.map((r) => (
+        <RankGroupWithEntry
+          key={r}
+          label={`${ordinal(r)}-Rank Spells`}
+          rank={r}
+          spells={[...(byRank.get(r) ?? [])].sort(sortByName)}
+          characterLevel={characterLevel}
+          entry={entry}
+          actorId={actorId}
+          onCast={onCast}
+          focusPoints={focusPoints}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Read-only rank group (orphans).
 function RankGroup({
   label,
+  rank: _rank,
   spells,
   characterLevel,
 }: {
   label: string;
+  rank: number | null;
   spells: SpellItem[];
   characterLevel: number;
 }): React.ReactElement {
@@ -151,6 +244,69 @@ function RankGroup({
   );
 }
 
+// Interactive rank group with slot display and Cast buttons.
+function RankGroupWithEntry({
+  label,
+  rank,
+  spells,
+  characterLevel,
+  entry,
+  actorId,
+  onCast,
+  focusPoints,
+}: {
+  label: string;
+  rank: number | null;
+  spells: SpellItem[];
+  characterLevel: number;
+  entry: SpellcastingEntryItem;
+  actorId: string;
+  onCast: () => void;
+  focusPoints: FocusPool;
+}): React.ReactElement {
+  const mode = entry.system.prepared.value;
+
+  // Spontaneous: show remaining slots next to the rank heading.
+  let slotBadge: React.ReactElement | null = null;
+  if (rank !== null && mode === 'spontaneous') {
+    const slot = entry.system.slots?.[`slot${rank.toString()}`];
+    if (slot && slot.max > 0) {
+      const remaining = slot.value ?? 0;
+      slotBadge = (
+        <span
+          className="ml-1 rounded-full bg-pf-bg-dark px-1.5 py-0.5 font-mono text-[10px] text-pf-alt-dark"
+          aria-label={`${remaining.toString()} of ${slot.max.toString()} slots remaining`}
+        >
+          {remaining}/{slot.max}
+        </span>
+      );
+    }
+  }
+
+  return (
+    <div data-spell-rank={label}>
+      <h3 className="mb-1 flex items-baseline gap-1 font-serif text-xs font-semibold uppercase tracking-widest text-pf-alt-dark">
+        {label}
+        {slotBadge}
+      </h3>
+      <ul className="space-y-1">
+        {spells.map((spell) => (
+          <SpellCardWithCast
+            key={spell.id}
+            spell={spell}
+            characterLevel={characterLevel}
+            entry={entry}
+            actorId={actorId}
+            onCast={onCast}
+            focusPoints={focusPoints}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Read-only spell card (no entry / orphan).
 function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel: number }): React.ReactElement {
   const traits = spell.system.traits.value.filter((t) => t !== 'cantrip');
   const castCost = formatCastCost(spell.system.time?.value);
@@ -205,6 +361,149 @@ function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel
         </div>
       </details>
     </li>
+  );
+}
+
+// Interactive spell card with Cast button and slot state.
+function SpellCardWithCast({
+  spell,
+  characterLevel,
+  entry,
+  actorId,
+  onCast,
+  focusPoints,
+}: {
+  spell: SpellItem;
+  characterLevel: number;
+  entry: SpellcastingEntryItem;
+  actorId: string;
+  onCast: () => void;
+  focusPoints: FocusPool;
+}): React.ReactElement {
+  const traits = spell.system.traits.value.filter((t) => t !== 'cantrip');
+  const castCost = formatCastCost(spell.system.time?.value);
+  const description = spell.system.description?.value ?? '';
+  const rank = effectiveRank(spell, characterLevel);
+  const heightening = computeHeighteningStep(spell, characterLevel);
+  const enriched =
+    description.length > 0 ? enrichDescription(description, heightening !== null ? { heightening } : undefined) : '';
+
+  const isCantrip = isCantripSpell(spell);
+  const mode = entry.system.prepared.value;
+
+  // Per-spell usability state.
+  const slotKey = `slot${rank.toString()}`;
+  const slotData = entry.system.slots?.[slotKey];
+
+  const isExpended =
+    mode === 'prepared'
+      ? (slotData?.prepared?.find((p) => p.id === spell.id)?.expended ?? false)
+      : false;
+
+  const noSlotsLeft = !isCantrip && mode === 'spontaneous' && (slotData?.value ?? 0) <= 0;
+
+  const noFocus = !isCantrip && mode === 'focus' && focusPoints.value <= 0;
+
+  const { state, trigger } = useActorAction({
+    run: () => api.castSpell(actorId, entry.id, spell.id, rank),
+    onSuccess: onCast,
+  });
+  const pending = state === 'pending';
+  const castError = typeof state === 'object' ? state.error : null;
+  const castDisabled = pending || isExpended || noSlotsLeft || noFocus;
+
+  return (
+    <li
+      className="rounded border border-pf-border bg-pf-bg"
+      data-item-id={spell.id}
+      data-spell-slug={spell.system.slug ?? ''}
+    >
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 hover:bg-pf-bg-dark/40">
+          <img src={spell.img} alt="" className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
+          <span
+            className={
+              isExpended
+                ? 'truncate text-sm font-medium text-pf-text-muted line-through'
+                : 'truncate text-sm font-medium text-pf-text'
+            }
+          >
+            {spell.name}
+          </span>
+          {castCost !== null && (
+            <span
+              className="flex-shrink-0 rounded border border-pf-border bg-pf-bg px-1 font-mono text-[10px] text-pf-alt-dark"
+              aria-label={`Cast ${castCost}`}
+            >
+              {castCost}
+            </span>
+          )}
+          {traits.length > 0 && (
+            <ul className="flex flex-wrap gap-1">
+              {traits.slice(0, 6).map((t) => (
+                <li
+                  key={t}
+                  className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
+                >
+                  {capitaliseSlug(t)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {/* Cast button — stopPropagation prevents toggling the <details>. */}
+          <button
+            type="button"
+            disabled={castDisabled}
+            onClick={(e) => {
+              e.preventDefault();
+              trigger();
+            }}
+            className="ml-auto flex-shrink-0 rounded border border-pf-primary/60 bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary transition-colors hover:bg-pf-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={pending ? 'Casting…' : `Cast ${spell.name}`}
+          >
+            {pending ? '…' : 'Cast'}
+          </button>
+          <span className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
+          <span className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
+        </summary>
+        <div className="border-t border-pf-border bg-pf-bg/60 px-3 py-2 text-sm text-pf-text">
+          {castError !== null && (
+            <p className="mb-2 rounded border border-red-400/40 bg-red-400/10 px-2 py-1 text-xs text-red-400">
+              {castError}
+            </p>
+          )}
+          <SpellMeta spell={spell} />
+          {enriched.length > 0 ? (
+            <div
+              className="mt-2 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+              dangerouslySetInnerHTML={{ __html: enriched }}
+            />
+          ) : (
+            <p className="mt-2 italic text-neutral-400">No description.</p>
+          )}
+        </div>
+      </details>
+    </li>
+  );
+}
+
+function FocusDots({ value, max }: { value: number; max: number }): React.ReactElement {
+  return (
+    <span
+      className="flex items-center gap-0.5"
+      aria-label={`Focus: ${value.toString()} of ${max.toString()}`}
+    >
+      {Array.from({ length: max }, (_, i) => (
+        <span
+          key={i}
+          className={
+            i < value
+              ? 'h-2 w-2 rounded-full bg-pf-primary border border-pf-primary'
+              : 'h-2 w-2 rounded-full bg-transparent border border-pf-primary/40'
+          }
+        />
+      ))}
+    </span>
   );
 }
 
