@@ -854,12 +854,17 @@ function GridTile({
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
       <details className={detailsClass} style={detailsStyle}>
         <summary className={[
-          'flex cursor-pointer list-none flex-col items-center gap-1.5 p-2 text-center',
+          'flex cursor-pointer list-none flex-col items-center p-2',
           summaryHover,
         ].join(' ')}>
           <div className="relative w-full">
             <div className="aspect-square w-full overflow-hidden rounded border border-pf-border bg-pf-bg-dark">
               <img src={item.img} alt="" className="h-full w-full object-contain p-1" />
+              <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-1">
+                <span className="line-clamp-2 block text-[10px] font-medium leading-tight text-white" title={item.name}>
+                  {item.name}
+                </span>
+              </div>
             </div>
             {item.system.quantity > 1 && (
               <span className="absolute -right-1 -top-1 rounded bg-pf-primary px-1 text-[10px] font-semibold text-white shadow">
@@ -867,9 +872,6 @@ function GridTile({
               </span>
             )}
           </div>
-          <span className="line-clamp-2 min-h-[2.5em] text-[11px] font-medium leading-tight text-pf-text" title={item.name}>
-            {item.name}
-          </span>
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
         <div className="absolute left-full top-0 z-20 min-h-full w-max min-w-[150%] max-w-[300%] overflow-y-auto rounded-r border border-l-0 border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg">
