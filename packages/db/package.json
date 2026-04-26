@@ -14,11 +14,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@foundry-toolkit/shared": "*",
-    "better-sqlite3": "^12.9.0"
+    "@foundry-toolkit/shared": "*"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^25.6.0",
     "typescript": "^6.0.3"
   }

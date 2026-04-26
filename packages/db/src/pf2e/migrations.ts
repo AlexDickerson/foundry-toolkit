@@ -3,9 +3,9 @@
 // (monsters, items, npcs) are created by the pre-build pipeline that ships
 // with the app — migratePf2eDb only owns tables dm-tool writes to.
 
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 
-export function migratePf2eDb(db: Database.Database): void {
+export function migratePf2eDb(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS globe_pins (
       id    TEXT PRIMARY KEY,
@@ -30,8 +30,7 @@ export function migratePf2eDb(db: Database.Database): void {
   if (!has('icon_color')) db.exec("ALTER TABLE globe_pins ADD COLUMN icon_color TEXT NOT NULL DEFAULT ''");
 
   // Party inventory + Aurus leaderboard — persisted as JSON rows so schema
-  // changes stay localized to shared/types.ts. The sidecar is the live-sync
-  // authority; SQLite here is the DM's source of truth.
+  // changes stay localized to shared/types.ts.
   db.exec(`
     CREATE TABLE IF NOT EXISTS party_inventory (
       id         TEXT PRIMARY KEY,
@@ -66,9 +65,7 @@ export function migratePf2eDb(db: Database.Database): void {
     )
   `);
 
-  // AI-generated pack groupings for map files. Row-per-file; the cached
-  // mapping is whatever's in the table. Populated by parseAndCacheMapping
-  // (from the Claude paste flow) and touched up by mergePacks.
+  // AI-generated pack groupings for map files.
   db.exec(`
     CREATE TABLE IF NOT EXISTS pack_mappings (
       file_name TEXT PRIMARY KEY,
@@ -76,9 +73,7 @@ export function migratePf2eDb(db: Database.Database): void {
     )
   `);
 
-  // Key/value settings that used to live in config.json. Values are JSON-
-  // encoded so we can round-trip strings, numbers, booleans, and objects
-  // without a schema migration per setting type.
+  // Key/value settings that used to live in config.json.
   db.exec(`
     CREATE TABLE IF NOT EXISTS settings (
       key   TEXT PRIMARY KEY,
@@ -86,11 +81,7 @@ export function migratePf2eDb(db: Database.Database): void {
     )
   `);
 
-  // Lazy cache of foundry-mcp compendium documents. Populated on demand by
-  // the HTTP client in apps/dm-tool/electron/compendium — one row per uuid
-  // we've actually fetched. Graceful degradation for brief mcp outages, not
-  // a pre-warm. fetched_at is epoch millis; body_json is the serialized
-  // CompendiumDocument response.
+  // Lazy cache of foundry-mcp compendium documents.
   db.exec(`
     CREATE TABLE IF NOT EXISTS pf2e_compendium_docs (
       uuid       TEXT PRIMARY KEY,

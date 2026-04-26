@@ -9,7 +9,7 @@
 // plain Node process if we ever want to write unit tests against a fixture
 // DB.
 
-import Database, { type Database as BetterSqliteDB } from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import type { Facets, MapDetail, MapSummary, SearchParams } from '@foundry-toolkit/shared/types';
 
 /** The raw columns we select from the `maps` table for list rows. */
@@ -44,16 +44,15 @@ interface SidecarJson {
 }
 
 export class MapDb {
-  private db: BetterSqliteDB;
+  private db: DatabaseSync;
 
   constructor(dbPath: string) {
-    // readonly: true means better-sqlite3 opens with SQLITE_OPEN_READONLY and
-    // won't even try to acquire a write lock, which plays nicely with the
-    // map-tagger potentially being run concurrently.
-    this.db = new Database(dbPath, { readonly: true, fileMustExist: true });
-    // WAL is only relevant for writers, but setting busy timeout makes
-    // us resilient to the Python side holding a transaction briefly.
-    this.db.pragma('busy_timeout = 2000');
+    // readOnly: true opens the file as SQLITE_OPEN_READONLY, which plays
+    // nicely with the map-tagger potentially being run concurrently.
+    // fileMustExist is handled by the caller (config.ts checks existsSync
+    // before constructing MapDb, so a missing file is already an error).
+    this.db = new DatabaseSync(dbPath, { readOnly: true });
+    this.db.exec('PRAGMA busy_timeout = 2000');
   }
 
   close(): void {
@@ -64,7 +63,7 @@ export class MapDb {
    *  Mirrors the behavior of `dnd_map_tagger.index.search`. */
   search(params: SearchParams): MapSummary[] {
     const clauses: string[] = [];
-    const values: unknown[] = [];
+    const values: (string | number)[] = [];
 
     const requireTag = (kind: string, tagValues: string[] | undefined) => {
       if (!tagValues) return;
@@ -109,7 +108,7 @@ export class MapDb {
 
     values.push(limit);
 
-    const rows = this.db.prepare(sql).all(...values) as MapListRow[];
+    const rows = this.db.prepare(sql).all(...values) as unknown as MapListRow[];
     return rows.map(rowToSummary);
   }
 
@@ -127,8 +126,7 @@ export class MapDb {
     try {
       sidecar = JSON.parse(row.sidecar_json) as SidecarJson;
     } catch {
-      // Corrupt sidecar JSON — fall back to the DB columns, which is all
-      // the summary fields.
+      // Corrupt sidecar JSON — fall back to the DB columns.
     }
 
     return {
@@ -142,9 +140,6 @@ export class MapDb {
       mood: sidecar.mood ?? [],
       features: sidecar.features ?? [],
       encounterHooks: sidecar.encounter_hooks ?? [],
-      // The DB has no notion of dm-tool-owned override hooks; ipc.ts
-      // layers those in from hooks-store.ts before returning to the
-      // renderer. Default to empty here so the type checks.
       additionalEncounterHooks: [],
       taggedAt: sidecar.tagged_at ?? '',
       model: sidecar.model ?? '',
@@ -220,15 +215,7 @@ function dedup(xs: string[]): string[] {
   return out;
 }
 
-/** Sanitize a user-entered string for FTS5 MATCH.
- *
- * The raw user input like `a gloomy castle in a dark forest` is treated as
- * an implicit AND of the individual tokens. We escape double quotes and
- * wrap each word in quotes so FTS5 can't misinterpret punctuation as
- * operators. If the user wants to use real FTS5 syntax they can still do
- * so by prefixing with `raw:` — this is a cheap escape hatch for advanced
- * users without needing a full parser.
- */
+/** Sanitize a user-entered string for FTS5 MATCH. */
 function escapeFtsQuery(input: string): string {
   if (input.startsWith('raw:')) {
     return input.slice(4);

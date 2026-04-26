@@ -9,7 +9,7 @@ import { getPf2eDb } from './connection.js';
 export function listGlobePins(): GlobePin[] {
   return getPf2eDb()
     .prepare('SELECT id, lng, lat, label, icon, zoom, note, kind, icon_color AS iconColor FROM globe_pins')
-    .all() as GlobePin[];
+    .all() as unknown as GlobePin[];
 }
 
 export function upsertGlobePin(pin: GlobePin): void {

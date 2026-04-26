@@ -15,8 +15,16 @@
 // plain Node process.
 
 import { basename } from 'node:path';
-import { type Database as BetterSqliteDB } from 'better-sqlite3';
+import { type DatabaseSync } from 'node:sqlite';
 import type { Book, BookClassification } from '@foundry-toolkit/shared/types';
+import { transact } from '../pf2e/internal.js';
+
+/** node:sqlite returns BLOB values as Uint8Array. Wrap so callers always
+ *  receive a proper Node Buffer (Buffer extends Uint8Array; this copies). */
+function toBuffer(value: Uint8Array | null | undefined): Buffer | null {
+  if (!value) return null;
+  return Buffer.from(value);
+}
 
 /** Raw row shape as it comes back from the SELECT (excludes cover_blob
  *  which is only fetched on demand to keep list queries lightweight). */
@@ -53,9 +61,9 @@ export interface ScannedFile {
 }
 
 export class BookDb {
-  private db: BetterSqliteDB;
+  private db: DatabaseSync;
 
-  constructor(db: BetterSqliteDB) {
+  constructor(db: DatabaseSync) {
     // Shares the pf2e.db connection — the caller already set
     // journal_mode=WAL on it. We just ensure our table + columns exist.
     this.db = db;
@@ -81,7 +89,7 @@ export class BookDb {
     `);
 
     // Migration v1→v2: replace cover_path (file on disk) with cover_blob.
-    const cols = this.db.pragma('table_info(books)') as Array<{ name: string }>;
+    const cols = this.db.prepare("SELECT name FROM pragma_table_info('books')").all() as Array<{ name: string }>;
     const hasOldCol = cols.some((c) => c.name === 'cover_path');
     const hasNewCol = cols.some((c) => c.name === 'cover_blob');
     if (hasOldCol && !hasNewCol) {
@@ -114,7 +122,7 @@ export class BookDb {
   listAll(): Book[] {
     const rows = this.db
       .prepare(`SELECT ${BookDb.LIST_COLS} FROM books ORDER BY category, COALESCE(subcategory, ''), title`)
-      .all() as BookRow[];
+      .all() as unknown as BookRow[];
     return rows.map(rowToBook);
   }
 
@@ -133,9 +141,9 @@ export class BookDb {
   /** Return the cover PNG blob for a book, or null if not yet ingested. */
   getCoverBlob(id: number): Buffer | null {
     const row = this.db.prepare('SELECT cover_blob FROM books WHERE id = ?').get(id) as
-      | { cover_blob: Buffer | null }
+      | { cover_blob: Uint8Array | null }
       | undefined;
-    return row?.cover_blob ?? null;
+    return toBuffer(row?.cover_blob);
   }
 
   /** Reconcile the books table with a fresh directory walk. Runs inside a
@@ -164,7 +172,7 @@ export class BookDb {
       id: number;
       path: string;
       mtime: number;
-      cover_blob: Buffer | null;
+      cover_blob: Uint8Array | null;
       page_count: number | null;
       ingested_at: number | null;
       ai_system: string | null;
@@ -206,17 +214,17 @@ export class BookDb {
     let updated = 0;
     let removed = 0;
 
-    const tx = this.db.transaction(() => {
+    transact(this.db, () => {
       // Pass 1: update existing, insert new.
       const newPaths: string[] = [];
       for (const s of scanned) {
         const prior = byPath.get(s.path);
         if (!prior) {
-          insert.run(s);
+          insert.run(s as unknown as Parameters<typeof insert.run>[0]);
           newPaths.push(s.path);
           added++;
         } else if (prior.mtime !== s.mtime) {
-          update.run(s);
+          update.run(s as unknown as Parameters<typeof insert.run>[0]);
           updated++;
         }
       }
@@ -262,7 +270,6 @@ export class BookDb {
         removed++;
       }
     });
-    tx();
 
     const total = this.db.prepare('SELECT COUNT(*) as c FROM books').get() as { c: number };
     return { added, updated, removed, total: total.c };
@@ -293,7 +300,7 @@ export class BookDb {
     fields: { aiSystem?: string; aiCategory?: string; aiSubcategory?: string | null; aiPublisher?: string | null },
   ): Book | null {
     const sets: string[] = [];
-    const vals: unknown[] = [];
+    const vals: (string | number | null)[] = [];
     if (fields.aiSystem !== undefined) {
       sets.push('ai_system = ?');
       vals.push(fields.aiSystem);
@@ -318,18 +325,20 @@ export class BookDb {
 
   /** All ingested books without AI classification. */
   listUnclassified(): Array<{ id: number; path: string; cover_blob: Buffer }> {
-    return this.db
+    const rows = this.db
       .prepare('SELECT id, path, cover_blob FROM books WHERE cover_blob IS NOT NULL AND ai_classified_at IS NULL')
-      .all() as Array<{ id: number; path: string; cover_blob: Buffer }>;
+      .all() as Array<{ id: number; path: string; cover_blob: Uint8Array }>;
+    return rows.map((r) => ({ id: r.id, path: r.path, cover_blob: Buffer.from(r.cover_blob) }));
   }
 
   /** All ingested books (for reclassify-all). */
   listClassifiable(): Array<{ id: number; path: string; cover_blob: Buffer }> {
-    return this.db.prepare('SELECT id, path, cover_blob FROM books WHERE cover_blob IS NOT NULL').all() as Array<{
+    const rows = this.db.prepare('SELECT id, path, cover_blob FROM books WHERE cover_blob IS NOT NULL').all() as Array<{
       id: number;
       path: string;
-      cover_blob: Buffer;
+      cover_blob: Uint8Array;
     }>;
+    return rows.map((r) => ({ id: r.id, path: r.path, cover_blob: Buffer.from(r.cover_blob) }));
   }
 }
 
