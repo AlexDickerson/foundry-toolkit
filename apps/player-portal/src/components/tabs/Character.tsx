@@ -58,7 +58,7 @@ export function Character({ system, actorId, items, characterLevel, onActorChang
     <section className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4">
       <AbilityBlock abilities={system.abilities} keyAbility={keyAbility} />
 
-      <StatsBlock system={system} actorId={actorId} onActorChanged={onActorChanged} />
+      <StatsBlock system={system} actorId={actorId} />
 
       <div className="flex items-start gap-4 !rounded-none !border-0 !bg-transparent !p-0">
         <div ref={skillsCardRef} className="min-w-0 flex-1 rounded-lg border border-pf-border bg-pf-bg-dark p-4">
@@ -149,11 +149,9 @@ function AbilityBlock({
 function StatsBlock({
   system,
   actorId,
-  onActorChanged,
 }: {
   system: CharacterSystem;
   actorId: string;
-  onActorChanged: () => void;
 }): React.ReactElement {
   const { ac, hp } = system.attributes;
   const { perception } = system;
@@ -580,7 +578,7 @@ function SkillsBlock({
   actorId: string;
   condensed?: boolean;
 }): React.ReactElement {
-  const allSkills = Object.values(skills) as SkillStatistic[];
+  const allSkills = Object.values(skills);
   const coreSkills = allSkills.filter((s) => !s.lore);
   const loreSkills = allSkills.filter((s) => s.lore);
 

@@ -19,6 +19,7 @@ interface Props {
   items: readonly PreparedActorItem[];
   onBuy: (req: BuyRequest) => Promise<void>;
   pending: Set<string>;
+  disabledRarities?: readonly string[];
 }
 
 // Equipment packs available for browsing. More packs can be appended
@@ -31,6 +32,12 @@ const EQUIPMENT_PACKS: readonly { id: string; label: string }[] = [
 // `system.category` / `type` taxonomy loosely; the picker uses them
 // as a free-text filter that checks a match's displayed type + traits.
 type TypeFilter = 'all' | 'weapon' | 'armor' | 'consumable' | 'equipment' | 'backpack';
+const RARITY_FILTERS: Array<{ id: string; label: string }> = [
+  { id: 'common',   label: 'Common'   },
+  { id: 'uncommon', label: 'Uncommon' },
+  { id: 'rare',     label: 'Rare'     },
+  { id: 'unique',   label: 'Unique'   },
+];
 
 const TYPE_FILTERS: Array<{ id: TypeFilter; label: string }> = [
   { id: 'all', label: 'All' },
@@ -56,6 +63,60 @@ const SEARCH_LIMIT = 10_000;
 // render outside a real DOM). The visible page adapts to the grid's
 // actual dimensions on mount via `useFitPageSize` below.
 const FALLBACK_PAGE_SIZE = 25;
+
+// Known quality tiers with explicit sort order. Used to sort variants
+// within a group when the variant text contains a recognised keyword.
+const QUALITY_ORDER: Record<string, number> = {
+  minor: 0,
+  lesser: 1,
+  moderate: 2,
+  greater: 3,
+  major: 4,
+  true: 5,
+  young: 6,
+  adult: 7,
+  wyrm: 8,
+  '1st-rank': 10,
+  '2nd-rank': 11,
+  '3rd-rank': 12,
+  '4th-rank': 13,
+  '5th-rank': 14,
+  '6th-rank': 15,
+  '7th-rank': 16,
+  '8th-rank': 17,
+  '9th-rank': 18,
+  'rank 1': 10,
+  'rank 2': 11,
+  'rank 3': 12,
+  'rank 4': 13,
+  'rank 5': 14,
+  'rank 6': 15,
+  'rank 7': 16,
+  'rank 8': 17,
+  'rank 9': 18,
+};
+
+// Matches a quality keyword anywhere in a variant string.
+const QUALITY_WORD_RE =
+  /\b(minor|lesser|moderate|greater|major|true|young|adult|wyrm|[1-9](?:st|nd|rd|th)-rank|rank\s+[1-9])(?:\s+spell)?\b/i;
+
+// Split "Healing Potion (Lesser)" → { base: "Healing Potion", variant: "Lesser" }.
+// Only strips the final trailing parenthetical; parens in the middle of the
+// name (e.g. "Ring of the Ram (Type I)") are preserved in `base`.
+function parseItemName(name: string): { base: string; variant: string | null } {
+  const m = /^(.+?)\s*\(([^)]+)\)\s*$/.exec(name);
+  if (!m) return { base: name.trim(), variant: null };
+  return { base: m[1]!.trim(), variant: m[2]!.trim() };
+}
+
+// Sort rank for a variant string. Known quality keywords get explicit
+// ranks; unknown variants sort alphabetically (rank 99); the base item
+// with no variant sorts first (-1).
+function variantRank(variant: string | null): number {
+  if (variant === null) return -1;
+  const m = QUALITY_WORD_RE.exec(variant);
+  return m ? (QUALITY_ORDER[m[1]!.toLowerCase()] ?? 99) : 99;
+}
 
 // Grid column count — fixed to match the `repeat(5, ...)` template.
 const GRID_COLS = 5;
@@ -121,11 +182,12 @@ function useFitPageSize(): {
   return { pageSize, maxHeight, gridRef };
 }
 
-export function ItemShopPicker({ items, onBuy, pending }: Props): React.ReactElement {
+export function ItemShopPicker({ items, onBuy, pending, disabledRarities }: Props): React.ReactElement {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [maxLevel, setMaxLevel] = useState<number | ''>('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set());
   const [packId, setPackId] = useState<string>(EQUIPMENT_PACKS[0]?.id ?? '');
   const [matches, setMatches] = useState<CompendiumMatch[]>([]);
   const [loading, setLoading] = useState(false);
@@ -137,10 +199,8 @@ export function ItemShopPicker({ items, onBuy, pending }: Props): React.ReactEle
   // Prefetched prices keyed by uuid. `undefined` means "not yet
   // fetched", `null` means "fetched but no price / error — treat as 0".
   const [prices, setPrices] = useState<Map<string, ItemPrice | null>>(new Map());
-  // When non-null, the item detail overlay covers the grid. The
-  // match carries the identifying uuid + lean fields; the overlay
-  // lazily fetches the full document for description + traits.
-  const [selectedMatch, setSelectedMatch] = useState<CompendiumMatch | null>(null);
+  // When non-null, the item detail overlay covers the grid.
+  const [selectedGroup, setSelectedGroup] = useState<ItemGroup | null>(null);
 
   const purseCp = useMemo(() => sumActorCoinsCp(items), [items]);
 
@@ -198,8 +258,41 @@ export function ItemShopPicker({ items, onBuy, pending }: Props): React.ReactEle
     // price field at all (e.g. uncached packs where price isn't
     // embedded) remain visible; the tile price prefetch and the
     // detail overlay pick up the real number later.
-    return typed.filter((m) => m.price === undefined || priceToCp(m.price) > 0);
-  }, [matches, typeFilter]);
+    const priceFiltered = typed.filter((m) => m.price === undefined || priceToCp(m.price) > 0);
+    const disabledSet = new Set(disabledRarities?.map((r) => r.toLowerCase()) ?? []);
+    const availableRarities = disabledSet.size > 0
+      ? priceFiltered.filter((m) => !disabledSet.has((m.rarity ?? 'common').toLowerCase()))
+      : priceFiltered;
+    const rarityFiltered = rarityFilter.size === 0
+      ? availableRarities
+      : availableRarities.filter((m) => rarityFilter.has((m.rarity ?? 'common').toLowerCase()));
+
+    // Group items that share the same base name via the "$name ($variant)"
+    // structure. "Healing Potion (Lesser)" and "Healing Potion (Greater)"
+    // both parse to base "Healing Potion" and are merged into one tile.
+    const groupMap = new Map<string, CompendiumMatch[]>();
+    for (const m of rarityFiltered) {
+      const key = parseItemName(m.name).base.toLowerCase();
+      const arr = groupMap.get(key);
+      if (arr) arr.push(m);
+      else groupMap.set(key, [m]);
+    }
+
+    const groups: ItemGroup[] = [];
+    for (const [key, variants] of groupMap) {
+      variants.sort((a, b) => {
+        const ra = variantRank(parseItemName(a.name).variant);
+        const rb = variantRank(parseItemName(b.name).variant);
+        if (ra !== rb) return ra - rb;
+        // Unknown variants (both rank 99) fall back to alphabetical.
+        return (parseItemName(a.name).variant ?? '').localeCompare(parseItemName(b.name).variant ?? '');
+      });
+      const displayName = parseItemName(variants[0]?.name ?? '').base;
+      groups.push({ key, displayName, variants });
+    }
+    groups.sort((a, b) => a.key.localeCompare(b.key));
+    return groups;
+  }, [matches, typeFilter, rarityFilter, disabledRarities]);
   // The grid's height is capped (see `gridRef` below) and the page
   // size adapts to however many tiles fit at the current viewport via
   // ResizeObserver + window-resize. Falling back to
@@ -224,7 +317,8 @@ export function ItemShopPicker({ items, onBuy, pending }: Props): React.ReactEle
   // recommended pattern for derived reset state) rather than an
   // effect, which would trigger the set-state-in-effect lint and an
   // extra render pass.
-  const filterKey = `${debouncedQuery}|${maxLevel.toString()}|${packId}|${typeFilter}`;
+  const filterKey = `${debouncedQuery}|${maxLevel.toString()}|${packId}|${typeFilter}|${[...rarityFilter].sort().join(',')}`;
+
   const [lastFilterKey, setLastFilterKey] = useState(filterKey);
   if (filterKey !== lastFilterKey) {
     setLastFilterKey(filterKey);
@@ -237,8 +331,9 @@ export function ItemShopPicker({ items, onBuy, pending }: Props): React.ReactEle
   // short-circuits — no per-tile getCompendiumDocument calls in the
   // common case. Scoped to the current page so uncached packs don't
   // fire off thousands of fetches up-front.
+  const pageVariants = useMemo(() => pageSlice.flatMap((g) => g.variants), [pageSlice]);
   useEffect(() => {
-    const needed = pageSlice.filter((m) => m.price === undefined && !prices.has(m.uuid));
+    const needed = pageVariants.filter((m) => m.price === undefined && !prices.has(m.uuid));
     if (needed.length === 0) return;
     let cancelled = false;
     const queue = [...needed];
@@ -274,7 +369,7 @@ export function ItemShopPicker({ items, onBuy, pending }: Props): React.ReactEle
     return (): void => {
       cancelled = true;
     };
-  }, [pageSlice, prices]);
+  }, [pageVariants, prices]);
 
   const emptyResults = filtered.length === 0;
 
@@ -294,6 +389,33 @@ export function ItemShopPicker({ items, onBuy, pending }: Props): React.ReactEle
           className="min-w-[10rem] flex-1 rounded border border-pf-border bg-white px-2 py-1 text-sm"
           data-testid="shop-search"
         />
+        <ul className="flex items-center gap-1" role="group" aria-label="Rarity filter">
+          {RARITY_FILTERS.filter((rf) => !disabledRarities?.includes(rf.id)).map((rf) => {
+            const active = rarityFilter.has(rf.id);
+            return (
+              <li key={rf.id}>
+                <button
+                  type="button"
+                  aria-pressed={active}
+                  onClick={(): void => {
+                    setRarityFilter((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(rf.id)) next.delete(rf.id);
+                      else next.add(rf.id);
+                      return next;
+                    });
+                  }}
+                  className={[
+                    'rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider',
+                    active ? rarityChipActiveClass(rf.id) : 'border-pf-border bg-white text-pf-alt-dark hover:bg-pf-bg-dark/40',
+                  ].join(' ')}
+                >
+                  {rf.label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
         <label className="flex items-center gap-1 text-xs text-pf-alt-dark">
           <span>Max level</span>
           <input
@@ -383,46 +505,37 @@ export function ItemShopPicker({ items, onBuy, pending }: Props): React.ReactEle
               }}
               data-testid="shop-grid"
             >
-              {pageSlice.map((m) => (
+              {pageSlice.map((g) => (
                 <ShopTile
-                  key={m.uuid}
-                  match={m}
-                  priceState={resolvePriceState(m, prices)}
+                  key={g.key}
+                  group={g}
+                  priceState={resolvePriceState(g.variants[0] as CompendiumMatch, prices)}
                   purseCp={purseCp}
-                  buying={pending.has(m.uuid)}
+                  buying={g.variants.some((v) => pending.has(v.uuid))}
                   onOpen={(): void => {
-                    setSelectedMatch(m);
+                    setSelectedGroup(g);
                   }}
-                  onBuy={(unitPriceCp): Promise<void> => onBuy({ match: m, unitPriceCp })}
+                  onBuyDirect={(unitPriceCp): Promise<void> =>
+                    onBuy({ match: g.variants[0] as CompendiumMatch, unitPriceCp })
+                  }
                 />
               ))}
             </ul>
-            {selectedMatch && (
+            {selectedGroup && (
               <ShopItemDetail
-                match={selectedMatch}
+                group={selectedGroup}
                 purseCp={purseCp}
-                buying={pending.has(selectedMatch.uuid)}
-                onBuy={async (unitPriceCp): Promise<void> => {
-                  await onBuy({ match: selectedMatch, unitPriceCp });
-                  setSelectedMatch(null);
+                pending={pending}
+                onBuy={async (match, unitPriceCp): Promise<void> => {
+                  await onBuy({ match, unitPriceCp });
+                  setSelectedGroup(null);
                 }}
                 onClose={(): void => {
-                  setSelectedMatch(null);
+                  setSelectedGroup(null);
                 }}
               />
             )}
           </div>
-          {pageCount > 1 && (
-            <div className="flex justify-end" data-role="pagination" data-position="bottom">
-              <PaginationControls
-                page={clampedPage}
-                pageCount={pageCount}
-                onPageChange={setPage}
-                capHit={matches.length >= SEARCH_LIMIT}
-                capLimit={SEARCH_LIMIT}
-              />
-            </div>
-          )}
         </>
       )}
     </div>
@@ -494,6 +607,43 @@ function PaginationControls({
 
 type PriceState = { kind: 'loading' } | { kind: 'ready'; price: ItemPrice | null };
 
+function rarityFooterClass(rarity: string | undefined): string {
+  switch (rarity?.toLowerCase()) {
+    case 'uncommon': return 'bg-amber-200 border-amber-500';
+    case 'rare':     return 'bg-blue-200 border-blue-500';
+    case 'unique':   return 'bg-purple-200 border-purple-500';
+    default:         return 'border-pf-border';
+  }
+}
+
+function rarityChipActiveClass(rarity: string): string {
+  switch (rarity) {
+    case 'uncommon': return 'border-amber-500 bg-amber-200 text-amber-900';
+    case 'rare':     return 'border-blue-500 bg-blue-200 text-blue-900';
+    case 'unique':   return 'border-purple-500 bg-purple-200 text-purple-900';
+    default:         return 'border-pf-border bg-pf-bg-dark text-pf-text';
+  }
+}
+
+function rarityChipClass(rarity: string | undefined): string {
+  switch (rarity?.toLowerCase()) {
+    case 'uncommon': return 'border-amber-500 bg-amber-100 text-amber-800';
+    case 'rare':     return 'border-blue-500 bg-blue-100 text-blue-800';
+    case 'unique':   return 'border-purple-500 bg-purple-100 text-purple-800';
+    default:         return 'border-pf-border bg-pf-bg-dark text-pf-alt-dark';
+  }
+}
+
+interface ItemGroup {
+  key: string;
+  displayName: string;
+  variants: CompendiumMatch[];
+}
+
+function qualityLabel(name: string): string {
+  return parseItemName(name).variant ?? '—';
+}
+
 // Priority for the per-tile price:
 //   1. `match.price` when the server embedded it (cache hit) — instant
 //   2. The lazy-loaded prices Map (uncached packs)
@@ -505,34 +655,33 @@ function resolvePriceState(match: CompendiumMatch, prefetched: Map<string, ItemP
 }
 
 function ShopTile({
-  match,
+  group,
   priceState,
   purseCp,
   buying,
   onOpen,
-  onBuy,
+  onBuyDirect,
 }: {
-  match: CompendiumMatch;
+  group: ItemGroup;
   priceState: PriceState;
   purseCp: number;
   buying: boolean;
   onOpen: () => void;
-  onBuy: (unitPriceCp: number) => Promise<void>;
+  onBuyDirect: (unitPriceCp: number) => Promise<void>;
 }): React.ReactElement {
+  const representative = group.variants[0] as CompendiumMatch;
+  const multiVariant = group.variants.length > 1;
   const price = priceState.kind === 'ready' ? priceState.price : null;
   const unitPriceCp = price ? priceToCp(price) : 0;
   const priceText =
     priceState.kind === 'loading' ? '…' : price ? formatCp(unitPriceCp) : '—';
   const priceReady = priceState.kind === 'ready';
-  // Free items (0 cp) remain buyable. When price data hasn't loaded
-  // yet we optimistically allow hitting Buy — the real cost will be
-  // enforced when the buy handler re-checks the actor's purse.
   const canAfford = !priceReady || unitPriceCp === 0 || purseCp >= unitPriceCp;
 
   return (
     <li
       className="flex flex-col overflow-hidden rounded border border-pf-border bg-pf-bg transition-shadow hover:cursor-pointer hover:shadow-md"
-      data-item-uuid={match.uuid}
+      data-item-uuid={representative.uuid}
       data-affordable={canAfford ? 'true' : 'false'}
       onClick={(e): void => {
         if ((e.target as HTMLElement).closest('button, a, input')) return;
@@ -550,36 +699,45 @@ function ShopTile({
     >
       {/* Square art with name overlay — mirrors the inventory GridTile */}
       <div className="relative aspect-square w-full overflow-hidden bg-pf-bg-dark">
-        <img src={match.img} alt="" className="h-full w-full object-contain" />
+        <img src={representative.img} alt="" className="h-full w-full object-contain" />
         <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
-          <span className="line-clamp-2 block text-[10px] font-medium leading-tight text-white" title={match.name}>
-            {match.name}
+          <span className="line-clamp-2 block text-[10px] font-medium leading-tight text-white" title={group.displayName}>
+            {group.displayName}
           </span>
         </div>
+        {multiVariant && (
+          <span className="absolute right-1 top-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+            Variants: {group.variants.length}
+          </span>
+        )}
       </div>
-      {/* Price + buy chip */}
-      <div className="flex items-center gap-1.5 border-t border-pf-border px-1.5 py-1">
+      {/* Price + buy chip — tinted by rarity */}
+      <div className={`flex items-center gap-1.5 border-t px-1.5 py-1 ${rarityFooterClass(representative.rarity)}`}>
         <span className="min-w-0 flex-1 truncate font-mono text-[10px] tabular-nums text-pf-alt-dark" data-role="tile-price">
-          {priceText}
+          {multiVariant ? `from ${priceText}` : priceText}
         </span>
         <button
           type="button"
           onClick={(e): void => {
             e.stopPropagation();
-            void onBuy(unitPriceCp);
+            if (multiVariant) {
+              onOpen();
+            } else {
+              void onBuyDirect(unitPriceCp);
+            }
           }}
-          disabled={!canAfford || buying}
+          disabled={!multiVariant && (!canAfford || buying)}
           data-testid="shop-buy"
           className={[
             'flex-shrink-0 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
-            !canAfford
+            !multiVariant && !canAfford
               ? 'cursor-not-allowed border-neutral-200 bg-neutral-50 text-neutral-400'
               : buying
                 ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
                 : 'border-pf-primary bg-pf-primary text-white hover:bg-pf-primary-dark',
           ].join(' ')}
         >
-          {buying ? 'Buying…' : canAfford ? 'Buy' : 'Too rich'}
+          {buying ? 'Buying…' : multiVariant ? 'Select' : canAfford ? 'Buy' : 'Too rich'}
         </button>
       </div>
     </li>
@@ -600,27 +758,28 @@ function extractPriceFromDocument(doc: CompendiumDocument): ItemPrice | null {
 // cached on the mcp side, the fetch is a synchronous in-memory hit.
 // Dismissed via the × button, Esc, or clicking outside the panel.
 function ShopItemDetail({
-  match,
+  group,
   purseCp,
-  buying,
+  pending,
   onBuy,
   onClose,
 }: {
-  match: CompendiumMatch;
+  group: ItemGroup;
   purseCp: number;
-  buying: boolean;
-  onBuy: (unitPriceCp: number) => Promise<void>;
+  pending: Set<string>;
+  onBuy: (match: CompendiumMatch, unitPriceCp: number) => Promise<void>;
   onClose: () => void;
 }): React.ReactElement {
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
+  const activeVariant = (group.variants[Math.min(selectedVariantIdx, group.variants.length - 1)] ?? group.variants[0]) as CompendiumMatch;
+  const multiVariant = group.variants.length > 1;
+
   const [doc, setDoc] = useState<CompendiumDocument | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
   const [docLoading, setDocLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    // Defer the "reset to loading" setStates to a microtask so React
-    // doesn't treat the synchronous trio as a cascading-render
-    // warning. The subsequent .then / .catch are already async.
     queueMicrotask(() => {
       if (cancelled) return;
       setDoc(null);
@@ -628,7 +787,7 @@ function ShopItemDetail({
       setDocLoading(true);
     });
     api
-      .getCompendiumDocument(match.uuid)
+      .getCompendiumDocument(activeVariant.uuid)
       .then((result) => {
         if (cancelled) return;
         setDoc(result.document);
@@ -642,7 +801,7 @@ function ShopItemDetail({
     return (): void => {
       cancelled = true;
     };
-  }, [match.uuid]);
+  }, [activeVariant.uuid]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -654,14 +813,12 @@ function ShopItemDetail({
     };
   }, [onClose]);
 
-  // Prefer `match.price` when the server embedded it (cached pack).
-  // Falls back to reading from the freshly-fetched document for
-  // uncached packs.
-  const price = match.price ?? (doc ? extractPriceFromDocument(doc) : null);
+  const price = activeVariant.price ?? (doc ? extractPriceFromDocument(doc) : null);
   const unitPriceCp = price ? priceToCp(price) : 0;
   const priceText = price ? formatCp(unitPriceCp) : '—';
   const canAfford = unitPriceCp === 0 || purseCp >= unitPriceCp;
-  const traits = match.traits ?? extractTraitsFromDocument(doc);
+  const buying = pending.has(activeVariant.uuid);
+  const traits = activeVariant.traits ?? extractTraitsFromDocument(doc);
   const description = doc ? extractDescriptionFromDocument(doc) : '';
   const enriched = description.length > 0 ? enrichDescription(description) : '';
 
@@ -669,28 +826,56 @@ function ShopItemDetail({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`${match.name} details`}
+      aria-label={`${group.displayName} details`}
       data-testid="shop-item-detail"
       onClick={(e): void => {
-        // Click on the backdrop itself (not any child) closes.
         if (e.target === e.currentTarget) onClose();
       }}
-      className="absolute inset-0 z-20 flex items-start justify-center bg-black/10 p-2"
+      className="absolute inset-x-0 top-0 z-20 flex items-start justify-center bg-black/10 p-2"
     >
-      <div className="flex max-h-full w-full flex-col rounded border border-pf-border bg-pf-bg shadow-lg">
+      <div className="w-full flex-col rounded border border-pf-border bg-pf-bg shadow-lg">
         <header className="flex items-start gap-3 border-b border-pf-border p-3">
           <img
-            src={match.img}
+            src={activeVariant.img}
             alt=""
             className="h-12 w-12 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
           <div className="min-w-0 flex-1">
-            <h3 className="font-serif text-base font-semibold text-pf-text">{match.name}</h3>
+            <div className="flex items-baseline gap-2">
+              <h3 className="font-serif text-base font-semibold text-pf-text">{group.displayName}</h3>
+              {activeVariant.rarity && activeVariant.rarity !== 'common' && (
+                <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize ${rarityChipClass(activeVariant.rarity)}`}>
+                  {activeVariant.rarity}
+                </span>
+              )}
+            </div>
             <p className="text-[10px] uppercase tracking-widest text-pf-alt-dark">
-              {match.type}
-              {typeof match.level === 'number' && ` · Level ${match.level.toString()}`}
+              {activeVariant.type}
+              {typeof activeVariant.level === 'number' && ` · Level ${activeVariant.level.toString()}`}
               {priceText !== '—' && ` · ${priceText}`}
             </p>
+            {multiVariant && (
+              <ul className="mt-2 flex flex-wrap gap-1" aria-label="Variant">
+                {group.variants.map((v, i) => (
+                  <li key={v.uuid}>
+                    <button
+                      type="button"
+                      onClick={(): void => {
+                        setSelectedVariantIdx(i);
+                      }}
+                      className={[
+                        'rounded border px-2 py-0.5 text-[10px] font-medium',
+                        i === selectedVariantIdx
+                          ? 'border-pf-primary bg-pf-primary text-white'
+                          : 'border-pf-border bg-pf-bg-dark text-pf-alt-dark hover:bg-pf-bg-dark/60',
+                      ].join(' ')}
+                    >
+                      {qualityLabel(v.name)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             {traits.length > 0 && (
               <ul className="mt-1 flex flex-wrap gap-1">
                 {traits.slice(0, 8).map((t) => (
@@ -714,7 +899,7 @@ function ShopItemDetail({
             ×
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto p-3 text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2">
+        <div className="max-h-96 overflow-y-auto p-3 text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2">
           {docLoading && !doc ? (
             <p className="italic text-pf-alt-dark">Loading…</p>
           ) : docError !== null ? (
@@ -737,7 +922,7 @@ function ShopItemDetail({
             type="button"
             disabled={!canAfford || buying}
             onClick={(): void => {
-              void onBuy(unitPriceCp);
+              void onBuy(activeVariant, unitPriceCp);
             }}
             data-testid="shop-detail-buy"
             className={[

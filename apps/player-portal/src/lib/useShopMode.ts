@@ -11,6 +11,8 @@ export interface ShopModeState {
   // Fraction of an item's price that the player receives when selling.
   // 0.5 is the pf2e baseline; rolled lower by haggle, up by lore.
   sellRatio: number;
+  // Rarities hidden from the shop grid entirely. DM-configured.
+  disabledRarities: string[];
 }
 
 const STORAGE_KEY = 'shopMode';
@@ -19,6 +21,7 @@ const CHANGE_EVENT = 'shopmode:change';
 const DEFAULT_STATE: ShopModeState = {
   enabled: false,
   sellRatio: 0.5,
+  disabledRarities: ['rare', 'unique'],
 };
 
 function readState(): ShopModeState {
@@ -33,6 +36,9 @@ function readState(): ShopModeState {
         typeof parsed.sellRatio === 'number' && Number.isFinite(parsed.sellRatio)
           ? clampRatio(parsed.sellRatio)
           : DEFAULT_STATE.sellRatio,
+      disabledRarities: Array.isArray(parsed.disabledRarities)
+        ? (parsed.disabledRarities as unknown[]).filter((v): v is string => typeof v === 'string')
+        : DEFAULT_STATE.disabledRarities,
     };
   } catch {
     return DEFAULT_STATE;
@@ -64,6 +70,7 @@ export function setShopMode(patch: Partial<ShopModeState>): ShopModeState {
   const next: ShopModeState = {
     enabled: patch.enabled ?? current.enabled,
     sellRatio: patch.sellRatio !== undefined ? clampRatio(patch.sellRatio) : current.sellRatio,
+    disabledRarities: patch.disabledRarities ?? current.disabledRarities,
   };
   writeState(next);
   return next;
@@ -84,6 +91,7 @@ if (typeof window !== 'undefined') {
 export function useShopMode(): ShopModeState & {
   setEnabled: (v: boolean) => void;
   setSellRatio: (r: number) => void;
+  setDisabledRarities: (v: string[]) => void;
 } {
   const [state, setState] = useState<ShopModeState>(() => readState());
 
@@ -110,6 +118,9 @@ export function useShopMode(): ShopModeState & {
     },
     setSellRatio: (r: number): void => {
       setShopMode({ sellRatio: r });
+    },
+    setDisabledRarities: (v: string[]): void => {
+      setShopMode({ disabledRarities: v });
     },
   };
 }

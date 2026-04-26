@@ -23,6 +23,7 @@ import { usePreferences } from '../lib/usePreferences';
 import { prefetchIcons } from '../lib/prefetchIcons';
 import { PromptQueue } from '../components/dialog/PromptQueue';
 import type { TabId } from '../lib/tabUtils';
+import { useShopMode } from '../lib/useShopMode';
 
 type State =
   | { kind: 'loading' }
@@ -60,6 +61,7 @@ interface InnerProps {
 }
 
 function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): React.ReactElement {
+  const shopMode = useShopMode();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [activeTab, setActiveTab] = useState<TabId>('character');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -198,10 +200,12 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
                 onActorChanged={reloadActor}
                 investiture={state.actor.system.resources.investiture}
               />
-              <div className="mt-10 border-t border-pf-border pt-6">
-                <SectionHeader>Crafting</SectionHeader>
-                <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
-              </div>
+              {!shopMode.enabled && (
+                <div className="mt-10 border-t border-pf-border pt-6">
+                  <SectionHeader>Crafting</SectionHeader>
+                  <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
+                </div>
+              )}
             </>
           )}
           {activeTab === 'feats' && <Feats items={state.actor.items} />}

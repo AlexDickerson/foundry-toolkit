@@ -250,7 +250,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
           </div>
           </div>
           {effectiveShopView === 'shop' && canTransact ? (
-            <ItemShopPicker items={items} onBuy={handleBuy} pending={pendingBuys} />
+            <ItemShopPicker items={items} onBuy={handleBuy} pending={pendingBuys} disabledRarities={shopMode.disabledRarities} />
           ) : (
             <CategorizedInventory
               view={view}
@@ -520,6 +520,24 @@ function ShopGearMenu({
           />
           <span className="w-10 text-right font-mono tabular-nums">{tileColumns} col</span>
         </label>
+        <p className="mb-1 mt-3 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+          Visible rarities
+        </p>
+        {(['common', 'uncommon', 'rare', 'unique'] as const).map((r) => (
+          <label key={r} className="flex items-center gap-2 capitalize">
+            <input
+              type="checkbox"
+              checked={!shopMode.disabledRarities.includes(r)}
+              onChange={(e): void => {
+                const next = e.target.checked
+                  ? shopMode.disabledRarities.filter((x) => x !== r)
+                  : [...shopMode.disabledRarities, r];
+                shopMode.setDisabledRarities(next);
+              }}
+            />
+            <span>{r}</span>
+          </label>
+        ))}
       </div>
     </details>
   );
