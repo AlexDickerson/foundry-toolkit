@@ -11,6 +11,15 @@ export const FOUNDRY_DATA_DIR =
   process.env.FOUNDRY_DATA_DIR ??
   (process.env.FOUNDRY_DATA ? resolve(process.env.FOUNDRY_DATA, 'Data') : resolve(homedir(), 'foundrydata', 'Data'));
 
+// Path to the foundry-mcp SQLite database that stores live-state snapshots
+// (inventory, aurus, globe). Defaults to ./data/foundry-mcp.db relative to
+// the process working directory.
+export const LIVE_DB_PATH = process.env.LIVE_DB_PATH ?? resolve(process.cwd(), 'data', 'foundry-mcp.db');
+
+// Shared secret for bearer-auth on live-state POST endpoints. If unset,
+// POSTs are open (acceptable for local-only deployment; log a warning on start).
+export const SHARED_SECRET = process.env.SHARED_SECRET;
+
 // Gates POST /api/eval. When off (the default), the route isn't registered
 // at all — a request returns 404 with our envelope, indistinguishable from
 // an unknown endpoint. When on, arbitrary JS runs in the Foundry page;
