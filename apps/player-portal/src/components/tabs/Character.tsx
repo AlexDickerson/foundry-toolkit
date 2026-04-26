@@ -764,7 +764,7 @@ function QuickActionsBlock({
       {selected.length === 0 ? (
         <p className="text-xs italic text-pf-text-muted">Tap the pencil to add quick actions.</p>
       ) : (
-        <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
+        <ul className="scrollbar-pf min-h-0 flex-1 space-y-1.5 overflow-y-auto">
           {selected.map((opt) => {
             if (opt.kind === 'strike') {
               return <StrikeQuickRow key={opt.id} option={opt} actorId={actorId} />;

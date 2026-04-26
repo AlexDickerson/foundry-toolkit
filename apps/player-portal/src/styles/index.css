@@ -121,6 +121,25 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Palette-matched thin scrollbar for in-sheet scroll regions. */
+.scrollbar-pf {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-pf-border) transparent;
+}
+.scrollbar-pf::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-pf::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-pf::-webkit-scrollbar-thumb {
+  background-color: var(--color-pf-border);
+  border-radius: 9999px;
+}
+.scrollbar-pf::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-pf-alt);
+}
+
 /* Sheet-wide base: cream parchment surface, Gelasio for long-form text.
    Individual components override via `font-sans` / `font-serif` utilities
    as needed. */
