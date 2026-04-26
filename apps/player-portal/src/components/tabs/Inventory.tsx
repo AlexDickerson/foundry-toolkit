@@ -429,8 +429,7 @@ function CategorizedInventory({
               </ul>
             ) : (
               <ul
-                className="grid gap-2"
-                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(8rem, 1fr))' }}
+                className="grid grid-cols-5 gap-2"
                 data-view="grid"
               >
                 {bucket.map((item) => (
@@ -808,6 +807,13 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
   );
 }
 
+function isEquippedItem(item: PhysicalItem): boolean {
+  const eq = item.system.equipped;
+  if (eq.handsHeld !== undefined && eq.handsHeld > 0) return true;
+  if ((item.type === 'armor' || item.type === 'backpack') && eq.inSlot === true) return true;
+  return false;
+}
+
 function GridTile({
   item,
   sellContext,
@@ -818,16 +824,21 @@ function GridTile({
   investContext: InvestContext | undefined;
 }): React.ReactElement {
   const hasInvestButton = investContext !== undefined && supportsInvestment(item);
+  const equipped = isEquippedItem(item);
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
-      {/* open:min-w-[18rem] expands the tile rightward to match the panel
-          so both share the same right border edge. Panel uses left-0
-          right-0 (spans exactly the <details> width) rather than a
-          fixed pixel value so it always tracks the tile. */}
-      <details className="group relative rounded border border-pf-border bg-pf-bg open:z-10 open:min-w-[18rem] open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
-        <summary className="flex cursor-pointer list-none flex-col items-start gap-1 p-2 hover:bg-pf-bg-dark/40">
-          <div className="relative">
-            <img src={item.img} alt="" className="h-14 w-14 rounded border border-pf-border bg-pf-bg-dark" />
+      <details className={[
+        'group relative rounded border open:z-10 open:min-w-[18rem] open:rounded-b-none open:border-pf-primary/60 open:shadow-lg',
+        equipped ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-pf-border bg-pf-bg',
+      ].join(' ')}>
+        <summary className={[
+          'flex cursor-pointer list-none flex-col items-center gap-1.5 p-2 text-center',
+          equipped ? 'hover:bg-emerald-500/20' : 'hover:bg-pf-bg-dark/40',
+        ].join(' ')}>
+          <div className="relative w-full">
+            <div className="aspect-square w-full overflow-hidden rounded border border-pf-border bg-pf-bg-dark">
+              <img src={item.img} alt="" className="h-full w-full object-contain p-1" />
+            </div>
             {item.system.quantity > 1 && (
               <span className="absolute -right-1 -top-1 rounded bg-pf-primary px-1 text-[10px] font-semibold text-white shadow">
                 ×{item.system.quantity}
@@ -837,9 +848,6 @@ function GridTile({
           <span className="line-clamp-2 min-h-[2.5em] text-[11px] font-medium leading-tight text-pf-text" title={item.name}>
             {item.name}
           </span>
-          <div className="flex min-h-[16px] flex-wrap gap-1">
-            <EquippedBadge item={item} suppressInvested={hasInvestButton} />
-          </div>
           {hasInvestButton && <InvestButton item={item} context={investContext} />}
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
