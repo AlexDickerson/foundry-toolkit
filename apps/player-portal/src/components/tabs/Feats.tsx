@@ -77,14 +77,9 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
             alt=""
             className="mt-0.5 h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
-          <div className="min-w-0 flex-1">
-            <span className="line-clamp-2 block text-sm font-medium leading-snug text-pf-text">{feat.name}</span>
-            <div className="mt-0.5 flex items-center gap-1">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Lv {level}</span>
-              <span aria-hidden className="ml-auto text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-              <span aria-hidden className="ml-auto hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
-            </div>
-          </div>
+          <span className="line-clamp-2 min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-snug text-pf-text">{feat.name}</span>
+          <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
+          <span aria-hidden className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
         {/* Absolute-positioned body overlays the grid below instead of
             pushing siblings down. Containing block is the `<li>`
@@ -94,6 +89,7 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
             sub-pixel width. Summary drops bottom-corner rounding
             while open to seal the seam. */}
         <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {level}</p>
           {traits.length > 0 && <TraitChips traits={traits} />}
           {prereqs.length > 0 && (
             <p className="mt-2 text-xs text-pf-alt-dark">
