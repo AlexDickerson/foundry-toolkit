@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { PhysicalItem, PhysicalItemType, PointPool, PreparedActorItem } from '../../api/types';
 import { isCoin, isContainer, isPhysicalItem } from '../../api/types';
@@ -855,9 +855,22 @@ function GridTile({
     equipped || invested ? 'hover:brightness-95' : 'hover:bg-pf-bg-dark/40';
 
   const [zIndex, setZIndex] = useState<number | undefined>(undefined);
+  const [flipLeft, setFlipLeft] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (zIndex === undefined) { setFlipLeft(false); return; }
+    const panel = panelRef.current;
+    if (!panel) return;
+    setFlipLeft(panel.getBoundingClientRect().right > window.innerWidth - 8);
+  }, [zIndex]);
+
+  const openCorner = flipLeft ? 'open:rounded-l-none' : 'open:rounded-r-none';
+  const detailsClassFull = `${detailsClass.replace('open:rounded-r-none', '')} ${openCorner}`;
+
   return (
     <li className="relative" style={zIndex !== undefined ? { zIndex } : undefined} data-item-id={item.id} data-item-type={item.type}>
-      <details className={detailsClass} style={detailsStyle} onToggle={(e) => {
+      <details className={detailsClassFull} style={detailsStyle} onToggle={(e) => {
         setZIndex(e.currentTarget.open ? ++tileOpenCounter : undefined);
       }}>
         <summary className={[
@@ -881,7 +894,7 @@ function GridTile({
           </div>
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
-        <div className="absolute -top-px left-full z-20 min-h-[calc(100%+2px)] w-max min-w-[150%] max-w-[300%] overflow-y-auto rounded-r border border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg">
+        <div ref={panelRef} className={`absolute -top-px ${flipLeft ? 'right-full' : 'left-full'} z-20 min-h-[calc(100%+2px)] w-max min-w-[150%] max-w-[300%] overflow-y-auto ${flipLeft ? 'rounded-l' : 'rounded-r'} border border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg`}>
           {hasInvestButton && (
             <div className="mb-3">
               <InvestButton item={item} context={investContext} />
