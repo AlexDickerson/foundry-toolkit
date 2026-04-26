@@ -83,7 +83,7 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
         </summary>
         {/* Single bottom panel: two-column interior avoids z-index overlap entirely. */}
         <div className="absolute left-0 top-full z-20 flex w-[calc(200%+0.5rem)] rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg shadow-lg">
-          <div className="w-36 flex-shrink-0 border-r border-pf-border px-3 py-3 text-sm text-pf-text">
+          <div className="w-36 flex-shrink-0 border-r border-t border-pf-primary/60 px-3 py-3 text-sm text-pf-text">
             <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {level}</p>
             {traits.length > 0 && <TraitChips traits={traits} />}
             {prereqs.length > 0 && (
