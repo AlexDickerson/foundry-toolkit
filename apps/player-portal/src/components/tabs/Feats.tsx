@@ -88,7 +88,7 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
             matching border edges regardless of the grid cell's
             sub-pixel width. Summary drops bottom-corner rounding
             while open to seal the seam. */}
-        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-5 py-3 text-sm text-pf-text shadow-lg">
           <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {level}</p>
           {traits.length > 0 && <TraitChips traits={traits} />}
           {prereqs.length > 0 && (
