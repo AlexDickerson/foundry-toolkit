@@ -70,7 +70,7 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
 
   return (
     <li className="relative" data-item-id={feat.id} data-feat-slug={feat.system.slug ?? ''}>
-      <details className="group rounded border border-pf-border bg-pf-bg open:rounded-none open:border-pf-primary/60 open:shadow-lg">
+      <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden hover:bg-pf-bg-dark/40">
           <img
             src={feat.img}
@@ -81,27 +81,28 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
           <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
           <span aria-hidden className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
-        {/* Right panel: level + traits at chip height. z-30 keeps it above the description panel. */}
-        <div className="absolute left-full top-0 z-30 min-h-full w-36 rounded-r border border-l-0 border-pf-primary/60 bg-pf-bg px-3 py-3 text-sm text-pf-text shadow-lg">
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {level}</p>
-          {traits.length > 0 && <TraitChips traits={traits} />}
-          {prereqs.length > 0 && (
-            <p className="mt-2 text-xs text-pf-alt-dark">
-              <span className="font-semibold uppercase tracking-widest">Prerequisites</span>{' '}
-              {prereqs.join('; ')}
-            </p>
-          )}
-        </div>
-        {/* Description panel: below chip + right panel, spans their combined width. */}
-        <div className="absolute left-0 top-full z-20 w-[calc(100%+9rem)] rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-5 py-3 text-sm text-pf-text shadow-lg">
-          {enriched.length > 0 ? (
-            <div
-              className="max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-              dangerouslySetInnerHTML={{ __html: enriched }}
-            />
-          ) : (
-            <p className="italic text-neutral-400">No description.</p>
-          )}
+        {/* Single bottom panel: two-column interior avoids z-index overlap entirely. */}
+        <div className="absolute left-0 top-full z-20 flex w-[calc(200%+0.5rem)] rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg shadow-lg">
+          <div className="w-36 flex-shrink-0 border-r border-pf-border px-3 py-3 text-sm text-pf-text">
+            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {level}</p>
+            {traits.length > 0 && <TraitChips traits={traits} />}
+            {prereqs.length > 0 && (
+              <p className="mt-2 text-xs text-pf-alt-dark">
+                <span className="font-semibold uppercase tracking-widest">Prerequisites</span>{' '}
+                {prereqs.join('; ')}
+              </p>
+            )}
+          </div>
+          <div className="min-w-0 flex-1 px-4 py-3 text-sm text-pf-text">
+            {enriched.length > 0 ? (
+              <div
+                className="max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+                dangerouslySetInnerHTML={{ __html: enriched }}
+              />
+            ) : (
+              <p className="italic text-neutral-400">No description.</p>
+            )}
+          </div>
         </div>
       </details>
     </li>
