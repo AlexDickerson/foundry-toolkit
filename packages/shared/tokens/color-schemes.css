@@ -1,24 +1,40 @@
 /*
  * Alternate color schemes for PF2e-themed surfaces.
  *
- * The default palette lives in pf2e.css under @theme — that's the PF2e
- * Classic look (deep heraldic red + navy + parchment gold). Each
- * [data-color-scheme="..."] block below replaces the core palette CSS
- * variables; Tailwind 4 utilities (`bg-pf-primary`, `text-pf-secondary`,
- * etc.) all reference those variables via var(), so re-cascading them at
- * the document-root level retunes the whole surface.
+ * Each [data-color-scheme="..."] block overrides two groups of tokens:
  *
- * Rarity, proficiency, and degree-of-success colors are deliberately left
- * alone — they're semantic (rare is always blue, unique is always purple)
- * and shouldn't drift between palettes.
+ *   1. PALETTE  — primary/secondary/tertiary/alt accent colours.
+ *   2. SURFACES — bg, bg-dark, border, text, text-muted, sub, and the
+ *                 pf-bg-overlay rgba value used for background-image sheets.
+ *
+ * Tailwind 4 utilities (bg-pf-primary, bg-pf-bg, text-pf-text, etc.) all
+ * reference these variables via var(), so re-cascading them at the document
+ * root retunes the entire surface — cards, headers, chip backgrounds, borders.
+ *
+ * The portal surface tokens (--portal-bg, --portal-surface, …) in index.css
+ * are defined as var(--color-pf-bg/border/…), so they inherit scheme changes
+ * automatically without extra overrides here.
+ *
+ * Dark mode ([data-portal-theme='dark'] in index.css) applies to the Layout
+ * root div, which is a descendant of <html>. Because CSS custom properties
+ * cascade by element, dark-mode overrides on the Layout div win over scheme
+ * overrides on <html> for everything inside — so dark mode stays dark
+ * regardless of scheme. Per-scheme dark variants can be added later by
+ * combining both selectors.
+ *
+ * Rarity, proficiency, and degree-of-success colours are deliberately left
+ * alone — they're semantic and shouldn't drift between palettes.
+ *
+ * To add a new theme: add one block here + one entry in usePreferences.ts.
  *
  * Derived from foundryvtt/pf2e (Apache-2.0) — see NOTICE.
  */
 
-/* Classic — default PF2e palette (heraldic red + navy + parchment gold).
- * Explicit block so every scheme is applied via the same setAttribute path;
- * Classic is no longer a special "remove the attribute" case in JS. */
+/* Classic — warm cream parchment + heraldic red + navy + parchment gold.
+ * Explicit block so Classic is applied via the same setAttribute path as
+ * other schemes (no longer a "remove the attribute" special case in JS). */
 [data-color-scheme='classic'] {
+  /* Palette */
   --color-pf-primary: #5e0000;
   --color-pf-primary-dark: #4a0000;
   --color-pf-primary-light: #7a0000;
@@ -31,10 +47,19 @@
   --color-pf-alt: #786452;
   --color-pf-alt-dark: #443730;
   --color-pf-alt-light: #9a8471;
+  /* Surfaces */
+  --color-pf-bg: #f8f4f1;
+  --color-pf-bg-dark: #e6dfd7;
+  --color-pf-border: #baa991;
+  --color-pf-text: #1c1c1c;
+  --color-pf-text-muted: #605856;
+  --color-pf-sub: #605856;
+  --pf-bg-overlay: rgba(248, 244, 241, 0.88);
 }
 
-/* Arcane — violet + deep teal, muted lilac accents. */
+/* Arcane — cool violet-tinged vellum + violet + deep teal + lilac. */
 [data-color-scheme='arcane'] {
+  /* Palette */
   --color-pf-primary: #4a1a6b;
   --color-pf-primary-dark: #381252;
   --color-pf-primary-light: #5e2585;
@@ -47,10 +72,19 @@
   --color-pf-alt: #5a4a7a;
   --color-pf-alt-dark: #3a2f52;
   --color-pf-alt-light: #7d6ba0;
+  /* Surfaces — lavender-tinged vellum */
+  --color-pf-bg: #f4f1f8;
+  --color-pf-bg-dark: #e8e2f0;
+  --color-pf-border: #c4b4d8;
+  --color-pf-text: #1a1520;
+  --color-pf-text-muted: #6b5f7e;
+  --color-pf-sub: #6b5f7e;
+  --pf-bg-overlay: rgba(244, 241, 248, 0.88);
 }
 
-/* Verdant — forest green + teal, sage accents. */
+/* Verdant — sage-green parchment + forest green + teal + soft sage. */
 [data-color-scheme='verdant'] {
+  /* Palette */
   --color-pf-primary: #1f4e2b;
   --color-pf-primary-dark: #163a1f;
   --color-pf-primary-light: #2a6a3c;
@@ -63,10 +97,19 @@
   --color-pf-alt: #556445;
   --color-pf-alt-dark: #343e27;
   --color-pf-alt-light: #7a8a68;
+  /* Surfaces — sage-tinted parchment */
+  --color-pf-bg: #f1f5ef;
+  --color-pf-bg-dark: #e1eadb;
+  --color-pf-border: #b4c8aa;
+  --color-pf-text: #161a14;
+  --color-pf-text-muted: #5a6652;
+  --color-pf-sub: #5a6652;
+  --pf-bg-overlay: rgba(241, 245, 239, 0.88);
 }
 
-/* Frost — steel blue + slate indigo, pale sky accents. */
+/* Frost — pale blue-white + steel blue + slate indigo + sky. */
 [data-color-scheme='frost'] {
+  /* Palette */
   --color-pf-primary: #1d4a80;
   --color-pf-primary-dark: #133560;
   --color-pf-primary-light: #2a66a8;
@@ -79,4 +122,12 @@
   --color-pf-alt: #4e5e74;
   --color-pf-alt-dark: #2e3847;
   --color-pf-alt-light: #7687a0;
+  /* Surfaces — cool pale blue-white */
+  --color-pf-bg: #f0f4f8;
+  --color-pf-bg-dark: #dce6f0;
+  --color-pf-border: #afc3d6;
+  --color-pf-text: #141c24;
+  --color-pf-text-muted: #526070;
+  --color-pf-sub: #526070;
+  --pf-bg-overlay: rgba(240, 244, 248, 0.88);
 }
