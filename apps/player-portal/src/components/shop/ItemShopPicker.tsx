@@ -379,7 +379,7 @@ export function ItemShopPicker({ items, onBuy, pending }: Props): React.ReactEle
               ref={gridRef}
               className="grid gap-2 overflow-hidden"
               style={{
-                gridTemplateColumns: 'repeat(auto-fill, minmax(9rem, 1fr))',
+                gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
                 // maxHeight is measured from the grid's live offset so
                 // the grid never extends past the viewport. Falls back
                 // to a conservative ceiling before the first measure.
