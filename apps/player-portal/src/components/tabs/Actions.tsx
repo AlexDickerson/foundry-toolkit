@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import { api } from '../../api/client';
 import type { Ability, AbilityKey, ActionItem, PreparedActorItem, Strike } from '../../api/types';
@@ -278,7 +277,6 @@ function ActionCard({
   const kind = item.system.actionType.value;
   const count = item.system.actions.value;
   const traits = item.system.traits.value;
-  const [expanded, setExpanded] = useState(false);
   const description = item.system.description?.value ?? '';
   const hasDescription = description.trim() !== '';
   const enriched = hasDescription ? enrichDescription(description) : '';
@@ -287,85 +285,60 @@ function ActionCard({
     onSuccess: onUsed,
   });
 
-  const toggle = (): void => {
-    setExpanded((v) => !v);
-  };
-
   return (
-    <li
-      className="rounded border border-pf-border bg-pf-bg"
-      data-action-id={item.id}
-      data-action-kind={kind}
-      data-expanded={expanded ? 'true' : 'false'}
-    >
-      <div className="flex items-start gap-3 px-3 py-2">
-        <img
-          src={item.img}
-          alt=""
-          className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <button
-              type="button"
-              onClick={toggle}
-              aria-expanded={expanded}
-              className="min-w-0 truncate text-left text-sm font-medium text-pf-text hover:underline"
-              data-testid="action-card-toggle"
-            >
-              {item.name}
-            </button>
-            <ActionCostBadge kind={kind} count={count} />
-            <button
-              type="button"
-              onClick={() => { use.trigger(); }}
-              disabled={use.state === 'pending'}
-              className="ml-auto rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
-              data-role="action-use"
-            >
-              {use.state === 'pending' ? 'Using…' : 'Use'}
-            </button>
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label={expanded ? 'Collapse' : 'Expand'}
-              className="text-[10px] text-pf-text-muted hover:text-pf-text"
-            >
-              {expanded ? '▾' : '▸'}
-            </button>
+    <li className="relative" data-action-id={item.id} data-action-kind={kind}>
+      <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-md">
+        <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
+          <img
+            src={item.img}
+            alt=""
+            className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 truncate text-sm font-medium text-pf-text">{item.name}</span>
+              <ActionCostBadge kind={kind} count={count} />
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); use.trigger(); }}
+                disabled={use.state === 'pending'}
+                className="ml-auto rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
+                data-role="action-use"
+              >
+                {use.state === 'pending' ? 'Using…' : 'Use'}
+              </button>
+            </div>
+            {typeof use.state === 'object' && (
+              <p className="mt-1 text-[11px] text-red-700">{use.state.error}</p>
+            )}
+            {traits.length > 0 && (
+              <ul className="mt-1 flex flex-wrap gap-1">
+                {traits.map((slug) => (
+                  <li
+                    key={slug}
+                    className="rounded-full border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[10px] text-pf-text-muted"
+                  >
+                    {capitaliseSlug(slug)}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          {typeof use.state === 'object' && (
-            <p className="mt-1 text-[11px] text-red-700">{use.state.error}</p>
-          )}
-          {traits.length > 0 && (
-            <ul className="mt-1 flex flex-wrap gap-1">
-              {traits.map((slug) => (
-                <li
-                  key={slug}
-                  className="rounded-full border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[10px] text-pf-text-muted"
-                >
-                  {capitaliseSlug(slug)}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-      {expanded && (
+        </summary>
         <div
-          className="border-t border-pf-border bg-pf-bg/60 px-3 py-2 text-sm text-pf-text"
+          className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 shadow-lg"
           data-role="action-description"
         >
           {hasDescription ? (
             <div
-              className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+              className="text-sm leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
               dangerouslySetInnerHTML={{ __html: enriched }}
             />
           ) : (
-            <p className="italic text-neutral-400">No description.</p>
+            <p className="text-sm italic text-neutral-400">No description.</p>
           )}
         </div>
-      )}
+      </details>
     </li>
   );
 }
