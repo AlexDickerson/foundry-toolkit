@@ -57,12 +57,14 @@ beforeEach(() => {
 
 describe('aggregateMonsterFacets', () => {
   it('partitions traits into rarity / size / creature-type / other buckets', () => {
+    // rarity comes from m.rarity (MCP server reads system.traits.rarity scalar),
+    // not from the traits value array.
     const out = __internal.aggregateMonsterFacets([
-      monsterMatch({ level: 1, traits: ['common', 'large', 'dragon', 'fire'] }),
-      monsterMatch({ level: 5, traits: ['uncommon', 'huge', 'dragon', 'amphibious'] }),
-      monsterMatch({ level: 10, traits: ['rare', 'medium', 'humanoid', 'aquatic'] }),
+      monsterMatch({ level: 1, rarity: 'common', traits: ['large', 'dragon', 'fire'] }),
+      monsterMatch({ level: 5, rarity: 'uncommon', traits: ['huge', 'dragon', 'amphibious'] }),
+      monsterMatch({ level: 10, rarity: 'rare', traits: ['medium', 'humanoid', 'aquatic'] }),
     ]);
-    expect(out.rarities).toEqual(['common', 'rare', 'uncommon']);
+    expect(out.rarities).toEqual(['common', 'uncommon', 'rare']);
     expect(out.sizes).toEqual(['huge', 'large', 'medium']);
     expect(out.creatureTypes).toEqual(['Dragon', 'Humanoid']);
     expect(out.traits.sort()).toEqual(['amphibious', 'aquatic', 'fire']);
@@ -72,6 +74,18 @@ describe('aggregateMonsterFacets', () => {
   it('always includes "common" even when no rows carry the tag', () => {
     const out = __internal.aggregateMonsterFacets([monsterMatch({ traits: ['dragon'] })]);
     expect(out.rarities).toContain('common');
+  });
+
+  it('reads all four rarities from m.rarity (the MCP server field)', () => {
+    const out = __internal.aggregateMonsterFacets([
+      monsterMatch({ rarity: 'unique', traits: ['dragon'] }),
+      monsterMatch({ rarity: 'common', traits: ['humanoid'] }),
+      monsterMatch({ rarity: 'uncommon', traits: ['fiend'] }),
+      monsterMatch({ rarity: 'rare', traits: ['undead'] }),
+    ]);
+    expect(out.rarities).toEqual(['common', 'uncommon', 'rare', 'unique']);
+    expect(out.traits).not.toContain('unique');
+    expect(out.traits).not.toContain('common');
   });
 
   it('produces a zero range when no rows have a level', () => {

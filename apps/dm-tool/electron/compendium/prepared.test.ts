@@ -196,6 +196,57 @@ describe('listMonsters', () => {
     expect(out.map((s) => s.name)).toEqual(['Rare']);
   });
 
+  // Rarity filter matrix: each rarity, "all selected", "none selected"
+  it.each([
+    ['common', ['Common Explicit', 'Common Implicit']],
+    ['uncommon', ['Uncommon']],
+    ['rare', ['Rare']],
+    ['unique', ['Unique']],
+  ])('rarity filter "%s" includes only matching monsters', async (rarity, expected) => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Common Explicit', rarity: 'common', level: 1 }),
+        monsterMatch({ name: 'Common Implicit', level: 2 }), // no rarity → defaults to 'common'
+        monsterMatch({ name: 'Uncommon', rarity: 'uncommon', level: 3 }),
+        monsterMatch({ name: 'Rare', rarity: 'rare', level: 4 }),
+        monsterMatch({ name: 'Unique', rarity: 'unique', level: 5 }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({ rarities: [rarity] });
+    expect(out.map((s) => s.name)).toEqual(expected);
+  });
+
+  it('shows all monsters when no rarity filter is applied (none selected)', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Common', rarity: 'common', level: 1 }),
+        monsterMatch({ name: 'Uncommon', rarity: 'uncommon', level: 2 }),
+        monsterMatch({ name: 'Rare', rarity: 'rare', level: 3 }),
+        monsterMatch({ name: 'Unique', rarity: 'unique', level: 4 }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({});
+    expect(out.map((s) => s.name)).toEqual(['Common', 'Uncommon', 'Rare', 'Unique']);
+  });
+
+  it('shows all monsters when all four rarities are selected', async () => {
+    const search = vi.fn().mockResolvedValue({
+      matches: [
+        monsterMatch({ name: 'Common', rarity: 'common', level: 1 }),
+        monsterMatch({ name: 'Uncommon', rarity: 'uncommon', level: 2 }),
+        monsterMatch({ name: 'Rare', rarity: 'rare', level: 3 }),
+        monsterMatch({ name: 'Unique', rarity: 'unique', level: 4 }),
+      ],
+    });
+    const api = fakeApi({ searchCompendium: search });
+    const out = await createPreparedCompendium(api).listMonsters({
+      rarities: ['common', 'uncommon', 'rare', 'unique'],
+    });
+    expect(out.map((s) => s.name)).toEqual(['Common', 'Uncommon', 'Rare', 'Unique']);
+  });
+
   it('filters by size client-side', async () => {
     const search = vi.fn().mockResolvedValue({
       matches: [

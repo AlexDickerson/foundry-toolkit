@@ -48,6 +48,7 @@ const KNOWN_CREATURE_TYPES = [
 ];
 
 const RARITY_TRAITS = new Set(['common', 'uncommon', 'rare', 'unique']);
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'unique'];
 const SIZE_TRAITS = new Set(['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']);
 
 let monsterCache: MonsterFacets | null = null;
@@ -75,11 +76,17 @@ function aggregateMonsterFacets(matches: CompendiumMatch[]): MonsterFacets {
       if (m.level < minLevel) minLevel = m.level;
       if (m.level > maxLevel) maxLevel = m.level;
     }
+    // Rarity is stored in system.traits.rarity (a scalar) by the MCP server,
+    // not in the traits value array. Read the dedicated field first; fall back
+    // to scanning traits for legacy / alternative data sources.
+    if (m.rarity) {
+      rarities.add(m.rarity.toLowerCase());
+    }
     const mTraits = m.traits ?? [];
     for (const t of mTraits) {
       const lower = t.toLowerCase();
       if (RARITY_TRAITS.has(lower)) {
-        rarities.add(lower);
+        rarities.add(lower); // fallback: rarity string present in traits array
       } else if (SIZE_TRAITS.has(lower)) {
         sizes.add(lower);
       } else if (KNOWN_CREATURE_TYPES.includes(lower)) {
@@ -95,7 +102,7 @@ function aggregateMonsterFacets(matches: CompendiumMatch[]): MonsterFacets {
   if (rarities.size === 0) rarities.add('common');
 
   return {
-    rarities: [...rarities].sort(),
+    rarities: [...rarities].sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b)),
     sizes: [...sizes].sort(),
     creatureTypes: [...creatureTypes].sort(),
     traits: [...traits].sort(),

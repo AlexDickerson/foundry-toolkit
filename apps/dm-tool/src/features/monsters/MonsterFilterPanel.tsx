@@ -8,11 +8,18 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import type { MonsterFacets, MonsterSearchParams } from '@foundry-toolkit/shared/types';
 
-const RARITY_COLORS: Record<string, string> = {
-  common: 'border-zinc-500 bg-zinc-500/10',
-  uncommon: 'border-amber-500 bg-amber-500/10',
-  rare: 'border-blue-500 bg-blue-500/10',
-  unique: 'border-purple-500 bg-purple-500/10',
+const RARITY_BORDER: Record<string, string> = {
+  common: 'border-zinc-500',
+  uncommon: 'border-amber-500',
+  rare: 'border-blue-500',
+  unique: 'border-purple-500',
+};
+
+const RARITY_FILL: Record<string, string> = {
+  common: 'bg-zinc-500 text-white',
+  uncommon: 'bg-amber-600 text-white',
+  rare: 'bg-blue-600 text-white',
+  unique: 'bg-purple-600 text-white',
 };
 
 const SIZE_ORDER = ['tiny', 'small', 'med', 'medium', 'large', 'huge', 'gargantuan'];
@@ -61,9 +68,12 @@ export function MonsterFilterPanel({ facets, params, onChange }: Props) {
     <div className="flex h-full flex-col border-r border-border bg-card">
       <div className="flex h-12 shrink-0 items-center justify-between px-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs" style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>
+          <Label
+            className="text-sm tracking-wide text-foreground"
+            style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}
+          >
             Filters
-          </span>
+          </Label>
           {activeCount > 0 && (
             <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
               {activeCount}
@@ -127,9 +137,10 @@ export function MonsterFilterPanel({ facets, params, onChange }: Props) {
                       onClick={() => toggleArray('rarities', r)}
                       className={cn(
                         'rounded-md border px-2 py-0.5 text-xs capitalize transition-colors',
+                        RARITY_BORDER[r.toLowerCase()] ?? 'border-border',
                         active
-                          ? (RARITY_COLORS[r.toLowerCase()] ?? 'border-primary bg-primary/10')
-                          : 'border-border bg-background hover:bg-accent',
+                          ? (RARITY_FILL[r.toLowerCase()] ?? 'bg-primary text-primary-foreground')
+                          : 'bg-background hover:bg-accent',
                       )}
                     >
                       {r}

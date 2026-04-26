@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { ItemFacets, ItemSearchParams } from '@foundry-toolkit/shared/types';
 
@@ -17,18 +17,18 @@ interface ItemFilterPanelProps {
 
 const RARITY_OPTS = ['COMMON', 'UNCOMMON', 'RARE', 'UNIQUE'] as const;
 
-const RARITY_COLORS: Record<string, string> = {
-  COMMON: 'border-border bg-background hover:bg-accent',
-  UNCOMMON: 'border-orange-600/40 bg-orange-950/30 hover:bg-orange-950/50 text-orange-300',
-  RARE: 'border-blue-600/40 bg-blue-950/30 hover:bg-blue-950/50 text-blue-300',
-  UNIQUE: 'border-purple-600/40 bg-purple-950/30 hover:bg-purple-950/50 text-purple-300',
+const RARITY_BORDER: Record<string, string> = {
+  COMMON: 'border-zinc-500',
+  UNCOMMON: 'border-amber-500',
+  RARE: 'border-blue-500',
+  UNIQUE: 'border-purple-500',
 };
 
-const RARITY_ACTIVE: Record<string, string> = {
-  COMMON: 'border-primary bg-primary text-primary-foreground',
-  UNCOMMON: 'border-orange-500 bg-orange-600 text-white',
-  RARE: 'border-blue-500 bg-blue-600 text-white',
-  UNIQUE: 'border-purple-500 bg-purple-600 text-white',
+const RARITY_FILL: Record<string, string> = {
+  COMMON: 'bg-zinc-500 text-white',
+  UNCOMMON: 'bg-amber-600 text-white',
+  RARE: 'bg-blue-600 text-white',
+  UNIQUE: 'bg-purple-600 text-white',
 };
 
 export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelProps) {
@@ -58,14 +58,6 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
 
   const setMagical = (value: boolean | null) => {
     onChange({ ...params, isMagical: params.isMagical === value ? null : value });
-  };
-
-  const setLevelRange = (values: number[]) => {
-    onChange({
-      ...params,
-      levelMin: values[0] === 0 ? undefined : values[0],
-      levelMax: values[1] === 28 ? undefined : values[1],
-    });
   };
 
   const activeCount = useMemo(() => {
@@ -108,10 +100,40 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
       <Separator variant="ornate" />
       <ScrollArea className="flex-1">
         <div className="space-y-4 p-3">
-          {/* Rarity pills */}
-          <div>
-            <SectionLabel>Rarity</SectionLabel>
-            <div className="mt-1.5 flex flex-wrap gap-1">
+          {/* Level range */}
+          <section>
+            <SectionHeader>Level</SectionHeader>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                placeholder="0"
+                value={params.levelMin ?? ''}
+                onChange={(e) => {
+                  const min = e.target.value === '' ? undefined : Number(e.target.value);
+                  onChange({ ...params, levelMin: min });
+                }}
+                className="h-7 w-16 px-1.5 text-xs"
+              />
+              <span className="text-xs text-muted-foreground">to</span>
+              <Input
+                type="number"
+                placeholder="28"
+                value={params.levelMax ?? ''}
+                onChange={(e) => {
+                  const max = e.target.value === '' ? undefined : Number(e.target.value);
+                  onChange({ ...params, levelMax: max });
+                }}
+                className="h-7 w-16 px-1.5 text-xs"
+              />
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* Rarity */}
+          <section>
+            <SectionHeader count={params.rarities?.length}>Rarity</SectionHeader>
+            <div className="flex flex-wrap gap-1">
               {RARITY_OPTS.map((r) => {
                 const active = params.rarities?.includes(r) ?? false;
                 return (
@@ -121,7 +143,10 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
                     onClick={() => toggleRarity(r)}
                     className={cn(
                       'rounded-md border px-2 py-1 text-xs capitalize transition-colors',
-                      active ? RARITY_ACTIVE[r] : RARITY_COLORS[r],
+                      RARITY_BORDER[r] ?? 'border-border',
+                      active
+                        ? (RARITY_FILL[r] ?? 'bg-primary text-primary-foreground')
+                        : 'bg-background hover:bg-accent',
                     )}
                   >
                     {r.toLowerCase()}
@@ -129,38 +154,18 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
                 );
               })}
             </div>
-          </div>
-
-          <Separator />
-
-          {/* Level range */}
-          <div>
-            <div className="flex items-center justify-between">
-              <SectionLabel>Level</SectionLabel>
-              <span className="text-[10px] tabular-nums text-muted-foreground">
-                {params.levelMin ?? 0} – {params.levelMax ?? 28}
-              </span>
-            </div>
-            <Slider
-              className="mt-2"
-              min={0}
-              max={28}
-              step={1}
-              value={[params.levelMin ?? 0, params.levelMax ?? 28]}
-              onValueChange={setLevelRange}
-            />
-          </div>
+          </section>
 
           <Separator />
 
           {/* Magical / Mundane */}
-          <div>
-            <SectionLabel>Type</SectionLabel>
-            <div className="mt-1.5 flex gap-1">
+          <section>
+            <SectionHeader>Type</SectionHeader>
+            <div className="flex gap-1">
               <PillButton label="Magical" active={params.isMagical === true} onClick={() => setMagical(true)} />
               <PillButton label="Mundane" active={params.isMagical === false} onClick={() => setMagical(false)} />
             </div>
-          </div>
+          </section>
 
           <Separator />
 
@@ -208,14 +213,15 @@ export function ItemFilterPanel({ facets, params, onChange }: ItemFilterPanelPro
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionHeader({ children, count }: { children: React.ReactNode; count?: number }) {
   return (
-    <Label
-      className="text-[10px] uppercase tracking-wider text-muted-foreground"
+    <h3
+      className="mb-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground"
       style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}
     >
       {children}
-    </Label>
+      {count != null && count > 0 && <span className="text-[10px] font-normal text-primary">{count}</span>}
+    </h3>
   );
 }
 
@@ -245,17 +251,9 @@ function CheckboxGroup({
   selected: string[];
   onToggle: (v: string) => void;
 }) {
-  const selectedCount = selected.length;
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <SectionLabel>{label}</SectionLabel>
-        {selectedCount > 0 && (
-          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
-            {selectedCount}
-          </span>
-        )}
-      </div>
+    <section>
+      <SectionHeader count={selected.length}>{label}</SectionHeader>
       <div className="space-y-1 pl-1">
         {values.map((v) => {
           const checked = selected.includes(v);
@@ -270,7 +268,7 @@ function CheckboxGroup({
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -291,30 +289,28 @@ function CollapsibleCheckboxGroup({
 }) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const [showAll, setShowAll] = useState(false);
-  const selectedCount = selected.length;
   const displayValues = showAll ? values : values.slice(0, showCount);
   const hasMore = values.length > showCount;
 
   return (
-    <div>
+    <section>
       <button
         type="button"
-        className="mb-2 flex w-full items-center justify-between"
+        className="mb-1.5 flex w-full items-center justify-between"
         onClick={() => setExpanded((e) => !e)}
       >
-        <div className="flex items-center gap-1.5">
+        <span
+          className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground"
+          style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}
+        >
           {expanded ? (
             <ChevronDown className="h-3 w-3 text-muted-foreground" />
           ) : (
             <ChevronRight className="h-3 w-3 text-muted-foreground" />
           )}
-          <SectionLabel>{label}</SectionLabel>
-        </div>
-        {selectedCount > 0 && (
-          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
-            {selectedCount}
-          </span>
-        )}
+          {label}
+        </span>
+        {selected.length > 0 && <span className="text-[10px] font-normal text-primary">{selected.length}</span>}
       </button>
       {expanded && (
         <div className="space-y-1 pl-1">
@@ -341,7 +337,7 @@ function CollapsibleCheckboxGroup({
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
