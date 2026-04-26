@@ -409,12 +409,12 @@ function CategorizedInventory({
     return <p className="text-sm text-pf-text-muted">No items yet.</p>;
   }
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4">
       {presentCategories.map((category) => {
         const bucket = buckets.get(category) ?? [];
         return (
           <div key={category} data-category={category}>
-            <SectionHeader>{CATEGORY_LABEL[category]}</SectionHeader>
+            <SectionHeader band>{CATEGORY_LABEL[category]}</SectionHeader>
             {view === 'list' ? (
               <ul className="space-y-1.5">
                 {bucket.map((item) => (

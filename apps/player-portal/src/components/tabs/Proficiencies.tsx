@@ -25,34 +25,38 @@ export function Proficiencies({ system }: Props): React.ReactElement {
   const showSpellcasting = system.proficiencies.spellcasting.rank > 0;
 
   return (
-    <section className="space-y-6">
-      <SectionHeader>{t('PF2E.Actor.Character.Proficiency.Attack.Title')}</SectionHeader>
-      <ProficiencyGrid>
-        {attacks.map(([slug, prof]) => (
-          <MartialRow
-            key={`atk-${slug}`}
-            slug={slug}
-            prof={prof}
-            label={resolveMartialLabel(slug, prof.label, ATTACK_LABEL_KEY)}
-          />
-        ))}
-      </ProficiencyGrid>
+    <section className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4">
+      <div>
+        <SectionHeader band>{t('PF2E.Actor.Character.Proficiency.Attack.Title')}</SectionHeader>
+        <ProficiencyGrid>
+          {attacks.map(([slug, prof]) => (
+            <MartialRow
+              key={`atk-${slug}`}
+              slug={slug}
+              prof={prof}
+              label={resolveMartialLabel(slug, prof.label, ATTACK_LABEL_KEY)}
+            />
+          ))}
+        </ProficiencyGrid>
+      </div>
 
-      <SectionHeader>{t('PF2E.Actor.Character.Proficiency.Defense.Title')}</SectionHeader>
-      <ProficiencyGrid>
-        {defenses.map(([slug, prof]) => (
-          <MartialRow
-            key={`def-${slug}`}
-            slug={slug}
-            prof={prof}
-            label={resolveMartialLabel(slug, prof.label, DEFENSE_LABEL_KEY)}
-          />
-        ))}
-      </ProficiencyGrid>
+      <div>
+        <SectionHeader band>{t('PF2E.Actor.Character.Proficiency.Defense.Title')}</SectionHeader>
+        <ProficiencyGrid>
+          {defenses.map(([slug, prof]) => (
+            <MartialRow
+              key={`def-${slug}`}
+              slug={slug}
+              prof={prof}
+              label={resolveMartialLabel(slug, prof.label, DEFENSE_LABEL_KEY)}
+            />
+          ))}
+        </ProficiencyGrid>
+      </div>
 
       {showSpellcasting && (
-        <>
-          <SectionHeader>{t('PF2E.Item.Spell.Plural')}</SectionHeader>
+        <div>
+          <SectionHeader band>{t('PF2E.Item.Spell.Plural')}</SectionHeader>
           <ProficiencyGrid>
             <MartialRow
               slug="spellcasting"
@@ -65,18 +69,18 @@ export function Proficiencies({ system }: Props): React.ReactElement {
               spanFull
             />
           </ProficiencyGrid>
-        </>
+        </div>
       )}
 
       {classDCs.length > 0 && (
-        <>
-          <SectionHeader>{t('PF2E.Actor.Character.ClassDC.Plural')}</SectionHeader>
+        <div>
+          <SectionHeader band>{t('PF2E.Actor.Character.ClassDC.Plural')}</SectionHeader>
           <ProficiencyGrid>
             {classDCs.map((classDC) => (
               <ClassDCRow key={classDC.slug} classDC={classDC} spanFull={classDCs.length === 1} />
             ))}
           </ProficiencyGrid>
-        </>
+        </div>
       )}
     </section>
   );

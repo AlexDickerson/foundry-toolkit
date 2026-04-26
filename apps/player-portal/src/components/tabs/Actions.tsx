@@ -35,10 +35,10 @@ export function Actions({ actions, items, abilities, actorId, onItemUsed }: Prop
   }
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4">
       {strikes.length > 0 && (
         <div>
-          <SectionHeader>Strikes</SectionHeader>
+          <SectionHeader band>Strikes</SectionHeader>
           <ul className="space-y-2">
             {strikes.map((strike) => (
               <StrikeCard key={strike.slug} strike={strike} abilities={abilities} actorId={actorId} />
@@ -275,7 +275,7 @@ function ActionSection({
   if (items.length === 0) return null;
   return (
     <div data-action-section={kind}>
-      <SectionHeader>{title}</SectionHeader>
+      <SectionHeader band>{title}</SectionHeader>
       <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {items.map((item) => (
           <ActionCard key={item.id} item={item} actorId={actorId} onUsed={onUsed} />

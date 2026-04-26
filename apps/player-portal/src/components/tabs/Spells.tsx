@@ -41,7 +41,7 @@ export function Spells({ items, characterLevel, actorId, onCast, focusPoints }: 
 
   return (
     <section
-      className="space-y-8"
+      className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4"
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
@@ -58,7 +58,7 @@ export function Spells({ items, characterLevel, actorId, onCast, focusPoints }: 
       ))}
       {orphans.length > 0 && (
         <div data-testid="spells-orphans">
-          <SectionHeader>Orphaned Spells</SectionHeader>
+          <SectionHeader band>Orphaned Spells</SectionHeader>
           {/* Orphaned spells have no entry context — render read-only. */}
           <RankedSpellList spells={orphans} characterLevel={characterLevel} />
         </div>
@@ -97,10 +97,10 @@ function EntryBlock({
 
   return (
     <div data-spellcasting-entry-id={entry.id}>
-      <div className="mb-2 flex flex-wrap items-baseline gap-x-2 border-b border-pf-border pb-1">
-        <h2 className="font-serif text-base font-semibold text-pf-text">{entry.name}</h2>
+      <div className="-mx-4 -mt-4 mb-3 flex flex-wrap items-center gap-x-2 rounded-t-lg border-b border-pf-border bg-pf-bg px-4 pb-2.5 pt-3">
+        <h2 className="font-serif text-sm font-bold uppercase tracking-wider text-pf-alt-dark">{entry.name}</h2>
         {meta.length > 0 && (
-          <span className="text-[10px] uppercase tracking-widest text-pf-alt-dark">{meta.join(' · ')}</span>
+          <span className="text-[10px] uppercase tracking-widest text-pf-text-muted">{meta.join(' · ')}</span>
         )}
         {isFocus && focusPoints.max > 0 && (
           <FocusControl focusPoints={focusPoints} actorId={actorId} onChanged={onCast} />

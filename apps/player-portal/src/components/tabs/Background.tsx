@@ -13,8 +13,6 @@ interface Props {
 export function Background({ details, traits }: Props): React.ReactElement {
   const bio = details.biography;
   const languages = details.languages.value;
-  const hasIdentity = languages.length > 0 || traits.length > 0;
-
   if (!hasAnyBackgroundContent(details, traits)) {
     return (
       <section className="space-y-6" data-section="background-empty">
@@ -25,8 +23,9 @@ export function Background({ details, traits }: Props): React.ReactElement {
     );
   }
   return (
-    <section className="space-y-6">
-      {hasIdentity && <IdentityBlock languages={languages} traits={traits} />}
+    <section className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4">
+      {languages.length > 0 && <LanguagesBlock languages={languages} />}
+      {traits.length > 0 && <TraitsBlock traits={traits} />}
       <DemographicsBlock details={details} />
       <TextBlock title="Appearance" html={bio.appearance} />
       <TextBlock title="Backstory" html={bio.backstory} dataSection="backstory" />
@@ -72,39 +71,38 @@ function hasAnyBackgroundContent(details: CharacterDetails, traits: string[]): b
 
 // ─── Sub-sections ──────────────────────────────────────────────────────
 
-function IdentityBlock({ languages, traits }: { languages: string[]; traits: string[] }): React.ReactElement {
+function LanguagesBlock({ languages }: { languages: string[] }): React.ReactElement {
   return (
-    <div data-section="identity">
-      {languages.length > 0 && (
-        <div className="mb-4">
-          <SectionHeader>Languages</SectionHeader>
-          <ul className="flex flex-wrap gap-1.5">
-            {languages.map((lang) => (
-              <li
-                key={lang}
-                className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-2.5 py-0.5 text-xs text-pf-alt-dark"
-              >
-                {humaniseSlug(lang)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {traits.length > 0 && (
-        <div>
-          <SectionHeader>Traits</SectionHeader>
-          <ul className="flex flex-wrap gap-1.5">
-            {traits.map((trait) => (
-              <li
-                key={trait}
-                className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-2.5 py-0.5 text-xs text-pf-alt-dark"
-              >
-                {humaniseSlug(trait)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+    <div data-section="languages">
+      <SectionHeader band>Languages</SectionHeader>
+      <ul className="flex flex-wrap gap-1.5">
+        {languages.map((lang) => (
+          <li
+            key={lang}
+            className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-2.5 py-0.5 text-xs text-pf-alt-dark"
+          >
+            {humaniseSlug(lang)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TraitsBlock({ traits }: { traits: string[] }): React.ReactElement {
+  return (
+    <div data-section="traits">
+      <SectionHeader band>Traits</SectionHeader>
+      <ul className="flex flex-wrap gap-1.5">
+        {traits.map((trait) => (
+          <li
+            key={trait}
+            className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-2.5 py-0.5 text-xs text-pf-alt-dark"
+          >
+            {humaniseSlug(trait)}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -131,11 +129,11 @@ function DemographicsBlock({ details }: { details: CharacterDetails }): React.Re
   if (populated.length === 0) return null;
   return (
     <div data-section="demographics">
-      <SectionHeader>Demographics</SectionHeader>
+      <SectionHeader band>Demographics</SectionHeader>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-3">
         {populated.map(([label, value]) => (
           <div key={label} className="flex items-baseline gap-2" data-field={label.toLowerCase()}>
-            <dt className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">{label}</dt>
+            <dt className="text-[10px] font-semibold uppercase tracking-widest text-pf-text-muted">{label}</dt>
             <dd className="text-pf-text">{value}</dd>
           </div>
         ))}
@@ -156,7 +154,7 @@ function PersonalityBlock({ bio }: { bio: CharacterBiography }): React.ReactElem
   if (populated.length === 0) return null;
   return (
     <div data-section="personality">
-      <SectionHeader>Personality</SectionHeader>
+      <SectionHeader band>Personality</SectionHeader>
       <dl className="space-y-1.5 text-sm">
         {populated.map(([label, value]) => (
           <div key={label} className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
@@ -175,7 +173,7 @@ function EdictsAnathemaBlock({ bio }: { bio: CharacterBiography }): React.ReactE
   if (bio.edicts.length === 0 && bio.anathema.length === 0) return null;
   return (
     <div data-section="edicts-anathema">
-      <SectionHeader>Edicts &amp; Anathema</SectionHeader>
+      <SectionHeader band>Edicts &amp; Anathema</SectionHeader>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <ListCol label="Edicts" entries={bio.edicts} />
         <ListCol label="Anathema" entries={bio.anathema} />
@@ -188,7 +186,7 @@ function ListCol({ label, entries }: { label: string; entries: string[] }): Reac
   if (entries.length === 0) return null;
   return (
     <div data-list={label.toLowerCase()}>
-      <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-neutral-600">{label}</h3>
+      <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">{label}</h3>
       <ul className="list-disc space-y-0.5 pl-5 text-sm text-pf-text">
         {entries.map((e, i) => (
           <li key={`${label}-${i.toString()}`}>{e}</li>
@@ -208,7 +206,7 @@ function SocialBlock({ bio }: { bio: CharacterBiography }): React.ReactElement |
   if (populated.length === 0) return null;
   return (
     <div data-section="social">
-      <SectionHeader>Connections</SectionHeader>
+      <SectionHeader band>Connections</SectionHeader>
       <dl className="space-y-1.5 text-sm">
         {populated.map(([label, value]) => (
           <div key={label} className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
@@ -235,7 +233,7 @@ function TextBlock({
   if (html.trim() === '') return null;
   return (
     <div data-section={dataSection ?? title.toLowerCase()}>
-      <SectionHeader>{title}</SectionHeader>
+      <SectionHeader band>{title}</SectionHeader>
       <div
         className="max-w-none text-sm leading-relaxed text-pf-text [&_p]:my-2 [&_p]:leading-relaxed"
         // Safe: source is our own Foundry world, not untrusted user input.

@@ -102,7 +102,7 @@ describe('Background tab', () => {
       age: { value: '' },
       height: { value: '' },
       weight: { value: '' },
-      languages: { value: [] },
+      languages: { value: [], details: '' },
       biography: {
         ...details.biography,
         birthPlace: '',

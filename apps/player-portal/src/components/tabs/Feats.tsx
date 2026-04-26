@@ -30,7 +30,7 @@ export function Feats({ items }: Props): React.ReactElement {
 
   return (
     <section
-      className="space-y-6"
+      className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4"
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
@@ -40,9 +40,9 @@ export function Feats({ items }: Props): React.ReactElement {
         if (inCategory.length === 0 && !isCanonical) return null;
         return (
           <div key={category} data-feat-category={category}>
-            <SectionHeader>{FEAT_CATEGORY_LABEL[category] ?? category}</SectionHeader>
+            <SectionHeader band>{FEAT_CATEGORY_LABEL[category] ?? category}</SectionHeader>
             {inCategory.length === 0 ? (
-              <p className="text-xs italic text-neutral-400">None yet</p>
+              <p className="text-xs italic text-pf-text-muted">None yet</p>
             ) : (
               <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {inCategory.map((feat) => (
@@ -152,7 +152,7 @@ function renderUnknownCategories(grouped: Map<string, FeatItem[]>): React.ReactE
     <>
       {extras.map(([category, feats]) => (
         <div key={category} data-feat-category={category}>
-          <SectionHeader>{FEAT_CATEGORY_LABEL[category] ?? capitaliseSlug(category)}</SectionHeader>
+          <SectionHeader band>{FEAT_CATEGORY_LABEL[category] ?? capitaliseSlug(category)}</SectionHeader>
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {feats.map((feat) => (
               <FeatCard key={feat.id} feat={feat} />
