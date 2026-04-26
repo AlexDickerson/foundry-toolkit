@@ -836,10 +836,11 @@ export interface ElectronAPI {
    *  Returns null when foundryMcpUrl is not configured or the bridge is
    *  disconnected. */
   getActorSpellcasting(actorId: string): Promise<ActorSpellcasting | null>;
-  /** Subscribe to live HP updates from Foundry. Fires whenever an actor's
-   *  HP changes while the `actors` SSE channel is active. Returns an
-   *  unsubscribe function. */
-  onActorHpUpdated(callback: (update: ActorHpUpdate) => void): () => void;
+  /** Subscribe to live actor state changes from Foundry via the `actors`
+   *  SSE channel. Fires on any `updateActor` hook; `changedPaths` lets
+   *  handlers filter to the fields they care about. Returns an unsubscribe
+   *  function. */
+  onActorUpdated(callback: (update: ActorUpdate) => void): () => void;
 }
 
 // --- Party inventory ---------------------------------------------------------
@@ -954,11 +955,14 @@ export interface Combatant {
 }
 
 /** Payload pushed from the Electron main process to the renderer whenever
- *  a Foundry actor's HP changes via the `actors` SSE channel. */
-export interface ActorHpUpdate {
+ *  a Foundry actor changes via the `actors` SSE channel. `changedPaths` is
+ *  the dot-notation diff from the `updateActor` hook; `system` is the full
+ *  PF2e `actor.getRollData()` snapshot at the time of the event. Renderer
+ *  hooks filter by path and extract the fields they care about. */
+export interface ActorUpdate {
   actorId: string;
-  hp: number;
-  maxHp: number;
+  changedPaths: string[];
+  system: Record<string, unknown>;
 }
 
 /** One monster combatant successfully turned into a Foundry actor. */

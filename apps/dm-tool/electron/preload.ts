@@ -8,8 +8,8 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
-  ActorHpUpdate,
   ActorSpellcasting,
+  ActorUpdate,
   AonPreviewData,
   AurusTeam,
   Encounter,
@@ -177,10 +177,10 @@ const api: ElectronAPI = {
   aurusDelete: (id: string): Promise<void> => ipcRenderer.invoke('aurusDelete', id),
 
   // Combat tracker (DM-side only — no sidecar push)
-  onActorHpUpdated: (callback: (update: ActorHpUpdate) => void): (() => void) => {
-    const handler = (_event: unknown, update: ActorHpUpdate) => callback(update);
-    ipcRenderer.on('actor-hp-updated', handler);
-    return () => ipcRenderer.removeListener('actor-hp-updated', handler);
+  onActorUpdated: (callback: (update: ActorUpdate) => void): (() => void) => {
+    const handler = (_event: unknown, update: ActorUpdate) => callback(update);
+    ipcRenderer.on('actor-updated', handler);
+    return () => ipcRenderer.removeListener('actor-updated', handler);
   },
   encountersList: (): Promise<Encounter[]> => ipcRenderer.invoke('encountersList'),
   encountersUpsert: (enc: Encounter): Promise<void> => ipcRenderer.invoke('encountersUpsert', enc),

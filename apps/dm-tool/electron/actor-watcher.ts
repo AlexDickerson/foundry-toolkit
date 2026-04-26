@@ -1,10 +1,5 @@
 import type { BrowserWindow } from 'electron';
-import type { ActorHpUpdate } from '@foundry-toolkit/shared/types';
-
-/** Returns true when a Foundry update-diff path indicates an HP change. */
-export function isHpPath(path: string): boolean {
-  return path === 'system.attributes.hp' || path.startsWith('system.attributes.hp.');
-}
+import type { ActorUpdate } from '@foundry-toolkit/shared/types';
 
 interface ActorsEvent {
   actorId: string;
@@ -22,31 +17,29 @@ export function parseActorsEvent(raw: string): ActorsEvent | null {
   }
 }
 
-async function fetchActorHp(base: string, actorId: string, signal: AbortSignal): Promise<ActorHpUpdate | null> {
+async function fetchActorSystem(
+  base: string,
+  actorId: string,
+  signal: AbortSignal,
+): Promise<Record<string, unknown> | null> {
   try {
     const res = await fetch(`${base}/api/actors/${actorId}`, { signal });
     if (!res.ok) {
-      console.warn(`actor-hp-watcher: GET /api/actors/${actorId} returned HTTP ${res.status}`);
+      console.warn(`actor-watcher: GET /api/actors/${actorId} returned HTTP ${res.status}`);
       return null;
     }
     const actor = (await res.json()) as { system?: unknown };
-    const sys = actor.system as Record<string, unknown> | undefined;
-    const attrs = sys?.['attributes'] as Record<string, unknown> | undefined;
-    const hpBlock = attrs?.['hp'] as Record<string, unknown> | undefined;
-    const hp = hpBlock?.['value'];
-    const maxHp = hpBlock?.['max'];
-    if (typeof hp !== 'number' || typeof maxHp !== 'number') return null;
-    return { actorId, hp, maxHp };
+    return (actor.system as Record<string, unknown> | undefined) ?? null;
   } catch (e) {
     const err = e as Error;
     if (err.name !== 'AbortError') {
-      console.warn(`actor-hp-watcher: error fetching actor ${actorId}:`, err.message);
+      console.warn(`actor-watcher: error fetching actor ${actorId}:`, err.message);
     }
     return null;
   }
 }
 
-async function runStream(base: string, signal: AbortSignal, onUpdate: (u: ActorHpUpdate) => void): Promise<void> {
+async function runStream(base: string, signal: AbortSignal, onUpdate: (u: ActorUpdate) => void): Promise<void> {
   const res = await fetch(`${base}/api/events/actors/stream`, {
     signal,
     headers: { Accept: 'text/event-stream' },
@@ -69,11 +62,10 @@ async function runStream(base: string, signal: AbortSignal, onUpdate: (u: ActorH
         const trimmed = line.trimEnd();
         if (!trimmed.startsWith('data:')) continue;
         const evt = parseActorsEvent(trimmed.slice(5).trim());
-        if (evt && evt.changedPaths.some(isHpPath)) {
-          void fetchActorHp(base, evt.actorId, signal).then((u) => {
-            if (u) onUpdate(u);
-          });
-        }
+        if (!evt) continue;
+        void fetchActorSystem(base, evt.actorId, signal).then((system) => {
+          if (system) onUpdate({ actorId: evt.actorId, changedPaths: evt.changedPaths, system });
+        });
       }
     }
   } finally {
@@ -81,17 +73,17 @@ async function runStream(base: string, signal: AbortSignal, onUpdate: (u: ActorH
   }
 }
 
-export function startActorHpWatcher(
+export function startActorWatcher(
   foundryMcpUrl: string,
   getMainWindow: () => BrowserWindow | null,
 ): { stop: () => void } {
   const controller = new AbortController();
   const base = foundryMcpUrl.replace(/\/$/, '');
 
-  const onUpdate = (update: ActorHpUpdate) => {
+  const onUpdate = (update: ActorUpdate) => {
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
-      win.webContents.send('actor-hp-updated', update);
+      win.webContents.send('actor-updated', update);
     }
   };
 
@@ -101,7 +93,7 @@ export function startActorHpWatcher(
         await runStream(base, controller.signal, onUpdate);
       } catch (e) {
         if (controller.signal.aborted) break;
-        console.warn('actor-hp-watcher: stream disconnected, retrying in 5s:', (e as Error).message);
+        console.warn('actor-watcher: stream disconnected, retrying in 5s:', (e as Error).message);
         await new Promise<void>((resolve) => {
           const t = setTimeout(resolve, 5_000);
           controller.signal.addEventListener(
