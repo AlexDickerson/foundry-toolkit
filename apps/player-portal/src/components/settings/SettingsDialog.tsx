@@ -129,6 +129,9 @@ export function SettingsDialog({
               {COLOR_SCHEMES.map((s) => {
                 const active = s.id === colorScheme;
                 return (
+                  // data-color-scheme scopes this button's CSS variables to its
+                  // own palette, so the swatch and active-state colours are live
+                  // and always correct — no hardcoded hex needed.
                   <button
                     key={s.id}
                     type="button"
@@ -136,31 +139,31 @@ export function SettingsDialog({
                       onColorSchemeChange(s.id);
                     }}
                     aria-pressed={active}
-                    data-scheme={s.id}
+                    data-color-scheme={s.id}
                     className={[
                       'flex items-center gap-2 rounded border px-2.5 py-1.5 text-sm transition-colors',
                       active
                         ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
-                        : 'border-pf-border bg-white text-pf-text hover:bg-pf-bg-dark/40',
+                        : 'border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg-dark/40',
                     ].join(' ')}
                   >
                     <span
                       aria-hidden
-                      className="inline-block h-3.5 w-3.5 rounded-full border border-pf-border"
-                      style={{ background: s.swatch }}
+                      className="inline-block h-3.5 w-3.5 rounded-full border border-pf-primary-dark/40"
+                      style={{ background: 'var(--color-pf-primary)' }}
                     />
                     {s.label}
                   </button>
                 );
               })}
             </div>
-            <p className="text-[11px] text-pf-alt">Recolors the primary/secondary/tertiary palette used across the sheet.</p>
+            <p className="text-[11px] text-pf-alt">Controls the sheet's surface and accent palette. The nav dark mode toggle is independent.</p>
           </section>
 
           <section className="flex flex-col gap-2 border-t border-pf-border/60 pt-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-pf-alt-dark">Sheet Background</p>
             {backgroundPath && (
-              <div className="flex items-center gap-2 rounded border border-pf-border bg-white/60 p-2">
+              <div className="flex items-center gap-2 rounded border border-pf-border bg-pf-bg p-2">
                 <div
                   aria-hidden
                   className="h-10 w-16 rounded border border-pf-border bg-cover bg-center"
@@ -204,7 +207,7 @@ export function SettingsDialog({
                     void handleClear();
                   }}
                   data-testid="background-clear"
-                  className="rounded border border-pf-border bg-white px-3 py-1.5 text-xs text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
+                  className="rounded border border-pf-border bg-pf-bg px-3 py-1.5 text-xs text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
                 >
                   Remove
                 </button>

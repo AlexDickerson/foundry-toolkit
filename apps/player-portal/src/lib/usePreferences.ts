@@ -4,11 +4,15 @@ import { useCallback, useEffect, useState } from 'react';
 // survive reloads. Currently just the color scheme; add more fields
 // alongside as the settings dialog grows.
 
+// Swatch colors are intentionally absent — the SettingsDialog renders each
+// button with data-color-scheme set so var(--color-pf-primary) resolves live
+// from CSS. Adding a new theme: add a block to color-schemes.css + one entry here.
 export const COLOR_SCHEMES = [
-  { id: 'classic', label: 'Classic', swatch: '#5e0000' },
-  { id: 'arcane', label: 'Arcane', swatch: '#4a1a6b' },
-  { id: 'verdant', label: 'Verdant', swatch: '#1f4e2b' },
-  { id: 'frost', label: 'Frost', swatch: '#1d4a80' },
+  { id: 'classic', label: 'Classic' },
+  { id: 'arcane', label: 'Arcane' },
+  { id: 'verdant', label: 'Verdant' },
+  { id: 'frost', label: 'Frost' },
+  { id: 'dark', label: 'Dark' },
 ] as const;
 
 export type ColorScheme = (typeof COLOR_SCHEMES)[number]['id'];
@@ -39,13 +43,9 @@ export function usePreferences(): {
 
   // Reflect the scheme onto <html data-color-scheme="..."> so the CSS
   // overrides in styles/color-schemes.css cascade into every component.
+  // Classic now has its own CSS block, so we always setAttribute.
   useEffect(() => {
-    const root = document.documentElement;
-    if (colorScheme === DEFAULT_SCHEME) {
-      root.removeAttribute('data-color-scheme');
-    } else {
-      root.setAttribute('data-color-scheme', colorScheme);
-    }
+    document.documentElement.setAttribute('data-color-scheme', colorScheme);
   }, [colorScheme]);
 
   const setColorScheme = useCallback((scheme: ColorScheme): void => {

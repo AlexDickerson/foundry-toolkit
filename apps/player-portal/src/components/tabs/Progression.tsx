@@ -237,15 +237,10 @@ export function Progression({ characterLevel, items, characterContext }: Props):
     : null;
 
   return (
-    <section className="space-y-4" data-section="progression">
+    <section className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4" data-section="progression">
       <div>
-        <SectionHeader>{classItem.name} Progression</SectionHeader>
-        <p className="mb-3 text-xs text-pf-alt">
-          Class features auto-granted at each level, plus the feat and skill slots the rules open. Click a feat chip to
-          pick one; selections are held in memory until the scratch-actor flow lands.
-        </p>
-      </div>
-      <ol className="space-y-1.5" {...pickedHover.delegationHandlers}>
+        <SectionHeader band>{classItem.name} Progression</SectionHeader>
+        <ol className="space-y-1.5" {...pickedHover.delegationHandlers}>
         {/* eslint-disable-next-line react-hooks/refs -- cache snapshot taken per render; docsVersion bump in useEffect re-renders whenever either cache mutates */}
         {LEVELS.map((level) => {
           const features = featuresByLevel.get(level) ?? [];
@@ -265,7 +260,8 @@ export function Progression({ characterLevel, items, characterContext }: Props):
             />
           );
         })}
-      </ol>
+        </ol>
+      </div>
       {pickedHover.popover}
       {pickerTarget && pickerFilters && (
         <FeatPicker

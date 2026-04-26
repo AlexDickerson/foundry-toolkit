@@ -15,6 +15,7 @@ import { Feats } from '../components/tabs/Feats';
 import { Inventory } from '../components/tabs/Inventory';
 import { Proficiencies } from '../components/tabs/Proficiencies';
 import { Progression } from '../components/tabs/Progression';
+
 import { Spells } from '../components/tabs/Spells';
 import { useEventChannel } from '../lib/useEventChannel';
 import { fromPreparedCharacter } from '../prereqs';
@@ -22,6 +23,7 @@ import { usePreferences } from '../lib/usePreferences';
 import { prefetchIcons } from '../lib/prefetchIcons';
 import { PromptQueue } from '../components/dialog/PromptQueue';
 import type { TabId } from '../lib/tabUtils';
+import { useShopMode } from '../lib/useShopMode';
 
 type State =
   | { kind: 'loading' }
@@ -37,9 +39,8 @@ const TABS: readonly Tab<TabId>[] = [
   { id: 'spells', label: 'Spells' },
   { id: 'inventory', label: 'Inventory' },
   { id: 'feats', label: 'Feats' },
-  { id: 'proficiencies', label: 'Proficiencies' },
   { id: 'progression', label: 'Progression' },
-  { id: 'background', label: 'Background' },
+  { id: 'details', label: 'Details' },
 ];
 
 export function CharacterSheet(): React.ReactElement {
@@ -60,6 +61,7 @@ interface InnerProps {
 }
 
 function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): React.ReactElement {
+  const shopMode = useShopMode();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [activeTab, setActiveTab] = useState<TabId>('character');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -155,6 +157,8 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
         >
           <SheetHeader
             character={state.actor}
+            actorId={actorId}
+            onActorChanged={reloadActor}
             onBack={onBack}
             onSettingsOpen={(): void => {
               setSettingsOpen(true);
@@ -162,7 +166,13 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
           />
           <TabStrip tabs={TABS} active={activeTab} onChange={setActiveTab} />
           {activeTab === 'character' && (
-            <Character system={state.actor.system} actorId={actorId} onActorChanged={reloadActor} />
+            <Character
+              system={state.actor.system}
+              actorId={actorId}
+              items={state.actor.items}
+              characterLevel={state.actor.system.details.level.value}
+              onActorChanged={reloadActor}
+            />
           )}
           {activeTab === 'actions' && (
             <Actions
@@ -190,14 +200,15 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
                 onActorChanged={reloadActor}
                 investiture={state.actor.system.resources.investiture}
               />
-              <div className="mt-10 border-t border-pf-border pt-6">
-                <SectionHeader>Crafting</SectionHeader>
-                <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
-              </div>
+              {!shopMode.enabled && (
+                <div className="mt-10 border-t border-pf-border pt-6">
+                  <SectionHeader>Crafting</SectionHeader>
+                  <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
+                </div>
+              )}
             </>
           )}
           {activeTab === 'feats' && <Feats items={state.actor.items} />}
-          {activeTab === 'proficiencies' && <Proficiencies system={state.actor.system} actorId={actorId} />}
           {activeTab === 'progression' && (
             <Progression
               characterLevel={state.actor.system.details.level.value}
@@ -205,7 +216,12 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
               characterContext={fromPreparedCharacter(state.actor)}
             />
           )}
-          {activeTab === 'background' && <Background details={state.actor.system.details} />}
+          {activeTab === 'details' && (
+            <div className="space-y-6">
+              <Background details={state.actor.system.details} traits={state.actor.system.traits.value} />
+              <Proficiencies system={state.actor.system} />
+            </div>
+          )}
         </div>
       )}
       {settingsOpen && state.kind === 'ready' && (

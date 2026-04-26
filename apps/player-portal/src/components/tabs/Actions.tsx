@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import { api } from '../../api/client';
 import type { Ability, AbilityKey, ActionItem, PreparedActorItem, Strike } from '../../api/types';
@@ -35,11 +34,11 @@ export function Actions({ actions, items, abilities, actorId, onItemUsed }: Prop
   }
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4">
       {strikes.length > 0 && (
         <div>
-          <SectionHeader>Strikes</SectionHeader>
-          <ul className="space-y-2">
+          <SectionHeader band>Strikes</SectionHeader>
+          <ul className="grid grid-cols-2 gap-2">
             {strikes.map((strike) => (
               <StrikeCard key={strike.slug} strike={strike} abilities={abilities} actorId={actorId} />
             ))}
@@ -71,7 +70,7 @@ function StrikeCard({
   abilities: Record<AbilityKey, Ability> | undefined;
   actorId: string;
 }): React.ReactElement {
-  const allTraits = [...strike.traits, ...strike.weaponTraits];
+  const allTraits = [...strike.traits, ...strike.weaponTraits].filter((t) => t.name !== 'attack');
   const damageText = formatStrikeDamage(strike, abilities);
   const range = strike.item.system.range;
 
@@ -115,12 +114,28 @@ function StrikeCard({
               </span>
             )}
           </div>
-          <VariantStrip
-            variants={strike.variants}
-            onVariant={(i) => { attack.trigger(i); }}
-            pending={attack.state === 'pending'}
-          />
-          <div className="mt-1.5 flex flex-wrap gap-1.5" data-role="strike-damage-actions">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5" role="group" aria-label="Attack and damage">
+            {strike.variants.map((v, i) => {
+              const bonus = v.label.split(' ')[0] ?? v.label;
+              const color =
+                i === 0 ? 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+                : i === 1 ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                : 'border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100';
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => { attack.trigger(i); }}
+                  disabled={attack.state === 'pending'}
+                  title={v.label}
+                  data-variant-index={i}
+                  className={`rounded border px-1.5 py-0.5 font-mono text-xs tabular-nums disabled:opacity-50 ${color}`}
+                >
+                  {bonus}
+                </button>
+              );
+            })}
+            <span aria-hidden className="mx-0.5 h-4 w-px bg-pf-border" />
             <button
               type="button"
               onClick={() => { damage.trigger(); }}
@@ -222,41 +237,6 @@ function computeDamageAbilityMod(
   return 0;
 }
 
-function VariantStrip({
-  variants,
-  onVariant,
-  pending,
-}: {
-  variants: { label: string }[];
-  onVariant: (index: number) => void;
-  pending: boolean;
-}): React.ReactElement {
-  return (
-    <ul className="mt-1 flex flex-wrap gap-1.5" role="group" aria-label="Attack variants">
-      {variants.map((v, i) => (
-        <li key={`${i.toString()}-${v.label}`}>
-          <button
-            type="button"
-            onClick={() => {
-              onVariant(i);
-            }}
-            disabled={pending}
-            data-variant-index={i}
-            className={[
-              'rounded border px-1.5 py-0.5 font-mono text-xs tabular-nums disabled:opacity-50',
-              i === 0
-                ? 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
-                : 'border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg-dark',
-            ].join(' ')}
-          >
-            {v.label}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 // ─── Action section (Actions / Reactions / Free Actions) ──────────────
 
 function ActionSection({
@@ -275,7 +255,7 @@ function ActionSection({
   if (items.length === 0) return null;
   return (
     <div data-action-section={kind}>
-      <SectionHeader>{title}</SectionHeader>
+      <SectionHeader band>{title}</SectionHeader>
       <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {items.map((item) => (
           <ActionCard key={item.id} item={item} actorId={actorId} onUsed={onUsed} />
@@ -297,7 +277,6 @@ function ActionCard({
   const kind = item.system.actionType.value;
   const count = item.system.actions.value;
   const traits = item.system.traits.value;
-  const [expanded, setExpanded] = useState(false);
   const description = item.system.description?.value ?? '';
   const hasDescription = description.trim() !== '';
   const enriched = hasDescription ? enrichDescription(description) : '';
@@ -306,58 +285,37 @@ function ActionCard({
     onSuccess: onUsed,
   });
 
-  const toggle = (): void => {
-    setExpanded((v) => !v);
-  };
-
   return (
-    <li
-      className="rounded border border-pf-border bg-pf-bg"
-      data-action-id={item.id}
-      data-action-kind={kind}
-      data-expanded={expanded ? 'true' : 'false'}
-    >
-      <div className="flex items-start gap-3 px-3 py-2">
-        <img
-          src={item.img}
-          alt=""
-          className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <button
-              type="button"
-              onClick={toggle}
-              aria-expanded={expanded}
-              className="min-w-0 truncate text-left text-sm font-medium text-pf-text hover:underline"
-              data-testid="action-card-toggle"
-            >
-              {item.name}
-            </button>
-            <ActionCostBadge kind={kind} count={count} />
-            <button
-              type="button"
-              onClick={() => { use.trigger(); }}
-              disabled={use.state === 'pending'}
-              className="ml-auto rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
-              data-role="action-use"
-            >
-              {use.state === 'pending' ? 'Using…' : 'Use'}
-            </button>
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label={expanded ? 'Collapse' : 'Expand'}
-              className="text-[10px] text-pf-text-muted hover:text-pf-text"
-            >
-              {expanded ? '▾' : '▸'}
-            </button>
-          </div>
-          {typeof use.state === 'object' && (
-            <p className="mt-1 text-[11px] text-red-700">{use.state.error}</p>
-          )}
+    <li className="relative" data-action-id={item.id} data-action-kind={kind}>
+      <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-md">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden">
+          <img
+            src={item.img}
+            alt=""
+            className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+          />
+          <span className="min-w-0 truncate text-sm font-medium text-pf-text">{item.name}</span>
+          <ActionCostBadge kind={kind} count={count} />
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); use.trigger(); }}
+            disabled={use.state === 'pending'}
+            className="ml-auto rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pf-text hover:bg-pf-bg-dark disabled:opacity-50"
+            data-role="action-use"
+          >
+            {use.state === 'pending' ? 'Using…' : 'Use'}
+          </button>
+          <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
+        </summary>
+        {typeof use.state === 'object' && (
+          <p className="px-3 pb-1 text-[11px] text-red-700">{use.state.error}</p>
+        )}
+        <div
+          className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 shadow-lg"
+          data-role="action-description"
+        >
           {traits.length > 0 && (
-            <ul className="mt-1 flex flex-wrap gap-1">
+            <ul className="mb-2 flex flex-wrap gap-1">
               {traits.map((slug) => (
                 <li
                   key={slug}
@@ -368,50 +326,30 @@ function ActionCard({
               ))}
             </ul>
           )}
-        </div>
-      </div>
-      {expanded && (
-        <div
-          className="border-t border-pf-border bg-pf-bg/60 px-3 py-2 text-sm text-pf-text"
-          data-role="action-description"
-        >
           {hasDescription ? (
             <div
-              className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+              className="text-sm leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
               dangerouslySetInnerHTML={{ __html: enriched }}
             />
           ) : (
-            <p className="italic text-neutral-400">No description.</p>
+            <p className="text-sm italic text-neutral-400">No description.</p>
           )}
         </div>
-      )}
+      </details>
     </li>
   );
 }
 
 function ActionCostBadge({ kind, count }: { kind: string; count: number | null }): React.ReactElement {
-  // PF2e renders these as decorative glyphs; we use short text so the
-  // viewer reads the same on any font/render surface.
   let label = '—';
   if (kind === 'action') {
-    label = count === 1 ? '1A' : count === 2 ? '2A' : count === 3 ? '3A' : 'A';
-  } else if (kind === 'reaction') label = 'R';
-  else if (kind === 'free') label = 'F';
-  else if (kind === 'passive') label = 'P';
+    label = count === 1 ? '◆' : count === 2 ? '◆◆' : count === 3 ? '◆◆◆' : '◆';
+  } else if (kind === 'reaction') label = '↺';
+  else if (kind === 'free') label = '◇';
+  else if (kind === 'passive') label = '—';
 
-  const palette: Record<string, string> = {
-    action: 'border-emerald-300 bg-emerald-50 text-emerald-800',
-    reaction: 'border-sky-300 bg-sky-50 text-sky-800',
-    free: 'border-violet-300 bg-violet-50 text-violet-800',
-    passive: 'border-pf-border bg-pf-bg text-pf-text-muted',
-  };
   return (
-    <span
-      className={[
-        'flex-shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums',
-        palette[kind] ?? palette['passive'] ?? '',
-      ].join(' ')}
-    >
+    <span className="flex-shrink-0 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums text-pf-alt-dark">
       {label}
     </span>
   );

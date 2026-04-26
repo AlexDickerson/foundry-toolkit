@@ -51,11 +51,11 @@ describe('Feats tab', () => {
 
   it('shows a level label on each feat card', () => {
     const { container } = render(<Feats items={items} />);
-    // Every feat should show "Lv <n>" (Amiri's feats are all level 1).
+    // Every feat should show "Level <n>" in the expanded panel (Amiri's feats are all level 1).
     const levelLabels = container.querySelectorAll('[data-feat-slug]');
     expect(levelLabels.length).toBeGreaterThan(0);
     for (const el of Array.from(levelLabels)) {
-      expect(el.textContent).toMatch(/Lv \d/);
+      expect(el.textContent).toMatch(/Level \d/);
     }
   });
 

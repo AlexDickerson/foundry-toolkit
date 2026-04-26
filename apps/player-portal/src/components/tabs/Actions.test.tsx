@@ -50,13 +50,17 @@ describe('Actions tab — strikes', () => {
     }
   });
 
-  it("renders each strike's three attack variants with MAP labels", () => {
+  it("renders each strike's three attack variants (bonus only, MAP in title)", () => {
     const { container } = render(<Actions actorId="test-actor" onItemUsed={() => undefined}actions={actions} items={items} />);
     for (const [slug, { variants }] of Object.entries(EXPECTED_STRIKES)) {
       const card = container.querySelector(`[data-strike-slug="${slug}"]`);
-      for (const label of variants) {
-        expect(within(card as HTMLElement).getByText(label), `${slug} variant ${label}`).toBeTruthy();
-      }
+      variants.forEach((label, i) => {
+        const bonus = label.split(' ')[0] ?? label;
+        const btn = (card as HTMLElement).querySelector(`[data-variant-index="${i.toString()}"]`);
+        expect(btn, `${slug} variant ${i.toString()} button`).toBeTruthy();
+        expect(btn?.textContent?.trim(), `${slug} variant ${i.toString()} text`).toBe(bonus);
+        expect(btn?.getAttribute('title'), `${slug} variant ${i.toString()} title`).toBe(label);
+      });
     }
   });
 
@@ -127,10 +131,10 @@ describe('Actions tab — action items', () => {
     expect(section, 'Actions section').toBeTruthy();
     expect(section?.textContent).toContain('Rage');
     expect(section?.textContent).toContain('Demoralize');
-    // Both are 1-action so the cost badge reads "1A".
+    // Both are 1-action so the cost badge shows the ◆ glyph.
     const cards = section?.querySelectorAll('[data-action-kind="action"]');
     for (const card of Array.from(cards ?? [])) {
-      expect(card.textContent).toContain('1A');
+      expect(card.textContent).toContain('◆');
     }
   });
 
@@ -160,13 +164,14 @@ describe('Actions tab — action items', () => {
       .getAllByText(/Rage/i)[0]
       ?.closest('[data-action-id]') as HTMLElement | null;
     expect(rage, 'Rage card').toBeTruthy();
-    expect(rage?.getAttribute('data-expanded')).toBe('false');
-    expect(rage?.querySelector('[data-role="action-description"]')).toBeNull();
 
-    const toggle = rage?.querySelector('[data-testid="action-card-toggle"]') as HTMLElement;
-    fireEvent.click(toggle);
+    const details = rage?.querySelector('details') as HTMLDetailsElement | null;
+    expect(details?.open, 'collapsed by default').toBe(false);
 
-    expect(rage?.getAttribute('data-expanded')).toBe('true');
+    const summary = rage?.querySelector('summary') as HTMLElement;
+    fireEvent.click(summary);
+
+    expect(details?.open, 'expanded after click').toBe(true);
     const body = rage?.querySelector('[data-role="action-description"]');
     expect(body, 'description body').toBeTruthy();
     // Rage's description starts with "You tap into your inner fury".

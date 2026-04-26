@@ -30,7 +30,7 @@ export function Feats({ items }: Props): React.ReactElement {
 
   return (
     <section
-      className="space-y-6"
+      className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4"
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
@@ -40,11 +40,11 @@ export function Feats({ items }: Props): React.ReactElement {
         if (inCategory.length === 0 && !isCanonical) return null;
         return (
           <div key={category} data-feat-category={category}>
-            <SectionHeader>{FEAT_CATEGORY_LABEL[category] ?? category}</SectionHeader>
+            <SectionHeader band>{FEAT_CATEGORY_LABEL[category] ?? category}</SectionHeader>
             {inCategory.length === 0 ? (
-              <p className="text-xs italic text-neutral-400">None yet</p>
+              <p className="text-xs italic text-pf-text-muted">None yet</p>
             ) : (
-              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {inCategory.map((feat) => (
                   <FeatCard key={feat.id} feat={feat} />
                 ))}
@@ -71,41 +71,38 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
   return (
     <li className="relative" data-item-id={feat.id} data-feat-slug={feat.system.slug ?? ''}>
       <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
-        <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-2 hover:bg-pf-bg-dark/40">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden hover:bg-pf-bg-dark/40">
           <img
             src={feat.img}
             alt=""
-            className="mt-0.5 h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+            className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-pf-text">{feat.name}</span>
-          <span className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
-            Lv {level}
-          </span>
-          <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
+          <span className="line-clamp-2 min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-tight text-pf-text">{feat.name}</span>
+          <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
+          <span aria-hidden className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
-        {/* Absolute-positioned body overlays the grid below instead of
-            pushing siblings down. Containing block is the `<li>`
-            (relative, no border/padding), so `left: 0 / right: 0`
-            gives body the same border-box as the details above —
-            matching border edges regardless of the grid cell's
-            sub-pixel width. Summary drops bottom-corner rounding
-            while open to seal the seam. */}
-        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
-          {traits.length > 0 && <TraitChips traits={traits} />}
-          {prereqs.length > 0 && (
-            <p className="mt-2 text-xs text-pf-alt-dark">
-              <span className="font-semibold uppercase tracking-widest">Prerequisites</span> {prereqs.join('; ')}
-            </p>
-          )}
-          {enriched.length > 0 ? (
-            <div
-              className="mt-2 max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-              dangerouslySetInnerHTML={{ __html: enriched }}
-            />
-          ) : (
-            <p className="mt-2 italic text-neutral-400">No description.</p>
-          )}
+        {/* Single bottom panel: two-column interior avoids z-index overlap entirely. */}
+        <div className="absolute left-0 top-full z-20 flex w-[calc(200%+0.5rem)] rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg shadow-lg">
+          <div className="w-36 flex-shrink-0 border-r border-t border-pf-primary/60 px-3 py-3 text-sm text-pf-text">
+            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {level}</p>
+            {traits.length > 0 && <TraitChips traits={traits} />}
+            {prereqs.length > 0 && (
+              <p className="mt-2 text-xs text-pf-alt-dark">
+                <span className="font-semibold uppercase tracking-widest">Prerequisites</span>{' '}
+                {prereqs.join('; ')}
+              </p>
+            )}
+          </div>
+          <div className="min-w-0 flex-1 border-t border-pf-primary/60 px-4 py-3 text-sm text-pf-text">
+            {enriched.length > 0 ? (
+              <div
+                className="max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+                dangerouslySetInnerHTML={{ __html: enriched }}
+              />
+            ) : (
+              <p className="italic text-neutral-400">No description.</p>
+            )}
+          </div>
         </div>
       </details>
     </li>
@@ -152,8 +149,8 @@ function renderUnknownCategories(grouped: Map<string, FeatItem[]>): React.ReactE
     <>
       {extras.map(([category, feats]) => (
         <div key={category} data-feat-category={category}>
-          <SectionHeader>{FEAT_CATEGORY_LABEL[category] ?? capitaliseSlug(category)}</SectionHeader>
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <SectionHeader band>{FEAT_CATEGORY_LABEL[category] ?? capitaliseSlug(category)}</SectionHeader>
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {feats.map((feat) => (
               <FeatCard key={feat.id} feat={feat} />
             ))}

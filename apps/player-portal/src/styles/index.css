@@ -24,53 +24,18 @@
 }
 
 [data-portal-theme='dark'] {
-  /* Portal nav/page surface tokens */
+  /* Portal nav/page surface tokens only. The character sheet is themed
+   * independently via [data-color-scheme] on <html> — select the "Dark"
+   * scheme in the settings dialog to darken the sheet itself. */
   --portal-bg: #0d111e;
   --portal-surface: #141928;
   --portal-surface-hover: #1b2236;
   --portal-border: #252e45;
   --portal-text: #e8e4dc;
   --portal-text-muted: #8a8fa5;
-  --portal-accent: var(--color-pf-tertiary-dark); /* #cbb77a parchment gold */
+  --portal-accent: var(--color-pf-tertiary-dark);
   --portal-accent-subtle: rgba(203, 183, 122, 0.12);
   --portal-accent-border: rgba(203, 183, 122, 0.4);
-
-  /* PF2e token overrides — extend dark mode to CharactersLayout, the
-   * character sheet, and the character creator. CharactersLayout uses
-   * var(--color-pf-bg/text) inline; sheet/creator use bg-pf-* / text-pf-*
-   * Tailwind utilities. All cascade from this ancestor div. */
-
-  /* Surfaces */
-  --color-pf-bg: #0d111e;
-  --color-pf-bg-dark: #141928;
-  --color-pf-sub: #8a8fa5;
-  --color-pf-text: #e8e4dc;
-  --color-pf-text-muted: #8a8fa5;
-  --color-pf-border: #252e45;
-
-  /* Palette — brightened so these remain legible as text/accents on dark
-   * surfaces (text-pf-primary links, text-pf-secondary templated text,
-   * text-pf-alt-dark section headers). bg-pf-primary/secondary buttons
-   * keep their own white text so contrast is unaffected there. */
-  --color-pf-primary: #b50000;
-  --color-pf-primary-dark: #8a0000;
-  --color-pf-primary-light: #d01010;
-  --color-pf-secondary: #3b56d4;
-  --color-pf-secondary-dark: #2a3fb5;
-  --color-pf-secondary-light: #5a70e8;
-  --color-pf-alt: #a89070;
-  --color-pf-alt-dark: #c4b098; /* was #443730 — section headers need light text */
-  --color-pf-alt-light: #d4c0a8;
-  /* Tertiary — darkened from parchment gold (#e9d7a1) to warm amber so
-   * bg-pf-tertiary buttons/chips are readable without being blinding. */
-  --color-pf-tertiary: #b08828;
-  --color-pf-tertiary-dark: #7a5e10;
-  --color-pf-tertiary-light: #d4a840;
-  /* Tertiary (gold) and rarity/proficiency/success colors stay unchanged —
-   * they're light or semantic and already work on dark backgrounds. */
-
-  /* Dark overlay for background-image sheets (matches dark --color-pf-bg) */
-  --pf-bg-overlay: rgba(13, 17, 30, 0.88);
 }
 
 /* Custom Tailwind utilities for portal theming. Using @utility (not @theme)
@@ -115,10 +80,53 @@
   background: linear-gradient(to bottom, var(--portal-bg), transparent);
 }
 
-/* Reserve scrollbar-gutter space always so the page doesn't horizontally
-   shift when content grows past the viewport and a scrollbar appears. */
-html {
-  scrollbar-gutter: stable;
+/* Item state tokens — used for inventory grid tiles and any other surface
+ * that needs to communicate equipped / invested status via colour. */
+:root {
+  --item-equipped: rgba(34, 197, 94, 0.20);   /* emerald-500 @ 20% */
+  --item-invested: rgba(139, 92, 246, 0.20);   /* violet-500  @ 20% */
+  --item-equipped-border: rgba(34, 197, 94, 0.60);
+  --item-invested-border: rgba(139, 92, 246, 0.60);
+}
+
+@utility bg-item-equipped {
+  background-color: var(--item-equipped);
+}
+@utility bg-item-invested {
+  background-color: var(--item-invested);
+}
+@utility border-item-equipped {
+  border-color: var(--item-equipped-border);
+}
+@utility border-item-invested {
+  border-color: var(--item-invested-border);
+}
+
+/* Hide the main window scrollbar while keeping scroll functional. */
+:root {
+  scrollbar-width: none !important;
+}
+::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* Palette-matched thin scrollbar for in-sheet scroll regions. */
+.scrollbar-pf {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-pf-border) transparent;
+}
+.scrollbar-pf::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-pf::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-pf::-webkit-scrollbar-thumb {
+  background-color: var(--color-pf-border);
+  border-radius: 9999px;
+}
+.scrollbar-pf::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-pf-alt);
 }
 
 /* Sheet-wide base: cream parchment surface, Gelasio for long-form text.

@@ -12,7 +12,7 @@ describe('Background tab', () => {
   });
 
   it('renders demographic fields that are populated (Amiri: gender + ethnicity)', () => {
-    const { container } = render(<Background details={details} />);
+    const { container } = render(<Background details={details} traits={[]} />);
     const demo = container.querySelector('[data-section="demographics"]');
     expect(demo, 'demographics section').toBeTruthy();
     expect(container.querySelector('[data-field="gender"]')?.textContent).toContain('F/She/Her');
@@ -33,12 +33,12 @@ describe('Background tab', () => {
       weight: { value: '' },
       biography: { ...details.biography, birthPlace: '' },
     };
-    const { container } = render(<Background details={bare} />);
+    const { container } = render(<Background details={bare} traits={[]} />);
     expect(container.querySelector('[data-section="demographics"]')).toBeNull();
   });
 
   it('renders the backstory HTML block for Amiri', () => {
-    const { container } = render(<Background details={details} />);
+    const { container } = render(<Background details={details} traits={[]} />);
     const backstory = container.querySelector('[data-section="backstory"]');
     expect(backstory, 'backstory section').toBeTruthy();
     // Amiri's backstory opens with "There are a million ways to die…".
@@ -48,12 +48,12 @@ describe('Background tab', () => {
   });
 
   it('omits Appearance when the field is empty (Amiri)', () => {
-    const { container } = render(<Background details={details} />);
+    const { container } = render(<Background details={details} traits={[]} />);
     expect(container.querySelector('[data-section="appearance"]')).toBeNull();
   });
 
   it('omits the Personality block when every field is empty (Amiri)', () => {
-    const { container } = render(<Background details={details} />);
+    const { container } = render(<Background details={details} traits={[]} />);
     expect(container.querySelector('[data-section="personality"]')).toBeNull();
   });
 
@@ -66,7 +66,7 @@ describe('Background tab', () => {
         anathema: ['Harm an ally in rage'],
       },
     };
-    const { container } = render(<Background details={withCode} />);
+    const { container } = render(<Background details={withCode} traits={[]} />);
     const section = container.querySelector('[data-section="edicts-anathema"]');
     expect(section, 'edicts/anathema section').toBeTruthy();
     expect(container.querySelector('[data-list="edicts"]')?.textContent).toContain('Protect the innocent');
@@ -74,7 +74,7 @@ describe('Background tab', () => {
   });
 
   it('hides the edicts/anathema block when both arrays are empty (Amiri)', () => {
-    const { container } = render(<Background details={details} />);
+    const { container } = render(<Background details={details} traits={[]} />);
     expect(container.querySelector('[data-section="edicts-anathema"]')).toBeNull();
   });
 
@@ -83,13 +83,13 @@ describe('Background tab', () => {
       ...details,
       biography: { ...details.biography, allies: 'The Pathfinder Society', enemies: 'Frost giants', organizations: '' },
     };
-    const { container } = render(<Background details={connected} />);
+    const { container } = render(<Background details={connected} traits={[]} />);
     expect(container.querySelector('[data-section="social"]')?.textContent).toContain('Pathfinder Society');
     expect(container.querySelector('[data-section="social"]')?.textContent).toContain('Frost giants');
   });
 
   it('hides Campaign Notes when empty (Amiri)', () => {
-    const { container } = render(<Background details={details} />);
+    const { container } = render(<Background details={details} traits={[]} />);
     expect(container.querySelector('[data-section="campaign-notes"]')).toBeNull();
   });
 
@@ -102,6 +102,7 @@ describe('Background tab', () => {
       age: { value: '' },
       height: { value: '' },
       weight: { value: '' },
+      languages: { value: [], details: '' },
       biography: {
         ...details.biography,
         birthPlace: '',
@@ -120,7 +121,7 @@ describe('Background tab', () => {
         anathema: [],
       },
     };
-    const { container } = render(<Background details={bare} />);
+    const { container } = render(<Background details={bare} traits={[]} />);
     expect(container.querySelector('[data-section="background-empty"]')).toBeTruthy();
     expect(container.textContent).toContain('No background details');
     // None of the populated-only sections should have rendered.

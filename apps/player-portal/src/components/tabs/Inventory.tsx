@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { PhysicalItem, PhysicalItemType, PointPool, PreparedActorItem } from '../../api/types';
 import { isCoin, isContainer, isPhysicalItem } from '../../api/types';
@@ -110,6 +110,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
   const [pendingInvestments, setPendingInvestments] = useState<Set<string>>(new Set());
   const [txError, setTxError] = useState<string | null>(null);
   const shopMode = useShopMode();
+  const [tileColumns, setTileColumns] = useState(6);
 
   const canTransact = actorId !== undefined && onActorChanged !== undefined;
 
@@ -233,7 +234,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
               {shopMode.enabled && canTransact && (
                 <ShopViewToggle view={effectiveShopView} onChange={setShopView} />
               )}
-              <ShopGearMenu shopMode={shopMode} />
+              <ShopGearMenu shopMode={shopMode} tileColumns={tileColumns} onTileColumnsChange={setTileColumns} />
             </div>
             <div className="flex items-center gap-4">
             {investiture !== undefined && investiture.max > 0 && (
@@ -249,10 +250,11 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
           </div>
           </div>
           {effectiveShopView === 'shop' && canTransact ? (
-            <ItemShopPicker items={items} onBuy={handleBuy} pending={pendingBuys} />
+            <ItemShopPicker items={items} onBuy={handleBuy} pending={pendingBuys} disabledRarities={shopMode.disabledRarities} />
           ) : (
             <CategorizedInventory
               view={view}
+              tileColumns={tileColumns}
               topLevelByCategory={topLevelByCategory}
               allByCategory={allByCategory}
               byContainer={byContainer}
@@ -390,6 +392,7 @@ async function applyCoinChanges(
 // since tile layout doesn't carry the parent/child relationship.
 function CategorizedInventory({
   view,
+  tileColumns,
   topLevelByCategory,
   allByCategory,
   byContainer,
@@ -397,6 +400,7 @@ function CategorizedInventory({
   investContext,
 }: {
   view: ViewMode;
+  tileColumns: number;
   topLevelByCategory: Map<InventoryCategory, PhysicalItem[]>;
   allByCategory: Map<InventoryCategory, PhysicalItem[]>;
   byContainer: Map<string, PhysicalItem[]>;
@@ -409,12 +413,12 @@ function CategorizedInventory({
     return <p className="text-sm text-pf-text-muted">No items yet.</p>;
   }
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4">
       {presentCategories.map((category) => {
         const bucket = buckets.get(category) ?? [];
         return (
           <div key={category} data-category={category}>
-            <SectionHeader>{CATEGORY_LABEL[category]}</SectionHeader>
+            <SectionHeader band>{CATEGORY_LABEL[category]}</SectionHeader>
             {view === 'list' ? (
               <ul className="space-y-1.5">
                 {bucket.map((item) => (
@@ -430,7 +434,7 @@ function CategorizedInventory({
             ) : (
               <ul
                 className="grid gap-2"
-                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(8rem, 1fr))' }}
+                style={{ gridTemplateColumns: `repeat(${tileColumns}, minmax(0, 1fr))` }}
                 data-view="grid"
               >
                 {bucket.map((item) => (
@@ -452,8 +456,12 @@ function CategorizedInventory({
 // the browser handles focus-trap and keyboard behaviour for free.
 function ShopGearMenu({
   shopMode,
+  tileColumns,
+  onTileColumnsChange,
 }: {
   shopMode: ReturnType<typeof useShopMode>;
+  tileColumns: number;
+  onTileColumnsChange: (n: number) => void;
 }): React.ReactElement {
   return (
     <details className="relative" data-section="shop-debug">
@@ -499,6 +507,37 @@ function ShopGearMenu({
           />
           <span className="w-10 text-right font-mono tabular-nums">{Math.round(shopMode.sellRatio * 100)}%</span>
         </label>
+        <label className="mt-2 flex items-center gap-2">
+          <span className="w-16 shrink-0">Chip size</span>
+          <input
+            type="range"
+            min={2}
+            max={8}
+            step={1}
+            value={tileColumns}
+            onChange={(e): void => { onTileColumnsChange(Number(e.target.value)); }}
+            className="flex-1 accent-pf-primary"
+          />
+          <span className="w-10 text-right font-mono tabular-nums">{tileColumns} col</span>
+        </label>
+        <p className="mb-1 mt-3 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+          Visible rarities
+        </p>
+        {(['common', 'uncommon', 'rare', 'unique'] as const).map((r) => (
+          <label key={r} className="flex items-center gap-2 capitalize">
+            <input
+              type="checkbox"
+              checked={!shopMode.disabledRarities.includes(r)}
+              onChange={(e): void => {
+                const next = e.target.checked
+                  ? shopMode.disabledRarities.filter((x) => x !== r)
+                  : [...shopMode.disabledRarities, r];
+                shopMode.setDisabledRarities(next);
+              }}
+            />
+            <span>{r}</span>
+          </label>
+        ))}
       </div>
     </details>
   );
@@ -808,6 +847,24 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
   );
 }
 
+function isEquippedItem(item: PhysicalItem): boolean {
+  const eq = item.system.equipped;
+  if (eq.handsHeld !== undefined && eq.handsHeld > 0) return true;
+  if ((item.type === 'armor' || item.type === 'backpack') && eq.inSlot === true) return true;
+  return false;
+}
+
+function isInvestedItem(item: PhysicalItem): boolean {
+  return item.system.equipped.invested === true && item.system.traits.value.includes('invested');
+}
+
+const EQUIPPED_BG = 'var(--item-equipped)';
+const INVESTED_BG = 'var(--item-invested)';
+
+// Each tile that opens claims the next value, ensuring the most recently
+// opened tile always renders above all other open tiles.
+let tileOpenCounter = 30;
+
 function GridTile({
   item,
   sellContext,
@@ -818,32 +875,71 @@ function GridTile({
   investContext: InvestContext | undefined;
 }): React.ReactElement {
   const hasInvestButton = investContext !== undefined && supportsInvestment(item);
+  const equipped = isEquippedItem(item);
+  const invested = isInvestedItem(item);
+  const both = equipped && invested;
+
+  const detailsClass = [
+    'group relative rounded border open:z-10 open:rounded-r-none open:border-pf-primary/60 open:shadow-lg',
+    both ? 'border-item-equipped' :
+    equipped ? 'border-item-equipped bg-item-equipped' :
+    invested ? 'border-item-invested bg-item-invested' :
+    'border-pf-border bg-pf-bg',
+  ].join(' ');
+
+  const detailsStyle: React.CSSProperties | undefined = both
+    ? { background: `linear-gradient(135deg, ${EQUIPPED_BG} 50%, ${INVESTED_BG} 50%)` }
+    : undefined;
+
+  const summaryHover =
+    equipped || invested ? 'hover:brightness-95' : 'hover:bg-pf-bg-dark/40';
+
+  const [zIndex, setZIndex] = useState<number | undefined>(undefined);
+  const [flipLeft, setFlipLeft] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (zIndex === undefined) { setFlipLeft(false); return; }
+    const panel = panelRef.current;
+    if (!panel) return;
+    setFlipLeft(panel.getBoundingClientRect().right > window.innerWidth - 8);
+  }, [zIndex]);
+
+  const openCorner = flipLeft ? 'open:rounded-l-none' : 'open:rounded-r-none';
+  const detailsClassFull = `${detailsClass.replace('open:rounded-r-none', '')} ${openCorner}`;
+
   return (
-    <li className="relative" data-item-id={item.id} data-item-type={item.type}>
-      {/* open:min-w-[18rem] expands the tile rightward to match the panel
-          so both share the same right border edge. Panel uses left-0
-          right-0 (spans exactly the <details> width) rather than a
-          fixed pixel value so it always tracks the tile. */}
-      <details className="group relative rounded border border-pf-border bg-pf-bg open:z-10 open:min-w-[18rem] open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
-        <summary className="flex cursor-pointer list-none flex-col items-start gap-1 p-2 hover:bg-pf-bg-dark/40">
-          <div className="relative">
-            <img src={item.img} alt="" className="h-14 w-14 rounded border border-pf-border bg-pf-bg-dark" />
+    <li className="relative" style={zIndex !== undefined ? { zIndex } : undefined} data-item-id={item.id} data-item-type={item.type}>
+      <details className={detailsClassFull} style={detailsStyle} onToggle={(e) => {
+        setZIndex(e.currentTarget.open ? ++tileOpenCounter : undefined);
+      }}>
+        <summary className={[
+          'flex cursor-pointer list-none flex-col items-center p-2',
+          summaryHover,
+        ].join(' ')}>
+          <div className="relative w-full">
+            <div className="relative aspect-square w-full overflow-hidden rounded border border-pf-border bg-pf-bg-dark">
+              <img src={item.img} alt="" className="h-full w-full object-contain" />
+              <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
+                <span className="line-clamp-2 block text-[10px] font-medium leading-tight text-white" title={item.name}>
+                  {item.name}
+                </span>
+              </div>
+            </div>
             {item.system.quantity > 1 && (
               <span className="absolute -right-1 -top-1 rounded bg-pf-primary px-1 text-[10px] font-semibold text-white shadow">
                 ×{item.system.quantity}
               </span>
             )}
           </div>
-          <span className="line-clamp-2 min-h-[2.5em] text-[11px] font-medium leading-tight text-pf-text" title={item.name}>
-            {item.name}
-          </span>
-          <div className="flex min-h-[16px] flex-wrap gap-1">
-            <EquippedBadge item={item} suppressInvested={hasInvestButton} />
-          </div>
-          {hasInvestButton && <InvestButton item={item} context={investContext} />}
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
-        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 text-left text-sm text-pf-text shadow-lg">
+        <div ref={panelRef} className={`absolute -top-px ${flipLeft ? 'right-full' : 'left-full'} z-20 min-h-[calc(100%+2px)] w-max min-w-[150%] max-w-[300%] overflow-y-auto ${flipLeft ? 'rounded-l' : 'rounded-r'} border border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg`}>
+          {hasInvestButton && (
+            <div className="mb-3">
+              <InvestButton item={item} context={investContext} />
+            </div>
+          )}
           <ItemDescription item={item} />
         </div>
       </details>

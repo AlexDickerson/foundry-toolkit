@@ -44,17 +44,19 @@ describe('Inventory tab', () => {
     expect(joined).toContain('Backpack');
   });
 
-  it('marks the Hide Armor as equipped and the Backpack as worn', () => {
+  it('marks the Hide Armor as equipped and the Backpack as worn via emerald tint', () => {
+    // Grid view uses colour instead of a chip — equipped/worn items get an
+    // emerald border/bg on their <details> element rather than "Equipped" text.
     const { container } = render(<Inventory items={items} />);
     const armor = Array.from(container.querySelectorAll('[data-item-type="armor"]')).find((el) =>
       el.textContent?.includes('Hide Armor'),
     );
-    expect(armor?.textContent).toContain('Equipped');
+    expect(armor?.querySelector('details')?.className, 'Hide Armor equipped tint').toMatch(/item-equipped/);
 
     const backpack = Array.from(container.querySelectorAll('[data-item-type="backpack"]')).find((el) =>
       el.textContent?.includes('Backpack'),
     );
-    expect(backpack?.textContent).toContain('Worn');
+    expect(backpack?.querySelector('details')?.className, 'Backpack worn tint').toMatch(/item-equipped/);
   });
 
   it('shows the Javelin quantity (×4) and Healing Potion (×2)', () => {
