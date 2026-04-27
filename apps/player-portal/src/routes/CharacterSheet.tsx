@@ -125,7 +125,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
     <div className="flex gap-6 py-6 font-sans">
       {/* ── Left placeholder — same width as chat sidebar, reserved for
           a future panel being added in a separate workstream ────────── */}
-      <div className="hidden w-72 shrink-0 pl-3 lg:block">
+      <div className="hidden w-[230px] shrink-0 pl-3 lg:block">
         <div className="h-full rounded border border-dashed border-pf-border" />
       </div>
 
@@ -258,7 +258,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
       {/* Hidden on narrow viewports; sticks to the top and scrolls
           independently so the sheet and chat can be read in parallel. */}
       {state.kind === 'ready' && (
-        <aside className="hidden w-72 shrink-0 pr-3 lg:flex lg:flex-col">
+        <aside className="hidden w-[230px] shrink-0 pr-3 lg:flex lg:flex-col">
           <div className="sticky top-6 flex max-h-[calc(100svh-3rem)] flex-col">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-pf-alt-dark">Chat</p>
             <div className="min-h-0 flex-1 overflow-y-auto">
