@@ -12,7 +12,7 @@ import { api } from '@/lib/api';
 import { ResizableSidebar } from '@/components/ResizableSidebar';
 import type { Encounter } from '@foundry-toolkit/shared/types';
 import { EncounterList } from './EncounterList';
-import { InitiativeTracker } from './InitiativeTracker';
+import { InitiativeTracker } from './initiative-tracker';
 import { CombatantStatBlock } from './CombatantStatBlock';
 import { LootPanel } from './LootPanel';
 import { applyFoundryInitiativeUpdate, sortedCombatants } from './util';
