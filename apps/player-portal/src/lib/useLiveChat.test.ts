@@ -117,13 +117,13 @@ describe('useLiveChat', () => {
 
   it('opens EventSource on the correct filtered-stream URL', () => {
     renderHook(() => useLiveChat('actor-abc'));
-    expect(MockEventSourceClass).toHaveBeenCalledWith('/api/mcp/live/chat/actor-abc/stream');
+    expect(MockEventSourceClass).toHaveBeenCalledWith('/api/live/chat/actor-abc/stream');
   });
 
   it('appends userId to stream URL when provided', () => {
     renderHook(() => useLiveChat('actor-1', 'user-xyz'));
     expect(MockEventSourceClass).toHaveBeenCalledWith(
-      '/api/mcp/live/chat/actor-1/stream?userId=user-xyz',
+      '/api/live/chat/actor-1/stream?userId=user-xyz',
     );
   });
 
@@ -292,12 +292,12 @@ describe('useLiveChat', () => {
       initialProps: { id: 'actor-1' },
     });
     expect(capturedSources).toHaveLength(1);
-    expect(capturedSources[0]?.url).toBe('/api/mcp/live/chat/actor-1/stream');
+    expect(capturedSources[0]?.url).toBe('/api/live/chat/actor-1/stream');
 
     rerender({ id: 'actor-2' });
 
     expect(capturedSources).toHaveLength(2);
-    expect(capturedSources[1]?.url).toBe('/api/mcp/live/chat/actor-2/stream');
+    expect(capturedSources[1]?.url).toBe('/api/live/chat/actor-2/stream');
     expect(capturedSources[0]?.close).toHaveBeenCalled();
   });
 });

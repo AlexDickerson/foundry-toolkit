@@ -16,7 +16,7 @@ import {
   type ShopView,
   groupByCategory,
 } from './inventory-categories';
-import { spendCoins, grantCoins, type SellContext, type InvestContext } from './inventory-shop';
+import { spendCoins, grantCoins, type SellContext, type InvestContext, type PartyContext } from './inventory-shop';
 import { ItemRow, GridTile } from './InventoryItemRow';
 import { CoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
 import { PartyStash } from './PartyStash';
@@ -54,6 +54,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
   const [pendingBuys, setPendingBuys] = useState<Set<string>>(new Set());
   const [pendingSells, setPendingSells] = useState<Set<string>>(new Set());
   const [pendingInvestments, setPendingInvestments] = useState<Set<string>>(new Set());
+  const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
   const [txError, setTxError] = useState<string | null>(null);
   const shopMode = useShopMode();
   const [tileColumns, setTileColumns] = useState(6);
@@ -98,6 +99,24 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
       setTxError(err instanceof Error ? err.message : String(err));
     } finally {
       setPendingSells((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
+  const handleTransferToParty = async (item: PhysicalItem): Promise<void> => {
+    if (!canTransact || partyId === undefined) return;
+    setTxError(null);
+    setPendingTransfers((prev) => new Set(prev).add(item.id));
+    try {
+      await api.transferItemToParty(actorId, item.id, partyId, item.system.quantity);
+      onActorChanged();
+    } catch (err) {
+      setTxError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPendingTransfers((prev) => {
         const next = new Set(prev);
         next.delete(item.id);
         return next;
@@ -220,6 +239,11 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
                   ? { investiture, pending: pendingInvestments, onToggle: handleToggleInvestment }
                   : undefined
               }
+              partyContext={
+                canTransact && partyId !== undefined
+                  ? { partyId, pending: pendingTransfers, onTransfer: handleTransferToParty }
+                  : undefined
+              }
             />
           )}
         </>
@@ -242,6 +266,7 @@ function CategorizedInventory({
   byContainer,
   sellContext,
   investContext,
+  partyContext,
 }: {
   view: ViewMode;
   tileColumns: number;
@@ -250,6 +275,7 @@ function CategorizedInventory({
   byContainer: Map<string, PhysicalItem[]>;
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
+  partyContext: PartyContext | undefined;
 }): React.ReactElement {
   const buckets = view === 'list' ? topLevelByCategory : allByCategory;
   const presentCategories = CATEGORY_ORDER.filter((c) => (buckets.get(c)?.length ?? 0) > 0);
@@ -272,6 +298,7 @@ function CategorizedInventory({
                     contents={isContainer(item) ? (byContainer.get(item.id) ?? []) : []}
                     sellContext={sellContext}
                     investContext={investContext}
+                    partyContext={partyContext}
                   />
                 ))}
               </ul>
@@ -282,7 +309,13 @@ function CategorizedInventory({
                 data-view="grid"
               >
                 {bucket.map((item) => (
-                  <GridTile key={item.id} item={item} sellContext={sellContext} investContext={investContext} />
+                  <GridTile
+                    key={item.id}
+                    item={item}
+                    sellContext={sellContext}
+                    investContext={investContext}
+                    partyContext={partyContext}
+                  />
                 ))}
               </ul>
             )}

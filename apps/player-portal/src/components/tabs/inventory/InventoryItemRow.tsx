@@ -5,7 +5,7 @@ import { useExpandableCard } from '../../../lib/useExpandableCard';
 import { supportsInvestment } from '../../../lib/investment';
 import { cpToDenominations, priceToCp } from '../../../lib/coins';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
-import type { SellContext, InvestContext } from './inventory-shop';
+import type { SellContext, InvestContext, PartyContext } from './inventory-shop';
 
 // Each tile that opens claims the next value, ensuring the most recently
 // opened tile always renders above all other open tiles.
@@ -16,11 +16,13 @@ export function ItemRow({
   contents,
   sellContext,
   investContext,
+  partyContext,
 }: {
   item: PhysicalItem;
   contents: PhysicalItem[];
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
+  partyContext: PartyContext | undefined;
 }): React.ReactElement {
   const card = useExpandableCard();
   const isContainerRow = isContainer(item);
@@ -67,6 +69,7 @@ export function ItemRow({
           <EquippedBadge item={item} suppressInvested={hasInvestButton} />
           {hasInvestButton && <InvestButton item={item} context={investContext} />}
           <BulkLabel value={bulk.value} />
+          {partyContext && <StashButton item={item} context={partyContext} />}
           {sellContext && <SellButton item={item} context={sellContext} />}
           <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
           <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
@@ -131,10 +134,12 @@ export function GridTile({
   item,
   sellContext,
   investContext,
+  partyContext,
 }: {
   item: PhysicalItem;
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
+  partyContext: PartyContext | undefined;
 }): React.ReactElement {
   const hasInvestButton = investContext !== undefined && supportsInvestment(item);
   const equipped = isEquippedItem(item);
@@ -210,6 +215,7 @@ export function GridTile({
               </span>
             )}
           </div>
+          {partyContext && <StashButton item={item} context={partyContext} />}
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
         <div
@@ -241,6 +247,31 @@ export function ItemDescription({ item }: { item: PhysicalItem }): React.ReactEl
       className="max-h-[24rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
       dangerouslySetInnerHTML={{ __html: enriched }}
     />
+  );
+}
+
+function StashButton({ item, context }: { item: PhysicalItem; context: PartyContext }): React.ReactElement {
+  const busy = context.pending.has(item.id);
+  return (
+    <button
+      type="button"
+      data-testid="stash-button"
+      disabled={busy}
+      onClick={(e): void => {
+        e.preventDefault();
+        e.stopPropagation();
+        void context.onTransfer(item);
+      }}
+      className={[
+        'shrink-0 rounded border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
+        busy
+          ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
+          : 'border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100',
+      ].join(' ')}
+      title="Send to party stash"
+    >
+      {busy ? 'Stashing…' : 'Stash'}
+    </button>
   );
 }
 

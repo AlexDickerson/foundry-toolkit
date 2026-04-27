@@ -157,6 +157,11 @@ export const api = {
   // results" if it wants to.
   longRest: (id: string): Promise<LongRestResponse> =>
     api.invokeActorAction<LongRestResponse>(id, 'rest-for-the-night'),
+  // Move an item (or a quantity of it) from the actor's inventory to a
+  // party actor's stash. `quantity` defaults to the full stack (1 here;
+  // bridge defaults to 1 when omitted).
+  transferItemToParty: (actorId: string, itemId: string, partyId: string, quantity = 1): Promise<{ ok: boolean }> =>
+    api.invokeActorAction<{ ok: boolean }>(actorId, 'transfer-to-party', { itemId, targetActorId: partyId, quantity }),
   // Rolls a single MAP variant of a Strike. `variantIndex` 0/1/2 maps
   // to first attack / second (−5 MAP) / third (−10 MAP). pf2e's
   // `StrikeData.variants[i].roll()` bakes in the MAP penalty.

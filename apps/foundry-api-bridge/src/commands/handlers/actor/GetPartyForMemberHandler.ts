@@ -101,7 +101,7 @@ function buildMember(member: CharacterActor, actorId: string): PartyForMemberMem
   // Conditions via PF2e's itemTypes.condition — each slug is on the item
   // directly; degree value (frightened 2, sickened 1, etc.) is at system.value.value.
   const conditions = (member.itemTypes?.condition ?? []).map((c) => {
-    const raw = (c.system?.['value'] as Record<string, unknown> | undefined)?.['value'];
+    const raw = (c.system['value'] as Record<string, unknown> | undefined)?.value;
     return {
       slug: c.slug,
       value: typeof raw === 'number' ? raw : null,
