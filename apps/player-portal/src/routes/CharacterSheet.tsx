@@ -125,7 +125,9 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
     <div className="flex gap-6 py-6 font-sans">
       {/* ── Left placeholder — same width as chat sidebar, reserved for
           a future panel being added in a separate workstream ────────── */}
-      <div className="hidden w-72 shrink-0 rounded border border-dashed border-pf-border pl-3 lg:block" />
+      <div className="hidden w-72 shrink-0 pl-3 lg:block">
+        <div className="h-full rounded border border-dashed border-pf-border" />
+      </div>
 
       {/* ── Sheet column ─────────────────────────────────────────────── */}
       <main className="min-w-0 flex-1">
