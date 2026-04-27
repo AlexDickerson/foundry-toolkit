@@ -10,13 +10,17 @@ interface Props {
   partyId: string;
   /** Display name for the stash section header. */
   partyName: string | undefined;
+  /** Increment to force an immediate re-fetch (e.g. after a transfer).
+   *  transferItemToActor fires createItem hooks, not updateActor, so the
+   *  actors-channel SSE won't deliver an event for the party actor. */
+  refreshKey?: number;
 }
 
 const PHYSICAL_ITEM_TYPES = new Set([
   'weapon', 'armor', 'equipment', 'consumable', 'treasure', 'backpack',
 ]);
 
-export function PartyStash({ partyId, partyName }: Props): React.ReactElement {
+export function PartyStash({ partyId, partyName, refreshKey }: Props): React.ReactElement {
   const [items, setItems] = useState<PartyStashItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -36,7 +40,7 @@ export function PartyStash({ partyId, partyName }: Props): React.ReactElement {
 
   useEffect(() => {
     fetchStash();
-  }, [fetchStash]);
+  }, [fetchStash, refreshKey]);
 
   useEventChannel<{ actorId: string }>('actors', (event) => {
     if (event.actorId === partyId) {

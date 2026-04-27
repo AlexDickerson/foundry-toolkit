@@ -55,6 +55,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
   const [pendingSells, setPendingSells] = useState<Set<string>>(new Set());
   const [pendingInvestments, setPendingInvestments] = useState<Set<string>>(new Set());
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
+  const [stashNonce, setStashNonce] = useState(0);
   const [txError, setTxError] = useState<string | null>(null);
   const shopMode = useShopMode();
   const [tileColumns, setTileColumns] = useState(6);
@@ -113,6 +114,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
     try {
       await api.transferItemToParty(actorId, item.id, partyId, item.system.quantity);
       onActorChanged();
+      setStashNonce((n) => n + 1);
     } catch (err) {
       setTxError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -184,7 +186,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
-      {partyId !== undefined && <PartyStash partyId={partyId} partyName={partyName} />}
+      {partyId !== undefined && <PartyStash partyId={partyId} partyName={partyName} refreshKey={stashNonce} />}
       {txError !== null && (
         <p className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800" data-role="tx-error">
           {txError}

@@ -53,6 +53,11 @@ const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds'];
  *  plugin's request timeout would close the stream prematurely. */
 function makeSseProxy(mcpUrl: string, upstreamPath: string) {
   return (req: FastifyRequest, reply: FastifyReply): void => {
+    // Fastify sees the handler return void and would send its own empty
+    // response before the async http.request callback fires, closing the
+    // connection before any SSE data can flow. hijack() marks the reply
+    // as taken over so Fastify leaves it completely alone.
+    reply.hijack();
     const target = new URL(`${mcpUrl}${upstreamPath}`);
     const transport = target.protocol === 'https:' ? https : http;
     const proxyReq = transport.request(
