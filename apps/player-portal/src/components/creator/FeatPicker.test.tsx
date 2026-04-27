@@ -41,7 +41,7 @@ describe('FeatPicker', () => {
   });
 
   it('renders the title, filter summary, and match list', async () => {
-    const { container, getByText } = render(
+    const { getByText } = render(
       <FeatPicker
         title="Pick a Class Feat (Level 1)"
         filters={{ packIds: ['pf2e.feats-srd'], documentType: 'Item', traits: ['barbarian'], maxLevel: 1 }}
@@ -51,12 +51,12 @@ describe('FeatPicker', () => {
     );
     expect(getByText('Pick a Class Feat (Level 1)')).toBeTruthy();
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     expect(getByText('Sudden Charge')).toBeTruthy();
     expect(getByText('Raging Intimidation')).toBeTruthy();
-    expect(container.textContent).toContain('traits: barbarian');
-    expect(container.textContent).toContain('level ≤ 1');
+    expect(document.body.textContent).toContain('traits: barbarian');
+    expect(document.body.textContent).toContain('level ≤ 1');
   });
 
   it('calls searchCompendium with the configured filters', async () => {
@@ -82,18 +82,18 @@ describe('FeatPicker', () => {
 
   it('calls onPick with the selected match via the detail panel Pick button', async () => {
     const onPick = vi.fn();
-    const { container, getByTestId } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={onPick} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     // Two-pane flow: clicking a row opens the detail panel; picking
     // happens via the Pick button in the panel footer.
-    const row = container.querySelector('[data-match-uuid="Compendium.pf2e.feats-srd.Item.a"]') as HTMLElement;
+    const row = document.querySelector('[data-match-uuid="Compendium.pf2e.feats-srd.Item.a"]') as HTMLElement;
     fireEvent.click(row);
     await waitFor(() => {
-      expect(container.querySelector('[data-testid="feat-picker-detail"]')).toBeTruthy();
+      expect(document.querySelector('[data-testid="feat-picker-detail"]')).toBeTruthy();
     });
     fireEvent.click(getByTestId('feat-picker-pick'));
     expect(onPick).toHaveBeenCalledTimes(1);
@@ -109,11 +109,11 @@ describe('FeatPicker', () => {
 
   it('closes when the backdrop is clicked but not when the card is clicked', async () => {
     const onClose = vi.fn();
-    const { getByTestId, container } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={onClose} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     // Click the card — should NOT close.
     fireEvent.click(getByTestId('feat-picker-results'));
@@ -125,32 +125,32 @@ describe('FeatPicker', () => {
 
   it('shows an empty-state message when no matches come back', async () => {
     searchSpy.mockResolvedValueOnce({ matches: [], total: 0 });
-    const { container } = render(
+    render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.textContent).toMatch(/no matches/i);
+      expect(document.body.textContent).toMatch(/no matches/i);
     });
   });
 
   it('shows an error banner when the search throws', async () => {
     searchSpy.mockRejectedValueOnce(new Error('boom'));
-    const { container } = render(
+    render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.textContent).toMatch(/search failed/i);
+      expect(document.body.textContent).toMatch(/search failed/i);
     });
   });
 
   // --- Sort toggle --------------------------------------------------------
 
   it('renders an A-Z / Level sort toggle with A-Z selected by default', async () => {
-    const { container, getByTestId } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     const toggle = getByTestId('feat-picker-sort');
     const alpha = toggle.querySelector('[data-sort-option="alpha"]');
@@ -161,13 +161,13 @@ describe('FeatPicker', () => {
 
   it('sorts matches A-Z by default regardless of server order', async () => {
     // Server returns Sudden Charge first; A-Z should surface Raging Intimidation first.
-    const { container } = render(
+    render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
-    const names = Array.from(container.querySelectorAll('[data-match-uuid]')).map(
+    const names = Array.from(document.querySelectorAll('[data-match-uuid]')).map(
       (el) => el.querySelector('span')?.textContent,
     );
     expect(names).toEqual(['Raging Intimidation', 'Sudden Charge']);
@@ -212,16 +212,16 @@ describe('FeatPicker', () => {
       ],
       total: 3,
     });
-    const { container, getByTestId } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     const levelBtn = getByTestId('feat-picker-sort').querySelector('[data-sort-option="level"]') as HTMLElement;
     fireEvent.click(levelBtn);
 
-    const order = Array.from(container.querySelectorAll('[data-match-uuid]')).map((el) =>
+    const order = Array.from(document.querySelectorAll('[data-match-uuid]')).map((el) =>
       el.getAttribute('data-match-uuid'),
     );
     // Ascending by level: 1, 3, 5 → B, C, A
@@ -231,18 +231,18 @@ describe('FeatPicker', () => {
   });
 
   it('reverses direction when the active sort option is clicked again', async () => {
-    const { container, getByTestId } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     const toggle = getByTestId('feat-picker-sort');
     const alpha = toggle.querySelector('[data-sort-option="alpha"]') as HTMLElement;
 
     // First load: asc, so names A-Z.
     expect(alpha.getAttribute('data-sort-dir')).toBe('asc');
-    const ascOrder = Array.from(container.querySelectorAll('[data-match-uuid]')).map(
+    const ascOrder = Array.from(document.querySelectorAll('[data-match-uuid]')).map(
       (el) => el.querySelector('span')?.textContent,
     );
     expect(ascOrder).toEqual(['Raging Intimidation', 'Sudden Charge']);
@@ -251,7 +251,7 @@ describe('FeatPicker', () => {
     fireEvent.click(alpha);
     expect(alpha.getAttribute('data-sort-dir')).toBe('desc');
     expect(alpha.textContent).toMatch(/↓/);
-    const descOrder = Array.from(container.querySelectorAll('[data-match-uuid]')).map(
+    const descOrder = Array.from(document.querySelectorAll('[data-match-uuid]')).map(
       (el) => el.querySelector('span')?.textContent,
     );
     expect(descOrder).toEqual(['Sudden Charge', 'Raging Intimidation']);
@@ -296,18 +296,18 @@ describe('FeatPicker', () => {
       ],
       total: 3,
     });
-    const { container, getByTestId } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     const level = getByTestId('feat-picker-sort').querySelector('[data-sort-option="level"]') as HTMLElement;
 
     // Click once → Level asc (1, 5, 10).
     fireEvent.click(level);
     expect(level.getAttribute('data-sort-dir')).toBe('asc');
-    const asc = Array.from(container.querySelectorAll('[data-match-uuid]')).map((el) =>
+    const asc = Array.from(document.querySelectorAll('[data-match-uuid]')).map((el) =>
       el.getAttribute('data-match-uuid'),
     );
     expect(asc).toEqual(['L1', 'L5', 'L10']);
@@ -315,7 +315,7 @@ describe('FeatPicker', () => {
     // Click again → Level desc (10, 5, 1).
     fireEvent.click(level);
     expect(level.getAttribute('data-sort-dir')).toBe('desc');
-    const desc = Array.from(container.querySelectorAll('[data-match-uuid]')).map((el) =>
+    const desc = Array.from(document.querySelectorAll('[data-match-uuid]')).map((el) =>
       el.getAttribute('data-match-uuid'),
     );
     expect(desc).toEqual(['L10', 'L5', 'L1']);
@@ -359,16 +359,16 @@ describe('FeatPicker', () => {
       ],
       total: 3,
     });
-    const { container, getByTestId } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     const level = getByTestId('feat-picker-sort').querySelector('[data-sort-option="level"]') as HTMLElement;
     fireEvent.click(level); // asc
     fireEvent.click(level); // desc
-    const order = Array.from(container.querySelectorAll('[data-match-uuid]')).map((el) =>
+    const order = Array.from(document.querySelectorAll('[data-match-uuid]')).map((el) =>
       el.getAttribute('data-match-uuid'),
     );
     // L10 first (Ancient), L1 next (Basic), Unknown (no level) at the bottom.
@@ -376,11 +376,11 @@ describe('FeatPicker', () => {
   });
 
   it('resets direction to asc when switching between modes', async () => {
-    const { container, getByTestId } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     const toggle = getByTestId('feat-picker-sort');
     const alpha = toggle.querySelector('[data-sort-option="alpha"]') as HTMLElement;
@@ -434,14 +434,14 @@ describe('FeatPicker', () => {
       ],
       total: 3,
     });
-    const { container, getByTestId } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
     fireEvent.click(getByTestId('feat-picker-sort').querySelector('[data-sort-option="level"]') as HTMLElement);
-    const order = Array.from(container.querySelectorAll('[data-match-uuid]')).map((el) =>
+    const order = Array.from(document.querySelectorAll('[data-match-uuid]')).map((el) =>
       el.getAttribute('data-match-uuid'),
     );
     // L1 alpha first (Alpha before Beta), then the unlevelled entry at the bottom.
@@ -453,24 +453,24 @@ describe('FeatPicker', () => {
   it('shows a "Load more" button when the server total exceeds the page', async () => {
     // Return 2 matches but declare total=10 → "Load more" should appear.
     searchSpy.mockResolvedValue({ matches: sampleMatches, total: 10 });
-    const { container } = render(
+    render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
-    expect(container.querySelector('[data-testid="feat-picker-load-more"]')).toBeTruthy();
+    expect(document.querySelector('[data-testid="feat-picker-load-more"]')).toBeTruthy();
   });
 
   it('does not show "Load more" when total equals the loaded count', async () => {
     // Default mock has total === matches.length (2) → no more button.
-    const { container } = render(
+    render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
-      expect(container.querySelector('[data-match-uuid]')).toBeTruthy();
+      expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
     });
-    expect(container.querySelector('[data-testid="feat-picker-load-more"]')).toBeFalsy();
+    expect(document.querySelector('[data-testid="feat-picker-load-more"]')).toBeFalsy();
   });
 
   it('fetches the next page and appends results when "Load more" is clicked', async () => {
@@ -492,24 +492,25 @@ describe('FeatPicker', () => {
     // Page 1: remaining 1 item
     searchSpy.mockResolvedValueOnce({ matches: page2Matches, total: 3 });
 
-    const { container, getByTestId } = render(
+    const { getByTestId } = render(
       <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
 
     await waitFor(() => {
-      expect(container.querySelector('[data-testid="feat-picker-load-more"]')).toBeTruthy();
+      expect(document.querySelector('[data-testid="feat-picker-load-more"]')).toBeTruthy();
     });
 
     fireEvent.click(getByTestId('feat-picker-load-more'));
 
     await waitFor(() => {
-      expect(container.textContent).toContain('Power Attack');
+      expect(document.body.textContent).toContain('Power Attack');
     });
 
     // All 3 rows visible (2 original + 1 new).
-    expect(container.querySelectorAll('[data-match-uuid]').length).toBe(3);
+    expect(document.querySelectorAll('[data-match-uuid]').length).toBe(3);
     // Second call should have offset=2.
     const secondCall = searchSpy.mock.calls[1]?.[0];
     expect(secondCall?.offset).toBe(sampleMatches.length);
   });
 });
+

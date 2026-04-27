@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ProficiencyRank } from '../../api/types';
 import type { CharacterContext } from '../../prereqs';
 
@@ -68,7 +69,10 @@ export function SkillIncreasePicker({ level, characterContext, onPick, onClose }
     })
     .sort((a, b) => a.slug.localeCompare(b.slug));
 
-  return (
+  // Portal to document.body so the modal escapes any ancestor's
+  // child-selector utilities (e.g. Progression.tsx's `*:bg-pf-bg-dark`
+  // section, which would otherwise paint the backdrop solid).
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -163,7 +167,8 @@ export function SkillIncreasePicker({ level, characterContext, onPick, onClose }
           </button>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -74,10 +74,12 @@
 }
 /* Sticky step-nav scrim: fades from the page background down to transparent
  * so the nav pill bar appears to float above the scrolling content. Uses
- * --portal-bg so the fade colour matches both light (cream parchment) and
- * dark (#0d111e navy) themes automatically. */
+ * --color-pf-bg (the cream parchment surface that CharactersLayout sets
+ * via `bg-pf-bg`) so the fade matches whatever colour the creator/sheet
+ * is actually painted with — independent of the portal theme, which only
+ * affects the outer nav chrome. */
 @utility bg-stage-gradient {
-  background: linear-gradient(to bottom, var(--portal-bg), transparent);
+  background: linear-gradient(to bottom, var(--color-pf-bg), transparent);
 }
 
 /* Item state tokens — used for inventory grid tiles and any other surface

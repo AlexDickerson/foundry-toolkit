@@ -38,7 +38,11 @@ export function usePendingPrompts(): PendingPrompt[] {
   const [prompts, setPrompts] = useState<PendingPrompt[]>([]);
 
   useEffect(() => {
-    const es = new EventSource('/api/prompts/stream');
+    // Routes through the player-portal Fastify server's `/api/mcp/*` proxy
+    // → foundry-mcp's `/api/prompts/stream`. The bare `/api/prompts/stream`
+    // path 404s because the player-portal server only has `/api/mcp/*` and
+    // `/api/live/*` — there is no top-level `/api/prompts` route there.
+    const es = new EventSource('/api/mcp/prompts/stream');
 
     es.onmessage = (ev): void => {
       try {
