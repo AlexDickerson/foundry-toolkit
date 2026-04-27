@@ -89,7 +89,7 @@ export const chatRollSchema = z.object({
 export const chatMessageSnapshotSchema = z.object({
   id: z.string(),
   uuid: z.string().nullable(),
-  type: z.number().nullable(),
+  type: z.union([z.number(), z.string()]).nullable(),
   author: z.object({ id: z.string(), name: z.string() }).nullable(),
   timestamp: z.number().nullable(),
   flavor: z.string(),
