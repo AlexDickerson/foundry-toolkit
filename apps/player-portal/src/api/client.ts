@@ -7,6 +7,8 @@ import type {
   CreateActorBody,
   DispatchRequest,
   DispatchResponse,
+  PartyForMember,
+  PartyStash,
   Pf2eRollMode,
   Pf2eStatisticSlug,
   RollActorStatisticResponse,
@@ -185,6 +187,17 @@ export const api = {
     api.invokeActorAction<{ ok: boolean; added: boolean; uuid: string; formulaCount: number }>(id, 'add-formula', {
       uuid,
     }),
+  // Given a character actor id, returns the party it belongs to plus rich
+  // stat data for every party member. Used by useParty to power the Display
+  // rail and the Stash section. Optional partyName provides the fallback when
+  // the PF2e runtime doesn't expose actor.parties on the character actor.
+  getPartyForMember: (actorId: string, partyName?: string): Promise<PartyForMember> => {
+    const qs = partyName ? `?party=${encodeURIComponent(partyName)}` : '';
+    return request<PartyForMember>(`/actors/${encodeURIComponent(actorId)}/party${qs}`);
+  },
+  // Returns all items on a Party actor in ItemSummary shape. Read-only.
+  getPartyStash: (partyId: string): Promise<PartyStash> =>
+    request<PartyStash>(`/actors/${encodeURIComponent(partyId)}/party-stash`),
   removeFormula: (
     id: string,
     uuid: string,
