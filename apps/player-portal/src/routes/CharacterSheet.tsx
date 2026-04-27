@@ -19,12 +19,15 @@ import { Progression } from '../components/tabs/Progression';
 import { Chat } from '../components/tabs/Chat';
 import { Spells } from '../components/tabs/Spells';
 import { useEventChannel } from '../lib/useEventChannel';
+import { useParty } from '../lib/useParty';
 import { fromPreparedCharacter } from '../prereqs';
 import { usePreferences } from '../lib/usePreferences';
 import { prefetchIcons } from '../lib/prefetchIcons';
 import { PromptQueue } from '../components/dialog/PromptQueue';
 import type { TabId } from '../lib/tabUtils';
 import { useShopMode } from '../lib/useShopMode';
+import { PartyRail } from '../components/sheet/PartyRail';
+import { MemberCard } from '../components/sheet/MemberCard';
 
 type State =
   | { kind: 'loading' }
@@ -63,6 +66,7 @@ interface InnerProps {
 
 function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): React.ReactElement {
   const shopMode = useShopMode();
+  const { party, members } = useParty(actorId);
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [activeTab, setActiveTab] = useState<TabId>('character');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -123,14 +127,21 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
     // on the right in the previously-empty column space. Single column on
     // narrower viewports where the sidebar would be too cramped.
     <div className="flex gap-6 py-6 font-sans">
-      {/* ── Left placeholder — same width as chat sidebar, reserved for
-          a future panel being added in a separate workstream ────────── */}
+      {/* ── Party rail (left column, desktop only) ───────────────────── */}
       <div className="hidden w-[230px] shrink-0 pl-3 lg:block">
-        <div className="h-full rounded border border-dashed border-pf-border" />
+        <PartyRail party={party} members={members} currentActorId={actorId} />
       </div>
 
       {/* ── Sheet column ─────────────────────────────────────────────── */}
       <main className="min-w-0 flex-1">
+        {/* ── Party top strip (mobile only, shown when in a party) ───── */}
+        {members.length > 0 && (
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+            {members.map((m) => (
+              <MemberCard key={m.id} member={m} isCurrent={m.id === actorId} compact />
+            ))}
+          </div>
+        )}
         {state.kind === 'loading' && (
           <div className="mb-4 flex items-center justify-between">
             <p className="text-sm text-neutral-500">Loading character…</p>
@@ -211,6 +222,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
                   actorId={actorId}
                   onActorChanged={reloadActor}
                   investiture={state.actor.system.resources.investiture}
+                  {...(party !== null ? { partyId: party.id, partyName: party.name } : {})}
                 />
                 {!shopMode.enabled && (
                   <div className="mt-10 border-t border-pf-border pt-6">
