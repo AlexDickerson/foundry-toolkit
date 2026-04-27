@@ -123,8 +123,12 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
     // on the right in the previously-empty column space. Single column on
     // narrower viewports where the sidebar would be too cramped.
     <div className="flex gap-6 py-6 pl-6 font-sans">
+      {/* ── Left placeholder — same width as chat sidebar, reserved for
+          a future panel being added in a separate workstream ────────── */}
+      <div className="hidden w-72 shrink-0 lg:block" />
+
       {/* ── Sheet column ─────────────────────────────────────────────── */}
-      <main className="min-w-0 max-w-3xl flex-1">
+      <main className="min-w-0 flex-1">
         {state.kind === 'loading' && (
           <div className="mb-4 flex items-center justify-between">
             <p className="text-sm text-neutral-500">Loading character…</p>
