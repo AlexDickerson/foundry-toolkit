@@ -45,7 +45,7 @@ import {
   priceToCopper,
   type MonsterResult,
   type MonsterRow,
-} from './projection.js';
+} from './projection/index.js';
 import type { CompendiumMatch } from './types.js';
 
 // Default pack scope used when the user hasn't customized monster packs
