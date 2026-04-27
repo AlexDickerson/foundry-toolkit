@@ -186,7 +186,15 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
-      {partyId !== undefined && <PartyStash partyId={partyId} partyName={partyName} refreshKey={stashNonce} />}
+      {partyId !== undefined && (
+        <PartyStash
+          partyId={partyId}
+          partyName={partyName}
+          refreshKey={stashNonce}
+          {...(actorId !== undefined ? { actorId } : {})}
+          {...(onActorChanged !== undefined ? { onActorChanged } : {})}
+        />
+      )}
       {txError !== null && (
         <p className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800" data-role="tx-error">
           {txError}

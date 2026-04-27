@@ -162,6 +162,11 @@ export const api = {
   // bridge defaults to 1 when omitted).
   transferItemToParty: (actorId: string, itemId: string, partyId: string, quantity = 1): Promise<{ ok: boolean }> =>
     api.invokeActorAction<{ ok: boolean }>(actorId, 'transfer-to-party', { itemId, targetActorId: partyId, quantity }),
+  // Move an item from the party stash to a character's inventory.
+  // Reuses the same bridge action (transfer-to-party) invoked on the
+  // party actor with the character as the target.
+  takeItemFromParty: (partyId: string, itemId: string, actorId: string, quantity = 1): Promise<{ ok: boolean }> =>
+    api.invokeActorAction<{ ok: boolean }>(partyId, 'transfer-to-party', { itemId, targetActorId: actorId, quantity }),
   // Rolls a single MAP variant of a Strike. `variantIndex` 0/1/2 maps
   // to first attack / second (−5 MAP) / third (−10 MAP). pf2e's
   // `StrikeData.variants[i].roll()` bakes in the MAP penalty.
