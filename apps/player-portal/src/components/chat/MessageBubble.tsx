@@ -72,10 +72,10 @@ export function MessageBubble({ message }: Props): React.ReactElement {
         )}
       </div>
 
-      {/* Roll flavor (e.g. "Perception Check") */}
+      {/* Roll flavor (e.g. "Perception Check") — clamp action-cost icons */}
       {message.isRoll && message.flavor.length > 0 && (
         <div
-          className="mb-1 text-xs text-pf-alt-dark"
+          className="mb-1 text-xs text-pf-alt-dark [&_img]:!max-h-4 [&_img]:!w-auto [&_img]:inline-block [&_img]:align-middle"
           dangerouslySetInnerHTML={{ __html: message.flavor }}
         />
       )}
@@ -85,10 +85,12 @@ export function MessageBubble({ message }: Props): React.ReactElement {
         <RollResult roll={message.rolls[0]} />
       )}
 
-      {/* Message content (HTML from Foundry — trusted source) */}
+      {/* Message content (HTML from Foundry — trusted source).
+          Cap embedded images: PF2e cards include action icons and item
+          art with inline size attributes that would overflow the sidebar. */}
       {message.content.length > 0 && (
         <div
-          className="prose-sm max-w-none text-pf-text [&_a]:text-pf-primary [&_a]:underline"
+          className="prose-sm max-w-none text-pf-text [&_a]:text-pf-primary [&_a]:underline [&_img]:!max-h-6 [&_img]:!w-auto [&_img]:inline-block [&_img]:align-middle"
           dangerouslySetInnerHTML={{ __html: message.content }}
         />
       )}

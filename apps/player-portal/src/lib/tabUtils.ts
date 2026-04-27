@@ -13,8 +13,7 @@ export type TabId =
   | 'inventory'
   | 'feats'
   | 'details'
-  | 'progression'
-  | 'chat';
+  | 'progression';
 
 // Compile-time guard: the literal array must cover every TabId exactly.
 const VALID_TABS = new Set<string>(
@@ -26,7 +25,6 @@ const VALID_TABS = new Set<string>(
     'feats',
     'details',
     'progression',
-    'chat',
   ] satisfies TabId[],
 );
 
@@ -35,6 +33,7 @@ const LEGACY_REDIRECTS: Readonly<Record<string, TabId>> = {
   crafting: 'inventory',
   proficiencies: 'details',
   background: 'details',
+  chat: 'character',
 };
 
 /**
