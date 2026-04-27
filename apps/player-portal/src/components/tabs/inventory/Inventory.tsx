@@ -19,12 +19,18 @@ import {
 import { spendCoins, grantCoins, type SellContext, type InvestContext } from './inventory-shop';
 import { ItemRow, GridTile } from './InventoryItemRow';
 import { CoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
+import { PartyStash } from './PartyStash';
 
 interface Props {
   items: PreparedActorItem[];
   actorId?: string;
   onActorChanged?: () => void;
   investiture?: PointPool;
+  /** Party actor ID, when the character is a member of a party. Drives the
+   *  stash section rendered above personal inventory. Undefined = no party
+   *  (or lookup still in flight) — stash section is hidden. */
+  partyId?: string;
+  partyName?: string;
 }
 
 // Inventory tab — reads `items[]`, filters to physical item types
@@ -38,9 +44,7 @@ interface Props {
 // inventory.hbs, but flattened — our read-only viewer doesn't need
 // stow/carry/drop controls or quantity adjusters.
 //
-// Future: the Party Stash section will land as a sibling component
-// (inventory/PartyStash.tsx) once that feature is fleshed out.
-export function Inventory({ items, actorId, onActorChanged, investiture }: Props): React.ReactElement {
+export function Inventory({ items, actorId, onActorChanged, investiture, partyId, partyName }: Props): React.ReactElement {
   // One uuid-hover instance for every expanded item description —
   // event delegation on the section picks up anchors produced by
   // `enrichDescription` regardless of which item was expanded.
@@ -161,6 +165,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
+      {partyId !== undefined && <PartyStash partyId={partyId} partyName={partyName} />}
       {txError !== null && (
         <p className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800" data-role="tx-error">
           {txError}
