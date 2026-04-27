@@ -69,7 +69,6 @@ export function ItemRow({
           <EquippedBadge item={item} suppressInvested={hasInvestButton} />
           {hasInvestButton && <InvestButton item={item} context={investContext} />}
           <BulkLabel value={bulk.value} />
-          {partyContext && <StashButton item={item} context={partyContext} />}
           {sellContext && <SellButton item={item} context={sellContext} />}
           <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
           <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
@@ -78,6 +77,11 @@ export function ItemRow({
             drops the top border (seam is the <details> bottom edge),
             and gets the bottom rounding that <details> gives up. */}
         <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
+          {partyContext && (
+            <div className="mb-2">
+              <StashButton item={item} context={partyContext} />
+            </div>
+          )}
           <ItemDescription item={item} />
         </div>
       </details>
@@ -215,7 +219,6 @@ export function GridTile({
               </span>
             )}
           </div>
-          {partyContext && <StashButton item={item} context={partyContext} />}
           {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
         <div
@@ -225,6 +228,11 @@ export function GridTile({
           {hasInvestButton && (
             <div className="mb-3">
               <InvestButton item={item} context={investContext} />
+            </div>
+          )}
+          {partyContext && (
+            <div className="mb-3">
+              <StashButton item={item} context={partyContext} />
             </div>
           )}
           <ItemDescription item={item} />
