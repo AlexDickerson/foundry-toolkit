@@ -30,6 +30,10 @@ import type {
   RunScriptResult,
   GetPartyMembersParams,
   PartyMemberResult,
+  GetPartyForMemberParams,
+  GetPartyForMemberResult,
+  GetPartyStashParams,
+  GetPartyStashResult,
   GetWorldInfoParams,
   WorldInfoResult,
 } from './actor';
@@ -284,6 +288,8 @@ export type CommandType =
   | 'set-event-subscription'
   | 'fetch-asset'
   | 'get-party-members'
+  | 'get-party-for-member'
+  | 'get-party-stash'
   | 'dispatch';
 
 export type CommandHandler<TParams = unknown, TResult = unknown> = (params: TParams) => Promise<TResult>;
@@ -385,6 +391,8 @@ export interface CommandParamsMap {
   'set-event-subscription': SetEventSubscriptionParams;
   'fetch-asset': { path: string };
   'get-party-members': GetPartyMembersParams;
+  'get-party-for-member': GetPartyForMemberParams;
+  'get-party-stash': GetPartyStashParams;
   'dispatch': DispatchParams;
 }
 
@@ -485,5 +493,7 @@ export interface CommandResultMap {
   'set-event-subscription': SetEventSubscriptionResult;
   'fetch-asset': { ok: boolean; contentType?: string; bytes?: string; status?: number; error?: string };
   'get-party-members': PartyMemberResult[];
+  'get-party-for-member': GetPartyForMemberResult;
+  'get-party-stash': GetPartyStashResult;
   'dispatch': DispatchResult;
 }
