@@ -122,7 +122,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
     // Two-column layout on large screens: sheet on the left, chat sidebar
     // on the right in the previously-empty column space. Single column on
     // narrower viewports where the sidebar would be too cramped.
-    <div className="mx-auto flex max-w-6xl gap-6 px-6 py-6 font-sans">
+    <div className="flex gap-6 py-6 pl-6 font-sans">
       {/* ── Sheet column ─────────────────────────────────────────────── */}
       <main className="min-w-0 max-w-3xl flex-1">
         {state.kind === 'loading' && (
@@ -252,7 +252,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
       {/* Hidden on narrow viewports; sticks to the top and scrolls
           independently so the sheet and chat can be read in parallel. */}
       {state.kind === 'ready' && (
-        <aside className="hidden w-72 shrink-0 lg:flex lg:flex-col">
+        <aside className="hidden w-72 shrink-0 pr-3 lg:flex lg:flex-col">
           <div className="sticky top-6 flex max-h-[calc(100svh-3rem)] flex-col">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-pf-alt-dark">Chat</p>
             <div className="min-h-0 flex-1 overflow-y-auto">
