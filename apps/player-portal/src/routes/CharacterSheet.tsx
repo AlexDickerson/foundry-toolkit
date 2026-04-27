@@ -122,7 +122,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
     // Two-column layout on large screens: sheet on the left, chat sidebar
     // on the right in the previously-empty column space. Single column on
     // narrower viewports where the sidebar would be too cramped.
-    <div className="flex gap-6 py-6 pl-6 font-sans">
+    <div className="flex gap-6 py-6 font-sans">
       {/* ── Left placeholder — same width as chat sidebar, reserved for
           a future panel being added in a separate workstream ────────── */}
       <div className="hidden w-72 shrink-0 rounded border border-dashed border-pf-border lg:block" />
