@@ -1,27 +1,15 @@
-// Zod schemas for the three live-state datasets shared between dm-tool,
-// foundry-mcp, and player-portal: party inventory, Aurus combat teams,
-// and globe pins.
+// Zod schemas for the live-state datasets shared between dm-tool, foundry-mcp,
+// and player-portal: Aurus combat teams and globe pins.
 //
-// Each schema exports both the runtime validator and an inferred TS type
-// so every consumer derives from one source. foundry-mcp is the eventual
-// authority on these routes; shape drift surfaces as TS errors across all
-// consumers at the next typecheck.
+// Each schema exports both the runtime validator and an inferred TS type so
+// every consumer derives from one source. foundry-mcp is the authority on
+// these routes; shape drift surfaces as TS errors across all consumers at the
+// next typecheck.
+//
+// Party inventory has been retired: players now read the Party actor's stash
+// directly from Foundry via getPartyStash. See packages/shared/src/rpc/party.ts.
 
 import { z } from 'zod/v4';
-
-export const partyInventoryItemSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  qty: z.number(),
-  category: z.enum(['consumable', 'equipment', 'quest', 'treasure', 'other']),
-  bulk: z.number().optional(),
-  valueCp: z.number().optional(),
-  aonUrl: z.string().optional(),
-  note: z.string().optional(),
-  carriedBy: z.string().optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
 
 export const aurusTeamSchema = z.object({
   id: z.string(),
@@ -52,11 +40,6 @@ export const globePinSchema = z.object({
   mission: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const inventorySnapshotSchema = z.object({
-  items: z.array(partyInventoryItemSchema),
-  updatedAt: z.string(),
-});
-
 export const aurusSnapshotSchema = z.object({
   teams: z.array(aurusTeamSchema),
   updatedAt: z.string(),
@@ -67,10 +50,8 @@ export const globeSnapshotSchema = z.object({
   updatedAt: z.string(),
 });
 
-export type PartyInventoryItem = z.infer<typeof partyInventoryItemSchema>;
 export type AurusTeam = z.infer<typeof aurusTeamSchema>;
 export type GlobePin = z.infer<typeof globePinSchema>;
-export type InventorySnapshot = z.infer<typeof inventorySnapshotSchema>;
 export type AurusSnapshot = z.infer<typeof aurusSnapshotSchema>;
 export type GlobeSnapshot = z.infer<typeof globeSnapshotSchema>;
 
@@ -108,7 +89,7 @@ export const chatRollSchema = z.object({
 export const chatMessageSnapshotSchema = z.object({
   id: z.string(),
   uuid: z.string().nullable(),
-  type: z.union([z.number(), z.string()]).nullable(),
+  type: z.number().nullable(),
   author: z.object({ id: z.string(), name: z.string() }).nullable(),
   timestamp: z.number().nullable(),
   flavor: z.string(),

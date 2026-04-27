@@ -4,94 +4,11 @@ import {
   chatLogBackfillSchema,
   chatMessageSnapshotSchema,
   globeSnapshotSchema,
-  inventorySnapshotSchema,
   type AurusSnapshot,
   type ChatLogBackfill,
   type ChatMessageSnapshot,
   type GlobeSnapshot,
-  type InventorySnapshot,
 } from './live';
-
-// ─── InventorySnapshot ────────────────────────────────────────────────────────
-
-describe('inventorySnapshotSchema', () => {
-  const validSnapshot: InventorySnapshot = {
-    items: [
-      {
-        id: 'item-001',
-        name: 'Potion of Healing',
-        qty: 3,
-        category: 'consumable',
-        bulk: 0.1,
-        valueCp: 10000,
-        aonUrl: 'https://2e.aonprd.com/Equipment.aspx?ID=186',
-        note: 'Lesser',
-        carriedBy: 'Valeros',
-        createdAt: '2024-03-15T10:00:00.000Z',
-        updatedAt: '2024-03-15T12:30:00.000Z',
-      },
-      {
-        id: 'item-002',
-        name: 'Greatsword',
-        qty: 1,
-        category: 'equipment',
-        bulk: 2,
-        valueCp: 200,
-        createdAt: '2024-03-10T08:00:00.000Z',
-        updatedAt: '2024-03-10T08:00:00.000Z',
-      },
-    ],
-    updatedAt: '2024-03-15T12:30:00.000Z',
-  };
-
-  it('round-trips a valid snapshot', () => {
-    const parsed: InventorySnapshot = inventorySnapshotSchema.parse(validSnapshot);
-    expect(parsed).toEqual(validSnapshot);
-  });
-
-  it('round-trips via JSON serialization', () => {
-    const roundTripped = inventorySnapshotSchema.parse(JSON.parse(JSON.stringify(validSnapshot)));
-    expect(roundTripped).toEqual(validSnapshot);
-  });
-
-  it('accepts an empty items array', () => {
-    const empty = inventorySnapshotSchema.parse({ items: [], updatedAt: '2024-01-01T00:00:00.000Z' });
-    expect(empty.items).toHaveLength(0);
-  });
-
-  it('accepts all category values', () => {
-    const categories = ['consumable', 'equipment', 'quest', 'treasure', 'other'] as const;
-    for (const category of categories) {
-      const parsed = inventorySnapshotSchema.parse({
-        items: [{ id: 'x', name: 'Item', qty: 1, category, createdAt: 'ts', updatedAt: 'ts' }],
-        updatedAt: 'ts',
-      });
-      expect(parsed.items[0]?.category).toBe(category);
-    }
-  });
-
-  it('rejects an unknown category', () => {
-    expect(() =>
-      inventorySnapshotSchema.parse({
-        items: [{ id: 'x', name: 'Item', qty: 1, category: 'magical', createdAt: 'ts', updatedAt: 'ts' }],
-        updatedAt: 'ts',
-      }),
-    ).toThrow();
-  });
-
-  it('rejects a snapshot missing updatedAt', () => {
-    expect(() => inventorySnapshotSchema.parse({ items: [] })).toThrow();
-  });
-
-  it('rejects an item missing required name', () => {
-    expect(() =>
-      inventorySnapshotSchema.parse({
-        items: [{ id: 'x', qty: 1, category: 'equipment', createdAt: 'ts', updatedAt: 'ts' }],
-        updatedAt: 'ts',
-      }),
-    ).toThrow();
-  });
-});
 
 // ─── AurusSnapshot ────────────────────────────────────────────────────────────
 
@@ -265,11 +182,6 @@ describe('chatMessageSnapshotSchema', () => {
   it('round-trips a valid message', () => {
     const parsed: ChatMessageSnapshot = chatMessageSnapshotSchema.parse(validMessage);
     expect(parsed).toEqual(validMessage);
-  });
-
-  it('accepts a string type (Foundry v14 document subtype)', () => {
-    const parsed = chatMessageSnapshotSchema.parse({ ...validMessage, type: 'base' });
-    expect(parsed.type).toBe('base');
   });
 
   it('round-trips via JSON serialization', () => {

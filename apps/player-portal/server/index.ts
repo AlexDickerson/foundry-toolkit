@@ -129,7 +129,6 @@ async function main(): Promise<void> {
 
   // --- Live-state SSE streams (proxy to foundry-mcp) ----------------------
 
-  app.get('/api/live/inventory/stream', makeSseProxy(MCP_URL, '/api/live/inventory/stream'));
   app.get('/api/live/aurus/stream', makeSseProxy(MCP_URL, '/api/live/aurus/stream'));
   app.get('/api/live/globe/stream', makeSseProxy(MCP_URL, '/api/live/globe/stream'));
 

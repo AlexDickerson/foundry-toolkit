@@ -12,7 +12,6 @@ import { CharacterSheet } from './routes/CharacterSheet';
 import { Characters } from './routes/Characters';
 import { Globe } from './routes/Globe';
 import { Home } from './routes/Home';
-import { Inventory } from './routes/Inventory';
 import { Leaderboard } from './routes/Leaderboard';
 
 const router = createBrowserRouter([
@@ -22,7 +21,6 @@ const router = createBrowserRouter([
     children: [
       { index: true, Component: Home },
       { path: 'globe', Component: Globe },
-      { path: 'inventory', Component: Inventory },
       { path: 'leaderboard', Component: Leaderboard },
       {
         path: 'characters',

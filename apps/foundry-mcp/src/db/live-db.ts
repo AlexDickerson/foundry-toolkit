@@ -15,13 +15,12 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { AurusSnapshot, GlobeSnapshot, InventorySnapshot } from '@foundry-toolkit/shared/rpc';
+import type { AurusSnapshot, GlobeSnapshot } from '@foundry-toolkit/shared/rpc';
 
 type SnapshotListener<T> = (snapshot: T) => void;
 
 export class LiveDb {
   private readonly db: DatabaseSync;
-  private readonly inventoryListeners = new Set<SnapshotListener<InventorySnapshot>>();
   private readonly aurusListeners = new Set<SnapshotListener<AurusSnapshot>>();
   private readonly globeListeners = new Set<SnapshotListener<GlobeSnapshot>>();
 
@@ -36,11 +35,6 @@ export class LiveDb {
 
   private migrate(): void {
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS inventory_snapshot (
-        id         INTEGER PRIMARY KEY CHECK (id = 1),
-        data       TEXT    NOT NULL,
-        updated_at TEXT    NOT NULL
-      );
       CREATE TABLE IF NOT EXISTS aurus_snapshot (
         id         INTEGER PRIMARY KEY CHECK (id = 1),
         data       TEXT    NOT NULL,
@@ -52,28 +46,6 @@ export class LiveDb {
         updated_at TEXT    NOT NULL
       );
     `);
-  }
-
-  // ─── Inventory ─────────────────────────────────────────────────────────────
-
-  getInventory(): InventorySnapshot {
-    const row = this.db.prepare('SELECT data FROM inventory_snapshot WHERE id = 1').get() as
-      | { data: string }
-      | undefined;
-    if (!row) return { items: [], updatedAt: new Date().toISOString() };
-    return JSON.parse(row.data) as InventorySnapshot;
-  }
-
-  setInventory(snapshot: InventorySnapshot): void {
-    this.db
-      .prepare('INSERT OR REPLACE INTO inventory_snapshot (id, data, updated_at) VALUES (1, ?, ?)')
-      .run(JSON.stringify(snapshot), snapshot.updatedAt);
-    for (const fn of this.inventoryListeners) fn(snapshot);
-  }
-
-  subscribeInventory(fn: SnapshotListener<InventorySnapshot>): () => void {
-    this.inventoryListeners.add(fn);
-    return () => this.inventoryListeners.delete(fn);
   }
 
   // ─── Aurus ─────────────────────────────────────────────────────────────────

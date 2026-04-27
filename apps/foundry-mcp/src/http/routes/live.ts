@@ -9,7 +9,7 @@
 // deployment; the caller (registerLiveRoutes) logs a warning at startup.
 
 import type { FastifyInstance } from 'fastify';
-import { inventorySnapshotSchema, aurusSnapshotSchema, globeSnapshotSchema } from '../schemas.js';
+import { aurusSnapshotSchema, globeSnapshotSchema } from '../schemas.js';
 import type { LiveDb } from '../../db/live-db.js';
 import { log } from '../../logger.js';
 
@@ -31,40 +31,6 @@ export function registerLiveRoutes(app: FastifyInstance, db: LiveDb, secret: str
     if (!secret) return true;
     return authHeader === `Bearer ${secret}`;
   }
-
-  // ─── Inventory ─────────────────────────────────────────────────────────────
-
-  app.get('/api/live/inventory', async () => db.getInventory());
-
-  app.post('/api/live/inventory', async (req, reply) => {
-    if (!checkAuth(req.headers.authorization)) {
-      reply.code(401).send({ error: 'Unauthorized' });
-      return;
-    }
-    const snapshot = inventorySnapshotSchema.parse(req.body);
-    db.setInventory(snapshot);
-    log.info(`live inventory updated: ${snapshot.items.length} item(s), updatedAt=${snapshot.updatedAt}`);
-    reply.code(200).send(snapshot);
-  });
-
-  app.get('/api/live/inventory/stream', (req, reply) => {
-    reply.raw.writeHead(200, sseHeaders());
-    reply.raw.write(`: connected\n\n`);
-    reply.raw.write(`data: ${JSON.stringify(db.getInventory())}\n\n`);
-
-    const unsubscribe = db.subscribeInventory((snapshot) => {
-      reply.raw.write(`data: ${JSON.stringify(snapshot)}\n\n`);
-    });
-
-    const heartbeat = setInterval(() => {
-      reply.raw.write(`: ping\n\n`);
-    }, 20_000);
-
-    req.raw.on('close', () => {
-      clearInterval(heartbeat);
-      unsubscribe();
-    });
-  });
 
   // ─── Aurus ─────────────────────────────────────────────────────────────────
 

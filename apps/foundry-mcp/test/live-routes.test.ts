@@ -4,7 +4,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod/v4';
 import { LiveDb } from '../src/db/live-db.js';
 import { registerLiveRoutes } from '../src/http/routes/live.js';
-import type { AurusSnapshot, GlobeSnapshot, InventorySnapshot } from '@foundry-toolkit/shared/rpc';
+import type { AurusSnapshot, GlobeSnapshot } from '@foundry-toolkit/shared/rpc';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -25,20 +25,6 @@ function makeApp(opts: { secret?: string } = {}): { app: FastifyInstance; db: Li
   registerLiveRoutes(app, db, opts.secret);
   return { app, db };
 }
-
-const inventoryFixture: InventorySnapshot = {
-  items: [
-    {
-      id: 'item-1',
-      name: 'Potion of Healing',
-      qty: 2,
-      category: 'consumable',
-      createdAt: '2024-01-01T00:00:00.000Z',
-      updatedAt: '2024-03-01T00:00:00.000Z',
-    },
-  ],
-  updatedAt: '2024-03-01T00:00:00.000Z',
-};
 
 const aurusFixture: AurusSnapshot = {
   teams: [
@@ -75,61 +61,6 @@ const globeFixture: GlobeSnapshot = {
 // ─── LiveDb unit tests ─────────────────────────────────────────────────────
 
 describe('LiveDb — in-memory persistence', () => {
-  it('getInventory returns an empty snapshot before any write', () => {
-    const db = new LiveDb(':memory:');
-    const snap = db.getInventory();
-    assert.deepEqual(snap.items, []);
-    assert.ok(snap.updatedAt, 'updatedAt must be set');
-    db.close();
-  });
-
-  it('setInventory persists and getInventory retrieves it', () => {
-    const db = new LiveDb(':memory:');
-    db.setInventory(inventoryFixture);
-    const snap = db.getInventory();
-    assert.deepEqual(snap, inventoryFixture);
-    db.close();
-  });
-
-  it('setInventory round-trips via JSON serialization', () => {
-    const db = new LiveDb(':memory:');
-    db.setInventory(inventoryFixture);
-    const snap = db.getInventory();
-    assert.deepEqual(JSON.parse(JSON.stringify(snap)), inventoryFixture);
-    db.close();
-  });
-
-  it('second setInventory overwrites the first (single-row semantics)', () => {
-    const db = new LiveDb(':memory:');
-    db.setInventory(inventoryFixture);
-    const v2: InventorySnapshot = { items: [], updatedAt: '2024-04-01T00:00:00.000Z' };
-    db.setInventory(v2);
-    const snap = db.getInventory();
-    assert.equal(snap.items.length, 0);
-    assert.equal(snap.updatedAt, v2.updatedAt);
-    db.close();
-  });
-
-  it('subscribeInventory callback is called synchronously on setInventory', () => {
-    const db = new LiveDb(':memory:');
-    const received: InventorySnapshot[] = [];
-    db.subscribeInventory((s) => received.push(s));
-    db.setInventory(inventoryFixture);
-    assert.equal(received.length, 1);
-    assert.deepEqual(received[0], inventoryFixture);
-    db.close();
-  });
-
-  it('subscribeInventory unsubscribe stops further calls', () => {
-    const db = new LiveDb(':memory:');
-    const received: InventorySnapshot[] = [];
-    const unsub = db.subscribeInventory((s) => received.push(s));
-    unsub();
-    db.setInventory(inventoryFixture);
-    assert.equal(received.length, 0);
-    db.close();
-  });
-
   it('getAurus returns empty snapshot before any write', () => {
     const db = new LiveDb(':memory:');
     assert.deepEqual(db.getAurus().teams, []);
@@ -176,37 +107,18 @@ describe('LiveDb — in-memory persistence', () => {
     db.close();
   });
 
-  it('multiple subscribers all receive the broadcast', () => {
+  it('multiple aurus subscribers all receive the broadcast', () => {
     const db = new LiveDb(':memory:');
     const calls: string[] = [];
-    db.subscribeInventory(() => calls.push('a'));
-    db.subscribeInventory(() => calls.push('b'));
-    db.setInventory(inventoryFixture);
+    db.subscribeAurus(() => calls.push('a'));
+    db.subscribeAurus(() => calls.push('b'));
+    db.setAurus(aurusFixture);
     assert.deepEqual(calls, ['a', 'b']);
     db.close();
   });
 });
 
 // ─── GET /api/live/* ───────────────────────────────────────────────────────
-
-describe('GET /api/live/inventory', () => {
-  it('returns 200 with an empty snapshot before any write', async () => {
-    const { app } = makeApp();
-    const res = await app.inject({ method: 'GET', url: '/api/live/inventory' });
-    assert.equal(res.statusCode, 200);
-    const body = JSON.parse(res.payload) as InventorySnapshot;
-    assert.deepEqual(body.items, []);
-    assert.ok(body.updatedAt);
-  });
-
-  it('returns the stored snapshot after a write', async () => {
-    const { app, db } = makeApp();
-    db.setInventory(inventoryFixture);
-    const res = await app.inject({ method: 'GET', url: '/api/live/inventory' });
-    assert.equal(res.statusCode, 200);
-    assert.deepEqual(JSON.parse(res.payload), inventoryFixture);
-  });
-});
 
 describe('GET /api/live/aurus', () => {
   it('returns 200 with empty snapshot', async () => {
@@ -226,98 +138,7 @@ describe('GET /api/live/globe', () => {
   });
 });
 
-// ─── POST /api/live/* — auth ───────────────────────────────────────────────
-
-describe('POST /api/live/inventory — auth', () => {
-  it('returns 401 when secret is set and no Authorization header provided', async () => {
-    const { app } = makeApp({ secret: SECRET });
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/live/inventory',
-      headers: { 'Content-Type': 'application/json' },
-      payload: JSON.stringify(inventoryFixture),
-    });
-    assert.equal(res.statusCode, 401);
-  });
-
-  it('returns 401 when secret is set and the wrong token is provided', async () => {
-    const { app } = makeApp({ secret: SECRET });
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/live/inventory',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wrong-secret' },
-      payload: JSON.stringify(inventoryFixture),
-    });
-    assert.equal(res.statusCode, 401);
-  });
-
-  it('returns 200 and persists when the correct token is provided', async () => {
-    const { app, db } = makeApp({ secret: SECRET });
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/live/inventory',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SECRET}` },
-      payload: JSON.stringify(inventoryFixture),
-    });
-    assert.equal(res.statusCode, 200);
-    assert.deepEqual(JSON.parse(res.payload), inventoryFixture);
-    assert.deepEqual(db.getInventory(), inventoryFixture);
-  });
-
-  it('returns 200 without auth check when no secret is configured', async () => {
-    const { app } = makeApp({ secret: undefined });
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/live/inventory',
-      headers: { 'Content-Type': 'application/json' },
-      payload: JSON.stringify(inventoryFixture),
-    });
-    assert.equal(res.statusCode, 200);
-  });
-
-  it('returns 400 for an invalid body (missing items)', async () => {
-    const { app } = makeApp({ secret: undefined });
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/live/inventory',
-      headers: { 'Content-Type': 'application/json' },
-      payload: JSON.stringify({ updatedAt: '2024-01-01T00:00:00.000Z' }),
-    });
-    assert.equal(res.statusCode, 400);
-  });
-});
-
-// ─── POST /api/live/* — persistence + broadcast ────────────────────────────
-
-describe('POST /api/live/inventory — persistence and broadcast', () => {
-  it('GET after POST returns the posted snapshot', async () => {
-    const { app } = makeApp({ secret: undefined });
-    await app.inject({
-      method: 'POST',
-      url: '/api/live/inventory',
-      headers: { 'Content-Type': 'application/json' },
-      payload: JSON.stringify(inventoryFixture),
-    });
-    const res = await app.inject({ method: 'GET', url: '/api/live/inventory' });
-    assert.deepEqual(JSON.parse(res.payload), inventoryFixture);
-  });
-
-  it('POST broadcasts to subscribeInventory listeners', async () => {
-    const { app, db } = makeApp({ secret: undefined });
-    const received: InventorySnapshot[] = [];
-    db.subscribeInventory((s) => received.push(s));
-
-    await app.inject({
-      method: 'POST',
-      url: '/api/live/inventory',
-      headers: { 'Content-Type': 'application/json' },
-      payload: JSON.stringify(inventoryFixture),
-    });
-
-    assert.equal(received.length, 1);
-    assert.deepEqual(received[0], inventoryFixture);
-  });
-});
+// ─── POST /api/live/* ──────────────────────────────────────────────────────
 
 describe('POST /api/live/aurus', () => {
   it('stores and returns the aurus snapshot', async () => {
