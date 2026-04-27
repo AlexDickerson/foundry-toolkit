@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
 import { render, cleanup, fireEvent, within, act } from '@testing-library/react';
 import amiri from '../../fixtures/amiri-prepared.json';
 import type { CharacterSystem } from '../../api/types';
-import { Character } from './Character';
+import { Character } from './character';
 import { api } from '../../api/client';
 
 vi.mock('../../api/client', () => ({

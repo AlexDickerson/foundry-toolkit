@@ -9,7 +9,7 @@ import type { Tab } from '../components/common/TabStrip';
 import { SectionHeader } from '../components/common/SectionHeader';
 import { Actions } from '../components/tabs/Actions';
 import { Background } from '../components/tabs/Background';
-import { Character } from '../components/tabs/Character';
+import { Character } from '../components/tabs/character';
 import { Crafting } from '../components/tabs/Crafting';
 import { Feats } from '../components/tabs/Feats';
 import { Inventory } from '../components/tabs/Inventory';
