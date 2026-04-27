@@ -267,6 +267,11 @@ describe('chatMessageSnapshotSchema', () => {
     expect(parsed).toEqual(validMessage);
   });
 
+  it('accepts a string type (Foundry v14 document subtype)', () => {
+    const parsed = chatMessageSnapshotSchema.parse({ ...validMessage, type: 'base' });
+    expect(parsed.type).toBe('base');
+  });
+
   it('round-trips via JSON serialization', () => {
     const roundTripped = chatMessageSnapshotSchema.parse(JSON.parse(JSON.stringify(validMessage)));
     expect(roundTripped).toEqual(validMessage);

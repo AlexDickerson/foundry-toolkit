@@ -33,6 +33,7 @@ const LEGACY_REDIRECTS: Readonly<Record<string, TabId>> = {
   crafting: 'inventory',
   proficiencies: 'details',
   background: 'details',
+  chat: 'character',
 };
 
 /**

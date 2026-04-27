@@ -16,6 +16,7 @@ import { Inventory } from '../components/tabs/Inventory';
 import { Proficiencies } from '../components/tabs/Proficiencies';
 import { Progression } from '../components/tabs/Progression';
 
+import { Chat } from '../components/tabs/Chat';
 import { Spells } from '../components/tabs/Spells';
 import { useEventChannel } from '../lib/useEventChannel';
 import { fromPreparedCharacter } from '../prereqs';
@@ -118,128 +119,155 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
   });
 
   return (
-    <main className="mx-auto max-w-3xl p-6 font-sans">
-      {state.kind === 'loading' && (
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm text-neutral-500">Loading character…</p>
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
-          >
-            ← Actors
-          </button>
-        </div>
-      )}
+    // Two-column layout on large screens: sheet on the left, chat sidebar
+    // on the right in the previously-empty column space. Single column on
+    // narrower viewports where the sidebar would be too cramped.
+    <div className="flex gap-6 py-6 font-sans">
+      {/* ── Left placeholder — same width as chat sidebar, reserved for
+          a future panel being added in a separate workstream ────────── */}
+      <div className="hidden w-[230px] shrink-0 pl-3 lg:block">
+        <div className="h-full rounded border border-dashed border-pf-border" />
+      </div>
 
-      {state.kind === 'error' && (
-        <div className="rounded border border-red-200 bg-red-50 p-4 text-sm">
-          <div className="flex items-start justify-between gap-3">
-            <p className="font-medium text-red-900">Couldn&apos;t load character</p>
+      {/* ── Sheet column ─────────────────────────────────────────────── */}
+      <main className="min-w-0 flex-1">
+        {state.kind === 'loading' && (
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-sm text-neutral-500">Loading character…</p>
             <button
               type="button"
               onClick={onBack}
-              className="shrink-0 rounded border border-red-300 bg-white px-2 py-1 text-xs text-red-900 hover:bg-red-100"
+              className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
             >
               ← Actors
             </button>
           </div>
-          <p className="mt-1 text-red-800">{state.message}</p>
-          {state.suggestion !== undefined && <p className="mt-2 text-red-700">{state.suggestion}</p>}
-        </div>
-      )}
+        )}
 
-      {state.kind === 'ready' && (
-        <div
-          data-testid="sheet-surface"
-          style={buildSheetSurfaceStyle(readBackgroundPath(state.actor))}
-          className={readBackgroundPath(state.actor) ? '-mx-4 rounded-lg px-4 py-2' : undefined}
-        >
-          <SheetHeader
-            character={state.actor}
+        {state.kind === 'error' && (
+          <div className="rounded border border-red-200 bg-red-50 p-4 text-sm">
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-medium text-red-900">Couldn&apos;t load character</p>
+              <button
+                type="button"
+                onClick={onBack}
+                className="shrink-0 rounded border border-red-300 bg-white px-2 py-1 text-xs text-red-900 hover:bg-red-100"
+              >
+                ← Actors
+              </button>
+            </div>
+            <p className="mt-1 text-red-800">{state.message}</p>
+            {state.suggestion !== undefined && <p className="mt-2 text-red-700">{state.suggestion}</p>}
+          </div>
+        )}
+
+        {state.kind === 'ready' && (
+          <div
+            data-testid="sheet-surface"
+            style={buildSheetSurfaceStyle(readBackgroundPath(state.actor))}
+            className={readBackgroundPath(state.actor) ? '-mx-4 rounded-lg px-4 py-2' : undefined}
+          >
+            <SheetHeader
+              character={state.actor}
+              actorId={actorId}
+              onActorChanged={reloadActor}
+              onBack={onBack}
+              onSettingsOpen={(): void => {
+                setSettingsOpen(true);
+              }}
+            />
+            <TabStrip tabs={TABS} active={activeTab} onChange={setActiveTab} />
+            {activeTab === 'character' && (
+              <Character
+                system={state.actor.system}
+                actorId={actorId}
+                items={state.actor.items}
+                characterLevel={state.actor.system.details.level.value}
+                onActorChanged={reloadActor}
+              />
+            )}
+            {activeTab === 'actions' && (
+              <Actions
+                actions={state.actor.system.actions}
+                items={state.actor.items}
+                abilities={state.actor.system.abilities}
+                actorId={actorId}
+                onItemUsed={reloadActor}
+              />
+            )}
+            {activeTab === 'spells' && (
+              <Spells
+                items={state.actor.items}
+                characterLevel={state.actor.system.details.level.value}
+                actorId={actorId}
+                onCast={reloadActor}
+                focusPoints={state.actor.system.resources.focus}
+              />
+            )}
+            {activeTab === 'inventory' && (
+              <>
+                <Inventory
+                  items={state.actor.items}
+                  actorId={actorId}
+                  onActorChanged={reloadActor}
+                  investiture={state.actor.system.resources.investiture}
+                />
+                {!shopMode.enabled && (
+                  <div className="mt-10 border-t border-pf-border pt-6">
+                    <SectionHeader>Crafting</SectionHeader>
+                    <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
+                  </div>
+                )}
+              </>
+            )}
+            {activeTab === 'feats' && <Feats items={state.actor.items} />}
+            {activeTab === 'progression' && (
+              <Progression
+                characterLevel={state.actor.system.details.level.value}
+                items={state.actor.items}
+                characterContext={fromPreparedCharacter(state.actor)}
+              />
+            )}
+            {activeTab === 'details' && (
+              <div className="space-y-6">
+                <Background details={state.actor.system.details} traits={state.actor.system.traits.value} />
+                <Proficiencies system={state.actor.system} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {settingsOpen && state.kind === 'ready' && (
+          <SettingsDialog
+            colorScheme={preferences.colorScheme}
+            onColorSchemeChange={preferences.setColorScheme}
             actorId={actorId}
-            onActorChanged={reloadActor}
-            onBack={onBack}
-            onSettingsOpen={(): void => {
-              setSettingsOpen(true);
+            backgroundPath={readBackgroundPath(state.actor)}
+            onBackgroundChanged={reloadActor}
+            onClose={(): void => {
+              setSettingsOpen(false);
             }}
           />
-          <TabStrip tabs={TABS} active={activeTab} onChange={setActiveTab} />
-          {activeTab === 'character' && (
-            <Character
-              system={state.actor.system}
-              actorId={actorId}
-              items={state.actor.items}
-              characterLevel={state.actor.system.details.level.value}
-              onActorChanged={reloadActor}
-            />
-          )}
-          {activeTab === 'actions' && (
-            <Actions
-              actions={state.actor.system.actions}
-              items={state.actor.items}
-              abilities={state.actor.system.abilities}
-              actorId={actorId}
-              onItemUsed={reloadActor}
-            />
-          )}
-          {activeTab === 'spells' && (
-            <Spells
-              items={state.actor.items}
-              characterLevel={state.actor.system.details.level.value}
-              actorId={actorId}
-              onCast={reloadActor}
-              focusPoints={state.actor.system.resources.focus}
-            />
-          )}
-          {activeTab === 'inventory' && (
-            <>
-              <Inventory
-                items={state.actor.items}
-                actorId={actorId}
-                onActorChanged={reloadActor}
-                investiture={state.actor.system.resources.investiture}
-              />
-              {!shopMode.enabled && (
-                <div className="mt-10 border-t border-pf-border pt-6">
-                  <SectionHeader>Crafting</SectionHeader>
-                  <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
-                </div>
-              )}
-            </>
-          )}
-          {activeTab === 'feats' && <Feats items={state.actor.items} />}
-          {activeTab === 'progression' && (
-            <Progression
-              characterLevel={state.actor.system.details.level.value}
-              items={state.actor.items}
-              characterContext={fromPreparedCharacter(state.actor)}
-            />
-          )}
-          {activeTab === 'details' && (
-            <div className="space-y-6">
-              <Background details={state.actor.system.details} traits={state.actor.system.traits.value} />
-              <Proficiencies system={state.actor.system} />
+        )}
+        {/* Relay dialogs from Foundry — mounted unconditionally so it
+            subscribes to the prompt stream as long as the sheet is open. */}
+        <PromptQueue />
+      </main>
+
+      {/* ── Chat sidebar ─────────────────────────────────────────────── */}
+      {/* Hidden on narrow viewports; sticks to the top and scrolls
+          independently so the sheet and chat can be read in parallel. */}
+      {state.kind === 'ready' && (
+        <aside className="hidden w-[230px] shrink-0 pr-3 lg:flex lg:flex-col">
+          <div className="sticky top-6 flex max-h-[calc(100svh-3rem)] flex-col">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-pf-alt-dark">Chat</p>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <Chat actorId={actorId} />
             </div>
-          )}
-        </div>
+          </div>
+        </aside>
       )}
-      {settingsOpen && state.kind === 'ready' && (
-        <SettingsDialog
-          colorScheme={preferences.colorScheme}
-          onColorSchemeChange={preferences.setColorScheme}
-          actorId={actorId}
-          backgroundPath={readBackgroundPath(state.actor)}
-          onBackgroundChanged={reloadActor}
-          onClose={(): void => {
-            setSettingsOpen(false);
-          }}
-        />
-      )}
-      {/* Relay dialogs from Foundry — mounted unconditionally so it
-          subscribes to the prompt stream as long as the sheet is open. */}
-      <PromptQueue />
-    </main>
+    </div>
   );
 }
 
