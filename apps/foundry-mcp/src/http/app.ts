@@ -9,9 +9,11 @@ import { registerCompendiumRoutes } from './routes/compendium.js';
 import { registerDispatchRoute } from './routes/dispatch.js';
 import { registerEvalRoutes } from './routes/eval.js';
 import { registerEventRoutes } from './routes/events.js';
+import { registerLiveChatRoutes } from './routes/live-chat.js';
 import { registerLiveRoutes } from './routes/live.js';
 import { registerPromptRoutes } from './routes/prompts.js';
 import { registerUploadRoutes } from './routes/uploads.js';
+import { chatRingBuffer } from '../chat/chat-ring-buffer.js';
 
 export async function buildHttpApp(): Promise<FastifyInstance> {
   // The parent http.Server routes `/api/*` and most other GETs into this
@@ -78,6 +80,7 @@ export async function buildHttpApp(): Promise<FastifyInstance> {
   registerCompendiumRoutes(app);
   registerEvalRoutes(app);
   registerEventRoutes(app);
+  registerLiveChatRoutes(app, chatRingBuffer);
   registerLiveRoutes(app, new LiveDb(LIVE_DB_PATH), SHARED_SECRET);
   registerPromptRoutes(app);
   registerUploadRoutes(app);
