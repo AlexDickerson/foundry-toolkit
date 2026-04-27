@@ -13,7 +13,8 @@ export type TabId =
   | 'inventory'
   | 'feats'
   | 'details'
-  | 'progression';
+  | 'progression'
+  | 'chat';
 
 // Compile-time guard: the literal array must cover every TabId exactly.
 const VALID_TABS = new Set<string>(
@@ -25,6 +26,7 @@ const VALID_TABS = new Set<string>(
     'feats',
     'details',
     'progression',
+    'chat',
   ] satisfies TabId[],
 );
 

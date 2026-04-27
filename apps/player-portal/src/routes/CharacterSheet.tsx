@@ -16,6 +16,7 @@ import { Inventory } from '../components/tabs/Inventory';
 import { Proficiencies } from '../components/tabs/Proficiencies';
 import { Progression } from '../components/tabs/Progression';
 
+import { Chat } from '../components/tabs/Chat';
 import { Spells } from '../components/tabs/Spells';
 import { useEventChannel } from '../lib/useEventChannel';
 import { fromPreparedCharacter } from '../prereqs';
@@ -41,6 +42,7 @@ const TABS: readonly Tab<TabId>[] = [
   { id: 'feats', label: 'Feats' },
   { id: 'progression', label: 'Progression' },
   { id: 'details', label: 'Details' },
+  { id: 'chat', label: 'Chat' },
 ];
 
 export function CharacterSheet(): React.ReactElement {
@@ -222,6 +224,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
               <Proficiencies system={state.actor.system} />
             </div>
           )}
+          {activeTab === 'chat' && <Chat actorId={actorId} />}
         </div>
       )}
       {settingsOpen && state.kind === 'ready' && (
