@@ -1,34 +1,19 @@
-// Pure projection functions that map foundry-mcp wire shapes
-// (`CompendiumDocument`, `CompendiumMatch`) to the dm-tool-native shapes
-// consumed by the Monsters/Items browsers, chat tools, loot generator,
-// and hover preview card.
-//
-// Everything here is synchronous, dependency-free (beyond pure helpers
-// from `@foundry-toolkit/shared/foundry-markup`), and fully unit-testable
-// against fixture documents. No I/O, no caching, no async.
-//
-// The PF2e system shape is documented scattered across foundry-mcp and the
-// pf2e system itself; we defensively narrow every field and fall back to
-// sensible defaults. The goal is structural fidelity with the output that
-// the legacy `packages/db/src/pf2e/compendium.ts:rowToResult` path produces
-// today, so consumer UIs don't need to change when the data source flips.
-//
-// Formatting helpers (formatMelee, formatRanged, formatActions, …) are
-// ports of the identically-named functions in `packages/db/src/pf2e/
-// compendium.ts`. The legacy functions parse JSON-serialized DB columns;
-// this port reads directly from the pre-parsed `system.*` object.
+// Monster projection functions — map foundry-mcp wire shapes to the
+// dm-tool-native MonsterRow / MonsterResult / MonsterDetail / MonsterSummary shapes.
 
-import { cleanFoundryMarkup } from '@foundry-toolkit/shared/foundry-markup';
-import type {
-  ItemBrowserDetail,
-  ItemBrowserRow,
-  ItemVariant,
-  MonsterDetail,
-  MonsterSpellGroup,
-  MonsterSummary,
-} from '@foundry-toolkit/shared/types';
-import type { LootShortlistItem } from '@foundry-toolkit/ai/loot';
-import type { CompendiumDocument, CompendiumEmbeddedItem, CompendiumMatch, ItemPrice } from './types.js';
+import type { MonsterDetail, MonsterSpellGroup, MonsterSpellInfo, MonsterSummary } from '@foundry-toolkit/shared/types';
+import type { CompendiumDocument, CompendiumEmbeddedItem, CompendiumMatch } from '../types.js';
+import {
+  cleanDescription,
+  isRecord,
+  readSystem,
+  readPath,
+  readNumber,
+  readString,
+  readStringArray,
+  pickPortraitUrl,
+  pickTokenUrl,
+} from './shared.js';
 
 // ---------------------------------------------------------------------------
 // Re-exported MonsterResult / MonsterRow shapes
@@ -102,85 +87,6 @@ export interface MonsterResult {
   abilities: string;
   description: string;
   aon_url: string;
-}
-
-// ---------------------------------------------------------------------------
-// Foundry-markup cleaning (ported from packages/db/src/pf2e/compendium.ts)
-// ---------------------------------------------------------------------------
-
-/** Map PF2e action-glyph font characters to Unicode symbols. */
-const ACTION_GLYPH: Record<string, string> = {
-  '1': '◆',
-  A: '◆',
-  '2': '◆◆',
-  D: '◆◆',
-  '3': '◆◆◆',
-  T: '◆◆◆',
-  r: '↺',
-  R: '↺',
-  f: '◇',
-  F: '◇',
-};
-
-/** Strip Foundry @-tags and HTML from descriptions. Ported verbatim from
- *  `packages/db/src/pf2e/compendium.ts`. */
-export function cleanDescription(html: string | null | undefined): string {
-  if (!html) return '';
-  let text = cleanFoundryMarkup(html)
-    .replace(
-      /<span[^>]*class="[^"]*action-glyph[^"]*"[^>]*>([^<]*)<\/span>/gi,
-      (_, ch: string) => ACTION_GLYPH[ch.trim()] ?? ch,
-    )
-    .replace(
-      /<span[^>]*class="[^"]*pf2-icon[^"]*"[^>]*>([^<]*)<\/span>/gi,
-      (_, ch: string) => ACTION_GLYPH[ch.trim()] ?? ch,
-    )
-    .replace(/<hr\s*\/?>/gi, '\n---\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/?(p|div|li|ul|ol|h[1-6])[\s>]/gi, '\n');
-  let prev: string;
-  do {
-    prev = text;
-    text = text.replace(/<[^>]+>/g, '');
-  } while (text !== prev);
-  const entities: Record<string, string> = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>' };
-  return text
-    .replace(/&(?:nbsp|amp|lt|gt);/g, (m) => entities[m])
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-// ---------------------------------------------------------------------------
-// Narrow defensive readers — every field is `unknown` at the outer boundary
-// ---------------------------------------------------------------------------
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return v !== null && typeof v === 'object' && !Array.isArray(v);
-}
-
-function readSystem(doc: CompendiumDocument): Record<string, unknown> {
-  return isRecord(doc.system) ? doc.system : {};
-}
-
-function readPath(obj: Record<string, unknown>, path: string[]): unknown {
-  let cur: unknown = obj;
-  for (const key of path) {
-    if (!isRecord(cur)) return undefined;
-    cur = cur[key];
-  }
-  return cur;
-}
-
-function readNumber(v: unknown, fallback = 0): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
-}
-
-function readString(v: unknown, fallback = ''): string {
-  return typeof v === 'string' ? v : fallback;
-}
-
-function readStringArray(v: unknown): string[] {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 }
 
 // ---------------------------------------------------------------------------
@@ -568,7 +474,7 @@ export function monsterSpells(items: CompendiumEmbeddedItem[] | undefined): Mons
 
   // Group spell info objects by entry ID then by effective rank.
   interface SpellInfoByEntry {
-    [entryId: string]: Map<number, import('@foundry-toolkit/shared/types').MonsterSpellInfo[]>;
+    [entryId: string]: Map<number, MonsterSpellInfo[]>;
   }
   const spellsByEntry: SpellInfoByEntry = {};
 
@@ -636,31 +542,6 @@ export function monsterSpells(items: CompendiumEmbeddedItem[] | undefined): Mons
   }
 
   return groups;
-}
-
-/** Return null for Foundry's generic placeholder icons — they're not
- *  real portraits and aren't worth fetching or displaying. */
-function isDefaultIcon(path: string): boolean {
-  return path.includes('/default-icons/');
-}
-
-/** Return the portrait path, or null if it's a default placeholder. */
-function pickPortraitUrl(doc: CompendiumDocument): string | null {
-  const img = doc.img;
-  if (!img || isDefaultIcon(img)) return null;
-  return img;
-}
-
-/** Prefer a doc-level tokenImg when the mcp bridge populates it; fall
- *  back to the portrait. See the prototypeToken bridge PR. */
-function pickTokenUrl(doc: CompendiumDocument): string | null {
-  const maybe = (doc as { tokenImg?: unknown }).tokenImg;
-  if (typeof maybe === 'string' && maybe.length > 0 && !isDefaultIcon(maybe)) return maybe;
-  // TODO(compendium-migration): once bridge PR landing prototypeToken
-  // merges, this fallback can be removed — `tokenImg` will always be
-  // present on actor docs and we'll surface null when it's genuinely
-  // missing (unlike the portrait, which every doc has).
-  return pickPortraitUrl(doc);
 }
 
 // ---------------------------------------------------------------------------
@@ -859,217 +740,5 @@ export function monsterMatchToSummary(m: CompendiumMatch): MonsterSummary {
     traits: m.traits ?? [],
     source: m.source ?? '',
     aonUrl: '',
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Item projections
-// ---------------------------------------------------------------------------
-
-const RARITY_TRAITS = new Set(['COMMON', 'UNCOMMON', 'RARE', 'UNIQUE']);
-
-function extractRarityFromTraits(traits: string[]): string {
-  for (const t of traits) {
-    const up = t.toUpperCase();
-    if (RARITY_TRAITS.has(up) && up !== 'COMMON') return up;
-  }
-  return 'COMMON';
-}
-
-function nonRarityTraits(traits: string[]): string[] {
-  return traits.filter((t) => !RARITY_TRAITS.has(t.toUpperCase()));
-}
-
-/** Format an ItemPrice object as a human-readable string ("1,600 gp"). */
-export function formatPriceStructured(price: ItemPrice | undefined): string | null {
-  if (!price || !isRecord(price.value)) return null;
-  const parts: string[] = [];
-  const { pp, gp, sp, cp } = price.value;
-  if (typeof pp === 'number' && pp > 0) parts.push(`${pp.toString()} pp`);
-  if (typeof gp === 'number' && gp > 0) parts.push(`${gp.toString()} gp`);
-  if (typeof sp === 'number' && sp > 0) parts.push(`${sp.toString()} sp`);
-  if (typeof cp === 'number' && cp > 0) parts.push(`${cp.toString()} cp`);
-  return parts.length > 0 ? parts.join(', ') : null;
-}
-
-/** Convert a price struct to a copper total for sorting. Missing prices
- *  sort to the end. Ported from `packages/db/src/pf2e/compendium.ts`
- *  (`priceToCopper`) but reads the structured `ItemPrice` shape instead
- *  of the free-text legacy column. */
-export function priceToCopper(price: ItemPrice | string | null | undefined): number {
-  if (price == null) return Number.MAX_SAFE_INTEGER;
-  if (typeof price === 'string') {
-    const p = price.replace(/\n/g, ' ').trim().toLowerCase();
-    let total = 0;
-    const ppMatch = p.match(/([\d,]+)\s*pp/);
-    const gpMatch = p.match(/([\d,]+)\s*gp/);
-    const spMatch = p.match(/([\d,]+)\s*sp/);
-    const cpMatch = p.match(/([\d,]+)\s*cp/);
-    if (ppMatch) total += Number(ppMatch[1].replace(/,/g, '')) * 1000;
-    if (gpMatch) total += Number(gpMatch[1].replace(/,/g, '')) * 100;
-    if (spMatch) total += Number(spMatch[1].replace(/,/g, '')) * 10;
-    if (cpMatch) total += Number(cpMatch[1].replace(/,/g, ''));
-    return total || Number.MAX_SAFE_INTEGER;
-  }
-  if (!isRecord(price.value)) return Number.MAX_SAFE_INTEGER;
-  const { pp, gp, sp, cp } = price.value;
-  let total = 0;
-  if (typeof pp === 'number') total += pp * 1000;
-  if (typeof gp === 'number') total += gp * 100;
-  if (typeof sp === 'number') total += sp * 10;
-  if (typeof cp === 'number') total += cp;
-  return total || Number.MAX_SAFE_INTEGER;
-}
-
-function readItemTraits(system: Record<string, unknown>): string[] {
-  return readStringArray(readPath(system, ['traits', 'value']));
-}
-
-function readItemPrice(system: Record<string, unknown>): ItemPrice | undefined {
-  const raw = system.price;
-  if (!isRecord(raw)) return undefined;
-  return raw as unknown as ItemPrice;
-}
-
-function readItemBulk(system: Record<string, unknown>): string | null {
-  const raw = readPath(system, ['bulk', 'value']);
-  if (typeof raw === 'number') {
-    if (raw === 0) return '—';
-    if (raw < 1) return 'L';
-    return raw.toString();
-  }
-  if (typeof raw === 'string' && raw.length > 0) return raw;
-  return null;
-}
-
-function readItemUsage(system: Record<string, unknown>): string | null {
-  const usage = readPath(system, ['usage', 'value']);
-  return typeof usage === 'string' && usage.length > 0 ? usage : null;
-}
-
-function readItemLevel(system: Record<string, unknown>): number | null {
-  const raw = readPath(system, ['level', 'value']);
-  return typeof raw === 'number' ? raw : null;
-}
-
-function isMagical(system: Record<string, unknown>): boolean {
-  const traits = readItemTraits(system);
-  return traits.includes('magical') || traits.includes('invested');
-}
-
-function isRemastered(system: Record<string, unknown>): boolean | null {
-  const remaster = readPath(system, ['publication', 'remaster']);
-  if (typeof remaster === 'boolean') return remaster;
-  return null;
-}
-
-function hasActivation(doc: CompendiumDocument, system: Record<string, unknown>): boolean {
-  const actionType = readPath(system, ['actionType', 'value']);
-  if (typeof actionType === 'string' && actionType !== 'passive') return true;
-  const actions = system.actions;
-  if (Array.isArray(actions) && actions.length > 0) return true;
-  // Consumables and activatable magic items typically embed an `activate`
-  // system field. Treat its presence as activation.
-  if (isRecord(system.activate)) return true;
-  // If the item's `doc.type` is 'consumable' we treat it as activatable by
-  // default — matches the legacy DB behavior of flagging potions, etc.
-  if (doc.type === 'consumable') return true;
-  return false;
-}
-
-function readVariants(system: Record<string, unknown>): ItemVariant[] {
-  const raw = system.variants;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(isRecord).map((v): ItemVariant => {
-    const levelRaw = readPath(v, ['level']);
-    const priceRaw = v.price;
-    let price: string | null = null;
-    if (isRecord(priceRaw)) {
-      price = formatPriceStructured(priceRaw as unknown as ItemPrice);
-    } else if (typeof priceRaw === 'string') {
-      price = priceRaw.replace(/\n/g, ' ').trim();
-    }
-    return {
-      type: readString(v.type),
-      level: typeof levelRaw === 'number' ? levelRaw : null,
-      price,
-    };
-  });
-}
-
-export function itemDocToBrowserRow(doc: CompendiumDocument): ItemBrowserRow {
-  const system = readSystem(doc);
-  const allTraits = readItemTraits(system);
-  const nonRarity = nonRarityTraits(allTraits);
-  const price = readItemPrice(system);
-  const variants = readVariants(system);
-
-  return {
-    id: doc.id,
-    name: doc.name,
-    level: readItemLevel(system),
-    traits: nonRarity,
-    rarity: extractRarityFromTraits(allTraits),
-    price: formatPriceStructured(price),
-    bulk: readItemBulk(system),
-    usage: readItemUsage(system),
-    isMagical: isMagical(system),
-    hasVariants: variants.length > 0,
-    isRemastered: isRemastered(system),
-    img: pickPortraitUrl(doc),
-  };
-}
-
-export function itemDocToBrowserDetail(doc: CompendiumDocument): ItemBrowserDetail {
-  const base = itemDocToBrowserRow(doc);
-  const system = readSystem(doc);
-  return {
-    ...base,
-    description: cleanDescription(readString(readPath(system, ['description', 'value']))),
-    source: readString(readPath(system, ['publication', 'title'])) || null,
-    aonUrl: null,
-    variants: readVariants(system),
-    hasActivation: hasActivation(doc, system),
-    itemType: doc.type,
-  };
-}
-
-/** Lean path for item matches — no doc fetch, reads whatever the server
- *  surfaces on the match row. Price is already on the match when the
- *  server's cache has seen the doc; otherwise null. */
-export function itemMatchToBrowserRow(m: CompendiumMatch): ItemBrowserRow {
-  const allTraits = m.traits ?? [];
-  const nonRarity = nonRarityTraits(allTraits);
-  return {
-    id: m.documentId,
-    name: m.name,
-    level: m.level ?? null,
-    traits: nonRarity,
-    rarity: extractRarityFromTraits(allTraits),
-    price: formatPriceStructured(m.price),
-    bulk: null,
-    usage: null,
-    isMagical: allTraits.includes('magical') || allTraits.includes('invested'),
-    hasVariants: false,
-    isRemastered: null,
-    img: m.img && !isDefaultIcon(m.img) ? m.img : null,
-  };
-}
-
-export function itemDocToLootShortlistItem(doc: CompendiumDocument): LootShortlistItem {
-  const system = readSystem(doc);
-  const allTraits = readItemTraits(system);
-  const price = readItemPrice(system);
-  return {
-    id: doc.id,
-    name: doc.name,
-    level: readItemLevel(system),
-    price: formatPriceStructured(price),
-    bulk: readItemBulk(system),
-    traits: allTraits.join(','),
-    usage: readItemUsage(system),
-    aonUrl: null,
-    isMagical: isMagical(system) ? 1 : 0,
-    source: readString(readPath(system, ['publication', 'title'])) || null,
   };
 }
