@@ -38,7 +38,7 @@ function makeMember(overrides?: Partial<MockMember>): MockMember {
         hp: { value: 45, max: 60, temp: 0 },
         ac: { value: 18 },
       },
-      perception: { mod: 8 },
+      perception: { totalModifier: 8 },
       resources: { heroPoints: { value: 1, max: 3 } },
     },
     itemTypes: { condition: [] },
@@ -162,7 +162,25 @@ describe('getPartyForMemberHandler', () => {
       expect(member?.heroPoints).toEqual({ value: 1, max: 3 });
     });
 
-    it('falls back to attributes.perception.value for perceptionMod', async () => {
+    it('reads perceptionMod from perception.mod (older remastered fallback)', async () => {
+      const member = makeMember({
+        id: 'chr-1',
+        system: {
+          details: { level: { value: 3 } },
+          attributes: { hp: { value: 30, max: 40, temp: 0 }, ac: { value: 15 } },
+          perception: { mod: 6 },
+          resources: { heroPoints: { value: 0, max: 3 } },
+        },
+        itemTypes: { condition: [] },
+      });
+      const party = makePartyActor({ members: [member] });
+      setGame([], { 'chr-1': { ...member, parties: [party] } });
+
+      const [m] = (await getPartyForMemberHandler({ actorId: 'chr-1' })).members;
+      expect(m?.perceptionMod).toBe(6);
+    });
+
+    it('reads perceptionMod from attributes.perception.value (legacy fallback)', async () => {
       const member = makeMember({
         id: 'chr-1',
         system: {

@@ -65,8 +65,15 @@ function getNestedBoolean(obj: Record<string, unknown>, path: string): boolean |
 function buildMember(member: CharacterActor, actorId: string): PartyForMemberMember {
   const sys = member.system;
 
+  // PF2e perception path varies by system version:
+  //   current  : system.perception.totalModifier (verified via /api/eval 2026-04-27)
+  //   remastered: system.perception.mod (older builds)
+  //   legacy   : system.attributes.perception.value (pre-remaster)
   const perceptionMod =
-    getNestedNumber(sys, 'perception.mod') ?? getNestedNumber(sys, 'attributes.perception.value') ?? 0;
+    getNestedNumber(sys, 'perception.totalModifier') ??
+    getNestedNumber(sys, 'perception.mod') ??
+    getNestedNumber(sys, 'attributes.perception.value') ??
+    0;
 
   const hpMax = getNestedNumber(sys, 'attributes.hp.max') ?? 0;
   const hpValue = getNestedNumber(sys, 'attributes.hp.value') ?? hpMax;
