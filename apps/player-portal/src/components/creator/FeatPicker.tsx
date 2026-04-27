@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../api/client';
 import type { CompendiumDocument, CompendiumMatch, CompendiumSearchOptions, CompendiumSource } from '../../api/types';
 import { useDebounce } from '../../lib/useDebounce';
@@ -176,7 +177,11 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
 
   const detailOpen = detailTarget !== null;
 
-  return (
+  // Portal to document.body so the modal escapes any ancestor's
+  // child-selector utilities (e.g. Progression.tsx's `*:bg-pf-bg-dark
+  // *:rounded-lg *:border *:p-4` section, which would otherwise paint
+  // the backdrop solid and box-style the dialog).
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -268,6 +273,7 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
           }}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

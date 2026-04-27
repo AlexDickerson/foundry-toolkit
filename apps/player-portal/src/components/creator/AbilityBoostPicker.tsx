@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { AbilityKey } from '../../api/types';
 import { ABILITY_KEYS } from '../../api/types';
 import { formatSignedInt } from '../../lib/format';
@@ -88,7 +89,10 @@ export function AbilityBoostPicker({
 
   const canApply = selected.length === BOOSTS_PER_SET;
 
-  return (
+  // Portal to document.body so the modal escapes any ancestor's
+  // child-selector utilities (e.g. Progression.tsx's `*:bg-pf-bg-dark`
+  // section, which would otherwise paint the backdrop solid).
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -177,6 +181,7 @@ export function AbilityBoostPicker({
           </button>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
