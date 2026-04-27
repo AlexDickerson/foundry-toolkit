@@ -139,19 +139,6 @@ async function main(): Promise<void> {
   app.get('/api/live/aurus/stream', makeSseProxy(MCP_URL, '/api/live/aurus/stream'));
   app.get('/api/live/globe/stream', makeSseProxy(MCP_URL, '/api/live/globe/stream'));
 
-  // Chat SSE stream — lives at /api/live/chat/:actorId/stream (NOT under
-  // /api/mcp/) so it doesn't conflict with the @fastify/http-proxy wildcard
-  // registered above. The proxy plugin intercepts /api/mcp/* before any
-  // explicit route registered under that prefix can match, which silently
-  // routes SSE through the plugin's built-in timeout and kills the stream.
-  // Keeping this outside /api/mcp avoids the conflict entirely; Vite's
-  // dev-server proxy forwards /api/* → :3000 so the client URL still works.
-  app.get('/api/live/chat/:actorId/stream', (req, reply) => {
-    const { actorId } = req.params as { actorId: string };
-    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    makeSseProxy(MCP_URL, `/api/live/chat/${encodeURIComponent(actorId)}/stream${qs}`)(req, reply);
-  });
-
   // --- Static SPA --------------------------------------------------------
   // Only register if dist/ exists — in dev, Vite serves static itself and
   // forwards API/map/asset traffic here via its dev-server proxy.

@@ -28,7 +28,7 @@ interface ChatSseEnvelope {
 
 function buildStreamUrl(actorId: string, userId: string | null): string {
   const qs = userId !== null ? `?userId=${encodeURIComponent(userId)}` : '';
-  return `/api/live/chat/${actorId}/stream${qs}`;
+  return `/api/mcp/live/chat/${actorId}/stream${qs}`;
 }
 
 function buildRecentUrl(actorId: string, userId: string | null): string {
