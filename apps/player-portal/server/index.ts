@@ -59,7 +59,7 @@ function makeSseProxy(mcpUrl: string, upstreamPath: string) {
       {
         hostname: target.hostname,
         port: target.port || (target.protocol === 'https:' ? 443 : 80),
-        path: target.pathname,
+        path: target.pathname + target.search,
         method: 'GET',
         headers: { Accept: 'text/event-stream' },
       },
@@ -128,9 +128,19 @@ async function main(): Promise<void> {
   }
 
   // --- Live-state SSE streams (proxy to foundry-mcp) ----------------------
+  // These must use makeSseProxy rather than the general @fastify/http-proxy
+  // because the plugin's request timeout closes long-lived SSE connections.
 
   app.get('/api/live/aurus/stream', makeSseProxy(MCP_URL, '/api/live/aurus/stream'));
   app.get('/api/live/globe/stream', makeSseProxy(MCP_URL, '/api/live/globe/stream'));
+
+  // Chat SSE stream — dynamic actorId, also needs the raw SSE proxy.
+  // The general /api/mcp/* proxy above would close the long-lived connection.
+  app.get('/api/mcp/live/chat/:actorId/stream', (req, reply) => {
+    const { actorId } = req.params as { actorId: string };
+    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    makeSseProxy(MCP_URL, `/api/live/chat/${encodeURIComponent(actorId)}/stream${qs}`)(req, reply);
+  });
 
   // --- Static SPA --------------------------------------------------------
   // Only register if dist/ exists — in dev, Vite serves static itself and

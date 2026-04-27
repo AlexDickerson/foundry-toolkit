@@ -27,7 +27,7 @@ export function MemberCard({ member, isCurrent, compact = false }: Props): React
 
   const portraitEl = (
     <div
-      className={`shrink-0 overflow-hidden rounded ${compact ? 'h-8 w-8' : 'h-10 w-full'}`}
+      className={`shrink-0 overflow-hidden rounded ${compact ? 'h-8 w-8' : 'aspect-[5/6] w-full'}`}
     >
       {member.img ? (
         <img src={member.img} alt={member.name} className="h-full w-full object-cover object-top" />

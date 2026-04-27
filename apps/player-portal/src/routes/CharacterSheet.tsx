@@ -134,12 +134,14 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
 
       {/* ── Sheet column ─────────────────────────────────────────────── */}
       <main className="min-w-0 flex-1">
-        {/* ── Party top strip (mobile only, shown when in a party) ───── */}
-        {members.length > 0 && (
+        {/* ── Party top strip (mobile only) — other party members only ── */}
+        {members.filter((m) => m.id !== actorId).length > 0 && (
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
-            {members.map((m) => (
-              <MemberCard key={m.id} member={m} isCurrent={m.id === actorId} compact />
-            ))}
+            {members
+              .filter((m) => m.id !== actorId)
+              .map((m) => (
+                <MemberCard key={m.id} member={m} isCurrent={false} compact />
+              ))}
           </div>
         )}
         {state.kind === 'loading' && (
