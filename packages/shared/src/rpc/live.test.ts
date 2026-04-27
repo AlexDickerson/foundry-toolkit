@@ -251,6 +251,19 @@ describe('chatMessageSnapshotSchema', () => {
       }),
     ).toThrow();
   });
+
+  // Regression: Foundry v14 emits type as a string ("base") rather than
+  // the legacy numeric constant. The schema must accept both forms or
+  // ChatRingBuffer will silently drop every incoming message.
+  it('accepts Foundry v14 string type ("base")', () => {
+    const parsed = chatMessageSnapshotSchema.parse({ ...validMessage, type: 'base' });
+    expect(parsed.type).toBe('base');
+  });
+
+  it('still accepts the legacy numeric type (Foundry v13 and earlier)', () => {
+    const parsed = chatMessageSnapshotSchema.parse({ ...validMessage, type: 1 });
+    expect(parsed.type).toBe(1);
+  });
 });
 
 // ─── ChatLogBackfill ──────────────────────────────────────────────────────────

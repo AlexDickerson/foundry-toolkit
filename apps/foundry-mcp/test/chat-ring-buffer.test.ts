@@ -165,6 +165,19 @@ describe('ChatRingBuffer', () => {
     assert.equal(buffer.recent(10).messages.length, 0);
   });
 
+  // Regression: Foundry v14 emits ChatMessage.type as a string ("base").
+  // If the schema only accepts z.number(), safeParse fails and the message
+  // is logged as invalid and dropped — chat appears connected but never
+  // shows new messages.
+  it('stores a message with Foundry v14 string type ("base")', () => {
+    const mgr = new ChannelManager();
+    const buffer = new ChatRingBuffer(10, mgr);
+    publishCreate(mgr, makeMessage('msg-v14', { type: 'base' }));
+    const { messages } = buffer.recent(10);
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0]?.type, 'base');
+  });
+
   it('events on other channels do not affect the buffer', () => {
     const mgr = new ChannelManager();
     const buffer = new ChatRingBuffer(10, mgr);
