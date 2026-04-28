@@ -17,12 +17,15 @@ COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/player-portal/package.json apps/player-portal/
 COPY apps/dm-tool/package.json apps/dm-tool/
 COPY packages/shared/package.json packages/shared/
+COPY packages/pf2e-rules/package.json packages/pf2e-rules/
 
 # --ignore-scripts skips husky and electron-rebuild lifecycle hooks.
 RUN npm install --ignore-scripts
 
-# Source — only what the portal build actually needs.
+# Source — only what the portal build actually needs.  pf2e-rules is imported
+# by the character tab components (Actions, Spells, SkillsBlock, etc.).
 COPY packages/shared packages/shared
+COPY packages/pf2e-rules packages/pf2e-rules
 COPY apps/player-portal apps/player-portal
 
 RUN npm --workspace @foundry-toolkit/player-portal run build
