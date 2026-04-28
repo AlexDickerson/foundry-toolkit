@@ -101,15 +101,16 @@ docker compose up -d   # restarts player-portal with the new port mapping
 
 ## Environment variables
 
-| Variable             | Required    | Default | Purpose                                             |
-| -------------------- | ----------- | ------- | --------------------------------------------------- |
-| `FOUNDRY_USERNAME`   | yes         | —       | Paizo account username for Foundry download         |
-| `FOUNDRY_PASSWORD`   | yes         | —       | Paizo account password                              |
-| `FOUNDRY_ADMIN_KEY`  | recommended | —       | Foundry admin console password                      |
-| `OPENAI_API_KEY`     | no          | —       | GPT-image-1 map editing (`edit_image` tool)         |
-| `SHARED_SECRET`      | yes         | —       | Bearer token for `/api/live/*` POST writes          |
-| `ALLOW_EVAL`         | no          | `0`     | Set to `1` to enable the `/api/eval` debug endpoint |
-| `PLAYER_PORTAL_PORT` | no          | `3000`  | Host port mapping for player-portal                 |
+| Variable             | Required    | Default | Purpose                                                        |
+| -------------------- | ----------- | ------- | -------------------------------------------------------------- |
+| `FOUNDRY_USERNAME`   | yes         | —       | Paizo account username for Foundry download                    |
+| `FOUNDRY_PASSWORD`   | yes         | —       | Paizo account password                                         |
+| `FOUNDRY_ADMIN_KEY`  | recommended | —       | Foundry admin console password                                 |
+| `OPENAI_API_KEY`     | no          | —       | GPT-image-1 map editing (`edit_image` tool)                    |
+| `SHARED_SECRET`      | yes         | —       | Bearer token for `/api/live/*` POST writes                     |
+| `ALLOW_EVAL`         | no          | `0`     | Set to `1` to enable the `/api/eval` debug endpoint            |
+| `PLAYER_PORTAL_PORT` | no          | `3000`  | Host port mapping for player-portal                            |
+| `FOUNDRY_DATA_PATH`  | no          | —       | Host path to bind-mount as `/data` instead of the named volume |
 
 `MCP_URL` and `FOUNDRY_URL` are wired internally via compose service DNS and are
 not read from `.env`.

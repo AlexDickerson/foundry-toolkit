@@ -21,7 +21,10 @@ services:
       FOUNDRY_PASSWORD: ${FOUNDRY_PASSWORD}
       FOUNDRY_ADMIN_KEY: ${FOUNDRY_ADMIN_KEY:-}
     volumes:
-      - foundry-data:/data
+      # Defaults to the named `foundry-data` volume.  Set FOUNDRY_DATA_PATH in
+      # .env to a host path (e.g. /home/alex/foundrydata) to bind-mount an
+      # existing Foundry data directory instead.
+      - ${FOUNDRY_DATA_PATH:-foundry-data}:/data
     ports:
       - '30000:30000'
     networks:
@@ -47,7 +50,7 @@ services:
       # compendium pack SQLite files directly (faster than the WS bridge path).
       FOUNDRY_DATA: /foundry-data
     volumes:
-      - foundry-data:/foundry-data:ro
+      - ${FOUNDRY_DATA_PATH:-foundry-data}:/foundry-data:ro
     depends_on:
       - foundry
     networks:
