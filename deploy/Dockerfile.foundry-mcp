@@ -1,0 +1,32 @@
+# Build context: monorepo root (compose.yaml build.context: ..).
+#
+# @foundry-toolkit/shared exports raw .ts source files with no build step.
+# Running `tsc && node dist/index.js` would fail at runtime because the compiled
+# JS still imports '@foundry-toolkit/shared/*', which resolves to .ts files that
+# Node can't load.  Instead we run via tsx, which uses esbuild to compile .ts
+# sources on demand — including workspace packages resolved through the
+# package.json exports map.  Slightly larger image, zero build complexity.
+
+FROM node:22-alpine
+WORKDIR /app
+
+# Workspace manifests first — this layer only rebuilds when a manifest changes,
+# not on every source edit.
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY apps/foundry-mcp/package.json apps/foundry-mcp/
+COPY apps/dm-tool/package.json apps/dm-tool/
+COPY packages/shared/package.json packages/shared/
+
+# Includes devDeps so tsx (a devDep of foundry-mcp) is hoisted to the root
+# node_modules.  --ignore-scripts skips husky and any electron-rebuild hooks.
+RUN npm install --ignore-scripts
+
+# Source — only what foundry-mcp imports at runtime.
+COPY packages/shared packages/shared
+COPY apps/foundry-mcp apps/foundry-mcp
+
+EXPOSE 8765
+
+# tsx resolves the workspace symlink node_modules/@foundry-toolkit/shared →
+# packages/shared and compiles .ts files transparently via esbuild.
+CMD ["node_modules/.bin/tsx", "apps/foundry-mcp/src/index.ts"]
