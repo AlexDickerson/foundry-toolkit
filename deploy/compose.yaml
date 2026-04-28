@@ -1,0 +1,83 @@
+# foundry-toolkit demo stack
+# Three services on one internal network: Foundry VTT, foundry-mcp, player-portal.
+#
+# Usage (run from inside this deploy/ directory):
+#   cp .env.example .env   # then fill in credentials
+#   docker compose up -d
+#
+# See README.md for full documentation.
+
+name: foundry-toolkit-demo
+
+services:
+  # ── Foundry VTT ─────────────────────────────────────────────────────────────
+  # felddy/foundryvtt downloads a licensed copy on first boot using your Paizo
+  # credentials.  World data persists in the named volume across restarts.
+  foundry:
+    image: felddy/foundryvtt:release
+    restart: unless-stopped
+    environment:
+      FOUNDRY_USERNAME: ${FOUNDRY_USERNAME}
+      FOUNDRY_PASSWORD: ${FOUNDRY_PASSWORD}
+      FOUNDRY_ADMIN_KEY: ${FOUNDRY_ADMIN_KEY:-}
+    volumes:
+      - foundry-data:/data
+    ports:
+      - '30000:30000'
+    networks:
+      - internal
+
+  # ── foundry-mcp ─────────────────────────────────────────────────────────────
+  # MCP server + Fastify REST surface.  The foundry-api-bridge module (already
+  # deployed inside your Foundry world) dials OUT from the browser tab to
+  # ws://foundry-mcp:8765/foundry over this compose network.
+  # Port 8765 is internal only — not mapped to the host.
+  foundry-mcp:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.foundry-mcp
+    restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SHARED_SECRET: ${SHARED_SECRET}
+      ALLOW_EVAL: ${ALLOW_EVAL:-0}
+      HOST: 0.0.0.0
+      PORT: '8765'
+      # Give foundry-mcp read access to Foundry's data directory so it can read
+      # compendium pack SQLite files directly (faster than the WS bridge path).
+      FOUNDRY_DATA: /foundry-data
+    volumes:
+      - foundry-data:/foundry-data:ro
+    depends_on:
+      - foundry
+    networks:
+      - internal
+
+  # ── player-portal ────────────────────────────────────────────────────────────
+  # Fastify server that serves the built Vite SPA and reverse-proxies:
+  #   /api/mcp/*              → foundry-mcp (MCP REST surface)
+  #   /icons /systems /worlds → Foundry (asset resolution for prepared actors)
+  player-portal:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.player-portal
+    restart: unless-stopped
+    environment:
+      SHARED_SECRET: ${SHARED_SECRET}
+      # Internal wiring via compose DNS — not overridable from .env.
+      MCP_URL: http://foundry-mcp:8765
+      FOUNDRY_URL: http://foundry:30000
+      PORT: '3000'
+      HOST: 0.0.0.0
+    ports:
+      - '${PLAYER_PORTAL_PORT:-3000}:3000'
+    depends_on:
+      - foundry-mcp
+    networks:
+      - internal
+
+volumes:
+  foundry-data:
+
+networks:
+  internal:
