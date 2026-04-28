@@ -13,6 +13,7 @@ const EXPECTED_ACTIONS = [
   'remove-formula',
   'get-spellcasting',
   'cast-spell',
+  'transfer-to-party',
 ] as const;
 
 describe('ACTION_HANDLERS registry', () => {
