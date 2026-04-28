@@ -42,7 +42,7 @@ export function registerIpcHandlers(
   registerPackGroupingHandlers(db);
   registerConfigHandlers(db, cfg);
   registerGlobeHandlers(cfg, getMainWindow);
-  registerInventoryHandlers(cfg);
+  registerInventoryHandlers();
   registerAurusHandlers(cfg);
   registerCombatHandlers(cfg, getMainWindow);
 }

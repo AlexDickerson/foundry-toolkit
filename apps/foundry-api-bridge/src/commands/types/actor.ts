@@ -134,6 +134,48 @@ export interface PartyMemberResult {
   maxHp: number;
 }
 
+// Party-for-member query — given a character actor id, returns the party
+// that actor belongs to plus rich stat data for every party member.
+// Used by the player-portal's useParty hook to power the Display rail.
+export interface GetPartyForMemberParams {
+  actorId: string;
+  /** Optional override for the fallback name-based party lookup. Defaults
+   *  to the PARTY_ACTOR_NAME constant ("The Party"). Only relevant when
+   *  actor.parties is not available on the character actor. */
+  partyName?: string;
+}
+
+export interface PartyForMemberMember {
+  id: string;
+  name: string;
+  img: string;
+  level: number;
+  hp: { value: number; max: number; temp: number };
+  ac: number;
+  perceptionMod: number;
+  heroPoints: { value: number; max: number };
+  shield: { hpValue: number; hpMax: number; raised: boolean; broken: boolean } | null;
+  conditions: Array<{ slug: string; value: number | null }>;
+  /** true when this member's id equals the actorId from the request params. */
+  isOwnedByUser: boolean;
+}
+
+export interface GetPartyForMemberResult {
+  /** null when the character isn't in any party. */
+  party: { id: string; name: string; img: string } | null;
+  members: PartyForMemberMember[];
+}
+
+// Party stash query — returns all items on a Party actor in the same
+// ItemSummary shape that GetPreparedActorHandler produces. Read-only.
+export interface GetPartyStashParams {
+  partyActorId: string;
+}
+
+export interface GetPartyStashResult {
+  items: ItemSummary[];
+}
+
 // World Info (pull query)
 export type GetWorldInfoParams = Record<string, never>;
 

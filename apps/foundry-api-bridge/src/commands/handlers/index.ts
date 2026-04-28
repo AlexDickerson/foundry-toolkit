@@ -23,6 +23,8 @@ export {
   getPreparedActorHandler,
   getStatisticTraceHandler,
   getPartyMembersHandler,
+  getPartyForMemberHandler,
+  getPartyStashHandler,
 } from '@/commands/handlers/actor';
 
 // Journal handlers

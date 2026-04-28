@@ -7,6 +7,8 @@ import type {
   CreateActorBody,
   DispatchRequest,
   DispatchResponse,
+  PartyForMember,
+  PartyStash,
   Pf2eRollMode,
   Pf2eStatisticSlug,
   RollActorStatisticResponse,
@@ -155,6 +157,16 @@ export const api = {
   // results" if it wants to.
   longRest: (id: string): Promise<LongRestResponse> =>
     api.invokeActorAction<LongRestResponse>(id, 'rest-for-the-night'),
+  // Move an item (or a quantity of it) from the actor's inventory to a
+  // party actor's stash. `quantity` defaults to the full stack (1 here;
+  // bridge defaults to 1 when omitted).
+  transferItemToParty: (actorId: string, itemId: string, partyId: string, quantity = 1): Promise<{ ok: boolean }> =>
+    api.invokeActorAction<{ ok: boolean }>(actorId, 'transfer-to-party', { itemId, targetActorId: partyId, quantity }),
+  // Move an item from the party stash to a character's inventory.
+  // Reuses the same bridge action (transfer-to-party) invoked on the
+  // party actor with the character as the target.
+  takeItemFromParty: (partyId: string, itemId: string, actorId: string, quantity = 1): Promise<{ ok: boolean }> =>
+    api.invokeActorAction<{ ok: boolean }>(partyId, 'transfer-to-party', { itemId, targetActorId: actorId, quantity }),
   // Rolls a single MAP variant of a Strike. `variantIndex` 0/1/2 maps
   // to first attack / second (−5 MAP) / third (−10 MAP). pf2e's
   // `StrikeData.variants[i].roll()` bakes in the MAP penalty.
@@ -185,6 +197,17 @@ export const api = {
     api.invokeActorAction<{ ok: boolean; added: boolean; uuid: string; formulaCount: number }>(id, 'add-formula', {
       uuid,
     }),
+  // Given a character actor id, returns the party it belongs to plus rich
+  // stat data for every party member. Used by useParty to power the Display
+  // rail and the Stash section. Optional partyName provides the fallback when
+  // the PF2e runtime doesn't expose actor.parties on the character actor.
+  getPartyForMember: (actorId: string, partyName?: string): Promise<PartyForMember> => {
+    const qs = partyName ? `?party=${encodeURIComponent(partyName)}` : '';
+    return request<PartyForMember>(`/actors/${encodeURIComponent(actorId)}/party${qs}`);
+  },
+  // Returns all items on a Party actor in ItemSummary shape. Read-only.
+  getPartyStash: (partyId: string): Promise<PartyStash> =>
+    request<PartyStash>(`/actors/${encodeURIComponent(partyId)}/party-stash`),
   removeFormula: (
     id: string,
     uuid: string,

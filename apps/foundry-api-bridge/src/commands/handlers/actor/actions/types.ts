@@ -17,6 +17,8 @@ export interface FoundryActor {
   };
   items: FoundryItemCollection;
   update(data: Record<string, unknown>): Promise<FoundryActor>;
+  /** PF2e-specific: moves an item (or a quantity of it) to a different actor. */
+  transferItemToActor?: (targetActor: FoundryActor, item: FoundryItem, quantity: number) => Promise<unknown>;
   /** PF2e-specific: bumps a condition by 1 (creates the effect at
    *  value 1 if absent). */
   increaseCondition?: (slug: string) => Promise<unknown>;

@@ -34,6 +34,21 @@ export function registerActorRoutes(app: FastifyInstance): void {
     return sendCommand('get-prepared-actor', { actorId: id });
   });
 
+  /** Return the party that contains the given character, plus rich stat data
+   *  for every party member.  Optional `?party=` overrides the default party
+   *  actor name when actor.parties is unavailable on the character actor. */
+  app.get('/api/actors/:id/party', async (req) => {
+    const { id } = actorIdParam.parse(req.params);
+    const { party } = partyActorsQuery.parse(req.query);
+    return sendCommand('get-party-for-member', party ? { actorId: id, partyName: party } : { actorId: id });
+  });
+
+  /** Return all items on a Party actor in ItemSummary shape. Read-only. */
+  app.get('/api/actors/:id/party-stash', async (req) => {
+    const { id } = actorIdParam.parse(req.params);
+    return sendCommand('get-party-stash', { partyActorId: id });
+  });
+
   app.get('/api/actors/:id/trace/:slug', async (req) => {
     const { id, slug } = actorTraceParams.parse(req.params);
     return sendCommand('get-statistic-trace', { actorId: id, slug });

@@ -10,6 +10,7 @@ import { addFormulaAction } from './addFormula';
 import { removeFormulaAction } from './removeFormula';
 import { getSpellcastingAction } from './getSpellcasting';
 import { castSpellAction } from './castSpell';
+import { transferToPartyAction } from './transferToParty';
 import type { ActionHandler } from './types';
 
 // Dispatch table. Adding a new outbound action is a single entry —
@@ -32,4 +33,5 @@ export const ACTION_HANDLERS: Record<string, ActionHandler> = {
   'remove-formula': removeFormulaAction,
   'get-spellcasting': getSpellcastingAction,
   'cast-spell': castSpellAction,
+  'transfer-to-party': transferToPartyAction,
 };

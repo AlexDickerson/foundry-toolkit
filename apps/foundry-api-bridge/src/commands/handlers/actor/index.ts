@@ -13,3 +13,5 @@ export { getActorHandler } from './GetActorHandler';
 export { getPreparedActorHandler } from './GetPreparedActorHandler';
 export { getStatisticTraceHandler } from './GetStatisticTraceHandler';
 export { getPartyMembersHandler } from './GetPartyMembersHandler';
+export { getPartyForMemberHandler } from './GetPartyForMemberHandler';
+export { getPartyStashHandler } from './GetPartyStashHandler';

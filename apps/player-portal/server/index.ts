@@ -53,13 +53,18 @@ const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds'];
  *  plugin's request timeout would close the stream prematurely. */
 function makeSseProxy(mcpUrl: string, upstreamPath: string) {
   return (req: FastifyRequest, reply: FastifyReply): void => {
+    // Fastify sees the handler return void and would send its own empty
+    // response before the async http.request callback fires, closing the
+    // connection before any SSE data can flow. hijack() marks the reply
+    // as taken over so Fastify leaves it completely alone.
+    reply.hijack();
     const target = new URL(`${mcpUrl}${upstreamPath}`);
     const transport = target.protocol === 'https:' ? https : http;
     const proxyReq = transport.request(
       {
         hostname: target.hostname,
         port: target.port || (target.protocol === 'https:' ? 443 : 80),
-        path: target.pathname,
+        path: target.pathname + target.search,
         method: 'GET',
         headers: { Accept: 'text/event-stream' },
       },
@@ -128,8 +133,9 @@ async function main(): Promise<void> {
   }
 
   // --- Live-state SSE streams (proxy to foundry-mcp) ----------------------
+  // These must use makeSseProxy rather than the general @fastify/http-proxy
+  // because the plugin's request timeout closes long-lived SSE connections.
 
-  app.get('/api/live/inventory/stream', makeSseProxy(MCP_URL, '/api/live/inventory/stream'));
   app.get('/api/live/aurus/stream', makeSseProxy(MCP_URL, '/api/live/aurus/stream'));
   app.get('/api/live/globe/stream', makeSseProxy(MCP_URL, '/api/live/globe/stream'));
 

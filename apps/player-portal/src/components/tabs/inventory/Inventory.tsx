@@ -16,15 +16,21 @@ import {
   type ShopView,
   groupByCategory,
 } from './inventory-categories';
-import { spendCoins, grantCoins, type SellContext, type InvestContext } from './inventory-shop';
+import { spendCoins, grantCoins, type SellContext, type InvestContext, type PartyContext } from './inventory-shop';
 import { ItemRow, GridTile } from './InventoryItemRow';
 import { CoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
+import { PartyStash } from './PartyStash';
 
 interface Props {
   items: PreparedActorItem[];
   actorId?: string;
   onActorChanged?: () => void;
   investiture?: PointPool;
+  /** Party actor ID, when the character is a member of a party. Drives the
+   *  stash section rendered above personal inventory. Undefined = no party
+   *  (or lookup still in flight) — stash section is hidden. */
+  partyId?: string;
+  partyName?: string;
 }
 
 // Inventory tab — reads `items[]`, filters to physical item types
@@ -38,9 +44,7 @@ interface Props {
 // inventory.hbs, but flattened — our read-only viewer doesn't need
 // stow/carry/drop controls or quantity adjusters.
 //
-// Future: the Party Stash section will land as a sibling component
-// (inventory/PartyStash.tsx) once that feature is fleshed out.
-export function Inventory({ items, actorId, onActorChanged, investiture }: Props): React.ReactElement {
+export function Inventory({ items, actorId, onActorChanged, investiture, partyId, partyName }: Props): React.ReactElement {
   // One uuid-hover instance for every expanded item description —
   // event delegation on the section picks up anchors produced by
   // `enrichDescription` regardless of which item was expanded.
@@ -50,6 +54,8 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
   const [pendingBuys, setPendingBuys] = useState<Set<string>>(new Set());
   const [pendingSells, setPendingSells] = useState<Set<string>>(new Set());
   const [pendingInvestments, setPendingInvestments] = useState<Set<string>>(new Set());
+  const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
+  const [stashNonce, setStashNonce] = useState(0);
   const [txError, setTxError] = useState<string | null>(null);
   const shopMode = useShopMode();
   const [tileColumns, setTileColumns] = useState(6);
@@ -94,6 +100,25 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
       setTxError(err instanceof Error ? err.message : String(err));
     } finally {
       setPendingSells((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
+  const handleTransferToParty = async (item: PhysicalItem): Promise<void> => {
+    if (!canTransact || partyId === undefined) return;
+    setTxError(null);
+    setPendingTransfers((prev) => new Set(prev).add(item.id));
+    try {
+      await api.transferItemToParty(actorId, item.id, partyId, item.system.quantity);
+      onActorChanged();
+      setStashNonce((n) => n + 1);
+    } catch (err) {
+      setTxError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPendingTransfers((prev) => {
         const next = new Set(prev);
         next.delete(item.id);
         return next;
@@ -161,6 +186,15 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
+      {partyId !== undefined && (
+        <PartyStash
+          partyId={partyId}
+          partyName={partyName}
+          refreshKey={stashNonce}
+          {...(actorId !== undefined ? { actorId } : {})}
+          {...(onActorChanged !== undefined ? { onActorChanged } : {})}
+        />
+      )}
       {txError !== null && (
         <p className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800" data-role="tx-error">
           {txError}
@@ -215,6 +249,11 @@ export function Inventory({ items, actorId, onActorChanged, investiture }: Props
                   ? { investiture, pending: pendingInvestments, onToggle: handleToggleInvestment }
                   : undefined
               }
+              partyContext={
+                canTransact && partyId !== undefined
+                  ? { partyId, pending: pendingTransfers, onTransfer: handleTransferToParty }
+                  : undefined
+              }
             />
           )}
         </>
@@ -237,6 +276,7 @@ function CategorizedInventory({
   byContainer,
   sellContext,
   investContext,
+  partyContext,
 }: {
   view: ViewMode;
   tileColumns: number;
@@ -245,6 +285,7 @@ function CategorizedInventory({
   byContainer: Map<string, PhysicalItem[]>;
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
+  partyContext: PartyContext | undefined;
 }): React.ReactElement {
   const buckets = view === 'list' ? topLevelByCategory : allByCategory;
   const presentCategories = CATEGORY_ORDER.filter((c) => (buckets.get(c)?.length ?? 0) > 0);
@@ -267,6 +308,7 @@ function CategorizedInventory({
                     contents={isContainer(item) ? (byContainer.get(item.id) ?? []) : []}
                     sellContext={sellContext}
                     investContext={investContext}
+                    partyContext={partyContext}
                   />
                 ))}
               </ul>
@@ -277,7 +319,13 @@ function CategorizedInventory({
                 data-view="grid"
               >
                 {bucket.map((item) => (
-                  <GridTile key={item.id} item={item} sellContext={sellContext} investContext={investContext} />
+                  <GridTile
+                    key={item.id}
+                    item={item}
+                    sellContext={sellContext}
+                    investContext={investContext}
+                    partyContext={partyContext}
+                  />
                 ))}
               </ul>
             )}
