@@ -16,7 +16,7 @@
     "harness": "tsx harness/run.ts"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.71",
+    "@ai-sdk/anthropic": "^3.0.72",
     "@foundry-toolkit/pf2e-rules": "*",
     "@foundry-toolkit/shared": "*",
     "ai": "^6.0.169",
