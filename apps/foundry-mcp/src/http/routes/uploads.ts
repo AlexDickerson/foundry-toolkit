@@ -58,8 +58,21 @@ export function registerUploadRoutes(app: FastifyInstance, opts: { dataDir?: str
       return;
     }
 
-    await mkdir(dirname(absPath), { recursive: true });
-    await writeFile(absPath, buf);
+    try {
+      await mkdir(dirname(absPath), { recursive: true });
+      await writeFile(absPath, buf);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT' || code === 'EACCES' || code === 'EPERM') {
+        reply.code(500).send({
+          error: 'Could not write to the Foundry Data directory',
+          suggestion: `Set FOUNDRY_DATA or FOUNDRY_DATA_DIR in your .env to the actual path of your Foundry data folder. Current value: "${dataDir}".`,
+        });
+      } else {
+        reply.code(500).send({ error: 'File write failed', suggestion: String(err) });
+      }
+      return;
+    }
 
     // Always return forward slashes regardless of platform so the stored
     // path is a valid URL segment on every OS.
