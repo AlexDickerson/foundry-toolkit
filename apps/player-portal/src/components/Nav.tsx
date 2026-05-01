@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { logout, type AuthUser } from '../api/auth';
 
 const tabs = [
   { to: '/', label: 'Home', end: true },
@@ -10,9 +11,23 @@ const tabs = [
 interface Props {
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  user: AuthUser | null;
+  onSignOut: () => void;
 }
 
-export function Nav({ theme, onToggleTheme }: Props) {
+export function Nav({ theme, onToggleTheme, user, onSignOut }: Props) {
+  const navigate = useNavigate();
+
+  async function handleSignOut(): Promise<void> {
+    try {
+      await logout();
+    } catch {
+      // best-effort; clear client state regardless
+    }
+    onSignOut();
+    void navigate('/login');
+  }
+
   return (
     <nav className="flex flex-shrink-0 items-center border-b border-portal-border bg-portal-surface shadow-sm">
       {tabs.map((tab) => (
@@ -34,15 +49,31 @@ export function Nav({ theme, onToggleTheme }: Props) {
         </NavLink>
       ))}
 
-      {/* Theme toggle — pushed to the right edge */}
-      <button
-        type="button"
-        onClick={onToggleTheme}
-        aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-        className="ml-auto mr-3 flex h-8 w-8 items-center justify-center rounded text-portal-text-muted transition-colors hover:text-portal-text"
-      >
-        {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-      </button>
+      {/* Right-side controls */}
+      <div className="ml-auto flex items-center gap-3 px-3">
+        {user !== null && (
+          <>
+            <span className="text-xs text-portal-text-muted">{user.username}</span>
+            <button
+              type="button"
+              onClick={() => { void handleSignOut(); }}
+              className="rounded border border-portal-border px-2.5 py-1 text-xs font-medium text-portal-text-muted transition-colors hover:border-portal-accent hover:text-portal-text"
+            >
+              Sign out
+            </button>
+          </>
+        )}
+
+        {/* Theme toggle */}
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          className="flex h-8 w-8 items-center justify-center rounded text-portal-text-muted transition-colors hover:text-portal-text"
+        >
+          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        </button>
+      </div>
     </nav>
   );
 }

@@ -59,7 +59,7 @@ function StashTile({
   onTake: (item: PartyStashItem) => void;
   pending: boolean;
 }): React.ReactElement {
-  const qty = typeof item.system.quantity === 'number' ? (item.system.quantity as number) : null;
+  const qty = typeof item.system.quantity === 'number' ? (item.system.quantity) : null;
   const [zIndex, setZIndex] = useState<number | undefined>(undefined);
   const [flipLeft, setFlipLeft] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -181,7 +181,7 @@ export function PartyStash({ partyId, refreshKey, actorId, onActorChanged }: Pro
       if (!actorId) return;
       setPendingTakes((prev) => new Set(prev).add(item.id));
       api
-        .takeItemFromParty(partyId, item.id, actorId, typeof item.system.quantity === 'number' ? (item.system.quantity as number) : 1)
+        .takeItemFromParty(partyId, item.id, actorId, typeof item.system.quantity === 'number' ? (item.system.quantity) : 1)
         .then(() => {
           onActorChanged?.();
           fetchStash();

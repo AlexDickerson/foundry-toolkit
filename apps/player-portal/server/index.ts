@@ -1,23 +1,20 @@
 // Player portal server. One Fastify process serves the built SPA and routes.
 //
+// Auth
+//   Cookie-session auth (@fastify/secure-session) gates all API and proxy routes.
+//   /api/auth/* and /health are public. SHARED_SECRET bearer auth continues to
+//   gate /api/live/* POSTs from dm-tool (machine-to-machine, not cookie-authed).
+//
 // Live-sync streams — /api/live/<name>/stream SSE routes proxy to foundry-mcp.
-//   GET /api/live/<name>/stream  — SSE proxy → foundry-mcp (public, read-only)
-// GET/POST snapshot routes were retired in this PR; foundry-mcp is now the
-// sole live-state store.
+// GET/POST snapshot routes were retired; foundry-mcp is the sole live-state store.
 //
 // MCP proxy — /api/mcp/* is transparently proxied to foundry-mcp (default
-// http://localhost:8765). The Authorization header is passed through
-// unchanged so the SPA's session + any foundry-mcp auth posture applies
-// end to end.
+// http://localhost:8765). The Authorization header is passed through unchanged.
 //
 // Foundry assets — /icons, /systems, /modules, /worlds are proxied to
 // foundry-mcp (MCP_URL) so asset fetches go through the MCP server's
-// WebSocket bridge to Foundry and benefit from its in-process asset cache.
-// Proxying to FOUNDRY_URL directly would break in deployments where the
-// Foundry VTT HTTP server is not reachable from player-portal's host —
-// only foundry-mcp has a persistent outbound connection to Foundry.
-// /assets is intentionally NOT proxied because Vite's built SPA chunks
-// live at /assets/*.
+// WebSocket bridge to Foundry. /assets is intentionally NOT proxied because
+// Vite's built SPA chunks live there.
 //
 // Map proxy — /map/* → https://map.pathfinderwiki.com/ so PMTiles tile
 // requests are same-origin.
@@ -28,20 +25,24 @@ import https from 'node:https';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
-import Fastify, { type FastifyRequest, type FastifyReply } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyReply } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyHttpProxy from '@fastify/http-proxy';
+import { registerSession } from './auth/session.js';
+import { requireAuth } from './auth/middleware.js';
+import { initUsers, type User } from './auth/users.js';
+import { registerAuthRoutes } from './routes/auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const PORT = parseInt(process.env.PORT ?? '3000', 10);
-const HOST = process.env.HOST ?? '0.0.0.0';
-const MCP_URL = process.env.MCP_URL ?? 'http://localhost:8765';
+const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
+const HOST = process.env['HOST'] ?? '0.0.0.0';
+const MCP_URL = process.env['MCP_URL'] ?? 'http://localhost:8765';
 // In prod the compiled server sits at server-dist/index.js and the SPA
 // build is at dist/. In dev Vite serves static from memory on :5173 and
 // proxies /api, /map, and the Foundry asset prefixes here, so dist/ may
 // not exist — we skip static serving in that case.
-const STATIC_DIR = process.env.STATIC_DIR ?? join(__dirname, '..', 'dist');
+const STATIC_DIR = process.env['STATIC_DIR'] ?? join(__dirname, '..', 'dist');
 
 // Foundry asset prefixes — all proxied to foundry-mcp so the WS bridge
 // serves them. `/assets` is deliberately excluded because Vite's built SPA
@@ -86,7 +87,9 @@ function makeSseProxy(mcpUrl: string, upstreamPath: string) {
   };
 }
 
-async function main(): Promise<void> {
+/** Build and configure the Fastify app without starting the HTTP listener.
+ *  Exported so tests can call buildServer() and use fastify.inject(). */
+export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
 
   // CORS — in prod the SPA and API share an origin so this is a no-op.
@@ -99,6 +102,16 @@ async function main(): Promise<void> {
   });
 
   app.get('/health', async () => ({ ok: true }));
+
+  // Session plugin — must be registered before the auth preHandler and routes
+  await registerSession(app);
+
+  // Cookie-session auth gate — runs on all routes; skips /api/auth/*, /health, /assets/*
+  app.decorateRequest<User | undefined>('user', undefined);
+  app.addHook('preHandler', requireAuth);
+
+  // Public auth routes (login / logout / me)
+  await registerAuthRoutes(app);
 
   // Reverse-proxy /map/ to map.pathfinderwiki.com — tiles appear to come
   // from our origin so the browser's CORS check passes.
@@ -163,6 +176,14 @@ async function main(): Promise<void> {
     });
   }
 
+  return app;
+}
+
+async function main(): Promise<void> {
+  // Load user records into memory before accepting requests
+  initUsers();
+
+  const app = await buildServer();
   await app.listen({ port: PORT, host: HOST });
 }
 
