@@ -51,7 +51,7 @@ export function ViewToggle({
   view: ViewMode;
   onChange: (v: ViewMode) => void;
 }): React.ReactElement {
-  const base = 'flex items-center justify-center px-2 py-1 transition-colors';
+  const base = 'flex items-center justify-center px-2 py-2 transition-colors';
   const active = 'bg-pf-primary text-white';
   const inactive = 'text-pf-alt-dark hover:bg-pf-bg-dark/60';
   return (
@@ -98,7 +98,7 @@ export function ShopViewToggle({
   showShop?: boolean;
   showPartyStash?: boolean;
 }): React.ReactElement {
-  const base = 'flex items-center justify-center px-2 py-1 transition-colors';
+  const base = 'flex items-center justify-center px-2 py-2 transition-colors';
   const active = 'bg-pf-primary text-white';
   const inactive = 'text-pf-alt-dark hover:bg-pf-bg-dark/60';
   return (
@@ -166,7 +166,7 @@ export function ShopGearMenu({
   return (
     <details className="relative" data-section="shop-debug">
       <summary
-        className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded border border-pf-border bg-pf-bg text-base leading-none text-pf-alt-dark hover:bg-pf-bg-dark/40"
+        className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded border border-pf-border bg-pf-bg text-base leading-none text-pf-alt-dark hover:bg-pf-bg-dark/40"
         title="Shop settings"
         aria-label="Shop settings"
         data-testid="shop-gear"
