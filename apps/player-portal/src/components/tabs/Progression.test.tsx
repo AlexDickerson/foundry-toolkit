@@ -452,4 +452,56 @@ describe('Progression tab', () => {
     expect(row.querySelector('[data-slot="skill-increase"][data-pick-kind="skill-increase"]')).toBeTruthy();
     expect(row.querySelector('[data-slot="skill-increase"] [data-testid="slot-open-picker"]')).toBeFalsy();
   });
+
+  it('hydrates skill-increase pick from Foundry flags on mount (cross-session)', () => {
+    // Simulates opening the Progression tab after a page refresh — persistedPicks
+    // is populated from actor.flags['player-portal']['progression-picks'].
+    const savedPick = { kind: 'skill-increase', skill: 'acrobatics', newRank: 2 };
+    const { container } = render(
+      <Progression
+        actorId={TEST_ACTOR_ID}
+        characterLevel={3}
+        items={itemsWithoutFeatLocations()}
+        characterContext={ctx}
+        onActorChanged={vi.fn()}
+        persistedPicks={{ '3:skill-increase': savedPick }}
+      />,
+    );
+    const row = container.querySelector('[data-level="3"]') as HTMLElement;
+    expect(
+      row.querySelector('[data-slot="skill-increase"][data-pick-kind="skill-increase"]'),
+      'skill-increase chip restored from flags',
+    ).toBeTruthy();
+    expect(row.querySelector('[data-slot="skill-increase"] [data-testid="slot-open-picker"]')).toBeFalsy();
+  });
+
+  it('writes flags alongside system when a skill increase is committed', async () => {
+    const { container } = render(
+      <Progression actorId={TEST_ACTOR_ID} characterLevel={3} items={items} characterContext={ctx} onActorChanged={vi.fn()} />,
+    );
+    const row = container.querySelector('[data-level="3"]') as HTMLElement;
+    const skillBtn = row.querySelector('[data-slot="skill-increase"] [data-testid="slot-open-picker"]') as HTMLElement | null;
+    if (!skillBtn) return;
+
+    fireEvent.click(skillBtn);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="skill-increase-picker"]')).toBeTruthy();
+    });
+    const skillRows = Array.from(document.querySelectorAll('[data-testid="skill-increase-list"] [data-skill]')) as HTMLButtonElement[];
+    const available = skillRows.find((b) => !b.disabled);
+    if (!available) return;
+
+    fireEvent.click(available);
+    fireEvent.click(document.querySelector('[data-testid="skill-increase-apply"]') as HTMLElement);
+
+    await waitFor(() => {
+      expect(updateActorSpy).toHaveBeenCalledOnce();
+    });
+    const [, patch] = updateActorSpy.mock.calls[0] as [string, Record<string, unknown>];
+    expect(patch.flags, 'flags written alongside system update').toBeDefined();
+    const flagJson = JSON.stringify(patch.flags);
+    expect(flagJson).toContain('player-portal');
+    expect(flagJson).toContain('progression-picks');
+    expect(flagJson).toContain('skill-increase');
+  });
 });

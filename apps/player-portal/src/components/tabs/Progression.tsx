@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../../api/client';
+import { ABILITY_KEYS, isClassItem, isFeatItem } from '../../api/types';
 import type {
   AbilityKey,
   ClassFeatureEntry,
@@ -10,7 +11,6 @@ import type {
   PreparedActorItem,
   ProficiencyRank,
 } from '../../api/types';
-import { isClassItem, isFeatItem } from '../../api/types';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useUuidHover } from '../../lib/useUuidHover';
 import type { CharacterContext } from '../../prereqs';
@@ -33,6 +33,9 @@ interface Props {
   items: PreparedActorItem[];
   characterContext: CharacterContext;
   onActorChanged: () => void;
+  /** Deserialized from `actor.flags['player-portal']['progression-picks']`.
+   *  Hydrates skill-increase and ability-boost picks across page refreshes. */
+  persistedPicks?: Record<string, unknown>;
 }
 
 // pf2e ability boosts happen at these fixed levels (4 boosts each). This
@@ -63,7 +66,7 @@ const slotKey = (level: number, slot: SlotType): SlotKey => `${level.toString()}
 // Class-feat slots are clickable — they open a compendium-search modal
 // (FeatPicker) scoped to the character's class trait and capped at the
 // slot's level. Each pick fires immediately to Foundry via the MCP API.
-export function Progression({ actorId, characterLevel, items, characterContext, onActorChanged }: Props): React.ReactElement {
+export function Progression({ actorId, characterLevel, items, characterContext, onActorChanged, persistedPicks }: Props): React.ReactElement {
   const classItem = items.find(isClassItem);
   const [picks, setPicks] = useState<Map<SlotKey, Pick>>(new Map());
   const [pickerTarget, setPickerTarget] = useState<{ level: number; slot: SlotType } | null>(null);
@@ -101,23 +104,31 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         },
       });
     }
+    // Hydrate non-feat picks from the Foundry actor flag so they survive
+    // a full page refresh. Feat picks are always re-derived from items
+    // (system.location is authoritative); flags are only for the kinds
+    // that Foundry doesn't encode per-slot in the prepared payload.
+    if (persistedPicks !== undefined) {
+      for (const [key, raw] of Object.entries(persistedPicks)) {
+        if (hydrated.has(key)) continue; // feat from items takes precedence
+        const pick = parsePersistedPick(raw);
+        if (pick !== null) hydrated.set(key, pick);
+      }
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPicks((prev) => {
       const next = new Map(hydrated);
-      // skill-increase and ability-boost picks can't be re-derived from
-      // actor items (pf2e exposes only the final derived rank / boost
-      // totals, not which level's slot was consumed). Preserve them
-      // across refetches so a pick doesn't vanish the moment onActorChanged
-      // triggers a /prepared reload.
+      // In-memory fallback: preserve any non-feat picks not yet reflected in
+      // flags (the optimistic window between commitPick and onActorChanged
+      // completing its /prepared reload).
       for (const [key, pick] of prev) {
-        if (pick.kind !== 'feat') next.set(key, pick);
+        if (pick.kind !== 'feat' && !next.has(key)) next.set(key, pick);
       }
       return next;
     });
-    // Only re-hydrate when the list of items itself changes identity —
-    // in practice that's when the actor refetches, not on every
-    // internal picks mutation.
-  }, [items]);
+    // Re-run when items OR persisted flag data changes — both arrive via the
+    // actor refetch triggered by onActorChanged.
+  }, [items, persistedPicks]);
 
   // Prefetched full documents for every class feature on this class,
   // indexed by uuid. A ref-backed cache survives React 18 StrictMode's
@@ -234,6 +245,11 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
     const key = slotKey(level, slot);
     const existingPick = picks.get(key);
 
+    // Compute post-pick state synchronously so flag serialization reflects
+    // the new pick without waiting for React to flush the setState.
+    const newPicksForFlag = new Map(picks);
+    newPicksForFlag.set(key, pick);
+
     // Optimistic local update — closes the picker immediately.
     setPicks((prev) => {
       const next = new Map(prev);
@@ -281,7 +297,10 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         });
     } else if (pick.kind === 'skill-increase') {
       void api
-        .updateActor(actorId, { system: { skills: { [pick.skill]: { rank: pick.newRank } } } })
+        .updateActor(actorId, {
+          system: { skills: { [pick.skill]: { rank: pick.newRank } } },
+          flags: buildProgressionPicksFlags(newPicksForFlag),
+        })
         .then(() => {
           onActorChanged();
         })
@@ -299,7 +318,10 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         });
     } else if (pick.kind === 'ability-boosts') {
       void api
-        .updateActor(actorId, { system: { build: { attributes: { boosts: { [level]: pick.abilities } } } } })
+        .updateActor(actorId, {
+          system: { build: { attributes: { boosts: { [level]: pick.abilities } } } },
+          flags: buildProgressionPicksFlags(newPicksForFlag),
+        })
         .then(() => {
           onActorChanged();
         })
@@ -320,6 +342,10 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
   const clearPick = (level: number, slot: SlotType): void => {
     const key = slotKey(level, slot);
     const existingPick = picks.get(key);
+
+    // Compute post-clear state for flag serialization.
+    const newPicksForFlag = new Map(picks);
+    newPicksForFlag.delete(key);
 
     // Optimistic removal.
     setPicks((prev) => {
@@ -348,7 +374,10 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
     } else if (existingPick.kind === 'skill-increase') {
       const prevRank = (existingPick.newRank - 1) as ProficiencyRank;
       void api
-        .updateActor(actorId, { system: { skills: { [existingPick.skill]: { rank: prevRank } } } })
+        .updateActor(actorId, {
+          system: { skills: { [existingPick.skill]: { rank: prevRank } } },
+          flags: buildProgressionPicksFlags(newPicksForFlag),
+        })
         .then(() => {
           onActorChanged();
         })
@@ -362,7 +391,10 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         });
     } else if (existingPick.kind === 'ability-boosts') {
       void api
-        .updateActor(actorId, { system: { build: { attributes: { boosts: { [level]: [] } } } } })
+        .updateActor(actorId, {
+          system: { build: { attributes: { boosts: { [level]: [] } } } },
+          flags: buildProgressionPicksFlags(newPicksForFlag),
+        })
         .then(() => {
           onActorChanged();
         })
@@ -947,6 +979,37 @@ const FEAT_SLOT_LOCATION_PREFIX: Partial<Record<SlotType, string>> = {
 function featSlotLocationFor(slot: SlotType, level: number): string | null {
   const prefix = FEAT_SLOT_LOCATION_PREFIX[slot];
   return prefix !== undefined ? `${prefix}-${level.toString()}` : null;
+}
+
+// Serialise all non-feat picks into the Foundry actor flag shape. Written to
+// flags['player-portal']['progression-picks'] so picks survive page refreshes.
+function buildProgressionPicksFlags(picks: Map<SlotKey, Pick>): Record<string, Record<string, unknown>> {
+  const blob: Record<string, unknown> = {};
+  for (const [key, pick] of picks) {
+    if (pick.kind !== 'feat') blob[key] = pick;
+  }
+  return { 'player-portal': { 'progression-picks': blob } };
+}
+
+// Deserialise one entry from the stored flag blob back into a typed Pick.
+// Returns null for any shape that doesn't match a known non-feat kind.
+function parsePersistedPick(raw: unknown): Exclude<Pick, { kind: 'feat' }> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  if (obj.kind === 'skill-increase') {
+    if (typeof obj.skill !== 'string') return null;
+    const rank = obj.newRank;
+    if (typeof rank !== 'number' || rank < 0 || rank > 4) return null;
+    return { kind: 'skill-increase', skill: obj.skill, newRank: rank as ProficiencyRank };
+  }
+  if (obj.kind === 'ability-boosts') {
+    if (!Array.isArray(obj.abilities)) return null;
+    const abilities = (obj.abilities as unknown[]).filter(
+      (a): a is AbilityKey => typeof a === 'string' && (ABILITY_KEYS as readonly string[]).includes(a),
+    );
+    return { kind: 'ability-boosts', abilities };
+  }
+  return null;
 }
 
 function groupFeaturesByLevel(items: ClassItem['system']['items']): Map<number, ClassFeatureEntry[]> {

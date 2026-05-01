@@ -242,6 +242,9 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
                 items={state.actor.items}
                 characterContext={fromPreparedCharacter(state.actor)}
                 onActorChanged={reloadActor}
+                {...(state.actor.flags?.['player-portal']?.['progression-picks'] !== undefined
+                  ? { persistedPicks: state.actor.flags['player-portal']['progression-picks'] as Record<string, unknown> }
+                  : {})}
               />
             )}
             {activeTab === 'details' && (
