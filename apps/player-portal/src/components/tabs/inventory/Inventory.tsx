@@ -213,22 +213,20 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
                   showPartyStash={partyId !== undefined}
                 />
               )}
+              {effectiveShopView === 'inventory' && <ViewToggle view={view} onChange={setView} />}
               <ShopGearMenu shopMode={shopMode} tileColumns={tileColumns} onTileColumnsChange={setTileColumns} />
             </div>
-            <div className="flex items-center gap-4">
-              {investiture !== undefined && investiture.max > 0 && (
-                <div className="flex items-center gap-2" data-stat="investiture">
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">
-                    Invested
-                  </span>
-                  <span className="font-mono text-sm tabular-nums text-pf-text">
-                    {investedCount}
-                    <span className="text-pf-text-muted">/{investiture.max}</span>
-                  </span>
-                </div>
-              )}
-              {effectiveShopView === 'inventory' && <ViewToggle view={view} onChange={setView} />}
-            </div>
+            {investiture !== undefined && investiture.max > 0 && effectiveShopView !== 'party-stash' && (
+              <div className="flex items-center gap-2" data-stat="investiture">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">
+                  Invested
+                </span>
+                <span className="font-mono text-sm tabular-nums text-pf-text">
+                  {investedCount}
+                  <span className="text-pf-text-muted">/{investiture.max}</span>
+                </span>
+              </div>
+            )}
           </div>
           {effectiveShopView === 'party-stash' && partyId !== undefined ? (
             <PartyStash
