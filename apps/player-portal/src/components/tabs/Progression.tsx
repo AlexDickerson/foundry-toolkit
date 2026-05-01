@@ -65,11 +65,16 @@ const slotKey = (level: number, slot: SlotType): SlotKey => `${level.toString()}
 //
 // Class-feat slots are clickable — they open a compendium-search modal
 // (FeatPicker) scoped to the character's class trait and capped at the
-// slot's level. Each pick fires immediately to Foundry via the MCP API.
+// slot's level. Picks for current/past levels write to Foundry immediately;
+// picks for future levels are stored in flags only and auto-applied when
+// the character reaches that level.
 export function Progression({ actorId, characterLevel, items, characterContext, onActorChanged, persistedPicks }: Props): React.ReactElement {
   const classItem = items.find(isClassItem);
   const [picks, setPicks] = useState<Map<SlotKey, Pick>>(new Map());
   const [pickerTarget, setPickerTarget] = useState<{ level: number; slot: SlotType } | null>(null);
+  // Tracks the previous characterLevel so the hydration effect can detect
+  // level-ups and auto-apply picks that just became reachable.
+  const prevCharacterLevelRef = useRef(characterLevel);
 
   // Hydrate the picks Map from embedded feat items' `system.location`
   // strings. pf2e tags feats added via its own "Add to Slot" flow
@@ -126,9 +131,41 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
       }
       return next;
     });
-    // Re-run when items OR persisted flag data changes — both arrive via the
-    // actor refetch triggered by onActorChanged.
-  }, [items, persistedPicks]);
+    // Auto-apply: when the character levels up, fire the deferred system
+    // writes for any non-feat picks that just became reachable (they were
+    // stored in flags while the level was still future).
+    const prevLevel = prevCharacterLevelRef.current;
+    prevCharacterLevelRef.current = characterLevel;
+    if (characterLevel > prevLevel) {
+      for (const [key, pick] of hydrated) {
+        if (pick.kind === 'feat') continue;
+        const parsed = parseSlotKey(key);
+        if (!parsed) continue;
+        const { level } = parsed;
+        if (level <= prevLevel || level > characterLevel) continue;
+        if (pick.kind === 'skill-increase') {
+          void api
+            .updateActor(actorId, {
+              system: { skills: { [pick.skill]: { rank: pick.newRank } } },
+              flags: buildProgressionPicksFlags(hydrated),
+            })
+            .then(() => { onActorChanged(); })
+            .catch((err: unknown) => { console.warn('Failed to auto-apply skill increase', err); });
+        } else if (pick.kind === 'ability-boosts') {
+          void api
+            .updateActor(actorId, {
+              system: { build: { attributes: { boosts: { [level]: pick.abilities } } } },
+              flags: buildProgressionPicksFlags(hydrated),
+            })
+            .then(() => { onActorChanged(); })
+            .catch((err: unknown) => { console.warn('Failed to auto-apply ability boosts', err); });
+        }
+      }
+    }
+    // Re-run when items, persisted flag data, or character level changes —
+    // all three arrive together via the actor refetch triggered by onActorChanged.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, persistedPicks, characterLevel]);
 
   // Prefetched full documents for every class feature on this class,
   // indexed by uuid. A ref-backed cache survives React 18 StrictMode's
@@ -258,7 +295,24 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
     });
     setPickerTarget(null);
 
+    const isFutureLevel = level > characterLevel;
+
+    const rollback = (): void => {
+      setPicks((prev) => {
+        const next = new Map(prev);
+        if (existingPick !== undefined) next.set(key, existingPick);
+        else next.delete(key);
+        return next;
+      });
+    };
+
     if (pick.kind === 'feat') {
+      if (isFutureLevel) {
+        // Future feats are planning-only: keep in local state, no API call.
+        // They'll be applied via addItemFromCompendium when the user reaches
+        // this level and explicitly picks in the now-current slot.
+        return;
+      }
       const location = featSlotLocationFor(slot, level);
       void api
         .addItemFromCompendium(actorId, {
@@ -285,17 +339,20 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         })
         .catch((err: unknown) => {
           console.warn('Failed to persist feat pick', err);
-          setPicks((prev) => {
-            const next = new Map(prev);
-            if (existingPick !== undefined) {
-              next.set(key, existingPick);
-            } else {
-              next.delete(key);
-            }
-            return next;
-          });
+          rollback();
         });
     } else if (pick.kind === 'skill-increase') {
+      if (isFutureLevel) {
+        // Future level: store the planned pick in flags only; the system write
+        // fires automatically when the character reaches this level.
+        void api
+          .updateActor(actorId, { flags: buildProgressionPicksFlags(newPicksForFlag) })
+          .catch((err: unknown) => {
+            console.warn('Failed to save planned skill increase', err);
+            rollback();
+          });
+        return;
+      }
       void api
         .updateActor(actorId, {
           system: { skills: { [pick.skill]: { rank: pick.newRank } } },
@@ -306,17 +363,19 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         })
         .catch((err: unknown) => {
           console.warn('Failed to persist skill increase', err);
-          setPicks((prev) => {
-            const next = new Map(prev);
-            if (existingPick !== undefined) {
-              next.set(key, existingPick);
-            } else {
-              next.delete(key);
-            }
-            return next;
-          });
+          rollback();
         });
     } else if (pick.kind === 'ability-boosts') {
+      if (isFutureLevel) {
+        // Future level: store the planned pick in flags only.
+        void api
+          .updateActor(actorId, { flags: buildProgressionPicksFlags(newPicksForFlag) })
+          .catch((err: unknown) => {
+            console.warn('Failed to save planned ability boosts', err);
+            rollback();
+          });
+        return;
+      }
       void api
         .updateActor(actorId, {
           system: { build: { attributes: { boosts: { [level]: pick.abilities } } } },
@@ -327,15 +386,7 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         })
         .catch((err: unknown) => {
           console.warn('Failed to persist ability boosts', err);
-          setPicks((prev) => {
-            const next = new Map(prev);
-            if (existingPick !== undefined) {
-              next.set(key, existingPick);
-            } else {
-              next.delete(key);
-            }
-            return next;
-          });
+          rollback();
         });
     }
   };
@@ -356,7 +407,21 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
 
     if (existingPick === undefined) return;
 
+    const isFutureLevel = level > characterLevel;
+
+    const undoClear = (): void => {
+      setPicks((prev) => {
+        const next = new Map(prev);
+        next.set(key, existingPick);
+        return next;
+      });
+    };
+
     if (existingPick.kind === 'feat') {
+      if (isFutureLevel) {
+        // Future feat was never added to the actor — nothing to undo in Foundry.
+        return;
+      }
       if (existingPick.actorItemId === undefined) return;
       void api
         .deleteActorItem(actorId, existingPick.actorItemId)
@@ -365,13 +430,19 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         })
         .catch((err: unknown) => {
           console.warn('Failed to delete feat item', err);
-          setPicks((prev) => {
-            const next = new Map(prev);
-            next.set(key, existingPick);
-            return next;
-          });
+          undoClear();
         });
     } else if (existingPick.kind === 'skill-increase') {
+      if (isFutureLevel) {
+        // Planned pick was never written to system — only remove from flags.
+        void api
+          .updateActor(actorId, { flags: buildProgressionPicksFlags(newPicksForFlag) })
+          .catch((err: unknown) => {
+            console.warn('Failed to remove planned skill increase from flags', err);
+            undoClear();
+          });
+        return;
+      }
       const prevRank = (existingPick.newRank - 1) as ProficiencyRank;
       void api
         .updateActor(actorId, {
@@ -383,13 +454,19 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         })
         .catch((err: unknown) => {
           console.warn('Failed to revert skill increase', err);
-          setPicks((prev) => {
-            const next = new Map(prev);
-            next.set(key, existingPick);
-            return next;
-          });
+          undoClear();
         });
     } else if (existingPick.kind === 'ability-boosts') {
+      if (isFutureLevel) {
+        // Planned pick was never written to system — only remove from flags.
+        void api
+          .updateActor(actorId, { flags: buildProgressionPicksFlags(newPicksForFlag) })
+          .catch((err: unknown) => {
+            console.warn('Failed to remove planned ability boosts from flags', err);
+            undoClear();
+          });
+        return;
+      }
       void api
         .updateActor(actorId, {
           system: { build: { attributes: { boosts: { [level]: [] } } } },
@@ -400,11 +477,7 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
         })
         .catch((err: unknown) => {
           console.warn('Failed to clear ability boosts', err);
-          setPicks((prev) => {
-            const next = new Map(prev);
-            next.set(key, existingPick);
-            return next;
-          });
+          undoClear();
         });
     }
   };
@@ -979,6 +1052,16 @@ const FEAT_SLOT_LOCATION_PREFIX: Partial<Record<SlotType, string>> = {
 function featSlotLocationFor(slot: SlotType, level: number): string | null {
   const prefix = FEAT_SLOT_LOCATION_PREFIX[slot];
   return prefix !== undefined ? `${prefix}-${level.toString()}` : null;
+}
+
+// Reverse of slotKey — used by the auto-apply logic to recover the level
+// and slot type from a stored Map key without keeping them separately.
+function parseSlotKey(key: SlotKey): { level: number; slot: SlotType } | null {
+  const sep = key.indexOf(':');
+  if (sep === -1) return null;
+  const level = Number(key.slice(0, sep));
+  if (!Number.isFinite(level)) return null;
+  return { level, slot: key.slice(sep + 1) as SlotType };
 }
 
 // Serialise all non-feat picks into the Foundry actor flag shape. Written to
