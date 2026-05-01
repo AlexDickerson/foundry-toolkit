@@ -1,0 +1,57 @@
+name: Build and publish map-tagger exe
+
+on:
+  push:
+    tags: ['tagger-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: tagger
+        run: pip install -e . "nuitka[onefile]"
+
+      - name: Build exe with Nuitka
+        working-directory: tagger
+        run: |
+          python -m nuitka `
+            --onefile `
+            --assume-yes-for-downloads `
+            --output-filename=map-tagger.exe `
+            --output-dir=dist `
+            --include-package=dnd_map_tagger `
+            --windows-console-mode=force `
+            --remove-output `
+            entry.py
+
+      - name: Rename and hash asset
+        id: asset
+        working-directory: tagger/dist
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^tagger-v', ''
+          $name = "map-tagger-$version.exe"
+          Rename-Item map-tagger.exe $name
+          $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name" | Out-File -Encoding ascii "$name.sha256"
+          "name=$name" | Out-File -Append $env:GITHUB_OUTPUT
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            tagger/dist/${{ steps.asset.outputs.name }}
+            tagger/dist/${{ steps.asset.outputs.name }}.sha256
+          generate_release_notes: true
