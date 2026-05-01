@@ -202,21 +202,19 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
         <p className="text-sm text-pf-text-muted">No items yet.</p>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              {coins.length > 0 && <CoinStrip coins={coins} />}
-              {hasSelector && (
-                <ShopViewToggle
-                  view={effectiveShopView}
-                  onChange={setShopView}
-                  showShop={shopMode.enabled && canTransact}
-                  showPartyStash={partyId !== undefined}
-                />
-              )}
-              {effectiveShopView === 'inventory' && <ViewToggle view={view} onChange={setView} />}
-              <ShopGearMenu shopMode={shopMode} tileColumns={tileColumns} onTileColumnsChange={setTileColumns} />
-            </div>
-            {investiture !== undefined && investiture.max > 0 && effectiveShopView !== 'party-stash' && (
+          <div className="flex flex-wrap items-center gap-3">
+            {coins.length > 0 && <CoinStrip coins={coins} />}
+            {hasSelector && (
+              <ShopViewToggle
+                view={effectiveShopView}
+                onChange={setShopView}
+                showShop={shopMode.enabled && canTransact}
+                showPartyStash={partyId !== undefined}
+              />
+            )}
+            {effectiveShopView !== 'shop' && <ViewToggle view={view} onChange={setView} />}
+            <ShopGearMenu shopMode={shopMode} tileColumns={tileColumns} onTileColumnsChange={setTileColumns} />
+            {investiture !== undefined && investiture.max > 0 && (
               <div className="flex items-center gap-2" data-stat="investiture">
                 <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">
                   Invested
