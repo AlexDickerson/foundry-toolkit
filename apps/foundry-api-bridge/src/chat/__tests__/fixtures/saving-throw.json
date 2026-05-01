@@ -1,0 +1,32 @@
+{
+  "id": "saveMsg001",
+  "uuid": "ChatMessage.saveMsg001",
+  "isRoll": true,
+  "type": 5,
+  "timestamp": 1698765445000,
+  "flavor": "Reflex Save",
+  "content": "<div class=\"dice-roll\"><div class=\"dice-result\"><div class=\"dice-formula\">1d20 + 6</div><h4 class=\"dice-total\">8</h4></div></div>",
+  "speaker": { "alias": "Valeros", "actor": "actor001" },
+  "whisper": [],
+  "author": { "id": "user001", "name": "Player1" },
+  "rolls": [
+    {
+      "formula": "1d20 + 6",
+      "total": 8,
+      "isCritical": false,
+      "isFumble": false,
+      "dice": [{ "faces": 20, "results": [{ "result": 2, "active": true }] }]
+    }
+  ],
+  "flags": {
+    "pf2e": {
+      "context": {
+        "type": "saving-throw",
+        "actor": "actor001",
+        "dc": { "value": 22 }
+      },
+      "origin": { "actor": "actor001", "type": "character" },
+      "outcomePrecise": "failure"
+    }
+  }
+}

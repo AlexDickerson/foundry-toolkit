@@ -85,6 +85,84 @@ export const chatRollSchema = z.object({
   dice: z.array(chatRollDiceTermSchema),
 });
 
+// ── Structured chat-message data ─────────────────────────────────────────────
+// Parsed semantic structure extracted from flags.pf2e.* by the api-bridge.
+// The portal renders these directly instead of raw PF2e HTML when present.
+// Unknown message types fall through to { kind: 'raw', html } so nothing is
+// lost. Not all four message types may be present in a given session — the
+// portal falls back to the HTML render for any message that lacks `structured`.
+
+export const chatChipTypeSchema = z.enum([
+  'roll-damage',
+  'place-template',
+  'apply-damage',
+  'save',
+  'shove',
+  'grapple',
+  'unknown',
+]);
+
+export const chatChipSchema = z.object({
+  type: chatChipTypeSchema,
+  label: z.string(),
+  params: z.record(z.string(), z.unknown()),
+});
+
+export const chatTargetResultSchema = z.object({
+  actorId: z.string().optional(),
+  tokenId: z.string().optional(),
+  name: z.string(),
+  outcome: z.enum(['criticalSuccess', 'success', 'failure', 'criticalFailure']).optional(),
+  total: z.number().optional(),
+  ac: z.number().optional(),
+});
+
+export const chatDamagePartSchema = z.object({
+  formula: z.string(),
+  total: z.number(),
+  damageType: z.string().optional(),
+});
+
+export const chatStructuredDataSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('strike-attack'),
+    flavor: z.string(),
+    targets: z.array(chatTargetResultSchema),
+    chips: z.array(chatChipSchema),
+  }),
+  z.object({
+    kind: z.literal('damage'),
+    flavor: z.string(),
+    parts: z.array(chatDamagePartSchema),
+    total: z.number(),
+    chips: z.array(chatChipSchema),
+  }),
+  z.object({
+    kind: z.literal('skill-check'),
+    flavor: z.string(),
+    dc: z.number().optional(),
+    outcome: z.enum(['criticalSuccess', 'success', 'failure', 'criticalFailure']).optional(),
+    chips: z.array(chatChipSchema),
+  }),
+  z.object({
+    kind: z.literal('saving-throw'),
+    flavor: z.string(),
+    dc: z.number().optional(),
+    outcome: z.enum(['criticalSuccess', 'success', 'failure', 'criticalFailure']).optional(),
+    chips: z.array(chatChipSchema),
+  }),
+  z.object({
+    kind: z.literal('spell-cast'),
+    flavor: z.string(),
+    description: z.string(),
+    chips: z.array(chatChipSchema),
+  }),
+  z.object({
+    kind: z.literal('raw'),
+    html: z.string(),
+  }),
+]);
+
 // All nullable fields match the ?? null / ?? [] fallbacks in serializeChatMessage.
 export const chatMessageSnapshotSchema = z.object({
   id: z.string(),
@@ -100,6 +178,10 @@ export const chatMessageSnapshotSchema = z.object({
   isRoll: z.boolean(),
   rolls: z.array(chatRollSchema),
   flags: z.record(z.string(), z.unknown()),
+  // Structured semantic data extracted from flags.pf2e.* by the api-bridge.
+  // Optional: absent for messages before this feature, or when the api-bridge
+  // emits a kind the portal doesn't yet recognise. Falls back to raw HTML.
+  structured: chatStructuredDataSchema.optional(),
 });
 
 export const chatLogBackfillSchema = z.object({
@@ -109,5 +191,10 @@ export const chatLogBackfillSchema = z.object({
 
 export type ChatSpeaker = z.infer<typeof chatSpeakerSchema>;
 export type ChatRoll = z.infer<typeof chatRollSchema>;
+export type ChatChipType = z.infer<typeof chatChipTypeSchema>;
+export type ChatChip = z.infer<typeof chatChipSchema>;
+export type ChatTargetResult = z.infer<typeof chatTargetResultSchema>;
+export type ChatDamagePart = z.infer<typeof chatDamagePartSchema>;
+export type ChatStructuredData = z.infer<typeof chatStructuredDataSchema>;
 export type ChatMessageSnapshot = z.infer<typeof chatMessageSnapshotSchema>;
 export type ChatLogBackfill = z.infer<typeof chatLogBackfillSchema>;
