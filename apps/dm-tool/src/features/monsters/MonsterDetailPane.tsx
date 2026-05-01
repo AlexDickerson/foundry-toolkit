@@ -1,5 +1,5 @@
 import * as HoverCard from '@radix-ui/react-hover-card';
-import { Info, X } from 'lucide-react';
+import { Image as ImageIcon, Info, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { MonsterDetail } from '@foundry-toolkit/shared/types';
@@ -48,6 +48,9 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
           </span>
         ))}
         <div className="flex-1" />
+        {(artAssets.artSrc ?? artAssets.portraitSrc) && (
+          <MonsterArtChip name={detail.name} imageSrc={artAssets.artSrc ?? artAssets.portraitSrc!} />
+        )}
         {detail.description && (
           <button
             type="button"
@@ -94,6 +97,36 @@ export function MonsterDetailPane({ detail, loading, onOpenExternal, onClose }: 
         </div>
       )}
     </>
+  );
+}
+
+/** Chip button in the header controls; hovering reveals the full monster art in a popover. */
+function MonsterArtChip({ name, imageSrc }: { name: string; imageSrc: string }) {
+  return (
+    <HoverCard.Root openDelay={400} closeDelay={200}>
+      <HoverCard.Trigger asChild>
+        <button
+          type="button"
+          aria-label="Show full art"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <ImageIcon className="h-4 w-4" />
+        </button>
+      </HoverCard.Trigger>
+      <HoverCard.Portal>
+        <HoverCard.Content
+          side="bottom"
+          align="end"
+          sideOffset={4}
+          avoidCollisions
+          collisionPadding={8}
+          className="z-50 overflow-hidden rounded-md border border-border bg-popover shadow-lg"
+          style={{ width: '240px' }}
+        >
+          <img src={imageSrc} alt={name} className="w-full object-contain" />
+        </HoverCard.Content>
+      </HoverCard.Portal>
+    </HoverCard.Root>
   );
 }
 
