@@ -23,14 +23,16 @@ import { SkillIncreasePicker } from '../creator/SkillIncreasePicker';
 // is a discriminated union so each slot kind can store the shape it
 // needs to reconstruct its chip / later feed into the scratch-actor.
 type Pick =
-  | { kind: 'feat'; match: CompendiumMatch }
+  | { kind: 'feat'; match: CompendiumMatch; actorItemId?: string }
   | { kind: 'skill-increase'; skill: string; newRank: ProficiencyRank }
   | { kind: 'ability-boosts'; abilities: AbilityKey[] };
 
 interface Props {
+  actorId: string;
   characterLevel: number;
   items: PreparedActorItem[];
   characterContext: CharacterContext;
+  onActorChanged: () => void;
 }
 
 // pf2e ability boosts happen at these fixed levels (4 boosts each). This
@@ -60,9 +62,8 @@ const slotKey = (level: number, slot: SlotType): SlotKey => `${level.toString()}
 //
 // Class-feat slots are clickable — they open a compendium-search modal
 // (FeatPicker) scoped to the character's class trait and capped at the
-// slot's level. Picks are held in local state for now; the scratch-actor
-// mutation flow comes later.
-export function Progression({ characterLevel, items, characterContext }: Props): React.ReactElement {
+// slot's level. Each pick fires immediately to Foundry via the MCP API.
+export function Progression({ actorId, characterLevel, items, characterContext, onActorChanged }: Props): React.ReactElement {
   const classItem = items.find(isClassItem);
   const [picks, setPicks] = useState<Map<SlotKey, Pick>>(new Map());
   const [pickerTarget, setPickerTarget] = useState<{ level: number; slot: SlotType } | null>(null);
@@ -84,6 +85,7 @@ export function Progression({ characterLevel, items, characterContext }: Props):
       if (parsed === null) continue;
       hydrated.set(slotKey(parsed.level, parsed.slot), {
         kind: 'feat',
+        actorItemId: item.id,
         match: {
           packId: '',
           packLabel: '',
@@ -216,20 +218,152 @@ export function Progression({ characterLevel, items, characterContext }: Props):
   };
   const commitPick = (pick: Pick): void => {
     if (!pickerTarget) return;
-    const key = slotKey(pickerTarget.level, pickerTarget.slot);
+    const level = pickerTarget.level;
+    const slot = pickerTarget.slot;
+    const key = slotKey(level, slot);
+    const existingPick = picks.get(key);
+
+    // Optimistic local update — closes the picker immediately.
     setPicks((prev) => {
       const next = new Map(prev);
       next.set(key, pick);
       return next;
     });
     setPickerTarget(null);
+
+    if (pick.kind === 'feat') {
+      const location = featSlotLocationFor(slot, level);
+      void api
+        .addItemFromCompendium(actorId, {
+          packId: pick.match.packId,
+          itemId: pick.match.documentId,
+          ...(location !== null ? { systemOverrides: { location } } : {}),
+        })
+        .then((ref) => {
+          // Attach the actor-local item id so subsequent clears can delete it.
+          setPicks((prev) => {
+            const current = prev.get(key);
+            if (!current || current.kind !== 'feat') return prev;
+            const next = new Map(prev);
+            next.set(key, { ...current, actorItemId: ref.id });
+            return next;
+          });
+          // Remove whichever item was filling this slot before, if any.
+          if (existingPick?.kind === 'feat' && existingPick.actorItemId !== undefined) {
+            void api.deleteActorItem(actorId, existingPick.actorItemId).catch((err: unknown) => {
+              console.warn('Failed to clean up replaced feat item', err);
+            });
+          }
+          onActorChanged();
+        })
+        .catch((err: unknown) => {
+          console.warn('Failed to persist feat pick', err);
+          setPicks((prev) => {
+            const next = new Map(prev);
+            if (existingPick !== undefined) {
+              next.set(key, existingPick);
+            } else {
+              next.delete(key);
+            }
+            return next;
+          });
+        });
+    } else if (pick.kind === 'skill-increase') {
+      void api
+        .updateActor(actorId, { system: { skills: { [pick.skill]: { rank: pick.newRank } } } })
+        .then(() => {
+          onActorChanged();
+        })
+        .catch((err: unknown) => {
+          console.warn('Failed to persist skill increase', err);
+          setPicks((prev) => {
+            const next = new Map(prev);
+            if (existingPick !== undefined) {
+              next.set(key, existingPick);
+            } else {
+              next.delete(key);
+            }
+            return next;
+          });
+        });
+    } else if (pick.kind === 'ability-boosts') {
+      void api
+        .updateActor(actorId, { system: { build: { attributes: { boosts: { [level]: pick.abilities } } } } })
+        .then(() => {
+          onActorChanged();
+        })
+        .catch((err: unknown) => {
+          console.warn('Failed to persist ability boosts', err);
+          setPicks((prev) => {
+            const next = new Map(prev);
+            if (existingPick !== undefined) {
+              next.set(key, existingPick);
+            } else {
+              next.delete(key);
+            }
+            return next;
+          });
+        });
+    }
   };
   const clearPick = (level: number, slot: SlotType): void => {
+    const key = slotKey(level, slot);
+    const existingPick = picks.get(key);
+
+    // Optimistic removal.
     setPicks((prev) => {
       const next = new Map(prev);
-      next.delete(slotKey(level, slot));
+      next.delete(key);
       return next;
     });
+
+    if (existingPick === undefined) return;
+
+    if (existingPick.kind === 'feat') {
+      if (existingPick.actorItemId === undefined) return;
+      void api
+        .deleteActorItem(actorId, existingPick.actorItemId)
+        .then(() => {
+          onActorChanged();
+        })
+        .catch((err: unknown) => {
+          console.warn('Failed to delete feat item', err);
+          setPicks((prev) => {
+            const next = new Map(prev);
+            next.set(key, existingPick);
+            return next;
+          });
+        });
+    } else if (existingPick.kind === 'skill-increase') {
+      const prevRank = (existingPick.newRank - 1) as ProficiencyRank;
+      void api
+        .updateActor(actorId, { system: { skills: { [existingPick.skill]: { rank: prevRank } } } })
+        .then(() => {
+          onActorChanged();
+        })
+        .catch((err: unknown) => {
+          console.warn('Failed to revert skill increase', err);
+          setPicks((prev) => {
+            const next = new Map(prev);
+            next.set(key, existingPick);
+            return next;
+          });
+        });
+    } else if (existingPick.kind === 'ability-boosts') {
+      void api
+        .updateActor(actorId, { system: { build: { attributes: { boosts: { [level]: [] } } } } })
+        .then(() => {
+          onActorChanged();
+        })
+        .catch((err: unknown) => {
+          console.warn('Failed to clear ability boosts', err);
+          setPicks((prev) => {
+            const next = new Map(prev);
+            next.set(key, existingPick);
+            return next;
+          });
+        });
+    }
   };
 
   const pickerFilters = pickerTarget
@@ -788,6 +922,21 @@ function capitaliseSkillSlug(s: string): string {
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────
+
+// Map a Progression slot type to the pf2e `<category>-<level>` location
+// string written into `feat.system.location`. Returns null for slot types
+// that don't use a location tag (none currently, but guards future slots).
+const FEAT_SLOT_LOCATION_PREFIX: Partial<Record<SlotType, string>> = {
+  'class-feat': 'class',
+  'ancestry-feat': 'ancestry',
+  'skill-feat': 'skill',
+  'general-feat': 'general',
+};
+
+function featSlotLocationFor(slot: SlotType, level: number): string | null {
+  const prefix = FEAT_SLOT_LOCATION_PREFIX[slot];
+  return prefix !== undefined ? `${prefix}-${level.toString()}` : null;
+}
 
 function groupFeaturesByLevel(items: ClassItem['system']['items']): Map<number, ClassFeatureEntry[]> {
   const out = new Map<number, ClassFeatureEntry[]>();
