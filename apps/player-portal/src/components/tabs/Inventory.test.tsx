@@ -167,33 +167,31 @@ describe('Inventory tab — party stash selector', () => {
     MockEventSourceClass.mockClear();
   });
 
-  it('shows "Party" button in selector when partyId is provided', () => {
+  it('shows Player and Party buttons in selector when partyId is provided', () => {
     const { container } = render(<Inventory items={items} partyId="party-1" />);
-    const buttons = Array.from(container.querySelectorAll('[role="group"] button')).map((b) => b.textContent);
-    expect(buttons).toContain('Player');
-    expect(buttons).toContain('Party');
+    const labels = Array.from(container.querySelectorAll('[role="group"] button')).map((b) => b.getAttribute('aria-label'));
+    expect(labels).toContain('Player inventory');
+    expect(labels).toContain('Party stash');
   });
 
-  it('does not show "Party" button when no partyId', () => {
+  it('does not show Party button when no partyId', () => {
     const { container } = render(<Inventory items={items} />);
-    const allButtons = Array.from(container.querySelectorAll('button')).map((b) => b.textContent);
-    expect(allButtons).not.toContain('Party');
+    const labels = Array.from(container.querySelectorAll('button')).map((b) => b.getAttribute('aria-label'));
+    expect(labels).not.toContain('Party stash');
   });
 
-  it('does not show "Shop" in selector when shop mode is off', () => {
+  it('does not show Shop button in selector when shop mode is off', () => {
     const { container } = render(<Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />);
-    const buttons = Array.from(container.querySelectorAll('[role="group"] button')).map((b) => b.textContent);
-    expect(buttons).toContain('Player');
-    expect(buttons).not.toContain('Shop');
-    expect(buttons).toContain('Party');
+    const labels = Array.from(container.querySelectorAll('[role="group"] button')).map((b) => b.getAttribute('aria-label'));
+    expect(labels).toContain('Player inventory');
+    expect(labels).not.toContain('Shop');
+    expect(labels).toContain('Party stash');
   });
 
-  it('renders PartyStash panel when "Party" tab is clicked', async () => {
+  it('renders PartyStash panel when Party button is clicked', async () => {
     const { container } = render(<Inventory items={items} partyId="party-1" />);
-    const stashBtn = Array.from(container.querySelectorAll('[role="group"] button')).find(
-      (b) => b.textContent === 'Party',
-    );
-    expect(stashBtn, 'Party button').toBeTruthy();
+    const stashBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Party stash"]');
+    expect(stashBtn, 'Party stash button').toBeTruthy();
     fireEvent.click(stashBtn!);
     await waitFor(() => {
       expect(api.getPartyStash).toHaveBeenCalledWith('party-1');

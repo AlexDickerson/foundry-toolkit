@@ -1,4 +1,4 @@
-import { CircleUserRound, LayoutGrid, List, Vault } from 'lucide-react';
+import { CircleUserRound, LayoutGrid, List, ShoppingBag, Vault } from 'lucide-react';
 import type { PhysicalItem } from '../../../api/types';
 import { useShopMode } from '../../../lib/useShopMode';
 import type { ViewMode, ShopView } from './inventory-categories';
@@ -98,7 +98,7 @@ export function ShopViewToggle({
   showShop?: boolean;
   showPartyStash?: boolean;
 }): React.ReactElement {
-  const base = 'flex items-center gap-1.5 px-2 py-1 text-xs font-medium uppercase tracking-widest transition-colors';
+  const base = 'flex items-center justify-center px-2 py-1 transition-colors';
   const active = 'bg-pf-primary text-white';
   const inactive = 'text-pf-alt-dark hover:bg-pf-bg-dark/60';
   return (
@@ -117,8 +117,7 @@ export function ShopViewToggle({
           onChange('inventory');
         }}
       >
-        <CircleUserRound size={13} aria-hidden="true" />
-        Player
+        <CircleUserRound size={14} aria-hidden="true" />
       </button>
       {showPartyStash && (
         <button
@@ -130,8 +129,7 @@ export function ShopViewToggle({
             onChange('party-stash');
           }}
         >
-          <Vault size={13} aria-hidden="true" />
-          Party
+          <Vault size={14} aria-hidden="true" />
         </button>
       )}
       {showShop && (
@@ -139,11 +137,12 @@ export function ShopViewToggle({
           type="button"
           className={`${base} border-l border-pf-border ${view === 'shop' ? active : inactive}`}
           aria-pressed={view === 'shop'}
+          aria-label="Shop"
           onClick={(): void => {
             onChange('shop');
           }}
         >
-          Shop
+          <ShoppingBag size={14} aria-hidden="true" />
         </button>
       )}
     </div>
