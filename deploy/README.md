@@ -3,14 +3,14 @@
 Three containers. One env file. Everything the GM needs to run a Foundry VTT
 session with the full foundry-toolkit feature set available to players.
 
-| Service       | Image                                  | Port  | Audience      |
-| ------------- | -------------------------------------- | ----- | ------------- |
-| foundry       | `foundry-toolkit-foundry:<tag>`        | 30000 | GM            |
-| foundry-mcp   | `foundry-toolkit-mcp:<tag>`            | 8765  | internal only |
-| player-portal | `foundry-toolkit-portal:<tag>`         | 3000  | players       |
+| Service       | Image                           | Port  | Audience      |
+| ------------- | ------------------------------- | ----- | ------------- |
+| foundry       | `foundry-toolkit-foundry:<tag>` | 30000 | GM            |
+| foundry-mcp   | `foundry-toolkit-mcp:<tag>`     | 8765  | internal only |
+| player-portal | `foundry-toolkit-portal:<tag>`  | 3000  | players       |
 
 The `foundry-api-bridge` Foundry module is baked into the `foundry` image and
-seeded into the data volume on first boot.  Once a world is created and the
+seeded into the data volume on first boot. Once a world is created and the
 module enabled, it opens a WebSocket connection from the GM's browser tab to
 `foundry-mcp` (port 8765).
 
@@ -106,26 +106,28 @@ docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml up -d
 ## Port 8765 and the api-bridge module
 
 `foundry-mcp` listens on port 8765 for WebSocket connections from the
-`foundry-api-bridge` module, which runs in the GM's browser tab.  Because the
+`foundry-api-bridge` module, which runs in the GM's browser tab. Because the
 browser is external to the compose network, the GM's browser needs a routable
 path to port 8765.
 
 Options:
 
 1. **Add a host port mapping** in `compose.override.yaml`:
+
    ```yaml
    services:
      foundry-mcp:
        ports:
          - '8765:8765'
    ```
+
    Then configure the module to use `ws://<your-server-ip>:8765/foundry`.
 
 2. **Route via a reverse proxy** that terminates TLS and forwards
    `/foundry` WebSocket traffic to the internal `foundry-mcp` service.
 
 Port 8765 is intentionally not mapped in the default `compose.yaml` because
-exposing it publicly without TLS or auth is a security concern.  For a
+exposing it publicly without TLS or auth is a security concern. For a
 local-network setup where the GM and server are on the same LAN, option 1 is
 simplest.
 
@@ -133,19 +135,19 @@ simplest.
 
 ## Environment variables
 
-| Variable               | Service(s)                    | Required | Purpose                                       |
-| ---------------------- | ----------------------------- | -------- | --------------------------------------------- |
-| `FOUNDRY_USERNAME`     | foundry                       | yes      | Paizo account username for Foundry download   |
-| `FOUNDRY_PASSWORD`     | foundry                       | yes      | Paizo account password                        |
-| `FOUNDRY_ADMIN_KEY`    | foundry                       | rec.     | Foundry admin console password                |
-| `OPENAI_API_KEY`       | foundry-mcp                   | no       | GPT-image-1 map editing (`edit_image` tool)   |
-| `ALLOW_EVAL`           | foundry-mcp                   | no       | `1` enables `/api/eval` debug endpoint        |
-| `SHARED_SECRET`        | foundry-mcp, player-portal    | yes      | Bearer token for `/api/live/*` POST writes    |
-| `SECURE_SESSION_SECRET`| player-portal                 | no*      | Cookie signing for portal user auth           |
-| `PLAYER_PORTAL_PORT`   | —                             | no       | Host port for player-portal (default: 3000)   |
-| `IMAGE_TAG`            | —                             | no       | Image tag to pull (default: `latest`)         |
+| Variable                | Service(s)                 | Required | Purpose                                     |
+| ----------------------- | -------------------------- | -------- | ------------------------------------------- |
+| `FOUNDRY_USERNAME`      | foundry                    | yes      | Paizo account username for Foundry download |
+| `FOUNDRY_PASSWORD`      | foundry                    | yes      | Paizo account password                      |
+| `FOUNDRY_ADMIN_KEY`     | foundry                    | rec.     | Foundry admin console password              |
+| `OPENAI_API_KEY`        | foundry-mcp                | no       | GPT-image-1 map editing (`edit_image` tool) |
+| `ALLOW_EVAL`            | foundry-mcp                | no       | `1` enables `/api/eval` debug endpoint      |
+| `SHARED_SECRET`         | foundry-mcp, player-portal | yes      | Bearer token for `/api/live/*` POST writes  |
+| `SECURE_SESSION_SECRET` | player-portal              | no\*     | Cookie signing for portal user auth         |
+| `PLAYER_PORTAL_PORT`    | —                          | no       | Host port for player-portal (default: 3000) |
+| `IMAGE_TAG`             | —                          | no       | Image tag to pull (default: `latest`)       |
 
-*Required once the portal user auth feature ships.
+\*Required once the portal user auth feature ships.
 
 `MCP_URL` and `FOUNDRY_URL` are set by `compose.yaml` to the compose service
 names and should not be overridden in `.env`.
@@ -154,10 +156,10 @@ names and should not be overridden in `.env`.
 
 ## Volumes and persistence
 
-| Volume        | Mounted in                     | Contains                                        |
-| ------------- | ------------------------------ | ----------------------------------------------- |
-| `foundry-data`| foundry (`/data`, rw)          | Worlds, systems, modules, Foundry config        |
-|               | foundry-mcp (`/foundry-data`, ro) | Read-only compendium pack access             |
+| Volume         | Mounted in                        | Contains                                 |
+| -------------- | --------------------------------- | ---------------------------------------- |
+| `foundry-data` | foundry (`/data`, rw)             | Worlds, systems, modules, Foundry config |
+|                | foundry-mcp (`/foundry-data`, ro) | Read-only compendium pack access         |
 
 `foundry-mcp` and `player-portal` are stateless — no persistent volumes.
 foundry-mcp's SQLite live-state snapshots are ephemeral and refill within
@@ -186,7 +188,7 @@ services:
 ## How to expose publicly
 
 Put a reverse proxy (nginx, Caddy, Cloudflare Tunnel) in front of ports 3000
-and optionally 30000.  A minimal Caddy example:
+and optionally 30000. A minimal Caddy example:
 
 ```
 players.example.com {
@@ -199,7 +201,7 @@ foundry.example.com {
 ```
 
 TLS termination, authentication, and access control are out of scope — handle
-them at the proxy layer.  If you also need to expose the `foundry-mcp`
+them at the proxy layer. If you also need to expose the `foundry-mcp`
 WebSocket for the api-bridge module, proxy port 8765 through the same host.
 
 ---
@@ -232,14 +234,16 @@ v0.2.0+ ships three separate images managed by this compose stack.
 **Migration steps:**
 
 1. Stop and remove the v0.1.0 container:
+
    ```sh
    docker stop foundry-toolkit
    docker rm foundry-toolkit
    ```
 
-2. Your Foundry world data is in the `foundry-data` named volume.  The compose
+2. Your Foundry world data is in the `foundry-data` named volume. The compose
    stack uses the same volume name, so your worlds carry over automatically.
    Verify with:
+
    ```sh
    docker volume ls | grep foundry-data
    ```
@@ -248,14 +252,17 @@ v0.2.0+ ships three separate images managed by this compose stack.
    override in `compose.override.yaml` as shown in the Volumes section above.
 
 3. Copy and fill the new env file:
+
    ```sh
    cp deploy/.env.example deploy/.env
    $EDITOR deploy/.env
    ```
+
    Add `SECURE_SESSION_SECRET` (new in v0.2.0); all other variables carry over
    from your old `.env`.
 
 4. Start the compose stack:
+
    ```sh
    docker compose -f deploy/compose.yaml up -d
    ```
