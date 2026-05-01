@@ -1,4 +1,4 @@
-import { CircleUserRound, LayoutGrid, List, ShoppingBag, Vault } from 'lucide-react';
+import { CircleUserRound, LayoutGrid, List, Settings, ShoppingBag, Vault } from 'lucide-react';
 import type { PhysicalItem } from '../../../api/types';
 import { useShopMode } from '../../../lib/useShopMode';
 import type { ViewMode, ShopView } from './inventory-categories';
@@ -171,7 +171,7 @@ export function ShopGearMenu({
         aria-label="Shop settings"
         data-testid="shop-gear"
       >
-        <span aria-hidden="true">⚙</span>
+        <Settings size={14} aria-hidden="true" />
       </summary>
       <div
         className="absolute right-0 top-full z-20 mt-1 w-64 rounded border border-pf-border bg-pf-bg p-3 text-xs text-pf-text shadow-lg"
