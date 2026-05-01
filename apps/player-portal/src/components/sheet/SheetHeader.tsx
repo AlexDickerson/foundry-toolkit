@@ -1,4 +1,4 @@
-import { Cog } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { PreparedCharacter } from '../../api/types';
@@ -95,7 +95,7 @@ export function SheetHeader({
                     title="Settings"
                     className="flex h-7 w-7 items-center justify-center rounded border border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg-dark"
                   >
-                    <Cog size={14} aria-hidden="true" />
+                    <Settings size={14} aria-hidden="true" />
                   </button>
                 )}
                 {onBack && (
