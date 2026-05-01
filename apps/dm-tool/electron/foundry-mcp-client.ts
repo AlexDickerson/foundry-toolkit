@@ -118,7 +118,7 @@ export async function callTool(
   }
 
   if (textContent.text.startsWith('Error:')) {
-    throw new Error(textContent.text);
+    throw new Error(textContent.text.replace(/^Error:\s*/, ''));
   }
 
   return JSON.parse(textContent.text) as Record<string, unknown>;
