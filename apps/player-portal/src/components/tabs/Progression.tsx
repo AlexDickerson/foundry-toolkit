@@ -102,7 +102,18 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
       });
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPicks(hydrated);
+    setPicks((prev) => {
+      const next = new Map(hydrated);
+      // skill-increase and ability-boost picks can't be re-derived from
+      // actor items (pf2e exposes only the final derived rank / boost
+      // totals, not which level's slot was consumed). Preserve them
+      // across refetches so a pick doesn't vanish the moment onActorChanged
+      // triggers a /prepared reload.
+      for (const [key, pick] of prev) {
+        if (pick.kind !== 'feat') next.set(key, pick);
+      }
+      return next;
+    });
     // Only re-hydrate when the list of items itself changes identity —
     // in practice that's when the actor refetches, not on every
     // internal picks mutation.

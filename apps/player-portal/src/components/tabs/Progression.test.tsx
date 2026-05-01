@@ -416,4 +416,40 @@ describe('Progression tab', () => {
       expect(onActorChanged).toHaveBeenCalled();
     });
   });
+
+  it('skill-increase pick survives an actor refetch (items identity change)', async () => {
+    // Regression: hydration used to replace the entire picks Map, which wiped
+    // skill-increase and ability-boost picks whenever onActorChanged triggered
+    // a /prepared reload. The fix preserves non-feat picks across refetches.
+    const { container, rerender } = render(
+      <Progression actorId={TEST_ACTOR_ID} characterLevel={3} items={items} characterContext={ctx} onActorChanged={vi.fn()} />,
+    );
+    const row = container.querySelector('[data-level="3"]') as HTMLElement;
+    const skillBtn = row.querySelector('[data-slot="skill-increase"] [data-testid="slot-open-picker"]') as HTMLElement | null;
+    if (!skillBtn) return;
+
+    fireEvent.click(skillBtn);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="skill-increase-picker"]')).toBeTruthy();
+    });
+    const skillRows = Array.from(document.querySelectorAll('[data-testid="skill-increase-list"] [data-skill]')) as HTMLButtonElement[];
+    const available = skillRows.find((b) => !b.disabled);
+    if (!available) return;
+
+    fireEvent.click(available);
+    fireEvent.click(document.querySelector('[data-testid="skill-increase-apply"]') as HTMLElement);
+
+    await waitFor(() => {
+      expect(row.querySelector('[data-slot="skill-increase"][data-pick-kind="skill-increase"]')).toBeTruthy();
+    });
+
+    // Simulate an actor refetch by passing a new array identity (same content).
+    rerender(
+      <Progression actorId={TEST_ACTOR_ID} characterLevel={3} items={[...items]} characterContext={ctx} onActorChanged={vi.fn()} />,
+    );
+
+    // The skill-increase pick must survive the re-hydration.
+    expect(row.querySelector('[data-slot="skill-increase"][data-pick-kind="skill-increase"]')).toBeTruthy();
+    expect(row.querySelector('[data-slot="skill-increase"] [data-testid="slot-open-picker"]')).toBeFalsy();
+  });
 });
