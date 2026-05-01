@@ -87,9 +87,13 @@ export function ViewToggle({
 export function ShopViewToggle({
   view,
   onChange,
+  showShop = true,
+  showPartyStash = false,
 }: {
   view: ShopView;
   onChange: (v: ShopView) => void;
+  showShop?: boolean;
+  showPartyStash?: boolean;
 }): React.ReactElement {
   const base = 'px-2 py-1 text-xs font-medium uppercase tracking-widest transition-colors';
   const active = 'bg-pf-primary text-white';
@@ -111,16 +115,30 @@ export function ShopViewToggle({
       >
         My Inventory
       </button>
-      <button
-        type="button"
-        className={`${base} border-l border-pf-border ${view === 'shop' ? active : inactive}`}
-        aria-pressed={view === 'shop'}
-        onClick={(): void => {
-          onChange('shop');
-        }}
-      >
-        Shop
-      </button>
+      {showShop && (
+        <button
+          type="button"
+          className={`${base} border-l border-pf-border ${view === 'shop' ? active : inactive}`}
+          aria-pressed={view === 'shop'}
+          onClick={(): void => {
+            onChange('shop');
+          }}
+        >
+          Shop
+        </button>
+      )}
+      {showPartyStash && (
+        <button
+          type="button"
+          className={`${base} border-l border-pf-border ${view === 'party-stash' ? active : inactive}`}
+          aria-pressed={view === 'party-stash'}
+          onClick={(): void => {
+            onChange('party-stash');
+          }}
+        >
+          Party Stash
+        </button>
+      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { render, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import amiri from '../../fixtures/amiri-prepared.json';
 import type { PreparedActorItem } from '../../api/types';
+import { api } from '../../api/client';
 import { Inventory } from './Inventory';
 
 const items = (amiri as unknown as { items: PreparedActorItem[] }).items;
@@ -144,5 +145,73 @@ describe('Inventory tab', () => {
     expect(weapons?.textContent).not.toContain('Hide Armor');
     expect(armor?.textContent).toContain('Hide Armor');
     expect(armor?.textContent).not.toContain('Bastard Sword');
+  });
+});
+
+describe('Inventory tab — party stash selector', () => {
+  const MockEventSourceClass = vi.fn(function (this: Record<string, unknown>) {
+    this.close = vi.fn();
+    this.onmessage = null;
+    this.onerror = null;
+  });
+
+  beforeEach(() => {
+    vi.stubGlobal('EventSource', MockEventSourceClass);
+    vi.spyOn(api, 'getPartyStash').mockResolvedValue({ items: [] });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    MockEventSourceClass.mockClear();
+  });
+
+  it('shows "Party Stash" button in selector when partyId is provided', () => {
+    const { container } = render(<Inventory items={items} partyId="party-1" />);
+    const buttons = Array.from(container.querySelectorAll('[role="group"] button')).map((b) => b.textContent);
+    expect(buttons).toContain('My Inventory');
+    expect(buttons).toContain('Party Stash');
+  });
+
+  it('does not show "Party Stash" button when no partyId', () => {
+    const { container } = render(<Inventory items={items} />);
+    const allButtons = Array.from(container.querySelectorAll('button')).map((b) => b.textContent);
+    expect(allButtons).not.toContain('Party Stash');
+  });
+
+  it('does not show "Shop" in selector when shop mode is off', () => {
+    const { container } = render(<Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />);
+    const buttons = Array.from(container.querySelectorAll('[role="group"] button')).map((b) => b.textContent);
+    expect(buttons).toContain('My Inventory');
+    expect(buttons).not.toContain('Shop');
+    expect(buttons).toContain('Party Stash');
+  });
+
+  it('renders PartyStash panel when "Party Stash" tab is clicked', async () => {
+    const { container } = render(<Inventory items={items} partyId="party-1" partyName="Test Party" />);
+    const stashBtn = Array.from(container.querySelectorAll('[role="group"] button')).find(
+      (b) => b.textContent === 'Party Stash',
+    );
+    expect(stashBtn, 'Party Stash button').toBeTruthy();
+    fireEvent.click(stashBtn!);
+    await waitFor(() => {
+      expect(api.getPartyStash).toHaveBeenCalledWith('party-1');
+    });
+    expect(container.textContent).toContain('stash is empty');
+  });
+
+  it('does not render the party stash section above the inventory controls', () => {
+    render(<Inventory items={items} partyId="party-1" />);
+    // PartyStash should not be mounted in inventory view (only when tab is active).
+    // Verify the stash API was not called on initial render (inventory tab is default).
+    expect(api.getPartyStash).not.toHaveBeenCalled();
+  });
+
+  it('shows selector with only "My Inventory" when no partyId and no shop mode', () => {
+    const { container } = render(<Inventory items={items} />);
+    // No selector group should be rendered at all (no shop mode, no party).
+    const group = container.querySelector('[role="group"][aria-label="Shop view"]');
+    expect(group).toBeNull();
   });
 });

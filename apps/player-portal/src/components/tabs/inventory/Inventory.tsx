@@ -175,10 +175,18 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
   const topLevelByCategory = groupByCategory(topLevel);
   const allByCategory = groupByCategory(nonCoin);
 
-  // When shop mode is off or we can't transact, force back to the
-  // inventory pane so the toggle doesn't strand the user on an empty
-  // shop tab.
-  const effectiveShopView: ShopView = shopMode.enabled && canTransact ? shopView : 'inventory';
+  // Force back to 'inventory' when the chosen pane's prerequisite is gone:
+  // - 'shop' requires shop mode + transact rights
+  // - 'party-stash' requires a known party actor
+  const effectiveShopView: ShopView =
+    shopView === 'party-stash' && partyId !== undefined
+      ? 'party-stash'
+      : shopMode.enabled && canTransact && shopView === 'shop'
+        ? 'shop'
+        : 'inventory';
+
+  // Whether the segmented selector is rendered at all.
+  const hasSelector = (shopMode.enabled && canTransact) || partyId !== undefined;
 
   return (
     <section
@@ -186,28 +194,26 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
-      {partyId !== undefined && (
-        <PartyStash
-          partyId={partyId}
-          partyName={partyName}
-          refreshKey={stashNonce}
-          {...(actorId !== undefined ? { actorId } : {})}
-          {...(onActorChanged !== undefined ? { onActorChanged } : {})}
-        />
-      )}
       {txError !== null && (
         <p className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800" data-role="tx-error">
           {txError}
         </p>
       )}
-      {physical.length === 0 && effectiveShopView === 'inventory' ? (
+      {physical.length === 0 && effectiveShopView === 'inventory' && !hasSelector ? (
         <p className="text-sm text-pf-text-muted">No items yet.</p>
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               {coins.length > 0 && <CoinStrip coins={coins} />}
-              {shopMode.enabled && canTransact && <ShopViewToggle view={effectiveShopView} onChange={setShopView} />}
+              {hasSelector && (
+                <ShopViewToggle
+                  view={effectiveShopView}
+                  onChange={setShopView}
+                  showShop={shopMode.enabled && canTransact}
+                  showPartyStash={partyId !== undefined}
+                />
+              )}
               <ShopGearMenu shopMode={shopMode} tileColumns={tileColumns} onTileColumnsChange={setTileColumns} />
             </div>
             <div className="flex items-center gap-4">
@@ -225,13 +231,23 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
               {effectiveShopView === 'inventory' && <ViewToggle view={view} onChange={setView} />}
             </div>
           </div>
-          {effectiveShopView === 'shop' && canTransact ? (
+          {effectiveShopView === 'party-stash' && partyId !== undefined ? (
+            <PartyStash
+              partyId={partyId}
+              partyName={partyName}
+              refreshKey={stashNonce}
+              {...(actorId !== undefined ? { actorId } : {})}
+              {...(onActorChanged !== undefined ? { onActorChanged } : {})}
+            />
+          ) : effectiveShopView === 'shop' && canTransact ? (
             <ItemShopPicker
               items={items}
               onBuy={handleBuy}
               pending={pendingBuys}
               disabledRarities={shopMode.disabledRarities}
             />
+          ) : physical.length === 0 ? (
+            <p className="text-sm text-pf-text-muted">No items yet.</p>
           ) : (
             <CategorizedInventory
               view={view}
