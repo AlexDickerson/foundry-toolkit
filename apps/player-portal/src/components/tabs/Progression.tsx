@@ -724,7 +724,7 @@ function FeatureChip({
   failed: boolean;
 }): React.ReactElement {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; maxHeight: number } | null>(null);
   const chipRef = useRef<HTMLLIElement>(null);
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
@@ -763,7 +763,7 @@ function FeatureChip({
       const maxLeft = window.innerWidth - FEATURE_POPOVER_WIDTH - FEATURE_POPOVER_VIEWPORT_MARGIN;
       const left = Math.max(FEATURE_POPOVER_VIEWPORT_MARGIN, Math.min(rect.left, maxLeft));
       const vertical = pickFeaturePopoverVerticalSlot(rect);
-      setPos({ top: vertical.top, left, maxHeight: vertical.maxHeight });
+      setPos({ ...vertical, left });
       setOpen(true);
     }, HOVER_OPEN_DELAY_MS);
   };
@@ -798,6 +798,7 @@ function FeatureChip({
             style={{
               position: 'fixed',
               top: pos.top,
+              bottom: pos.bottom,
               left: pos.left,
               width: FEATURE_POPOVER_WIDTH,
               maxHeight: pos.maxHeight,
@@ -842,7 +843,9 @@ function extractDescription(doc: CompendiumDocument): string {
 // Choose below vs above the anchor based on available viewport space,
 // and return a `maxHeight` so the popover caps itself to the space it
 // has and scrolls inside rather than overflowing the viewport.
-function pickFeaturePopoverVerticalSlot(anchor: DOMRect): { top: number; maxHeight: number } {
+// Above cases return `bottom` instead of `top` so a short popover stays
+// adjacent to the trigger — maxHeight is a cap, not the rendered height.
+function pickFeaturePopoverVerticalSlot(anchor: DOMRect): { top?: number; bottom?: number; maxHeight: number } {
   const viewportH = window.innerHeight;
   const spaceBelow = viewportH - anchor.bottom - FEATURE_POPOVER_GAP - FEATURE_POPOVER_VIEWPORT_MARGIN;
   const spaceAbove = anchor.top - FEATURE_POPOVER_GAP - FEATURE_POPOVER_VIEWPORT_MARGIN;
@@ -851,16 +854,13 @@ function pickFeaturePopoverVerticalSlot(anchor: DOMRect): { top: number; maxHeig
     return { top: anchor.bottom + FEATURE_POPOVER_GAP, maxHeight: FEATURE_POPOVER_PREFERRED_HEIGHT };
   }
   if (spaceAbove >= FEATURE_POPOVER_PREFERRED_HEIGHT) {
-    return {
-      top: anchor.top - FEATURE_POPOVER_GAP - FEATURE_POPOVER_PREFERRED_HEIGHT,
-      maxHeight: FEATURE_POPOVER_PREFERRED_HEIGHT,
-    };
+    return { bottom: viewportH - anchor.top + FEATURE_POPOVER_GAP, maxHeight: FEATURE_POPOVER_PREFERRED_HEIGHT };
   }
   if (spaceBelow >= spaceAbove) {
     return { top: anchor.bottom + FEATURE_POPOVER_GAP, maxHeight: Math.max(120, spaceBelow) };
   }
   const h = Math.max(120, spaceAbove);
-  return { top: Math.max(FEATURE_POPOVER_VIEWPORT_MARGIN, anchor.top - FEATURE_POPOVER_GAP - h), maxHeight: h };
+  return { bottom: viewportH - anchor.top + FEATURE_POPOVER_GAP, maxHeight: h };
 }
 
 // ─── Slot chips ────────────────────────────────────────────────────────
