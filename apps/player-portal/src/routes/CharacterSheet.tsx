@@ -28,6 +28,7 @@ import type { TabId } from '../lib/tabUtils';
 import { useShopMode } from '../lib/useShopMode';
 import { PartyRail } from '../components/sheet/PartyRail';
 import { MemberCard } from '../components/sheet/MemberCard';
+import { readBackgroundPath, buildSheetSurfaceStyle } from '../lib/sheetBackground';
 
 type State =
   | { kind: 'loading' }
@@ -285,25 +286,4 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
       )}
     </div>
   );
-}
-
-function readBackgroundPath(character: PreparedCharacter): string | null {
-  const raw = character.flags?.['character-creator']?.['backgroundImage'];
-  return typeof raw === 'string' && raw.length > 0 ? raw : null;
-}
-
-// Layers a semi-transparent overlay on top of the user's image so arbitrary
-// artwork (dark, busy, saturated) stays readable behind the sheet content.
-// Uses var(--pf-bg-overlay) so the overlay colour follows the portal theme
-// toggle (light: cream parchment at 88%, dark: navy at 88%).
-function buildSheetSurfaceStyle(bgPath: string | null): React.CSSProperties | undefined {
-  if (!bgPath) return undefined;
-  const url = bgPath.startsWith('/') ? bgPath : `/${bgPath}`;
-  return {
-    backgroundImage: `linear-gradient(var(--pf-bg-overlay), var(--pf-bg-overlay)), url(${url})`,
-    backgroundSize: 'auto, cover',
-    backgroundPosition: 'center, center',
-    backgroundRepeat: 'no-repeat, no-repeat',
-    backgroundAttachment: 'local, local',
-  };
 }
