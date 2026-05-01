@@ -115,18 +115,6 @@ export function ShopViewToggle({
       >
         My Inventory
       </button>
-      {showShop && (
-        <button
-          type="button"
-          className={`${base} border-l border-pf-border ${view === 'shop' ? active : inactive}`}
-          aria-pressed={view === 'shop'}
-          onClick={(): void => {
-            onChange('shop');
-          }}
-        >
-          Shop
-        </button>
-      )}
       {showPartyStash && (
         <button
           type="button"
@@ -137,6 +125,18 @@ export function ShopViewToggle({
           }}
         >
           Party Stash
+        </button>
+      )}
+      {showShop && (
+        <button
+          type="button"
+          className={`${base} border-l border-pf-border ${view === 'shop' ? active : inactive}`}
+          aria-pressed={view === 'shop'}
+          onClick={(): void => {
+            onChange('shop');
+          }}
+        >
+          Shop
         </button>
       )}
     </div>
