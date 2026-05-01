@@ -17,11 +17,6 @@ import {
   rollDiceHandler,
   sendChatMessageHandler,
   fetchAssetHandler,
-  rollSkillHandler,
-  rollSaveHandler,
-  rollAbilityHandler,
-  rollAttackHandler,
-  rollDamageHandler,
   createActorHandler,
   createActorFromCompendiumHandler,
   updateActorHandler,
@@ -200,11 +195,6 @@ function initializeWebSocket(
   // Dice & chat
   commandRouter.register('roll-dice', rollDiceHandler);
   commandRouter.register('send-chat-message', sendChatMessageHandler);
-  commandRouter.register('roll-skill', rollSkillHandler);
-  commandRouter.register('roll-save', rollSaveHandler);
-  commandRouter.register('roll-ability', rollAbilityHandler);
-  commandRouter.register('roll-attack', rollAttackHandler);
-  commandRouter.register('roll-damage', rollDamageHandler);
 
   // Actor CRUD
   commandRouter.register('create-actor', createActorHandler);

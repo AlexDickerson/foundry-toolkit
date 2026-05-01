@@ -2,15 +2,7 @@
 
 import type { JournalData, ItemData, CompendiumMetadata, CompendiumData } from '@/types/foundry';
 
-import type {
-  RollDiceParams,
-  RollAbilityParams,
-  RollSkillParams,
-  RollSaveParams,
-  RollAttackParams,
-  RollDamageParams,
-  RollResult,
-} from './roll';
+import type { RollDiceParams, RollResult } from './roll';
 
 import type {
   GetActorParams,
@@ -193,11 +185,6 @@ export interface CommandResponse<T = unknown> {
 
 export type CommandType =
   | 'roll-dice'
-  | 'roll-ability'
-  | 'roll-skill'
-  | 'roll-save'
-  | 'roll-attack'
-  | 'roll-damage'
   | 'get-world-info'
   | 'get-actors'
   | 'get-actor'
@@ -296,11 +283,6 @@ export type CommandHandler<TParams = unknown, TResult = unknown> = (params: TPar
 
 export interface CommandParamsMap {
   'roll-dice': RollDiceParams;
-  'roll-ability': RollAbilityParams;
-  'roll-skill': RollSkillParams;
-  'roll-save': RollSaveParams;
-  'roll-attack': RollAttackParams;
-  'roll-damage': RollDamageParams;
   'get-world-info': GetWorldInfoParams;
   'get-actors': Record<string, never>;
   'get-actor': GetActorParams;
@@ -398,11 +380,6 @@ export interface CommandParamsMap {
 
 export interface CommandResultMap {
   'roll-dice': RollResult;
-  'roll-ability': RollResult;
-  'roll-skill': RollResult;
-  'roll-save': RollResult;
-  'roll-attack': RollResult;
-  'roll-damage': RollResult;
   'get-world-info': WorldInfoResult;
   'get-actors': ActorSummary[];
   'get-actor': ActorDetailResult;
