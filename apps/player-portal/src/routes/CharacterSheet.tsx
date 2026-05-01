@@ -195,6 +195,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
                 system={state.actor.system}
                 actorId={actorId}
                 items={state.actor.items}
+                statusEffects={state.actor.statusEffects ?? []}
                 characterLevel={state.actor.system.details.level.value}
                 onActorChanged={reloadActor}
               />

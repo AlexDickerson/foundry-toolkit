@@ -198,6 +198,32 @@ export class EventChannelController {
             this.publisher.pushEvent('actors', { actorId: rawActor.id, changedPaths });
           }),
         );
+        // PF2e conditions and effects are embedded items. createItem/deleteItem
+        // fire when they are added or removed; updateItem fires when a valued
+        // condition's badge changes (e.g. Frightened 2 → 1). None of these
+        // trigger updateActor directly, so we hook them here to push an actors
+        // event so the portal refetches the prepared actor.
+        handles.push(
+          this.reg('createItem', (...args: unknown[]) => {
+            const actorId = getConditionOrEffectActorId(args[0]);
+            if (actorId === null) return;
+            this.publisher.pushEvent('actors', { actorId, changedPaths: ['items'] });
+          }),
+        );
+        handles.push(
+          this.reg('deleteItem', (...args: unknown[]) => {
+            const actorId = getConditionOrEffectActorId(args[0]);
+            if (actorId === null) return;
+            this.publisher.pushEvent('actors', { actorId, changedPaths: ['items'] });
+          }),
+        );
+        handles.push(
+          this.reg('updateItem', (...args: unknown[]) => {
+            const actorId = getConditionOrEffectActorId(args[0]);
+            if (actorId === null) return;
+            this.publisher.pushEvent('actors', { actorId, changedPaths: ['items'] });
+          }),
+        );
         break;
 
       case 'combat': {
@@ -396,6 +422,22 @@ function serializeCombatant(cb: CombatantForEvent): Record<string, unknown> {
     initiative: cb.initiative,
     defeated: cb.defeated,
   };
+}
+
+// ---- Helpers ------------------------------------------------------------
+
+// Returns the actor id if `raw` is a PF2e condition or effect embedded on an
+// actor; null otherwise. Used by the createItem/deleteItem/updateItem hooks
+// in the actors channel so only status-effect changes trigger a push.
+function getConditionOrEffectActorId(raw: unknown): string | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const item = raw as Record<string, unknown>;
+  if (item['type'] !== 'condition' && item['type'] !== 'effect') return null;
+  const parent = item['parent'];
+  if (typeof parent !== 'object' || parent === null) return null;
+  const p = parent as Record<string, unknown>;
+  if (p['documentName'] !== 'Actor' || typeof p['id'] !== 'string') return null;
+  return p['id'];
 }
 
 // ---- Type guards --------------------------------------------------------
