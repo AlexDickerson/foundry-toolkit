@@ -1,0 +1,16 @@
+{
+  "id": "unknownMsg001",
+  "uuid": "ChatMessage.unknownMsg001",
+  "isRoll": false,
+  "type": 0,
+  "timestamp": 1698765460000,
+  "flavor": "",
+  "content": "<p>A custom macro fired some effect.</p>",
+  "speaker": { "alias": "GM" },
+  "whisper": [],
+  "author": { "id": "gm001", "name": "GM" },
+  "rolls": [],
+  "flags": {
+    "world": { "customMacroId": "macro001" }
+  }
+}
