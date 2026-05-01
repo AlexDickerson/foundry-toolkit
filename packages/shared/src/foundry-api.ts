@@ -56,6 +56,24 @@ export interface PreparedActorItem {
   system: Record<string, unknown>;
 }
 
+/** A single PF2e condition or active effect on an actor, normalized for
+ *  display. Conditions include frightened, sickened, off-guard, etc.;
+ *  effects include spell-applied buffs/debuffs. Dying/wounded/doomed are
+ *  excluded — those have dedicated steppers in the sheet UI. */
+export interface StatusEffect {
+  id: string;
+  name: string;
+  /** PF2e slug (e.g. "frightened", "bless"). Used for keying and data-slug attributes. */
+  slug: string;
+  img: string;
+  /** Valued/counter conditions carry a numeric badge (e.g. Frightened 2). */
+  badge?: { type: 'value' | 'counter'; value: number };
+  /** Plain-text description with HTML stripped. Shown in tooltip. */
+  description?: string;
+  /** True when this effect originated from a spell. */
+  fromSpell: boolean;
+}
+
 export interface PreparedActor {
   id: string;
   uuid: string;
@@ -64,6 +82,8 @@ export interface PreparedActor {
   img: string;
   system: Record<string, unknown>;
   items: PreparedActorItem[];
+  /** PF2e conditions and active effects (excludes dying/wounded/doomed). */
+  statusEffects?: StatusEffect[];
   /** Optional: Foundry module flags (`flags.<scope>.<key>` → value).
    *  character-creator stores its sheet-level preferences (e.g. the
    *  uploaded background image path) under the `character-creator`
