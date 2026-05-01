@@ -18,6 +18,11 @@
 **/server-dist/
 **/release/
 
+# Exception: api-bridge static assets (module.json, styles/, templates/) are
+# checked in to dist/ and must be copied into the build-module stage.  The
+# Vite build produces dist/module.js; the static assets are not regenerated.
+!apps/foundry-api-bridge/dist/
+
 # Electron builder outputs
 apps/dm-tool/out/
 apps/dm-tool/release/

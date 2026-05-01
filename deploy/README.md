@@ -1,31 +1,30 @@
-# foundry-toolkit demo stack
+# foundry-toolkit all-in-one image
 
-Three containers on one internal network:
+One container. One env file. Everything the GM needs to run a Foundry VTT
+session with the full foundry-toolkit feature set available to players.
 
-| Container       | Image / source                  | Exposed                       |
-| --------------- | ------------------------------- | ----------------------------- |
-| `foundry`       | `felddy/foundryvtt:release`     | host port 30000               |
-| `foundry-mcp`   | built from `apps/foundry-mcp`   | internal only (8765)          |
-| `player-portal` | built from `apps/player-portal` | host port 3000 (configurable) |
+| What's inside             | Port  | Audience             |
+| ------------------------- | ----- | -------------------- |
+| Foundry VTT               | 30000 | GM (optional access) |
+| foundry-mcp (MCP server)  | 8765  | internal only        |
+| player-portal (React SPA) | 3000  | players              |
 
-The `foundry-api-bridge` Foundry module (already deployed in your world) dials out
-from the browser to `ws://foundry-mcp:8765/foundry` over the compose network — no
-extra configuration needed inside the stack itself.
+The `foundry-api-bridge` Foundry module is pre-installed into the data volume
+on first boot. Once a world is created and the module enabled, it dials out
+from Foundry's browser context to `ws://127.0.0.1:8765/foundry` — that's the
+hardcoded default, so no manual URL configuration is needed.
 
 ---
 
 ## Prerequisites
 
-- Docker with Compose v2 (`docker compose`, not `docker-compose`)
+- Docker 24+ (BuildKit on by default)
 - A Foundry VTT license (Paizo username + password)
-- The `foundry-api-bridge` module installed and enabled in your Foundry world
-- An OpenAI API key (optional — only needed for the `edit_image` map tool)
+- An OpenAI API key (optional — only for `edit_image` map tool)
 
 ---
 
 ## Quick start
-
-Run all commands from inside this `deploy/` directory.
 
 ```sh
 cd deploy
@@ -33,125 +32,157 @@ cp .env.example .env
 # Fill in at minimum: FOUNDRY_USERNAME, FOUNDRY_PASSWORD, SHARED_SECRET
 $EDITOR .env
 
-docker compose build        # build foundry-mcp and player-portal images
-docker compose up -d        # start all three services
+docker run -d \
+  --name foundry-toolkit \
+  --env-file .env \
+  -p 3000:3000 \
+  -v foundry-data:/data \
+  ghcr.io/alexdickerson/foundry-toolkit:latest
 ```
+
+Players reach the portal at **http://localhost:3000**.
+
+Expose port `30000` with `-p 30000:30000` if you want direct GM browser access
+to Foundry. It is not exposed by default because the player portal is the
+intended player surface.
 
 First boot downloads a fresh Foundry install using your Paizo credentials — this
 takes a few minutes. Subsequent starts are instant.
 
-### Verify the stack is up
+### Verify everything is running
 
 ```sh
 # player-portal health check
 curl http://localhost:3000/health
 # → {"ok":true}
 
-# Foundry setup page (won't fully load without a world, but should serve HTML)
+# Foundry setup page (returns HTML once the download is complete)
 curl -s -o /dev/null -w "%{http_code}" http://localhost:30000/
 # → 200
 
-# foundry-mcp reachable from inside player-portal container
-docker compose exec player-portal wget -qO- http://foundry-mcp:8765/api/actors
-# → JSON response (empty array or actor list depending on Foundry state)
+# s6 service status (requires docker exec)
+docker exec foundry-toolkit s6-rc -a list
 ```
 
 ---
 
-## Configuring foundry-api-bridge
+## One-time Foundry setup
 
-The `foundry-api-bridge` module must be told where foundry-mcp is listening. In
-Foundry's **Module Settings** → **Foundry API Bridge**, set the WebSocket URL to:
+After the container boots and Foundry is reachable at port 30000:
 
-```
-ws://foundry-mcp:8765/foundry
-```
+1. Open **http://localhost:30000** in a browser.
+2. Set an admin password if prompted, then create a world.
+3. Launch the world and open **Game Settings → Manage Modules**.
+4. Enable **Foundry API Bridge (Foundry MCP)** and save.
+5. Reload the world.
 
-This hostname resolves inside the compose network. If you're running Foundry
-**outside** this stack (e.g. a separate host) and still want to use foundry-mcp
-from this compose, set the URL to your Docker host's IP or hostname instead:
+The module's WebSocket URL defaults to `ws://127.0.0.1:8765/foundry`, which
+is correct for the all-in-one image. No additional configuration is needed.
 
-```
-ws://<your-host-ip>:8765/foundry
-```
-
-Note: in that case you'll need to expose port 8765 in `compose.yaml` by adding
-a `ports` entry under `foundry-mcp`.
-
----
-
-## Port layout
-
-| Port  | Service       | Notes                                        |
-| ----- | ------------- | -------------------------------------------- |
-| 30000 | Foundry VTT   | Direct browser access                        |
-| 3000  | player-portal | Override with `PLAYER_PORTAL_PORT`           |
-| 8765  | foundry-mcp   | Internal only — not accessible from the host |
-
-To change the player-portal host port without rebuilding:
-
-```sh
-# In .env:
-PLAYER_PORTAL_PORT=8080
-
-docker compose up -d   # restarts player-portal with the new port mapping
-```
+> **Migrating from the compose stack?** If you previously used the three-service
+> compose setup and the module was configured to point at `ws://foundry-mcp:8765/foundry`,
+> update it in **Module Settings → Foundry API Bridge → WebSocket URL** to
+> `ws://127.0.0.1:8765/foundry` after switching to this image.
 
 ---
 
 ## Environment variables
 
-| Variable             | Required    | Default | Purpose                                             |
-| -------------------- | ----------- | ------- | --------------------------------------------------- |
-| `FOUNDRY_USERNAME`   | yes         | —       | Paizo account username for Foundry download         |
-| `FOUNDRY_PASSWORD`   | yes         | —       | Paizo account password                              |
-| `FOUNDRY_ADMIN_KEY`  | recommended | —       | Foundry admin console password                      |
-| `OPENAI_API_KEY`     | no          | —       | GPT-image-1 map editing (`edit_image` tool)         |
-| `SHARED_SECRET`      | yes         | —       | Bearer token for `/api/live/*` POST writes          |
-| `ALLOW_EVAL`         | no          | `0`     | Set to `1` to enable the `/api/eval` debug endpoint |
-| `PLAYER_PORTAL_PORT` | no          | `3000`  | Host port mapping for player-portal                 |
+| Variable            | Required    | Purpose                                         |
+| ------------------- | ----------- | ----------------------------------------------- |
+| `FOUNDRY_USERNAME`  | yes         | Paizo account username for Foundry download     |
+| `FOUNDRY_PASSWORD`  | yes         | Paizo account password                          |
+| `FOUNDRY_ADMIN_KEY` | recommended | Foundry admin console password                  |
+| `OPENAI_API_KEY`    | no          | GPT-image-1 map editing (`edit_image` tool)     |
+| `SHARED_SECRET`     | yes         | Bearer token for `/api/live/*` POST writes      |
+| `ALLOW_EVAL`        | no          | Set to `1` to enable `/api/eval` debug endpoint |
 
-`MCP_URL` and `FOUNDRY_URL` are wired internally via compose service DNS and are
-not read from `.env`.
+`MCP_URL` and `FOUNDRY_URL` are baked into the image (`http://127.0.0.1:8765`
+and `http://127.0.0.1:30000`) and should not be overridden.
 
 ---
 
-## Stopping, restarting, rebuilding
+## Stopping and restarting
 
 ```sh
-docker compose stop              # pause all containers (volumes preserved)
-docker compose down              # stop + remove containers (volumes preserved)
-docker compose down -v           # also delete foundry-data volume (world data lost)
-
-docker compose build             # rebuild foundry-mcp and player-portal images
-docker compose up -d --build     # rebuild + restart in one step
+docker stop foundry-toolkit    # graceful stop (volume preserved)
+docker rm foundry-toolkit      # remove container (volume preserved)
+docker rm -f foundry-toolkit   # force-remove running container
 ```
+
+The `foundry-data` volume persists world data across container removals,
+including:
+
+- Foundry worlds, systems, and modules
+- foundry-mcp's SQLite live-state database (`/data/mcp/foundry-mcp.db`) —
+  stores inventory, globe, and Aurus snapshots pushed by dm-tool
+
+To wipe everything:
+
+```sh
+docker volume rm foundry-data
+```
+
+The live-state snapshots refill automatically within seconds once dm-tool sends
+its next update, so losing them is harmless.
 
 ---
 
-## Data persistence
+## Updating to a newer image
 
-Foundry world data — systems, modules, worlds, uploads — lives in the
-`foundry-toolkit-demo_foundry-data` named volume. It survives `docker compose
-down` and `docker compose restart`. Only `docker compose down -v` deletes it.
+```sh
+docker pull ghcr.io/alexdickerson/foundry-toolkit:latest
+docker rm -f foundry-toolkit
+# Re-run the docker run command from Quick start
+```
 
-foundry-mcp and player-portal are stateless; player-portal's in-memory live-sync
-state (inventory/globe/aurus snapshots) refills within seconds once dm-tool
-pushes its next update.
+The `foundry-data` volume carries your worlds and settings forward — only the
+image layers are replaced.
 
 ---
 
-## TLS / HTTPS
+## How to expose player-portal publicly
 
-This stack serves plain HTTP. Put nginx, Caddy, or Cloudflare Tunnel in front
-for HTTPS. A minimal Caddy reverse-proxy example:
+Put a reverse proxy (nginx, Caddy, Cloudflare Tunnel) in front of port 3000.
+A minimal Caddy example:
 
 ```
-demo.example.com {
+players.example.com {
     reverse_proxy localhost:3000
 }
+```
 
-foundry.example.com {
-    reverse_proxy localhost:30000
-}
+TLS termination, authentication, and access control are out of scope for this
+image — handle them at the proxy layer.
+
+---
+
+## Port layout
+
+| Port  | Service       | Notes                                      |
+| ----- | ------------- | ------------------------------------------ |
+| 3000  | player-portal | Player-facing; publish with `-p 3000:3000` |
+| 30000 | Foundry VTT   | GM access; publish with `-p 30000:30000`   |
+| 8765  | foundry-mcp   | Internal only; do not publish              |
+
+---
+
+## Building the image locally
+
+```sh
+# From the monorepo root:
+docker build -f deploy/Dockerfile -t foundry-toolkit:dev .
+```
+
+---
+
+## CI / releases
+
+Pushing a `v*` tag triggers `.github/workflows/release-image.yml`, which
+builds and pushes to `ghcr.io/alexdickerson/foundry-toolkit:<tag>` plus
+`:latest`. Tag manually; the workflow does not bump versions automatically.
+
+```sh
+git tag v1.2.3
+git push origin v1.2.3
 ```
