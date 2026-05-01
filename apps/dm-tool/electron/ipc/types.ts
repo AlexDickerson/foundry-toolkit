@@ -293,7 +293,7 @@ export interface ElectronAPI {
   globeExportPlayerData(): Promise<boolean>;
 
   // -----------------------------------------------------------------------
-  // Party inventory (live-synced via foundry-mcp)
+  // Party inventory (DM-local storage for party loot via LootPanel)
   // -----------------------------------------------------------------------
 
   inventoryList(): Promise<PartyInventoryItem[]>;
