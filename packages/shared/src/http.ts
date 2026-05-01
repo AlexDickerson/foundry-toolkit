@@ -75,7 +75,25 @@ export function buildCompendiumQuery(opts: CompendiumSearchOptions): string {
   if (opts.anyTraits !== undefined && opts.anyTraits.length > 0) params.set('anyTraits', opts.anyTraits.join(','));
   if (opts.sources !== undefined && opts.sources.length > 0) params.set('sources', opts.sources.join(','));
   if (opts.ancestrySlug !== undefined && opts.ancestrySlug.length > 0) params.set('ancestrySlug', opts.ancestrySlug);
+  if (opts.minLevel !== undefined) params.set('minLevel', opts.minLevel.toString());
   if (opts.maxLevel !== undefined) params.set('maxLevel', opts.maxLevel.toString());
+  if (opts.rarities !== undefined && opts.rarities.length > 0) params.set('rarities', opts.rarities.join(','));
+  if (opts.sizes !== undefined && opts.sizes.length > 0) params.set('sizes', opts.sizes.join(','));
+  if (opts.creatureTypes !== undefined && opts.creatureTypes.length > 0)
+    params.set('creatureTypes', opts.creatureTypes.join(','));
+  if (opts.usageCategories !== undefined && opts.usageCategories.length > 0)
+    params.set('usageCategories', opts.usageCategories.join(','));
+  if (opts.isMagical !== undefined) params.set('isMagical', opts.isMagical.toString());
+  if (opts.hpMin !== undefined) params.set('hpMin', opts.hpMin.toString());
+  if (opts.hpMax !== undefined) params.set('hpMax', opts.hpMax.toString());
+  if (opts.acMin !== undefined) params.set('acMin', opts.acMin.toString());
+  if (opts.acMax !== undefined) params.set('acMax', opts.acMax.toString());
+  if (opts.fortMin !== undefined) params.set('fortMin', opts.fortMin.toString());
+  if (opts.fortMax !== undefined) params.set('fortMax', opts.fortMax.toString());
+  if (opts.refMin !== undefined) params.set('refMin', opts.refMin.toString());
+  if (opts.refMax !== undefined) params.set('refMax', opts.refMax.toString());
+  if (opts.willMin !== undefined) params.set('willMin', opts.willMin.toString());
+  if (opts.willMax !== undefined) params.set('willMax', opts.willMax.toString());
   if (opts.limit !== undefined) params.set('limit', opts.limit.toString());
   if (opts.offset !== undefined) params.set('offset', opts.offset.toString());
   return params.toString();
