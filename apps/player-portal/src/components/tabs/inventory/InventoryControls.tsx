@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Settings, ShoppingBag, User, UsersRound } from 'lucide-react';
+import { LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
 import type { PhysicalItem } from '../../../api/types';
 import { useShopMode } from '../../../lib/useShopMode';
 import type { ViewMode, ShopView } from './inventory-categories';
@@ -117,7 +117,7 @@ export function ShopViewToggle({
           onChange('inventory');
         }}
       >
-        <User size={14} aria-hidden="true" />
+        <UserRound size={14} aria-hidden="true" />
       </button>
       {showPartyStash && (
         <button
