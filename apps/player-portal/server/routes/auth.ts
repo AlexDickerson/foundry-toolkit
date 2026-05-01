@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { findById, findByUsername, hashPassword, toPublic, verifyPassword } from '../auth/users.js';
+import { DEV_BYPASS_USER, isBypassActive } from '../auth/middleware.js';
 
 interface LoginBody {
   username: string;
@@ -48,6 +49,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
   // GET /api/auth/me — returns the current user without the password hash
   app.get('/api/auth/me', async (request, reply) => {
+    if (isBypassActive()) {
+      await reply.code(200).send({ user: toPublic(DEV_BYPASS_USER) });
+      return;
+    }
+
     const userId = request.session.get('userId');
     if (userId === undefined) {
       await reply.code(401).send({ error: 'unauthorized' });

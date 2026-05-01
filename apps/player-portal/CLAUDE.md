@@ -40,6 +40,7 @@ Env:
 - `MCP_URL` (default `http://localhost:8765`) — upstream for the `/api/mcp/*` proxy.
 - `FOUNDRY_URL` (default `http://localhost:30000`) — upstream for the Foundry asset prefix proxies.
 - `STATIC_DIR` — override the SPA directory (defaults to `<server-dist>/../dist`).
+- `PORTAL_AUTH_BYPASS=1` — **dev only**; skips cookie-session auth entirely and injects a synthetic `dev` user. The login page is never shown. Never set this in production.
 
 ## Project structure
 

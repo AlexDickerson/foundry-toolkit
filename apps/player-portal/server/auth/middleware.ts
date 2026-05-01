@@ -24,6 +24,19 @@ function isGated(url: string): boolean {
   return GATED_PREFIXES.some((p) => url.startsWith(p));
 }
 
+/** Synthetic user injected when PORTAL_AUTH_BYPASS=1. Not stored in users.json. */
+export const DEV_BYPASS_USER: User = {
+  id: '__dev__',
+  username: 'dev',
+  passwordHash: '',
+  actorId: '',
+  createdAt: '',
+};
+
+export function isBypassActive(): boolean {
+  return process.env['PORTAL_AUTH_BYPASS'] === '1';
+}
+
 /** Global preHandler hook — must be registered after the session plugin. */
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   request.user = undefined;
@@ -32,6 +45,12 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
 
   if (isPublic(url)) return;
   if (!isGated(url)) return; // SPA HTML routes — serve normally, client handles redirect
+
+  // Dev bypass: skip cookie check and inject a synthetic user
+  if (isBypassActive()) {
+    request.user = DEV_BYPASS_USER;
+    return;
+  }
 
   const userId = request.session.get('userId');
   if (userId === undefined) {
