@@ -17,13 +17,14 @@ import { uploadAssetBody } from '../schemas.js';
 // while keeping a lid on accidental giant-file uploads.
 const UPLOAD_BODY_LIMIT = 16 * 1024 * 1024;
 
-export function registerUploadRoutes(app: FastifyInstance): void {
+export function registerUploadRoutes(app: FastifyInstance, opts: { dataDir?: string } = {}): void {
+  const dataDir = opts.dataDir ?? FOUNDRY_DATA_DIR;
   app.post('/api/uploads', { bodyLimit: UPLOAD_BODY_LIMIT }, async (req, reply) => {
     const body = uploadAssetBody.parse(req.body);
 
     // Reject any path that tries to escape the Data dir — either via a
     // leading `..`, a mid-path `..`, or an absolute path that resolves
-    // outside FOUNDRY_DATA_DIR after normalisation.
+    // outside dataDir after normalisation.
     const safeRel = normalize(body.path);
     if (safeRel.startsWith('..') || safeRel.includes('/..') || safeRel.includes('\\..')) {
       reply.code(400).send({
@@ -32,8 +33,8 @@ export function registerUploadRoutes(app: FastifyInstance): void {
       });
       return;
     }
-    const absPath = resolve(FOUNDRY_DATA_DIR, safeRel);
-    if (!absPath.startsWith(FOUNDRY_DATA_DIR)) {
+    const absPath = resolve(dataDir, safeRel);
+    if (!absPath.startsWith(dataDir)) {
       reply.code(400).send({ error: 'path must resolve inside the Data directory' });
       return;
     }
@@ -49,6 +50,8 @@ export function registerUploadRoutes(app: FastifyInstance): void {
     await mkdir(dirname(absPath), { recursive: true });
     await writeFile(absPath, buf);
 
-    return { path: safeRel, bytes: buf.length };
+    // Always return forward slashes regardless of platform so the stored
+    // path is a valid URL segment on every OS.
+    return { path: safeRel.replace(/\\/g, '/'), bytes: buf.length };
   });
 }
