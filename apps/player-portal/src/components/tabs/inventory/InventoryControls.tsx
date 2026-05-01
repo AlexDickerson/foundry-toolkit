@@ -113,7 +113,7 @@ export function ShopViewToggle({
           onChange('inventory');
         }}
       >
-        My Inventory
+        Player
       </button>
       {showPartyStash && (
         <button
@@ -124,7 +124,7 @@ export function ShopViewToggle({
             onChange('party-stash');
           }}
         >
-          Party Stash
+          Party
         </button>
       )}
       {showShop && (
