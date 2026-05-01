@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CharacterSystem, PreparedActorItem } from '../../../api/types';
+import type { CharacterSystem, PreparedActorItem, StatusEffect } from '../../../api/types';
 import { SectionHeader } from '../../common/SectionHeader';
 import { AbilityBlock } from './AbilityBlock';
 import { ConditionsRow, ShieldTile } from './ConditionsBlock';
@@ -7,12 +7,14 @@ import { IWRBlock } from './IWRBlock';
 import { QuickActionsBlock } from './QuickActionsBlock';
 import { SkillsBlock } from './SkillsBlock';
 import { StatsBlock } from './StatsBlock';
+import { StatusEffectsBlock } from './StatusEffectsBlock';
 
 interface Props {
   system: CharacterSystem;
   actorId: string;
   items: PreparedActorItem[];
   characterLevel: number;
+  statusEffects: StatusEffect[];
   /** Fired after any server-acknowledged mutation from this tab — long
    *  rest, HP adjust, hero-point adjust — so the parent can refetch
    *  `/prepared` and redraw. */
@@ -23,7 +25,7 @@ interface Props {
 // stats, hero points, speeds, languages, traits. Ported in structure
 // from pf2e's static/templates/actors/character/tabs/character.hbs, but
 // read-only (no input widgets) and Tailwind-styled.
-export function Character({ system, actorId, items, characterLevel, onActorChanged }: Props): React.ReactElement {
+export function Character({ system, actorId, items, characterLevel, statusEffects, onActorChanged }: Props): React.ReactElement {
   const keyAbility = system.details.keyability.value;
   const skillsCardRef = useRef<HTMLDivElement>(null);
   const [qaMaxHeight, setQaMaxHeight] = useState<number | undefined>(undefined);
@@ -78,6 +80,7 @@ export function Character({ system, actorId, items, characterLevel, onActorChang
             actorId={actorId}
             onActorChanged={onActorChanged}
           />
+          <StatusEffectsBlock effects={statusEffects} />
           {system.attributes.shield.itemId !== null && <ShieldTile shield={system.attributes.shield} />}
         </div>
       </div>
