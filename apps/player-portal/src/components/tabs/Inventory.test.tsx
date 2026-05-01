@@ -1,7 +1,8 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { render, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import amiri from '../../fixtures/amiri-prepared.json';
 import type { PreparedActorItem } from '../../api/types';
+import { api } from '../../api/client';
 import { Inventory } from './Inventory';
 
 const items = (amiri as unknown as { items: PreparedActorItem[] }).items;
@@ -13,7 +14,7 @@ const BACKPACK_ID = 'l25ZlJJVpWamk5Ye';
 // (backpack-with-contents) run in list view, so they flip the toggle
 // first. This helper finds the List button and clicks it.
 function selectListView(container: HTMLElement): void {
-  const listBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'List');
+  const listBtn = container.querySelector<HTMLButtonElement>('button[aria-label="List view"]');
   if (!listBtn) throw new Error('List toggle button not found');
   fireEvent.click(listBtn);
 }
@@ -144,5 +145,71 @@ describe('Inventory tab', () => {
     expect(weapons?.textContent).not.toContain('Hide Armor');
     expect(armor?.textContent).toContain('Hide Armor');
     expect(armor?.textContent).not.toContain('Bastard Sword');
+  });
+});
+
+describe('Inventory tab — party stash selector', () => {
+  const MockEventSourceClass = vi.fn(function (this: Record<string, unknown>) {
+    this.close = vi.fn();
+    this.onmessage = null;
+    this.onerror = null;
+  });
+
+  beforeEach(() => {
+    vi.stubGlobal('EventSource', MockEventSourceClass);
+    vi.spyOn(api, 'getPartyStash').mockResolvedValue({ items: [] });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    MockEventSourceClass.mockClear();
+  });
+
+  it('shows Player and Party buttons in selector when partyId is provided', () => {
+    const { container } = render(<Inventory items={items} partyId="party-1" />);
+    const labels = Array.from(container.querySelectorAll('[role="group"] button')).map((b) => b.getAttribute('aria-label'));
+    expect(labels).toContain('Player inventory');
+    expect(labels).toContain('Party stash');
+  });
+
+  it('does not show Party button when no partyId', () => {
+    const { container } = render(<Inventory items={items} />);
+    const labels = Array.from(container.querySelectorAll('button')).map((b) => b.getAttribute('aria-label'));
+    expect(labels).not.toContain('Party stash');
+  });
+
+  it('does not show Shop button in selector when shop mode is off', () => {
+    const { container } = render(<Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />);
+    const labels = Array.from(container.querySelectorAll('[role="group"] button')).map((b) => b.getAttribute('aria-label'));
+    expect(labels).toContain('Player inventory');
+    expect(labels).not.toContain('Shop');
+    expect(labels).toContain('Party stash');
+  });
+
+  it('renders PartyStash panel when Party button is clicked', async () => {
+    const { container } = render(<Inventory items={items} partyId="party-1" />);
+    const stashBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Party stash"]');
+    expect(stashBtn, 'Party stash button').toBeTruthy();
+    fireEvent.click(stashBtn!);
+    await waitFor(() => {
+      expect(api.getPartyStash).toHaveBeenCalledWith('party-1');
+    });
+    expect(container.textContent).toContain('stash is empty');
+  });
+
+  it('does not render the party stash section above the inventory controls', () => {
+    render(<Inventory items={items} partyId="party-1" />);
+    // PartyStash should not be mounted in inventory view (only when tab is active).
+    // Verify the stash API was not called on initial render (inventory tab is default).
+    expect(api.getPartyStash).not.toHaveBeenCalled();
+  });
+
+  it('shows selector with only "My Inventory" when no partyId and no shop mode', () => {
+    const { container } = render(<Inventory items={items} />);
+    // No selector group should be rendered at all (no shop mode, no party).
+    const group = container.querySelector('[role="group"][aria-label="Shop view"]');
+    expect(group).toBeNull();
   });
 });

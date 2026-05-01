@@ -1,3 +1,4 @@
+import { LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
 import type { PhysicalItem } from '../../../api/types';
 import { useShopMode } from '../../../lib/useShopMode';
 import type { ViewMode, ShopView } from './inventory-categories';
@@ -50,7 +51,7 @@ export function ViewToggle({
   view: ViewMode;
   onChange: (v: ViewMode) => void;
 }): React.ReactElement {
-  const base = 'px-2 py-1 text-xs font-medium uppercase tracking-widest transition-colors';
+  const base = 'flex items-center justify-center px-2 py-2 transition-colors';
   const active = 'bg-pf-primary text-white';
   const inactive = 'text-pf-alt-dark hover:bg-pf-bg-dark/60';
   return (
@@ -64,21 +65,23 @@ export function ViewToggle({
         type="button"
         className={`${base} ${view === 'grid' ? active : inactive}`}
         aria-pressed={view === 'grid'}
+        aria-label="Grid view"
         onClick={(): void => {
           onChange('grid');
         }}
       >
-        Grid
+        <LayoutGrid size={14} aria-hidden="true" />
       </button>
       <button
         type="button"
         className={`${base} border-l border-pf-border ${view === 'list' ? active : inactive}`}
         aria-pressed={view === 'list'}
+        aria-label="List view"
         onClick={(): void => {
           onChange('list');
         }}
       >
-        List
+        <List size={14} aria-hidden="true" />
       </button>
     </div>
   );
@@ -87,11 +90,15 @@ export function ViewToggle({
 export function ShopViewToggle({
   view,
   onChange,
+  showShop = true,
+  showPartyStash = false,
 }: {
   view: ShopView;
   onChange: (v: ShopView) => void;
+  showShop?: boolean;
+  showPartyStash?: boolean;
 }): React.ReactElement {
-  const base = 'px-2 py-1 text-xs font-medium uppercase tracking-widest transition-colors';
+  const base = 'flex items-center justify-center px-2 py-2 transition-colors';
   const active = 'bg-pf-primary text-white';
   const inactive = 'text-pf-alt-dark hover:bg-pf-bg-dark/60';
   return (
@@ -105,22 +112,39 @@ export function ShopViewToggle({
         type="button"
         className={`${base} ${view === 'inventory' ? active : inactive}`}
         aria-pressed={view === 'inventory'}
+        aria-label="Player inventory"
         onClick={(): void => {
           onChange('inventory');
         }}
       >
-        My Inventory
+        <UserRound size={14} aria-hidden="true" />
       </button>
-      <button
-        type="button"
-        className={`${base} border-l border-pf-border ${view === 'shop' ? active : inactive}`}
-        aria-pressed={view === 'shop'}
-        onClick={(): void => {
-          onChange('shop');
-        }}
-      >
-        Shop
-      </button>
+      {showPartyStash && (
+        <button
+          type="button"
+          className={`${base} border-l border-pf-border ${view === 'party-stash' ? active : inactive}`}
+          aria-pressed={view === 'party-stash'}
+          aria-label="Party stash"
+          onClick={(): void => {
+            onChange('party-stash');
+          }}
+        >
+          <UsersRound size={14} aria-hidden="true" />
+        </button>
+      )}
+      {showShop && (
+        <button
+          type="button"
+          className={`${base} border-l border-pf-border ${view === 'shop' ? active : inactive}`}
+          aria-pressed={view === 'shop'}
+          aria-label="Shop"
+          onClick={(): void => {
+            onChange('shop');
+          }}
+        >
+          <ShoppingBag size={14} aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }
@@ -142,12 +166,12 @@ export function ShopGearMenu({
   return (
     <details className="relative" data-section="shop-debug">
       <summary
-        className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded border border-pf-border bg-pf-bg text-base leading-none text-pf-alt-dark hover:bg-pf-bg-dark/40"
+        className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded border border-pf-border bg-pf-bg text-base leading-none text-pf-alt-dark hover:bg-pf-bg-dark/40"
         title="Shop settings"
         aria-label="Shop settings"
         data-testid="shop-gear"
       >
-        <span aria-hidden="true">⚙</span>
+        <Settings size={14} aria-hidden="true" />
       </summary>
       <div
         className="absolute right-0 top-full z-20 mt-1 w-64 rounded border border-pf-border bg-pf-bg p-3 text-xs text-pf-text shadow-lg"

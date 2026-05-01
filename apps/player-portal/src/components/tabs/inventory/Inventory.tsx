@@ -27,10 +27,9 @@ interface Props {
   onActorChanged?: () => void;
   investiture?: PointPool;
   /** Party actor ID, when the character is a member of a party. Drives the
-   *  stash section rendered above personal inventory. Undefined = no party
-   *  (or lookup still in flight) — stash section is hidden. */
+   *  Party Stash tab. Undefined = no party (or lookup still in flight) —
+   *  Party Stash tab is hidden. */
   partyId?: string;
-  partyName?: string;
 }
 
 // Inventory tab — reads `items[]`, filters to physical item types
@@ -44,7 +43,7 @@ interface Props {
 // inventory.hbs, but flattened — our read-only viewer doesn't need
 // stow/carry/drop controls or quantity adjusters.
 //
-export function Inventory({ items, actorId, onActorChanged, investiture, partyId, partyName }: Props): React.ReactElement {
+export function Inventory({ items, actorId, onActorChanged, investiture, partyId }: Props): React.ReactElement {
   // One uuid-hover instance for every expanded item description —
   // event delegation on the section picks up anchors produced by
   // `enrichDescription` regardless of which item was expanded.
@@ -175,10 +174,18 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
   const topLevelByCategory = groupByCategory(topLevel);
   const allByCategory = groupByCategory(nonCoin);
 
-  // When shop mode is off or we can't transact, force back to the
-  // inventory pane so the toggle doesn't strand the user on an empty
-  // shop tab.
-  const effectiveShopView: ShopView = shopMode.enabled && canTransact ? shopView : 'inventory';
+  // Force back to 'inventory' when the chosen pane's prerequisite is gone:
+  // - 'shop' requires shop mode + transact rights
+  // - 'party-stash' requires a known party actor
+  const effectiveShopView: ShopView =
+    shopView === 'party-stash' && partyId !== undefined
+      ? 'party-stash'
+      : shopMode.enabled && canTransact && shopView === 'shop'
+        ? 'shop'
+        : 'inventory';
+
+  // Whether the segmented selector is rendered at all.
+  const hasSelector = (shopMode.enabled && canTransact) || partyId !== undefined;
 
   return (
     <section
@@ -186,52 +193,55 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
-      {partyId !== undefined && (
-        <PartyStash
-          partyId={partyId}
-          partyName={partyName}
-          refreshKey={stashNonce}
-          {...(actorId !== undefined ? { actorId } : {})}
-          {...(onActorChanged !== undefined ? { onActorChanged } : {})}
-        />
-      )}
       {txError !== null && (
         <p className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800" data-role="tx-error">
           {txError}
         </p>
       )}
-      {physical.length === 0 && effectiveShopView === 'inventory' ? (
+      {physical.length === 0 && effectiveShopView === 'inventory' && !hasSelector ? (
         <p className="text-sm text-pf-text-muted">No items yet.</p>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              {coins.length > 0 && <CoinStrip coins={coins} />}
-              {shopMode.enabled && canTransact && <ShopViewToggle view={effectiveShopView} onChange={setShopView} />}
-              <ShopGearMenu shopMode={shopMode} tileColumns={tileColumns} onTileColumnsChange={setTileColumns} />
-            </div>
-            <div className="flex items-center gap-4">
-              {investiture !== undefined && investiture.max > 0 && (
-                <div className="flex items-center gap-2" data-stat="investiture">
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">
-                    Invested
-                  </span>
-                  <span className="font-mono text-sm tabular-nums text-pf-text">
-                    {investedCount}
-                    <span className="text-pf-text-muted">/{investiture.max}</span>
-                  </span>
-                </div>
-              )}
-              {effectiveShopView === 'inventory' && <ViewToggle view={view} onChange={setView} />}
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {coins.length > 0 && <CoinStrip coins={coins} />}
+            {hasSelector && (
+              <ShopViewToggle
+                view={effectiveShopView}
+                onChange={setShopView}
+                showShop={shopMode.enabled && canTransact}
+                showPartyStash={partyId !== undefined}
+              />
+            )}
+            {effectiveShopView !== 'shop' && <ViewToggle view={view} onChange={setView} />}
+            <ShopGearMenu shopMode={shopMode} tileColumns={tileColumns} onTileColumnsChange={setTileColumns} />
+            {investiture !== undefined && investiture.max > 0 && (
+              <div className="flex items-center gap-2" data-stat="investiture">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-text-muted">
+                  Invested
+                </span>
+                <span className="font-mono text-sm tabular-nums text-pf-text">
+                  {investedCount}
+                  <span className="text-pf-text-muted">/{investiture.max}</span>
+                </span>
+              </div>
+            )}
           </div>
-          {effectiveShopView === 'shop' && canTransact ? (
+          {effectiveShopView === 'party-stash' && partyId !== undefined ? (
+            <PartyStash
+              partyId={partyId}
+              refreshKey={stashNonce}
+              {...(actorId !== undefined ? { actorId } : {})}
+              {...(onActorChanged !== undefined ? { onActorChanged } : {})}
+            />
+          ) : effectiveShopView === 'shop' && canTransact ? (
             <ItemShopPicker
               items={items}
               onBuy={handleBuy}
               pending={pendingBuys}
               disabledRarities={shopMode.disabledRarities}
             />
+          ) : physical.length === 0 ? (
+            <p className="text-sm text-pf-text-muted">No items yet.</p>
           ) : (
             <CategorizedInventory
               view={view}

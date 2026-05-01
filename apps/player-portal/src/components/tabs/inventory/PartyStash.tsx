@@ -7,7 +7,6 @@ import { CATEGORY_ORDER, CATEGORY_LABEL, type InventoryCategory } from './invent
 
 interface Props {
   partyId: string;
-  partyName: string | undefined;
   /** Increment to force an immediate re-fetch (e.g. after a transfer from the
    *  character sheet). transferItemToActor fires createItem hooks, not
    *  updateActor, so the actors-channel SSE won't deliver an event here. */
@@ -148,7 +147,7 @@ function StashTile({
   );
 }
 
-export function PartyStash({ partyId, partyName, refreshKey, actorId, onActorChanged }: Props): React.ReactElement {
+export function PartyStash({ partyId, refreshKey, actorId, onActorChanged }: Props): React.ReactElement {
   const [items, setItems] = useState<PartyStashItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingTakes, setPendingTakes] = useState<Set<string>>(new Set());
@@ -205,36 +204,35 @@ export function PartyStash({ partyId, partyName, refreshKey, actorId, onActorCha
   const byCategory = groupByCategory(physical);
   const presentCategories = CATEGORY_ORDER.filter((c) => (byCategory.get(c)?.length ?? 0) > 0);
 
+  if (isLoading) {
+    return <p className="text-sm text-pf-text-muted">Loading…</p>;
+  }
+
+  if (physical.length === 0) {
+    return <p className="text-sm text-pf-text-muted">The stash is empty.</p>;
+  }
+
   return (
-    <div className="mb-4 rounded-lg border border-pf-border bg-pf-bg-dark p-4">
-      <SectionHeader band>{partyName !== undefined ? `${partyName} Stash` : 'Party Stash'}</SectionHeader>
-      {isLoading && <p className="mt-2 text-sm text-pf-text-muted">Loading…</p>}
-      {!isLoading && physical.length === 0 && (
-        <p className="mt-2 text-sm text-pf-text-muted">The stash is empty.</p>
-      )}
-      {!isLoading && presentCategories.length > 0 && (
-        <div className="mt-3 space-y-4">
-          {presentCategories.map((category) => {
-            const bucket = byCategory.get(category) ?? [];
-            return (
-              <div key={category}>
-                <SectionHeader band>{CATEGORY_LABEL[category]}</SectionHeader>
-                <ul className="mt-2 grid grid-cols-6 gap-2">
-                  {bucket.map((item) => (
-                    <StashTile
-                      key={item.id}
-                      item={item}
-                      actorId={actorId}
-                      onTake={handleTake}
-                      pending={pendingTakes.has(item.id)}
-                    />
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
-      )}
+    <div className="space-y-4 *:rounded-lg *:border *:border-pf-border *:bg-pf-bg-dark *:p-4">
+      {presentCategories.map((category) => {
+        const bucket = byCategory.get(category) ?? [];
+        return (
+          <div key={category} data-category={category}>
+            <SectionHeader band>{CATEGORY_LABEL[category]}</SectionHeader>
+            <ul className="mt-2 grid grid-cols-6 gap-2">
+              {bucket.map((item) => (
+                <StashTile
+                  key={item.id}
+                  item={item}
+                  actorId={actorId}
+                  onTake={handleTake}
+                  pending={pendingTakes.has(item.id)}
+                />
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }

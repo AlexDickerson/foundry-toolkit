@@ -10,7 +10,7 @@ export type InventoryCategory =
   | 'treasure';
 
 export type ViewMode = 'list' | 'grid';
-export type ShopView = 'inventory' | 'shop';
+export type ShopView = 'inventory' | 'shop' | 'party-stash';
 
 // Category buckets for the inventory separators. Related pf2e item
 // types share a bucket ("Armor & Shields", "Consumables" holds ammo)
