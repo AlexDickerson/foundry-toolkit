@@ -25,6 +25,9 @@ apps/foundry-api-bridge/dist/*.d.ts.map
 # Personal config (dm-tool)
 apps/dm-tool/config.json
 
+# Player portal user database
+apps/player-portal/data/users.json
+
 # Environment
 .env
 .env.*
