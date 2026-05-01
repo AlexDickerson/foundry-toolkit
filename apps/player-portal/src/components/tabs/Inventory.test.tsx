@@ -189,7 +189,7 @@ describe('Inventory tab — party stash selector', () => {
   });
 
   it('renders PartyStash panel when "Party Stash" tab is clicked', async () => {
-    const { container } = render(<Inventory items={items} partyId="party-1" partyName="Test Party" />);
+    const { container } = render(<Inventory items={items} partyId="party-1" />);
     const stashBtn = Array.from(container.querySelectorAll('[role="group"] button')).find(
       (b) => b.textContent === 'Party Stash',
     );

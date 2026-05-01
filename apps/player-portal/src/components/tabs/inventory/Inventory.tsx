@@ -27,10 +27,9 @@ interface Props {
   onActorChanged?: () => void;
   investiture?: PointPool;
   /** Party actor ID, when the character is a member of a party. Drives the
-   *  stash section rendered above personal inventory. Undefined = no party
-   *  (or lookup still in flight) — stash section is hidden. */
+   *  Party Stash tab. Undefined = no party (or lookup still in flight) —
+   *  Party Stash tab is hidden. */
   partyId?: string;
-  partyName?: string;
 }
 
 // Inventory tab — reads `items[]`, filters to physical item types
@@ -44,7 +43,7 @@ interface Props {
 // inventory.hbs, but flattened — our read-only viewer doesn't need
 // stow/carry/drop controls or quantity adjusters.
 //
-export function Inventory({ items, actorId, onActorChanged, investiture, partyId, partyName }: Props): React.ReactElement {
+export function Inventory({ items, actorId, onActorChanged, investiture, partyId }: Props): React.ReactElement {
   // One uuid-hover instance for every expanded item description —
   // event delegation on the section picks up anchors produced by
   // `enrichDescription` regardless of which item was expanded.
@@ -234,7 +233,6 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
           {effectiveShopView === 'party-stash' && partyId !== undefined ? (
             <PartyStash
               partyId={partyId}
-              partyName={partyName}
               refreshKey={stashNonce}
               {...(actorId !== undefined ? { actorId } : {})}
               {...(onActorChanged !== undefined ? { onActorChanged } : {})}

@@ -224,7 +224,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
                   actorId={actorId}
                   onActorChanged={reloadActor}
                   investiture={state.actor.system.resources.investiture}
-                  {...(party !== null ? { partyId: party.id, partyName: party.name } : {})}
+                  {...(party !== null ? { partyId: party.id } : {})}
                 />
                 {!shopMode.enabled && (
                   <div className="mt-10 border-t border-pf-border pt-6">
