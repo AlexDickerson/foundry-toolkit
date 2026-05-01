@@ -273,7 +273,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
           independently so the sheet and chat can be read in parallel. */}
       {state.kind === 'ready' && (
         <aside className="hidden w-[230px] shrink-0 pr-3 lg:flex lg:flex-col">
-          <div className="sticky top-6 flex min-h-0 max-h-[calc(100svh-3rem)] flex-col">
+          <div className="sticky top-6 flex h-[calc(100svh-3rem)] flex-col overflow-hidden">
             <Chat actorId={actorId} />
           </div>
         </aside>
