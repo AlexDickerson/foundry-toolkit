@@ -5,11 +5,11 @@
 Workspaces audited: **8** (4 apps, 4 packages). Findings: **17**.
 
 | Severity | Count |
-|---|---|
-| Critical | 1 |
-| High | 6 |
-| Medium | 7 |
-| Low | 3 |
+| -------- | ----- |
+| Critical | 1     |
+| High     | 6     |
+| Medium   | 7     |
+| Low      | 3     |
 
 Three themes dominate. **First**, a long-running migration to a generic Foundry dispatcher (PRs #74, #100, #106) has left tail-end cleanup behind: five typed roll handlers register but no one calls them, and the 499-line `commands/types/base.ts` continues to grow because the typed-handler and dispatcher paths still coexist with no documented "stop adding command types" policy. **Second**, the shared package's contract surface is healthy in spirit but uneven in execution — `packages/shared/src/types.ts` has accreted into a 1080-line god file mixing 10+ unrelated domains, and one of the most-used helpers (`buildCompendiumQuery`) silently drops 16 search params, forcing dm-tool to re-implement filters client-side. **Third**, player-portal's hot React components are accumulating effect-pattern smells: `react-hooks/exhaustive-deps` and `set-state-in-effect` disables are concentrated in a handful of hooks (`usePaginatedSearch`, `useRemoteData`, `useFeatDetail`, `AttributesStep`) that all reimplement the same "stable callback / cancellable fetch" pattern. The user is already iterating on decomposition (#59, #60, #61, #62, #141, #142, #143, #144, #145, #148) — this audit flags the structural pieces that decomposition alone won't fix.
 
@@ -23,11 +23,11 @@ In-flight branches that overlap with findings are noted per-finding so the user 
 
 ### F1: `buildCompendiumQuery` silently drops 16 search params — Severity: **Critical**
 
-**Where:** `packages/shared/src/http.ts:69-82` (the helper); `packages/shared/src/foundry-api.ts:92-166` (the type that lists the missing fields); `packages/shared/src/rpc/schemas.ts:60-115` (the server-side Zod schema that *does* accept them); `apps/dm-tool/electron/compendium/client.ts:52`, `apps/player-portal/src/api/client.ts:71` (both call sites).
+**Where:** `packages/shared/src/http.ts:69-82` (the helper); `packages/shared/src/foundry-api.ts:92-166` (the type that lists the missing fields); `packages/shared/src/rpc/schemas.ts:60-115` (the server-side Zod schema that _does_ accept them); `apps/dm-tool/electron/compendium/client.ts:52`, `apps/player-portal/src/api/client.ts:71` (both call sites).
 
-**What's wrong:** The helper claims to build the query string for `GET /api/compendium/search` from `CompendiumSearchOptions`, but it only serializes 10 of the 26 fields. Silently dropped: `minLevel`, `rarities`, `sizes`, `creatureTypes`, `usageCategories`, `isMagical`, `hpMin`/`hpMax`, `acMin`/`acMax`, `fortMin`/`fortMax`, `refMin`/`refMax`, `willMin`/`willMax`. The server's Zod schema accepts all of them, and `CompendiumMatch` has the response fields ready (`rarity`, `size`, `creatureType`, `hp`, `ac`, `fort`, `ref`, `will`, `usage`, `isMagical`, `source`). dm-tool already documents the workaround inline: `apps/dm-tool/electron/compendium/prepared.ts:485` reads "Client-side minLevel filter — the wire contract only exposes maxLevel today" — but the wire contract *does* expose it; the *client helper* doesn't. Other facet filters (`rarities`, `creatureTypes`, etc.) are also re-implemented in `prepared.ts:204-224` and `prepared.ts:409-419` against the cached projection.
+**What's wrong:** The helper claims to build the query string for `GET /api/compendium/search` from `CompendiumSearchOptions`, but it only serializes 10 of the 26 fields. Silently dropped: `minLevel`, `rarities`, `sizes`, `creatureTypes`, `usageCategories`, `isMagical`, `hpMin`/`hpMax`, `acMin`/`acMax`, `fortMin`/`fortMax`, `refMin`/`refMax`, `willMin`/`willMax`. The server's Zod schema accepts all of them, and `CompendiumMatch` has the response fields ready (`rarity`, `size`, `creatureType`, `hp`, `ac`, `fort`, `ref`, `will`, `usage`, `isMagical`, `source`). dm-tool already documents the workaround inline: `apps/dm-tool/electron/compendium/prepared.ts:485` reads "Client-side minLevel filter — the wire contract only exposes maxLevel today" — but the wire contract _does_ expose it; the _client helper_ doesn't. Other facet filters (`rarities`, `creatureTypes`, etc.) are also re-implemented in `prepared.ts:204-224` and `prepared.ts:409-419` against the cached projection.
 
-**Cost:** Direct correctness drag and a real perf cost — every monster-browser facet filter ships the full pack from the server (subject to `limit`) and narrows in JavaScript. Loot generation's `partyLevel ± 2` window is enforced client-side too. Anyone reaching for `isMagical` filtering (likely future work) will hit the same wall and assume the *server* doesn't support it. The helper is the single layer the wire contract was supposed to consolidate; this is the single largest "looks fine, doesn't actually work" surface in the repo.
+**Cost:** Direct correctness drag and a real perf cost — every monster-browser facet filter ships the full pack from the server (subject to `limit`) and narrows in JavaScript. Loot generation's `partyLevel ± 2` window is enforced client-side too. Anyone reaching for `isMagical` filtering (likely future work) will hit the same wall and assume the _server_ doesn't support it. The helper is the single layer the wire contract was supposed to consolidate; this is the single largest "looks fine, doesn't actually work" surface in the repo.
 
 **Suggested change:** Add the missing 16 cases to `buildCompendiumQuery`. Mirror the encoding rules already used by the Zod schema (CSV for arrays, `.toString()` for numbers, `'true'`/`'false'` for the boolean). Add a vitest unit test in `packages/shared/src/http.test.ts` (currently absent) that round-trips a fully-populated `CompendiumSearchOptions` through `buildCompendiumQuery` → `compendiumSearchQuery.parse()` and asserts every field survives. Once the helper is correct, retire the client-side `minLevel` / facet workarounds in `apps/dm-tool/electron/compendium/prepared.ts` in a follow-up PR.
 
@@ -79,7 +79,7 @@ In-flight branches that overlap with findings are noted per-finding so the user 
 
 ### F5: `InvokeActorActionHandler` doesn't validate per-action params — Severity: **High**
 
-**Where:** `apps/foundry-api-bridge/src/commands/handlers/actor/InvokeActorActionHandler.ts` (the dispatch loop); `apps/foundry-api-bridge/src/commands/handlers/actor/actions/` (per-action handlers); `packages/shared/src/rpc/schemas.ts:35-37` (only validates the *outer* envelope `{ params?: Record<string, unknown> }`).
+**Where:** `apps/foundry-api-bridge/src/commands/handlers/actor/InvokeActorActionHandler.ts` (the dispatch loop); `apps/foundry-api-bridge/src/commands/handlers/actor/actions/` (per-action handlers); `packages/shared/src/rpc/schemas.ts:35-37` (only validates the _outer_ envelope `{ params?: Record<string, unknown> }`).
 
 **What's wrong:** The `invoke-actor-action` command type is the user's recommended path for new mutations (per CLAUDE.md and PRs #44, #48). Inbound HTTP requests are validated against `invokeActorActionBody` at the foundry-mcp layer, but that schema only checks that `params` is `Record<string, unknown>` — every action's specific param shape (`{resource, delta}`, `{statistic, rollMode}`, `{spell, slot}`, etc.) flows through unchecked. The action handlers in `actions/` then do ad-hoc narrowing inline. Some actions have informal Zod-or-manual checks; others trust the caller. Schemas for the action-specific shapes (`adjustActorResourceBody`, `adjustActorConditionBody`, `rollActorStatisticBody`, etc.) already exist in `rpc/schemas.ts` but are not used by the bridge handler — they're applied earlier in the foundry-mcp REST layer for the dedicated routes that pre-date the dispatcher.
 
@@ -109,7 +109,7 @@ In-flight branches that overlap with findings are noted per-finding so the user 
 
 **Where:** `apps/player-portal/src/lib/usePaginatedSearch.ts:87, 108, 136`; `apps/player-portal/src/lib/useRemoteData.ts:65`; `apps/player-portal/src/components/creator/useFeatDetail.ts:32, 68`; `apps/player-portal/src/components/creator/FeatDetailPanel.tsx:32, 80`; `apps/player-portal/src/routes/CharacterCreator/steps/AttributesStep.tsx:70, 76, 86, 186, 208`; `apps/player-portal/src/routes/CharacterCreator/steps/ClassStep.tsx:64`; `apps/player-portal/src/routes/CharacterCreator/steps/LanguagesStep.tsx:64, 88`; `apps/player-portal/src/routes/CharacterCreator/steps/SkillsStep.tsx:61`; `apps/player-portal/src/components/tabs/Crafting.tsx:486`; `apps/player-portal/src/components/tabs/Progression.tsx:102`.
 
-**What's wrong:** Twelve files carry one or more `// eslint-disable-next-line react-hooks/exhaustive-deps` or `react-hooks/set-state-in-effect` comments around fetch + state-machine effects. The pattern in each is the same: an effect needs to read the latest version of a callback or option object without retriggering when its identity changes; the author's solution is to disable the lint rule and rely on a `ref` snapshot taken inline. This works *most* of the time but trades a lint warning for a stale-closure bug class that's hard to reproduce — when a component re-renders mid-fetch with a new dependency that the disabled effect ignored, the in-flight callback still references stale state. `usePaginatedSearch` and `useRemoteData` independently invent the same generation-counter + `optionsRef` pattern (~20 LOC each).
+**What's wrong:** Twelve files carry one or more `// eslint-disable-next-line react-hooks/exhaustive-deps` or `react-hooks/set-state-in-effect` comments around fetch + state-machine effects. The pattern in each is the same: an effect needs to read the latest version of a callback or option object without retriggering when its identity changes; the author's solution is to disable the lint rule and rely on a `ref` snapshot taken inline. This works _most_ of the time but trades a lint warning for a stale-closure bug class that's hard to reproduce — when a component re-renders mid-fetch with a new dependency that the disabled effect ignored, the in-flight callback still references stale state. `usePaginatedSearch` and `useRemoteData` independently invent the same generation-counter + `optionsRef` pattern (~20 LOC each).
 
 **Cost:** Correctness — every disable is an opportunity for a stale-closure bug that won't surface until a specific re-render order happens (the kind of bug the lint rule exists to prevent). Change amplification — refactoring one of these effects requires re-deriving the eslint-disable rationale every time. Duplication — the next data hook will copy whichever pattern was nearest.
 
@@ -123,7 +123,7 @@ In-flight branches that overlap with findings are noted per-finding so the user 
 
 **Where:** `packages/shared/src/foundry-api.ts:13-16` (`ApiError`); `packages/shared/src/rpc/index.ts:81-87` (`ErrorResponse`, with the comment "mirrored in `foundry-api.ts` as `ApiError` (same shape)").
 
-**What's wrong:** Both interfaces declare `{ error: string; suggestion?: string }`. The `rpc` index file *names* the duplication in a comment but doesn't enforce it. If anyone adds a field for richer error context (request id, retryability hint, error code) to one without remembering to add it to the other, the wire contract silently splits — and TypeScript won't catch it because no caller imports both names side by side.
+**What's wrong:** Both interfaces declare `{ error: string; suggestion?: string }`. The `rpc` index file _names_ the duplication in a comment but doesn't enforce it. If anyone adds a field for richer error context (request id, retryability hint, error code) to one without remembering to add it to the other, the wire contract silently splits — and TypeScript won't catch it because no caller imports both names side by side.
 
 **Cost:** Drift risk on a contract that's already small enough to be invisible until it's broken. Trivial to fix; trivially blocks future error-context improvements until fixed.
 
@@ -165,9 +165,9 @@ In-flight branches that overlap with findings are noted per-finding so the user 
 
 **Where:** `apps/player-portal/src/lib/useLiveChat.ts` (the whole file, ~135 lines).
 
-**What's wrong:** The hook does: GET a backfill page from `/api/mcp/chat/recent`, open an SSE stream from `/api/mcp/events/chat/stream`, dedupe overlapping messages by id, merge backfill and live messages into one ordered list, manage reconnect state. It's well-written, but it's a *pattern* — the next live feed (party stash deltas, party display rail, combat ticker) will need it again. Right now the only escape valve is "copy useLiveChat and tweak". The dedup uses `arr.some()` (O(n) per insert), which is fine for chat but won't be for high-volume feeds.
+**What's wrong:** The hook does: GET a backfill page from `/api/mcp/chat/recent`, open an SSE stream from `/api/mcp/events/chat/stream`, dedupe overlapping messages by id, merge backfill and live messages into one ordered list, manage reconnect state. It's well-written, but it's a _pattern_ — the next live feed (party stash deltas, party display rail, combat ticker) will need it again. Right now the only escape valve is "copy useLiveChat and tweak". The dedup uses `arr.some()` (O(n) per insert), which is fine for chat but won't be for high-volume feeds.
 
-**Cost:** Reusability — the next SSE consumer will copy the pattern, miss an edge case (cancellation cleanup, dedup, schema validation), and ship a near-duplicate hook. Compare to the rest of `apps/player-portal/src/lib/` where shared patterns *are* extracted (`useRemoteData`, `usePaginatedSearch`, `useEventChannel`).
+**Cost:** Reusability — the next SSE consumer will copy the pattern, miss an edge case (cancellation cleanup, dedup, schema validation), and ship a near-duplicate hook. Compare to the rest of `apps/player-portal/src/lib/` where shared patterns _are_ extracted (`useRemoteData`, `usePaginatedSearch`, `useEventChannel`).
 
 **Suggested change:** Extract `useBackfilledStream<T>({ backfillUrl, streamUrl, schema, dedupeKey })`. Implement it once; rewrite `useLiveChat` as a thin wrapper that supplies the chat-specific URL + Zod schema + `id` dedupe. New SSE feeds pick this up immediately.
 
@@ -221,7 +221,7 @@ In-flight branches that overlap with findings are noted per-finding so the user 
 
 **Where:** `apps/player-portal/src/components/tabs/inventory/Inventory.tsx:58` (the `stashNonce` counter); `apps/foundry-api-bridge/src/events/EventChannelController.ts` (the `actors` channel registers for `updateActor` only).
 
-**What's wrong:** When a player transfers an item to the party stash, the bridge updates the *party actor*, but the `actors` event channel filter doesn't auto-deliver an event the Inventory tab can use to refresh. The portal works around this by maintaining a local `stashNonce` that gets bumped on transfer success and forces re-fetch. It works, but it leaks an event-system gap into the UI.
+**What's wrong:** When a player transfers an item to the party stash, the bridge updates the _party actor_, but the `actors` event channel filter doesn't auto-deliver an event the Inventory tab can use to refresh. The portal works around this by maintaining a local `stashNonce` that gets bumped on transfer success and forces re-fetch. It works, but it leaks an event-system gap into the UI.
 
 **Cost:** Tight coupling between mutator paths and observer paths; future mutations to the stash (item removal, container moves) will need their own nonce bumps or duplicate fetches.
 
@@ -276,7 +276,7 @@ The next tier (F5, F6, F7) is also worth attention but each carries more design 
 ## Process notes
 
 - This audit reflects the merged-on-`main` state at commit `1cc51be` (refactor-audit branch). In-flight worktrees were intentionally not read.
-- Findings cross-checked against branch list (`git worktree list`): no in-flight branch was identified that already addresses any finding above. (The recently-merged decomposition PRs #59–#62, #140–#145, #148 *did* address adjacent god-component concerns; F12 names what remains.)
+- Findings cross-checked against branch list (`git worktree list`): no in-flight branch was identified that already addresses any finding above. (The recently-merged decomposition PRs #59–#62, #140–#145, #148 _did_ address adjacent god-component concerns; F12 names what remains.)
 - `npm run knip` reports clean (modulo F17).
 - `npm run lint` reports clean (2 `no-explicit-any` warnings in dm-tool, no errors).
 - Tests were not exercised — the audit examined source, not behavior.
