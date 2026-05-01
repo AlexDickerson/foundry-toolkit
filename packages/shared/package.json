@@ -7,6 +7,12 @@
   "exports": {
     ".": "./src/types.ts",
     "./types": "./src/types.ts",
+    "./maps": "./src/maps/types.ts",
+    "./books": "./src/books/types.ts",
+    "./compendium": "./src/compendium/types.ts",
+    "./chat": "./src/chat/types.ts",
+    "./party": "./src/party/types.ts",
+    "./combat": "./src/combat/types.ts",
     "./env": "./src/env.ts",
     "./env-auto": "./src/env-auto.ts",
     "./foundry-api": "./src/foundry-api.ts",

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { ElectronAPI } from '@foundry-toolkit/shared/types';
+import type { ElectronAPI } from '../electron/ipc/types.js';
 
 declare global {
   interface Window {
