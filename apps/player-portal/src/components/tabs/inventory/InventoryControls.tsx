@@ -1,3 +1,4 @@
+import { LayoutGrid, List } from 'lucide-react';
 import type { PhysicalItem } from '../../../api/types';
 import { useShopMode } from '../../../lib/useShopMode';
 import type { ViewMode, ShopView } from './inventory-categories';
@@ -50,7 +51,7 @@ export function ViewToggle({
   view: ViewMode;
   onChange: (v: ViewMode) => void;
 }): React.ReactElement {
-  const base = 'px-2 py-1 text-xs font-medium uppercase tracking-widest transition-colors';
+  const base = 'flex items-center justify-center px-2 py-1 transition-colors';
   const active = 'bg-pf-primary text-white';
   const inactive = 'text-pf-alt-dark hover:bg-pf-bg-dark/60';
   return (
@@ -64,21 +65,23 @@ export function ViewToggle({
         type="button"
         className={`${base} ${view === 'grid' ? active : inactive}`}
         aria-pressed={view === 'grid'}
+        aria-label="Grid view"
         onClick={(): void => {
           onChange('grid');
         }}
       >
-        Grid
+        <LayoutGrid size={14} aria-hidden="true" />
       </button>
       <button
         type="button"
         className={`${base} border-l border-pf-border ${view === 'list' ? active : inactive}`}
         aria-pressed={view === 'list'}
+        aria-label="List view"
         onClick={(): void => {
           onChange('list');
         }}
       >
-        List
+        <List size={14} aria-hidden="true" />
       </button>
     </div>
   );

@@ -14,7 +14,7 @@ const BACKPACK_ID = 'l25ZlJJVpWamk5Ye';
 // (backpack-with-contents) run in list view, so they flip the toggle
 // first. This helper finds the List button and clicks it.
 function selectListView(container: HTMLElement): void {
-  const listBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'List');
+  const listBtn = container.querySelector<HTMLButtonElement>('button[aria-label="List view"]');
   if (!listBtn) throw new Error('List toggle button not found');
   fireEvent.click(listBtn);
 }
