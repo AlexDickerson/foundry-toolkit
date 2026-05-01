@@ -1,4 +1,4 @@
-import { CircleUserRound, LayoutGrid, List, Settings, ShoppingBag, Vault } from 'lucide-react';
+import { LayoutGrid, List, Settings, ShoppingBag, User, UsersRound } from 'lucide-react';
 import type { PhysicalItem } from '../../../api/types';
 import { useShopMode } from '../../../lib/useShopMode';
 import type { ViewMode, ShopView } from './inventory-categories';
@@ -117,7 +117,7 @@ export function ShopViewToggle({
           onChange('inventory');
         }}
       >
-        <CircleUserRound size={14} aria-hidden="true" />
+        <User size={14} aria-hidden="true" />
       </button>
       {showPartyStash && (
         <button
@@ -129,7 +129,7 @@ export function ShopViewToggle({
             onChange('party-stash');
           }}
         >
-          <Vault size={14} aria-hidden="true" />
+          <UsersRound size={14} aria-hidden="true" />
         </button>
       )}
       {showShop && (
