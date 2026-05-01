@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import type { CompendiumMatch } from '../../api/types';
 import { useDebounce } from '../../lib/useDebounce';
 import { usePaginatedSearch } from '../../lib/usePaginatedSearch';
+import { CompendiumPicker } from '../picker';
 
 interface Props {
   /** Uuids that are already in the formula book — filtered out of
@@ -79,6 +80,12 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
   const isSearching = searchEnabled && searchState.kind === 'loading';
   const searchError = searchState.kind === 'error' ? searchState.message : null;
 
+  const emptyMessage = !searchEnabled
+    ? 'Type to search the equipment compendium.'
+    : allMatches.length > 0
+      ? 'Every match is already in the book.'
+      : 'No matches.';
+
   return (
     <div
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4 sm:p-8"
@@ -113,23 +120,14 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
             className="w-full rounded border border-pf-border bg-white px-2 py-1 text-sm text-pf-text focus:border-pf-primary focus:outline-none"
           />
         </div>
-        <div className="min-h-[4rem] flex-1 overflow-y-auto p-2">
-          {isSearching && <p className="p-2 text-sm italic text-neutral-400">Searching…</p>}
-          {searchError !== null && (
-            <p className="p-2 text-sm text-red-700">Search failed: {searchError}</p>
-          )}
-          {!searchEnabled && (
-            <p className="p-2 text-xs italic text-neutral-400">Type to search the equipment compendium.</p>
-          )}
-          {searchEnabled && !isSearching && searchError === null && filtered.length === 0 && allMatches.length > 0 && (
-            <p className="p-2 text-xs italic text-neutral-400">Every match is already in the book.</p>
-          )}
-          {searchEnabled && !isSearching && searchError === null && allMatches.length === 0 && (
-            <p className="p-2 text-xs italic text-neutral-400">No matches.</p>
-          )}
-          {filtered.length > 0 && (
-            <ul className="grid grid-cols-1 gap-1">
-              {filtered.map((m) => (
+        <CompendiumPicker
+          isLoading={isSearching}
+          error={searchError}
+          items={filtered}
+          emptyMessage={emptyMessage}
+          renderList={(items) => (
+            <ul className="grid grid-cols-1 gap-1 p-2">
+              {items.map((m) => (
                 <li key={m.uuid}>
                   <button
                     type="button"
@@ -155,20 +153,11 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
               ))}
             </ul>
           )}
-          {(hasMore || isLoadingMore) && (
-            <div className="mt-2 text-center">
-              <button
-                type="button"
-                onClick={loadMore}
-                disabled={isLoadingMore}
-                data-testid="formula-picker-load-more"
-                className="rounded border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-600 hover:border-neutral-400 hover:text-neutral-800 disabled:cursor-wait disabled:opacity-50"
-              >
-                {isLoadingMore ? 'Loading…' : 'Load more'}
-              </button>
-            </div>
-          )}
-        </div>
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={loadMore}
+          loadMoreTestId="formula-picker-load-more"
+        />
       </div>
     </div>
   );
