@@ -17,17 +17,6 @@ interface Props {
   onSettingsOpen?: () => void;
 }
 
-const RARITY_CLASSES: Record<string, string> = {
-  uncommon: 'border-pf-rarity-uncommon bg-pf-rarity-uncommon/10 text-pf-rarity-uncommon',
-  rare: 'border-pf-rarity-rare bg-pf-rarity-rare/10 text-pf-rarity-rare',
-  unique: 'border-pf-rarity-unique bg-pf-rarity-unique/10 text-pf-rarity-unique',
-};
-
-const ALLIANCE_CLASSES: Record<string, string> = {
-  party: 'border-emerald-400 bg-emerald-50 text-emerald-800',
-  opposition: 'border-pf-primary bg-pf-primary/10 text-pf-primary',
-};
-
 export function SheetHeader({
   character,
   actorId,
@@ -41,8 +30,6 @@ export function SheetHeader({
   const heritage = system.details.heritage?.name;
   const cls = system.details.class?.name;
   const background = items.find((i) => i.type === 'background')?.name;
-  const rarity = system.traits.rarity;
-  const alliance = system.details.alliance;
   const xp = system.details.xp;
   const heroPoints = system.resources.heroPoints;
 
@@ -60,16 +47,6 @@ export function SheetHeader({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h1 className="font-serif text-2xl font-bold text-pf-text">{name}</h1>
-              {rarity && rarity !== 'common' && (
-                <Badge data-badge="rarity" label={capitalise(rarity)} className={RARITY_CLASSES[rarity] ?? ''} />
-              )}
-              {alliance && (
-                <Badge
-                  data-badge="alliance"
-                  label={capitalise(alliance)}
-                  className={ALLIANCE_CLASSES[alliance] ?? ''}
-                />
-              )}
             </div>
             {subtitle && (
               <p className="mt-0.5 font-sans text-sm text-pf-alt" data-section="identity">
@@ -311,31 +288,6 @@ function PortraitLightbox({
       />
     </div>
   );
-}
-
-// ─── Badges ────────────────────────────────────────────────────────────
-
-function Badge({
-  label,
-  className,
-  ...rest
-}: {
-  label: string;
-  className: string;
-  'data-badge'?: string;
-}): React.ReactElement {
-  return (
-    <span
-      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${className}`}
-      {...rest}
-    >
-      {label}
-    </span>
-  );
-}
-
-function capitalise(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // ─── Icons ─────────────────────────────────────────────────────────────
