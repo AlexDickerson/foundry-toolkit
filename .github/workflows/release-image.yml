@@ -1,4 +1,4 @@
-name: Publish image
+name: Publish images
 
 on:
   push:
@@ -11,6 +11,19 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - service: foundry
+            image: ghcr.io/alexdickerson/foundry-toolkit-foundry
+            dockerfile: deploy/Dockerfile.foundry
+          - service: foundry-mcp
+            image: ghcr.io/alexdickerson/foundry-toolkit-mcp
+            dockerfile: deploy/Dockerfile.foundry-mcp
+          - service: player-portal
+            image: ghcr.io/alexdickerson/foundry-toolkit-portal
+            dockerfile: deploy/Dockerfile.player-portal
 
     steps:
       - uses: actions/checkout@v6
@@ -26,7 +39,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/alexdickerson/foundry-toolkit
+          images: ${{ matrix.image }}
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest
@@ -34,10 +47,10 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: deploy/Dockerfile
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}

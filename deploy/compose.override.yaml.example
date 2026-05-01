@@ -1,0 +1,25 @@
+# Local build overrides — use this to build all three images from source
+# instead of pulling from GHCR.
+#
+# Usage:
+#   cp deploy/compose.override.yaml.example deploy/compose.override.yaml
+#   docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml build
+#   docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml up -d
+#
+# Run from the monorepo root (build context is ../ relative to deploy/).
+
+services:
+  foundry:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.foundry
+
+  foundry-mcp:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.foundry-mcp
+
+  player-portal:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.player-portal

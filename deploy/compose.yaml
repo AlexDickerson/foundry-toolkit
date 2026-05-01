@@ -1,0 +1,79 @@
+# foundry-toolkit compose stack
+# Three services on one internal network: Foundry VTT, foundry-mcp, player-portal.
+#
+# Usage (from this deploy/ directory):
+#   cp .env.example .env   # fill in credentials
+#   docker compose up -d
+#
+# To pull a specific version instead of :latest, set IMAGE_TAG in .env.
+# See README.md for full documentation.
+
+name: foundry-toolkit
+
+services:
+  # ── Foundry VTT ─────────────────────────────────────────────────────────────
+  # felddy/foundryvtt base image with the foundry-api-bridge module baked in.
+  # The module is seeded into /data/Data/modules/ on first boot.
+  foundry:
+    image: ghcr.io/alexdickerson/foundry-toolkit-foundry:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      FOUNDRY_USERNAME: ${FOUNDRY_USERNAME}
+      FOUNDRY_PASSWORD: ${FOUNDRY_PASSWORD}
+      FOUNDRY_ADMIN_KEY: ${FOUNDRY_ADMIN_KEY:-}
+    volumes:
+      - foundry-data:/data
+    ports:
+      - '30000:30000'
+    networks:
+      - internal
+
+  # ── foundry-mcp ─────────────────────────────────────────────────────────────
+  # MCP server + Fastify REST surface.  The foundry-api-bridge module (running
+  # in the GM's browser tab) dials OUT to ws://<host>:8765/foundry — port 8765
+  # is not mapped by default.  Add a port mapping or reverse-proxy entry if you
+  # need the module to reach this service from outside the compose network.
+  foundry-mcp:
+    image: ghcr.io/alexdickerson/foundry-toolkit-mcp:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SHARED_SECRET: ${SHARED_SECRET}
+      ALLOW_EVAL: ${ALLOW_EVAL:-0}
+      HOST: 0.0.0.0
+      PORT: '8765'
+      # Give foundry-mcp read access to Foundry's data dir for compendium packs.
+      FOUNDRY_DATA: /foundry-data
+    volumes:
+      - foundry-data:/foundry-data:ro
+    depends_on:
+      - foundry
+    networks:
+      - internal
+
+  # ── player-portal ────────────────────────────────────────────────────────────
+  # Fastify server that serves the Vite SPA and reverse-proxies:
+  #   /api/mcp/*              → foundry-mcp (MCP REST surface)
+  #   /icons /systems /worlds → foundry (asset resolution for prepared actors)
+  player-portal:
+    image: ghcr.io/alexdickerson/foundry-toolkit-portal:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      SHARED_SECRET: ${SHARED_SECRET}
+      SECURE_SESSION_SECRET: ${SECURE_SESSION_SECRET:-}
+      MCP_URL: http://foundry-mcp:8765
+      FOUNDRY_URL: http://foundry:30000
+      PORT: '3000'
+      HOST: 0.0.0.0
+    ports:
+      - '${PLAYER_PORTAL_PORT:-3000}:3000'
+    depends_on:
+      - foundry-mcp
+    networks:
+      - internal
+
+volumes:
+  foundry-data:
+
+networks:
+  internal:
