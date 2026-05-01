@@ -1,5 +1,21 @@
+import { useState } from 'react';
 import { useLiveChat } from '../../lib/useLiveChat';
 import { MessageBubble } from '../chat/MessageBubble';
+
+type SortOrder = 'desc' | 'asc';
+
+const SORT_KEY = 'chat-feed:sort-order';
+const DEFAULT_ORDER: SortOrder = 'desc';
+
+function readStoredOrder(): SortOrder {
+  if (typeof window === 'undefined') return DEFAULT_ORDER;
+  try {
+    const raw = window.localStorage.getItem(SORT_KEY);
+    return raw === 'asc' || raw === 'desc' ? raw : DEFAULT_ORDER;
+  } catch {
+    return DEFAULT_ORDER;
+  }
+}
 
 interface Props {
   actorId: string;
@@ -7,9 +23,35 @@ interface Props {
 
 export function Chat({ actorId }: Props): React.ReactElement {
   const { messages, status, truncated } = useLiveChat(actorId);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(readStoredOrder);
+
+  const toggleSort = (): void => {
+    const next: SortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+    setSortOrder(next);
+    try {
+      window.localStorage.setItem(SORT_KEY, next);
+    } catch {
+      // ignore — non-persistent fallback works for the session
+    }
+  };
+
+  const sorted = sortOrder === 'desc' ? [...messages].reverse() : messages;
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
+      {/* Header: sort toggle */}
+      <div className="flex items-center justify-between pb-1">
+        <button
+          type="button"
+          onClick={toggleSort}
+          title={sortOrder === 'desc' ? 'Showing newest first — click for oldest first' : 'Showing oldest first — click for newest first'}
+          className="flex items-center gap-1 rounded px-1 py-0.5 text-xs text-pf-alt-dark hover:bg-pf-bg-dark hover:text-pf-text transition-colors"
+        >
+          <SortIcon order={sortOrder} />
+          {sortOrder === 'desc' ? 'Newest first' : 'Oldest first'}
+        </button>
+      </div>
+
       {truncated && (
         <p className="text-center text-xs text-pf-alt-dark">Showing recent messages only.</p>
       )}
@@ -22,7 +64,7 @@ export function Chat({ actorId }: Props): React.ReactElement {
         <p className="py-8 text-center text-sm text-pf-alt-dark">Connecting…</p>
       )}
 
-      {messages.map((m) => (
+      {sorted.map((m) => (
         <MessageBubble key={m.id} message={m} />
       ))}
 
@@ -30,5 +72,26 @@ export function Chat({ actorId }: Props): React.ReactElement {
         <p className="text-center text-xs text-amber-600">Reconnecting to chat stream…</p>
       )}
     </div>
+  );
+}
+
+function SortIcon({ order }: { order: SortOrder }): React.ReactElement {
+  // Arrow pointing down = newest first (desc); up = oldest first (asc).
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      style={{ transform: order === 'asc' ? 'rotate(180deg)' : undefined }}
+    >
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <polyline points="19 12 12 19 5 12" />
+    </svg>
   );
 }
