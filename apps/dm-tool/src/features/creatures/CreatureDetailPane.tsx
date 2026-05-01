@@ -109,14 +109,6 @@ export function CreatureDetailPane({ detail, onOpenExternal }: Props) {
             </>
           )}
 
-          {/* Full portrait art */}
-          {detail.imageUrl && (
-            <>
-              <Separator />
-              <img src={detail.imageUrl} alt={detail.name} className="w-full rounded-md object-contain" />
-            </>
-          )}
-
           {/* Archives of Nethys link — opens in the system browser */}
           {detail.aonUrl && (
             <button
