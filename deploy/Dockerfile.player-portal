@@ -1,0 +1,63 @@
+###############################################################################
+# foundry-toolkit — player-portal container
+#
+# Build stage installs workspace deps and compiles the Vite SPA client only.
+# Runtime stage runs the Fastify server source directly via tsx so that
+# @foundry-toolkit/shared (raw .ts exports) resolves without a separate
+# server compile step.
+#
+# Build context: monorepo root
+#   docker build -f deploy/Dockerfile.player-portal -t foundry-toolkit-portal:dev .
+###############################################################################
+
+###############################################################################
+# Stage 1 — Build Vite SPA (client only)
+###############################################################################
+FROM node:22-alpine AS build
+WORKDIR /repo
+
+# Workspace manifests first — cached independently of source changes.
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY apps/player-portal/package.json  apps/player-portal/
+COPY apps/dm-tool/package.json        apps/dm-tool/
+COPY packages/shared/package.json     packages/shared/
+COPY packages/pf2e-rules/package.json packages/pf2e-rules/
+
+# --ignore-scripts skips husky and electron-rebuild lifecycle hooks.
+RUN npm install --ignore-scripts
+
+COPY packages/shared     packages/shared
+COPY packages/pf2e-rules packages/pf2e-rules
+COPY apps/player-portal  apps/player-portal
+
+# build:client runs tsc --noEmit (type check) then vite build (SPA → dist/).
+# build:server is intentionally skipped — the runtime stage runs via tsx.
+RUN npm --workspace @foundry-toolkit/player-portal run build:client
+
+###############################################################################
+# Stage 2 — Runtime (tsx serves TypeScript server source + built Vite SPA)
+###############################################################################
+FROM node:22-alpine AS runtime
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY apps/player-portal/package.json  apps/player-portal/
+COPY apps/dm-tool/package.json        apps/dm-tool/
+COPY packages/shared/package.json     packages/shared/
+COPY packages/pf2e-rules/package.json packages/pf2e-rules/
+
+RUN npm install --ignore-scripts
+
+# Workspace dep sources for tsx to compile on demand.
+COPY packages/shared     packages/shared
+COPY packages/pf2e-rules packages/pf2e-rules
+
+# Server TypeScript source.
+COPY apps/player-portal/server apps/player-portal/server
+
+# Built Vite SPA from the build stage.
+# Fastify static plugin serves this directory at /.
+COPY --from=build /repo/apps/player-portal/dist apps/player-portal/dist
+
+EXPOSE 3000
+CMD ["node_modules/.bin/tsx", "apps/player-portal/server/index.ts"]

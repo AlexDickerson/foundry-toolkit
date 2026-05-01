@@ -1,0 +1,48 @@
+###############################################################################
+# foundry-toolkit — Foundry VTT container
+#
+# felddy/foundryvtt:release base with the foundry-api-bridge module baked into
+# a /seed path.  The entrypoint copies the module to /data/Data/modules/ on
+# first boot (idempotent — skips if already present so volume overrides work).
+#
+# Build context: monorepo root
+#   docker build -f deploy/Dockerfile.foundry -t foundry-toolkit-foundry:dev .
+###############################################################################
+
+###############################################################################
+# Stage 1 — Build foundry-api-bridge Foundry module
+###############################################################################
+FROM node:22-alpine AS build-module
+WORKDIR /app
+
+COPY apps/foundry-api-bridge/package.json ./
+# --legacy-peer-deps: foundry-vtt-types conflicts with the monorepo TypeScript pin.
+# git: some transitive deps in the api-bridge tree are fetched via git protocol.
+RUN apk add --no-cache git && npm install --legacy-peer-deps --ignore-scripts
+
+COPY apps/foundry-api-bridge/tsconfig.json  ./
+COPY apps/foundry-api-bridge/vite.config.ts ./
+COPY apps/foundry-api-bridge/src            ./src
+# Produces dist/module.js via esbuild-backed Vite bundler.
+RUN npx vite build
+
+# Static assets checked in under dist/ in the repo.
+# The root .dockerignore has a !apps/foundry-api-bridge/dist/ exception so
+# these are present in the build context.
+COPY apps/foundry-api-bridge/dist/module.json ./dist/module.json
+COPY apps/foundry-api-bridge/dist/styles      ./dist/styles
+COPY apps/foundry-api-bridge/dist/templates   ./dist/templates
+
+###############################################################################
+# Stage 2 — Runtime: felddy/foundryvtt (Debian trixie)
+###############################################################################
+FROM felddy/foundryvtt:release
+
+# Bake api-bridge module to /seed so a volume-mounted /data doesn't clobber it.
+# docker-entrypoint.sh copies it into /data/Data/modules/ on first boot.
+COPY --from=build-module /app/dist /seed/modules/foundry-api-bridge
+
+COPY --chmod=755 deploy/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["resources/app/main.mjs", "--port=30000", "--headless", "--noupdate", "--dataPath=/data"]
