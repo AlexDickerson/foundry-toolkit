@@ -1,16 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  Backpack,
-  BookOpen,
-  Globe,
-  Map,
-  MessageSquare,
-  Search,
-  Skull,
-  Swords,
-  Trophy,
-  Wrench,
-} from 'lucide-react';
+import { Backpack, BookOpen, Globe, Map, MessageSquare, Search, Skull, Swords, Trophy, Wrench } from 'lucide-react';
 import { MapBrowser } from './features/map-browser/MapBrowser';
 import { BookBrowser } from './features/book-browser/BookBrowser';
 import { ItemBrowser } from './features/item-browser/ItemBrowser';
@@ -104,33 +93,30 @@ function MainApp() {
           <NavTab active={activeTab === 'tools'} onClick={() => setActiveTab('tools')} icon={Wrench} label="Tools" />
         </nav>
         {/* Search bar — shared across all tabs */}
-        {activeTab !== 'tools' &&
-          activeTab !== 'globe' &&
-          activeTab !== 'aurus' &&
-          activeTab !== 'combat' && (
-            <div
-              className="relative mx-2 flex max-w-md flex-1 items-center"
-              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            >
-              <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={keywords}
-                onChange={(e) => setKeywords(e.target.value)}
-                placeholder={
-                  activeTab === 'maps'
-                    ? 'Search maps…'
-                    : activeTab === 'books'
-                      ? 'Filter books…'
-                      : activeTab === 'monsters'
-                        ? 'Search monsters…'
-                        : activeTab === 'items'
-                          ? 'Search items…'
-                          : 'Search…'
-                }
-                className="h-8 bg-background/50 pl-8 text-xs"
-              />
-            </div>
-          )}
+        {activeTab !== 'tools' && activeTab !== 'globe' && activeTab !== 'aurus' && activeTab !== 'combat' && (
+          <div
+            className="relative mx-2 flex max-w-md flex-1 items-center"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          >
+            <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+              placeholder={
+                activeTab === 'maps'
+                  ? 'Search maps…'
+                  : activeTab === 'books'
+                    ? 'Filter books…'
+                    : activeTab === 'monsters'
+                      ? 'Search monsters…'
+                      : activeTab === 'items'
+                        ? 'Search items…'
+                        : 'Search…'
+              }
+              className="h-8 bg-background/50 pl-8 text-xs"
+            />
+          </div>
+        )}
         <div className="ml-auto flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <button
             type="button"
