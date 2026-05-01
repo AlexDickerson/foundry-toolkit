@@ -38,39 +38,49 @@ export function Chat({ actorId }: Props): React.ReactElement {
   const sorted = sortOrder === 'desc' ? [...messages].reverse() : messages;
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Header: sort toggle */}
-      <div className="flex items-center justify-between pb-1">
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Header row: "Chat" label (left) + sort toggle (right) */}
+      <div className="mb-2 flex shrink-0 items-center justify-between">
+        <p className="text-xs font-medium uppercase tracking-wide text-pf-alt-dark">Chat</p>
         <button
           type="button"
           onClick={toggleSort}
-          title={sortOrder === 'desc' ? 'Showing newest first — click for oldest first' : 'Showing oldest first — click for newest first'}
-          className="flex items-center gap-1 rounded px-1 py-0.5 text-xs text-pf-alt-dark hover:bg-pf-bg-dark hover:text-pf-text transition-colors"
+          title={
+            sortOrder === 'desc'
+              ? 'Showing newest first — click for oldest first'
+              : 'Showing oldest first — click for newest first'
+          }
+          className="flex items-center gap-1 rounded px-1 py-0.5 text-xs text-pf-alt-dark transition-colors hover:bg-pf-bg-dark hover:text-pf-text"
         >
           <SortIcon order={sortOrder} />
           {sortOrder === 'desc' ? 'Newest first' : 'Oldest first'}
         </button>
       </div>
 
-      {truncated && (
-        <p className="text-center text-xs text-pf-alt-dark">Showing recent messages only.</p>
-      )}
+      {/* Scrollable messages */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-2">
+          {truncated && (
+            <p className="text-center text-xs text-pf-alt-dark">Showing recent messages only.</p>
+          )}
 
-      {messages.length === 0 && status !== 'loading' && (
-        <p className="py-8 text-center text-sm text-pf-alt-dark">No messages yet.</p>
-      )}
+          {messages.length === 0 && status !== 'loading' && (
+            <p className="py-8 text-center text-sm text-pf-alt-dark">No messages yet.</p>
+          )}
 
-      {messages.length === 0 && status === 'loading' && (
-        <p className="py-8 text-center text-sm text-pf-alt-dark">Connecting…</p>
-      )}
+          {messages.length === 0 && status === 'loading' && (
+            <p className="py-8 text-center text-sm text-pf-alt-dark">Connecting…</p>
+          )}
 
-      {sorted.map((m) => (
-        <MessageBubble key={m.id} message={m} />
-      ))}
+          {sorted.map((m) => (
+            <MessageBubble key={m.id} message={m} />
+          ))}
 
-      {status === 'disconnected' && (
-        <p className="text-center text-xs text-amber-600">Reconnecting to chat stream…</p>
-      )}
+          {status === 'disconnected' && (
+            <p className="text-center text-xs text-amber-600">Reconnecting to chat stream…</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
