@@ -205,35 +205,33 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
     handleMouseOut(e.target as Element, (e.relatedTarget as Element | null) ?? null);
   };
 
-  const positions = stack.reduce<Array<{ top: number; left: number; maxHeight: number }>>((acc, level, idx) => {
-    const maxLeft = window.innerWidth - POPOVER_WIDTH - VIEWPORT_EDGE_MARGIN;
-    if (idx === 0) {
-      const v = pickVerticalSlot(level.anchorRect);
-      acc.push({
-        top: v.top,
-        left: Math.max(VIEWPORT_EDGE_MARGIN, Math.min(level.anchorRect.left, maxLeft)),
-        maxHeight: v.maxHeight,
-      });
+  const positions = stack.reduce<Array<{ top?: number; bottom?: number; left: number; maxHeight: number }>>(
+    (acc, level, idx) => {
+      const maxLeft = window.innerWidth - POPOVER_WIDTH - VIEWPORT_EDGE_MARGIN;
+      if (idx === 0) {
+        const v = pickVerticalSlot(level.anchorRect);
+        acc.push({ ...v, left: Math.max(VIEWPORT_EDGE_MARGIN, Math.min(level.anchorRect.left, maxLeft)) });
+        return acc;
+      }
+      const parent = acc[idx - 1];
+      if (parent === undefined) {
+        const v = pickVerticalSlot(level.anchorRect);
+        acc.push({ ...v, left: Math.max(VIEWPORT_EDGE_MARGIN, Math.min(level.anchorRect.left, maxLeft)) });
+        return acc;
+      }
+      // Prefer right of the parent; if that overflows the viewport,
+      // fall back to the left side so the preview stays reachable.
+      const rightOfParent = parent.left + POPOVER_WIDTH + POPOVER_GAP;
+      const leftOfParent = parent.left - POPOVER_WIDTH - POPOVER_GAP;
+      const left = rightOfParent <= maxLeft ? rightOfParent : Math.max(VIEWPORT_EDGE_MARGIN, leftOfParent);
+      // When the parent used bottom-anchoring (above flip), derive a top for
+      // the sibling popover from the parent's bottom anchor and maxHeight.
+      const nestTop = parent.top ?? window.innerHeight - (parent.bottom ?? 0) - parent.maxHeight;
+      acc.push({ top: nestTop, left, maxHeight: parent.maxHeight });
       return acc;
-    }
-    const parent = acc[idx - 1];
-    if (parent === undefined) {
-      const v = pickVerticalSlot(level.anchorRect);
-      acc.push({
-        top: v.top,
-        left: Math.max(VIEWPORT_EDGE_MARGIN, Math.min(level.anchorRect.left, maxLeft)),
-        maxHeight: v.maxHeight,
-      });
-      return acc;
-    }
-    // Prefer right of the parent; if that overflows the viewport,
-    // fall back to the left side so the preview stays reachable.
-    const rightOfParent = parent.left + POPOVER_WIDTH + POPOVER_GAP;
-    const leftOfParent = parent.left - POPOVER_WIDTH - POPOVER_GAP;
-    const left = rightOfParent <= maxLeft ? rightOfParent : Math.max(VIEWPORT_EDGE_MARGIN, leftOfParent);
-    acc.push({ top: parent.top, left, maxHeight: parent.maxHeight });
-    return acc;
-  }, []);
+    },
+    [],
+  );
 
   const popover =
     stack.length > 0 ? (
@@ -269,6 +267,7 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
               style={{
                 position: 'fixed',
                 top: pos.top,
+                bottom: pos.bottom,
                 left: pos.left,
                 width: POPOVER_WIDTH,
                 maxHeight: pos.maxHeight,
@@ -294,7 +293,11 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
 // when there isn't enough room, and how tall the popover can be before
 // it should scroll internally. Falls back to the side with the most
 // room when neither fits the preferred height.
-function pickVerticalSlot(anchor: DOMRect): { top: number; maxHeight: number } {
+//
+// "Above" cases return `bottom` (distance from viewport bottom) instead
+// of `top` so a short popover stays kissing the trigger rather than
+// floating away from it — maxHeight is a cap, not the rendered height.
+export function pickVerticalSlot(anchor: DOMRect): { top?: number; bottom?: number; maxHeight: number } {
   const viewportH = window.innerHeight;
   const spaceBelow = viewportH - anchor.bottom - POPOVER_GAP - VIEWPORT_EDGE_MARGIN;
   const spaceAbove = anchor.top - POPOVER_GAP - VIEWPORT_EDGE_MARGIN;
@@ -303,7 +306,7 @@ function pickVerticalSlot(anchor: DOMRect): { top: number; maxHeight: number } {
     return { top: anchor.bottom + POPOVER_GAP, maxHeight: POPOVER_PREFERRED_HEIGHT };
   }
   if (spaceAbove >= POPOVER_PREFERRED_HEIGHT) {
-    return { top: anchor.top - POPOVER_GAP - POPOVER_PREFERRED_HEIGHT, maxHeight: POPOVER_PREFERRED_HEIGHT };
+    return { bottom: viewportH - anchor.top + POPOVER_GAP, maxHeight: POPOVER_PREFERRED_HEIGHT };
   }
   // Neither side has preferred height — open on whichever side has
   // more space and cap the popover to that space so the content
@@ -312,7 +315,7 @@ function pickVerticalSlot(anchor: DOMRect): { top: number; maxHeight: number } {
     return { top: anchor.bottom + POPOVER_GAP, maxHeight: Math.max(120, spaceBelow) };
   }
   const h = Math.max(120, spaceAbove);
-  return { top: Math.max(VIEWPORT_EDGE_MARGIN, anchor.top - POPOVER_GAP - h), maxHeight: h };
+  return { bottom: viewportH - anchor.top + POPOVER_GAP, maxHeight: h };
 }
 
 function PopoverBody({ state }: { state: DocState | undefined }): React.ReactElement {
