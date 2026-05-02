@@ -724,7 +724,7 @@ function FeatureChip({
   failed: boolean;
 }): React.ReactElement {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; transform?: string; left: number; maxHeight: number } | null>(null);
   const chipRef = useRef<HTMLLIElement>(null);
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
@@ -763,7 +763,7 @@ function FeatureChip({
       const maxLeft = window.innerWidth - FEATURE_POPOVER_WIDTH - FEATURE_POPOVER_VIEWPORT_MARGIN;
       const left = Math.max(FEATURE_POPOVER_VIEWPORT_MARGIN, Math.min(rect.left, maxLeft));
       const vertical = pickFeaturePopoverVerticalSlot(rect);
-      setPos({ top: vertical.top, left, maxHeight: vertical.maxHeight });
+      setPos({ ...vertical, left });
       setOpen(true);
     }, HOVER_OPEN_DELAY_MS);
   };
@@ -802,6 +802,7 @@ function FeatureChip({
               width: FEATURE_POPOVER_WIDTH,
               maxHeight: pos.maxHeight,
               overflowY: 'auto',
+              transform: pos.transform,
             }}
             className="z-50 rounded border border-pf-border bg-pf-bg p-4 text-left shadow-xl"
           >
@@ -842,7 +843,9 @@ function extractDescription(doc: CompendiumDocument): string {
 // Choose below vs above the anchor based on available viewport space,
 // and return a `maxHeight` so the popover caps itself to the space it
 // has and scrolls inside rather than overflowing the viewport.
-function pickFeaturePopoverVerticalSlot(anchor: DOMRect): { top: number; maxHeight: number } {
+// Above cases pair `top: anchor.top - GAP` with `transform: translateY(-100%)`
+// so the popover bottom always kisses the trigger with exactly GAP separation.
+function pickFeaturePopoverVerticalSlot(anchor: DOMRect): { top: number; transform?: string; maxHeight: number } {
   const viewportH = window.innerHeight;
   const spaceBelow = viewportH - anchor.bottom - FEATURE_POPOVER_GAP - FEATURE_POPOVER_VIEWPORT_MARGIN;
   const spaceAbove = anchor.top - FEATURE_POPOVER_GAP - FEATURE_POPOVER_VIEWPORT_MARGIN;
@@ -852,7 +855,8 @@ function pickFeaturePopoverVerticalSlot(anchor: DOMRect): { top: number; maxHeig
   }
   if (spaceAbove >= FEATURE_POPOVER_PREFERRED_HEIGHT) {
     return {
-      top: anchor.top - FEATURE_POPOVER_GAP - FEATURE_POPOVER_PREFERRED_HEIGHT,
+      top: anchor.top - FEATURE_POPOVER_GAP,
+      transform: 'translateY(-100%)',
       maxHeight: FEATURE_POPOVER_PREFERRED_HEIGHT,
     };
   }
@@ -860,7 +864,7 @@ function pickFeaturePopoverVerticalSlot(anchor: DOMRect): { top: number; maxHeig
     return { top: anchor.bottom + FEATURE_POPOVER_GAP, maxHeight: Math.max(120, spaceBelow) };
   }
   const h = Math.max(120, spaceAbove);
-  return { top: Math.max(FEATURE_POPOVER_VIEWPORT_MARGIN, anchor.top - FEATURE_POPOVER_GAP - h), maxHeight: h };
+  return { top: anchor.top - FEATURE_POPOVER_GAP, transform: 'translateY(-100%)', maxHeight: h };
 }
 
 // ─── Slot chips ────────────────────────────────────────────────────────
