@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { api } from '../../api/client';
 import type { CompendiumMatch, CompendiumSearchOptions } from '../../api/types';
 import { useDebounce } from '../../lib/useDebounce';
 import { usePaginatedSearch } from '../../lib/usePaginatedSearch';
 import { CompendiumDetailPanel } from './CompendiumDetailPanel';
+import { PickerDialog } from './PickerDialog';
 
 // ─── Internal list + states area ──────────────────────────────────────────────
 
@@ -209,24 +209,6 @@ export function CompendiumPicker({
   }, []);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', onKey);
-    return (): void => {
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return (): void => {
-      document.body.style.overflow = previous;
-    };
-  }, []);
-
-  useEffect(() => {
     onQueryChange?.(debouncedQuery);
   }, [debouncedQuery, onQueryChange]);
 
@@ -318,37 +300,15 @@ export function CompendiumPicker({
 
   const detailOpen = effectiveSplitPane?.detailOpen ?? false;
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      data-testid={testId}
-      className="fixed inset-0 z-50 flex items-start justify-center bg-pf-text/50 p-4 pt-[10vh]"
-      onClick={onClose}
+  return (
+    <PickerDialog
+      title={title}
+      onClose={onClose}
+      maxWidthClass={detailOpen ? 'max-w-4xl' : 'max-w-xl'}
+      animateMaxWidth
+      testId={testId}
     >
-      <div
-        className={[
-          'flex max-h-[80vh] w-full flex-col rounded border border-pf-border bg-pf-bg shadow-xl',
-          'transition-[max-width] duration-200 ease-out',
-          detailOpen ? 'max-w-4xl' : 'max-w-xl',
-        ].join(' ')}
-        onClick={(e): void => {
-          e.stopPropagation();
-        }}
-      >
-        <header className="flex items-center justify-between border-b border-pf-border px-4 py-2">
-          <h2 className="font-serif text-lg font-semibold text-pf-text">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close picker"
-            className="rounded px-2 py-0.5 text-lg text-pf-alt-dark hover:bg-pf-bg-dark hover:text-pf-primary"
-          >
-            ×
-          </button>
-        </header>
-        <div className="border-b border-pf-border px-4 py-2">
+      <div className="border-b border-pf-border px-4 py-2">
           <input
             ref={inputRef}
             type="search"
@@ -378,8 +338,6 @@ export function CompendiumPicker({
           loadMoreTestId={loadMoreTestId}
           splitPane={effectiveSplitPane}
         />
-      </div>
-    </div>,
-    document.body,
+    </PickerDialog>
   );
 }

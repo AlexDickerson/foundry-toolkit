@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useState } from 'react';
 import type { AbilityKey } from '../../api/types';
 import { ABILITY_KEYS } from '../../api/types';
 import { formatSignedInt } from '../../lib/format';
+import { PickerDialog } from '../picker/PickerDialog';
 import type { CharacterContext } from '../../prereqs';
 
 interface Props {
@@ -61,24 +61,6 @@ export function AbilityBoostPicker({
 }: Props): React.ReactElement {
   const [selected, setSelected] = useState<AbilityKey[]>([...initialSelection]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', onKey);
-    return (): void => {
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return (): void => {
-      document.body.style.overflow = previous;
-    };
-  }, []);
-
   const toggle = (key: AbilityKey): void => {
     setSelected((prev) => {
       if (prev.includes(key)) return prev.filter((k) => k !== key);
@@ -89,73 +71,15 @@ export function AbilityBoostPicker({
 
   const canApply = selected.length === BOOSTS_PER_SET;
 
-  // Portal to document.body so the modal escapes any ancestor's
-  // child-selector utilities (e.g. Progression.tsx's `*:bg-pf-bg-dark`
-  // section, which would otherwise paint the backdrop solid).
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Ability boosts for level ${level.toString()}`}
-      data-testid="ability-boost-picker"
-      className="fixed inset-0 z-50 flex items-start justify-center bg-pf-text/50 p-4 pt-[10vh]"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[80vh] w-full max-w-md flex-col rounded border border-pf-border bg-pf-bg shadow-xl"
-        onClick={(e): void => {
-          e.stopPropagation();
-        }}
-      >
-        <header className="flex items-center justify-between border-b border-pf-border px-4 py-2">
-          <h2 className="font-serif text-lg font-semibold text-pf-text">Ability Boosts (Level {level})</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close ability-boost picker"
-            className="rounded px-2 py-0.5 text-lg text-pf-alt-dark hover:bg-pf-bg-dark hover:text-pf-primary"
-          >
-            ×
-          </button>
-        </header>
-        <p className="border-b border-pf-border px-4 py-2 text-xs text-pf-alt">
-          Pick {BOOSTS_PER_SET} distinct abilities to boost. <span className="tabular-nums">{selected.length}</span>/
-          {BOOSTS_PER_SET} selected.
-        </p>
-        <div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto p-4 sm:grid-cols-3">
-          {ABILITY_KEYS.map((key) => {
-            const isSelected = selected.includes(key);
-            const locked = !isSelected && selected.length >= BOOSTS_PER_SET;
-            const mod = characterContext.abilityMods[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                disabled={locked}
-                data-ability={key}
-                aria-pressed={isSelected}
-                onClick={(): void => {
-                  toggle(key);
-                }}
-                className={[
-                  'flex flex-col items-center rounded border px-2 py-3 transition-colors',
-                  isSelected
-                    ? 'border-pf-primary bg-pf-tertiary/40'
-                    : locked
-                      ? 'cursor-not-allowed border-pf-border bg-pf-bg opacity-40'
-                      : 'border-pf-border bg-pf-bg hover:bg-pf-tertiary/20',
-                ].join(' ')}
-              >
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">
-                  {key.toUpperCase()}
-                </span>
-                <BoostedMod mod={mod} boosted={isSelected} />
-                <span className="text-[10px] text-pf-alt">{ABILITY_LABEL[key]}</span>
-              </button>
-            );
-          })}
-        </div>
-        <footer className="flex items-center justify-end gap-2 border-t border-pf-border px-4 py-2">
+  return (
+    <PickerDialog
+      title={`Ability Boosts (Level ${level.toString()})`}
+      ariaLabel={`Ability boosts for level ${level.toString()}`}
+      onClose={onClose}
+      maxWidthClass="max-w-md"
+      testId="ability-boost-picker"
+      footer={
+        <>
           <button
             type="button"
             onClick={onClose}
@@ -179,9 +103,46 @@ export function AbilityBoostPicker({
           >
             Apply {selected.length}/{BOOSTS_PER_SET}
           </button>
-        </footer>
+        </>
+      }
+    >
+      <p className="border-b border-pf-border px-4 py-2 text-xs text-pf-alt">
+        Pick {BOOSTS_PER_SET} distinct abilities to boost. <span className="tabular-nums">{selected.length}</span>/
+        {BOOSTS_PER_SET} selected.
+      </p>
+      <div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto p-4 sm:grid-cols-3">
+        {ABILITY_KEYS.map((key) => {
+          const isSelected = selected.includes(key);
+          const locked = !isSelected && selected.length >= BOOSTS_PER_SET;
+          const mod = characterContext.abilityMods[key];
+          return (
+            <button
+              key={key}
+              type="button"
+              disabled={locked}
+              data-ability={key}
+              aria-pressed={isSelected}
+              onClick={(): void => {
+                toggle(key);
+              }}
+              className={[
+                'flex flex-col items-center rounded border px-2 py-3 transition-colors',
+                isSelected
+                  ? 'border-pf-primary bg-pf-tertiary/40'
+                  : locked
+                    ? 'cursor-not-allowed border-pf-border bg-pf-bg opacity-40'
+                    : 'border-pf-border bg-pf-bg hover:bg-pf-tertiary/20',
+              ].join(' ')}
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+                {key.toUpperCase()}
+              </span>
+              <BoostedMod mod={mod} boosted={isSelected} />
+              <span className="text-[10px] text-pf-alt">{ABILITY_LABEL[key]}</span>
+            </button>
+          );
+        })}
       </div>
-    </div>,
-    document.body,
+    </PickerDialog>
   );
 }
