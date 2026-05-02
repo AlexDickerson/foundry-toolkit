@@ -4,8 +4,8 @@
   "isRoll": true,
   "type": 5,
   "timestamp": 1698765432000,
-  "flavor": "<strong>Strike</strong>: Longsword",
-  "content": "<div class=\"dice-roll\"><div class=\"dice-result\"><div class=\"dice-formula\">1d20 + 8</div><div class=\"dice-tooltip\"></div><h4 class=\"dice-total\">24</h4></div></div>",
+  "flavor": "<h4 class=\"action\"><strong>Strike</strong>: Longsword</h4>",
+  "content": "19",
   "speaker": { "alias": "Valeros", "actor": "actor001" },
   "whisper": [],
   "author": { "id": "user001", "name": "Player1" },
@@ -13,8 +13,6 @@
     {
       "formula": "1d20 + 8",
       "total": 24,
-      "isCritical": true,
-      "isFumble": false,
       "dice": [{ "faces": 20, "results": [{ "result": 16, "active": true }] }]
     }
   ],
@@ -22,12 +20,13 @@
     "pf2e": {
       "context": {
         "type": "attack-roll",
-        "actor": "actor001",
-        "item": "weapon001",
-        "target": { "actor": "targetActor001", "token": "targetToken001" }
+        "actor": "Actor.actor001",
+        "item": "Item.weapon001",
+        "target": { "actor": "Actor.targetActor001", "token": "Scene.scene001.Token.targetToken001" },
+        "outcome": "criticalSuccess",
+        "dc": null
       },
-      "origin": { "actor": "actor001", "type": "character" },
-      "outcomePrecise": "criticalSuccess"
+      "origin": { "actor": "Actor.actor001", "type": "character" }
     }
   }
 }

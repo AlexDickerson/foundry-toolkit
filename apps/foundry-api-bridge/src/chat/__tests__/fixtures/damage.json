@@ -4,28 +4,28 @@
   "isRoll": true,
   "type": 5,
   "timestamp": 1698765435000,
-  "flavor": "Longsword Damage",
-  "content": "<div class=\"dice-roll\"><div class=\"dice-result\"><div class=\"dice-formula\">2d8[slashing] + 5[slashing]</div><h4 class=\"dice-total\">14</h4></div></div>",
+  "flavor": "<h4 class=\"action\">\n    <strong>Damage Roll: Longsword</strong>\n    </h4>",
+  "content": "9",
   "speaker": { "alias": "Valeros", "actor": "actor001" },
   "whisper": [],
   "author": { "id": "user001", "name": "Player1" },
   "rolls": [
     {
-      "formula": "2d8[slashing] + 5[slashing]",
-      "total": 14,
-      "isCritical": false,
-      "isFumble": false,
-      "dice": [{ "faces": 8, "results": [{ "result": 5, "active": true }, { "result": 4, "active": true }] }]
+      "formula": "1d8 + 5 slashing",
+      "total": 9,
+      "dice": [{ "faces": 8, "results": [{ "result": 4, "active": true }] }]
     }
   ],
   "flags": {
     "pf2e": {
       "context": {
         "type": "damage-roll",
-        "actor": "actor001",
-        "item": "weapon001"
+        "actor": "Actor.actor001",
+        "item": "Item.weapon001",
+        "target": null,
+        "outcome": "success"
       },
-      "origin": { "actor": "actor001", "type": "character" }
+      "origin": { "actor": "Actor.actor001", "type": "weapon" }
     }
   }
 }

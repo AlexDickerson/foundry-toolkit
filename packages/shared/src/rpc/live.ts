@@ -136,6 +136,7 @@ export const chatStructuredDataSchema = z.discriminatedUnion('kind', [
     parts: z.array(chatDamagePartSchema),
     total: z.number(),
     chips: z.array(chatChipSchema),
+    outcome: z.enum(['criticalSuccess', 'success', 'failure', 'criticalFailure']).optional(),
   }),
   z.object({
     kind: z.literal('skill-check'),

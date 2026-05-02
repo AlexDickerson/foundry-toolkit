@@ -4,8 +4,8 @@
   "isRoll": true,
   "type": 5,
   "timestamp": 1698765445000,
-  "flavor": "Reflex Save",
-  "content": "<div class=\"dice-roll\"><div class=\"dice-result\"><div class=\"dice-formula\">1d20 + 6</div><h4 class=\"dice-total\">8</h4></div></div>",
+  "flavor": "<h4 class=\"action\"><strong>Reflex Saving Throw</strong></h4>",
+  "content": "8",
   "speaker": { "alias": "Valeros", "actor": "actor001" },
   "whisper": [],
   "author": { "id": "user001", "name": "Player1" },
@@ -13,8 +13,6 @@
     {
       "formula": "1d20 + 6",
       "total": 8,
-      "isCritical": false,
-      "isFumble": false,
       "dice": [{ "faces": 20, "results": [{ "result": 2, "active": true }] }]
     }
   ],
@@ -22,11 +20,12 @@
     "pf2e": {
       "context": {
         "type": "saving-throw",
-        "actor": "actor001",
-        "dc": { "value": 22 }
+        "actor": "Actor.actor001",
+        "dc": { "value": 22, "visible": true },
+        "target": { "actor": "Actor.targetActor001", "token": "Scene.scene001.Token.targetToken001" },
+        "outcome": "failure"
       },
-      "origin": { "actor": "actor001", "type": "character" },
-      "outcomePrecise": "failure"
+      "origin": { "actor": "Actor.actor001", "type": "character" }
     }
   }
 }

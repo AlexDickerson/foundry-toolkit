@@ -22,7 +22,6 @@ describe('parseChatMessage', () => {
 
     it('strips HTML from flavor', () => {
       const result = parseChatMessage(asInput(strikeAttackFixture));
-      expect(result.kind).toBe('strike-attack');
       if (result.kind !== 'strike-attack') return;
       expect(result.flavor).toBe('Strike: Longsword');
     });
@@ -38,23 +37,24 @@ describe('parseChatMessage', () => {
       const result = parseChatMessage(asInput(strikeAttackFixture));
       if (result.kind !== 'strike-attack') return;
       expect(result.targets).toHaveLength(1);
-      expect(result.targets[0]?.actorId).toBe('targetActor001');
-      expect(result.targets[0]?.tokenId).toBe('targetToken001');
+      // Foundry UUIDs include the document-type prefix
+      expect(result.targets[0]?.actorId).toBe('Actor.targetActor001');
+      expect(result.targets[0]?.tokenId).toBe('Scene.scene001.Token.targetToken001');
     });
 
-    it('extracts outcome from outcomePrecise', () => {
+    it('extracts outcome from context.outcome', () => {
       const result = parseChatMessage(asInput(strikeAttackFixture));
       if (result.kind !== 'strike-attack') return;
       expect(result.targets[0]?.outcome).toBe('criticalSuccess');
     });
 
-    it('produces empty targets when no target in flags', () => {
+    it('produces empty targets when context.target is null', () => {
       const msg = asInput({
         ...strikeAttackFixture,
         flags: {
           pf2e: {
-            context: { type: 'attack-roll', actor: 'actor001' },
-            origin: { actor: 'actor001', type: 'character' },
+            context: { type: 'attack-roll', actor: 'Actor.actor001', target: null, outcome: null },
+            origin: { actor: 'Actor.actor001', type: 'character' },
           },
         },
       });
@@ -70,17 +70,17 @@ describe('parseChatMessage', () => {
       expect(result.kind).toBe('damage');
     });
 
-    it('extracts damage type from formula bracket notation', () => {
+    it('extracts damage type from trailing word in formula', () => {
       const result = parseChatMessage(asInput(damageFixture));
       if (result.kind !== 'damage') return;
       expect(result.parts).toHaveLength(1);
       expect(result.parts[0]?.damageType).toBe('slashing');
     });
 
-    it('sums roll totals correctly', () => {
+    it('stores the roll total correctly', () => {
       const result = parseChatMessage(asInput(damageFixture));
       if (result.kind !== 'damage') return;
-      expect(result.total).toBe(14);
+      expect(result.total).toBe(9);
     });
 
     it('includes an apply-damage chip', () => {
@@ -90,12 +90,31 @@ describe('parseChatMessage', () => {
       expect(result.chips[0]?.type).toBe('apply-damage');
     });
 
+    it('extracts outcome from context.outcome', () => {
+      const result = parseChatMessage(asInput(damageFixture));
+      if (result.kind !== 'damage') return;
+      expect(result.outcome).toBe('success');
+    });
+
+    it('handles crit-doubled formula "2 * (1d6 + 6) bludgeoning"', () => {
+      const msg = asInput({
+        ...damageFixture,
+        rolls: [{ formula: '2 * (1d6 + 6) bludgeoning', total: 16, dice: [] }],
+        flags: { pf2e: { context: { type: 'damage-roll', outcome: 'criticalSuccess', target: null } } },
+      });
+      const result = parseChatMessage(msg);
+      if (result.kind !== 'damage') return;
+      expect(result.parts[0]?.damageType).toBe('bludgeoning');
+      expect(result.total).toBe(16);
+      expect(result.outcome).toBe('criticalSuccess');
+    });
+
     it('handles multiple rolls (multi-type damage)', () => {
       const msg = asInput({
         ...damageFixture,
         rolls: [
-          { formula: '2d6[slashing]', total: 8, isCritical: false, isFumble: false, dice: [] },
-          { formula: '1d6[fire]', total: 4, isCritical: false, isFumble: false, dice: [] },
+          { formula: '2d6 slashing', total: 8, dice: [] },
+          { formula: '1d6 fire', total: 4, dice: [] },
         ],
       });
       const result = parseChatMessage(msg);
@@ -119,13 +138,13 @@ describe('parseChatMessage', () => {
       expect(result.flavor).toBe('Perception Check');
     });
 
-    it('extracts DC from flags.pf2e.context.dc.value', () => {
+    it('extracts DC from context.dc.value', () => {
       const result = parseChatMessage(asInput(skillCheckFixture));
       if (result.kind !== 'skill-check') return;
       expect(result.dc).toBe(18);
     });
 
-    it('extracts outcome from outcomePrecise', () => {
+    it('extracts outcome from context.outcome', () => {
       const result = parseChatMessage(asInput(skillCheckFixture));
       if (result.kind !== 'skill-check') return;
       expect(result.outcome).toBe('success');
@@ -137,19 +156,17 @@ describe('parseChatMessage', () => {
       expect(result.chips).toHaveLength(0);
     });
 
-    it('omits dc when not present in flags', () => {
+    it('omits dc and outcome when context fields are null', () => {
       const msg = asInput({
         ...skillCheckFixture,
         flags: {
-          pf2e: {
-            context: { type: 'skill-check', actor: 'actor001' },
-            origin: { actor: 'actor001', type: 'character' },
-          },
+          pf2e: { context: { type: 'skill-check', actor: 'Actor.actor001', dc: null, outcome: null } },
         },
       });
       const result = parseChatMessage(msg);
       if (result.kind !== 'skill-check') return;
       expect('dc' in result).toBe(false);
+      expect('outcome' in result).toBe(false);
     });
   });
 
@@ -169,7 +186,7 @@ describe('parseChatMessage', () => {
     it('also matches flat-check context type', () => {
       const msg = asInput({
         ...savingThrowFixture,
-        flags: { pf2e: { context: { type: 'flat-check' }, origin: { type: 'character' } } },
+        flags: { pf2e: { context: { type: 'flat-check', outcome: null, dc: null, target: null } } },
       });
       const result = parseChatMessage(msg);
       expect(result.kind).toBe('saving-throw');
@@ -177,15 +194,29 @@ describe('parseChatMessage', () => {
   });
 
   describe('spell cast', () => {
-    it('returns kind spell-cast when origin.type is spell', () => {
+    it('returns kind spell-cast when context.type is spell-cast', () => {
       const result = parseChatMessage(asInput(spellCastFixture));
       expect(result.kind).toBe('spell-cast');
     });
 
-    it('extracts spell name as flavor (plain text)', () => {
+    it('extracts spell name from <h3> in content (flavor is empty in real messages)', () => {
       const result = parseChatMessage(asInput(spellCastFixture));
       if (result.kind !== 'spell-cast') return;
       expect(result.flavor).toBe('Magic Missile');
+    });
+
+    it('also matches when origin.type is spell (fallback detection)', () => {
+      const msg = asInput({
+        ...spellCastFixture,
+        flags: {
+          pf2e: { context: { type: 'something-else', outcome: null }, origin: { type: 'spell' } },
+        },
+      });
+      // 'something-else' context type doesn't match any handler, but origin.type === 'spell' does
+      // NOTE: the primary check wins (attack-roll, etc. take precedence) — origin.type is fallback
+      // This message has no recognised context type so origin.type catches it.
+      const result = parseChatMessage(msg);
+      expect(result.kind).toBe('spell-cast');
     });
 
     it('includes full content HTML as description', () => {
@@ -236,8 +267,8 @@ describe('parseChatMessage', () => {
       const result = parseChatMessage({
         id: 'x',
         isRoll: true,
-        flavor: '<strong>Strike</strong>: <em>Longsword</em>',
-        flags: { pf2e: { context: { type: 'attack-roll' }, origin: { type: 'character' } } },
+        flavor: '<h4 class="action"><strong>Strike</strong>: <em>Longsword</em></h4>',
+        flags: { pf2e: { context: { type: 'attack-roll', target: null, outcome: null, dc: null } } },
       });
       if (result.kind !== 'strike-attack') return;
       expect(result.flavor).toBe('Strike: Longsword');

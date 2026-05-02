@@ -4,8 +4,8 @@
   "isRoll": true,
   "type": 5,
   "timestamp": 1698765440000,
-  "flavor": "Perception Check",
-  "content": "<div class=\"dice-roll\"><div class=\"dice-result\"><div class=\"dice-formula\">1d20 + 9</div><h4 class=\"dice-total\">21</h4></div></div>",
+  "flavor": "<h4 class=\"action\"><strong>Perception Check</strong></h4>",
+  "content": "21",
   "speaker": { "alias": "Valeros", "actor": "actor001" },
   "whisper": [],
   "author": { "id": "user001", "name": "Player1" },
@@ -13,8 +13,6 @@
     {
       "formula": "1d20 + 9",
       "total": 21,
-      "isCritical": false,
-      "isFumble": false,
       "dice": [{ "faces": 20, "results": [{ "result": 12, "active": true }] }]
     }
   ],
@@ -22,11 +20,12 @@
     "pf2e": {
       "context": {
         "type": "skill-check",
-        "actor": "actor001",
-        "dc": { "value": 18, "slug": "perception" }
+        "actor": "Actor.actor001",
+        "dc": { "value": 18, "visible": true },
+        "target": null,
+        "outcome": "success"
       },
-      "origin": { "actor": "actor001", "type": "character" },
-      "outcomePrecise": "success"
+      "origin": { "actor": "Actor.actor001", "type": "character" }
     }
   }
 }
