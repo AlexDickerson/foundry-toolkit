@@ -1,8 +1,38 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import { api } from '../../api/client';
-import type { CompendiumMatch } from '../../api/types';
-import { FeatPicker } from './FeatPicker';
+import type { CompendiumMatch, CompendiumSearchOptions } from '../../api/types';
+import { CompendiumPicker } from '../picker';
+import { useCreatorPickerProps } from './useCreatorPickerProps';
+
+// Test wrapper that exercises the same surface CharacterCreator uses:
+// useCreatorPickerProps + CompendiumPicker with no characterContext.
+function FeatPicker({
+  title,
+  filters,
+  onPick,
+  onClose,
+}: {
+  title: string;
+  filters: Pick<
+    CompendiumSearchOptions,
+    'packIds' | 'documentType' | 'traits' | 'anyTraits' | 'maxLevel' | 'ancestrySlug'
+  >;
+  onPick: (match: CompendiumMatch) => void;
+  onClose: () => void;
+}): React.ReactElement {
+  const props = useCreatorPickerProps(filters, undefined, onPick);
+  return (
+    <CompendiumPicker
+      title={title}
+      {...props}
+      onClose={onClose}
+      testId="feat-picker"
+      resultsTestId="feat-picker-results"
+      loadMoreTestId="feat-picker-load-more"
+    />
+  );
+}
 
 const sampleMatches: CompendiumMatch[] = [
   {

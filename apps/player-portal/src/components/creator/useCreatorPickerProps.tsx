@@ -1,28 +1,60 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/client';
-import type { CompendiumDocument, CompendiumMatch, CompendiumSearchOptions, CompendiumSource } from '../../api/types';
+import type {
+  CompendiumDocument,
+  CompendiumMatch,
+  CompendiumSearchOptions,
+  CompendiumSource,
+} from '../../api/types';
 import { type RemoteDataState, useRemoteData } from '../../lib/useRemoteData';
 import { evaluateDocument } from '../../prereqs';
 import type { CharacterContext, Evaluation } from '../../prereqs';
-import { CompendiumPicker } from '../picker';
+import type { CompendiumPickerProps } from '../picker';
 import { prefetchDocuments } from './feat-prefetch';
 import { type SortMode, type SortState, FilterSummary, SourcePicker, SortToggle, UnmetToggle } from './FeatFilters';
 import { FeatMatchList } from './FeatMatchRow';
 import { FeatDetailPanel } from './FeatDetailPanel';
 import { useFeatDetail } from './useFeatDetail';
 
-interface Props {
-  title: string;
-  filters: Pick<
-    CompendiumSearchOptions,
-    'packIds' | 'documentType' | 'traits' | 'anyTraits' | 'maxLevel' | 'ancestrySlug'
-  >;
-  characterContext?: CharacterContext;
-  onPick: (match: CompendiumMatch) => void;
-  onClose: () => void;
-}
+type CreatorFilters = Pick<
+  CompendiumSearchOptions,
+  'packIds' | 'documentType' | 'traits' | 'anyTraits' | 'maxLevel' | 'ancestrySlug'
+>;
 
-export function FeatPicker({ title, filters, characterContext, onPick, onClose }: Props): React.ReactElement {
+type CreatorPickerProps = Pick<
+  CompendiumPickerProps,
+  | 'packIds'
+  | 'documentType'
+  | 'traits'
+  | 'anyTraits'
+  | 'maxLevel'
+  | 'ancestrySlug'
+  | 'sources'
+  | 'onPage'
+  | 'onQueryChange'
+  | 'filterItem'
+  | 'sortItems'
+  | 'renderList'
+  | 'filterControls'
+  | 'splitPane'
+> & {
+  /** Wrap the caller's onPick so the prereq detail panel's Pick button works. */
+  onPick: (match: CompendiumMatch) => void;
+};
+
+// All the picker behavior for the character creator: source-book filter,
+// alpha/level sort, prereq evaluation + hide-unmet toggle, prereq-aware
+// row rendering, prereq-breakdown detail panel. Returns props ready to
+// spread onto CompendiumPicker.
+//
+// CharacterCreator passes the result via the spread operator:
+//   const props = useCreatorPickerProps(filters, ctx);
+//   <CompendiumPicker {...props} title={...} onPick={...} onClose={...} />
+export function useCreatorPickerProps(
+  filters: CreatorFilters,
+  characterContext: CharacterContext | undefined,
+  onPickCallback: (match: CompendiumMatch) => void,
+): CreatorPickerProps {
   const [sort, setSort] = useState<SortState>({ mode: 'alpha', dir: 'asc' });
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [evaluations, setEvaluations] = useState<Map<string, Evaluation>>(new Map());
@@ -116,7 +148,6 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
 
   const detailOpen = detailTarget !== null;
 
-  // Stable key for sources dep tracking
   const sourcesKey = selectedSources.join('|');
   const searchSources = useMemo(
     () => (selectedSources.length > 0 ? selectedSources : undefined),
@@ -124,59 +155,61 @@ export function FeatPicker({ title, filters, characterContext, onPick, onClose }
     [sourcesKey],
   );
 
-  return (
-    <CompendiumPicker
-      title={title}
-      packIds={filters.packIds}
-      documentType={filters.documentType}
-      traits={filters.traits}
-      anyTraits={filters.anyTraits}
-      maxLevel={filters.maxLevel}
-      ancestrySlug={filters.ancestrySlug}
-      sources={searchSources}
-      onPage={onPage}
-      onQueryChange={setCurrentQuery}
-      filterItem={filterItem}
-      sortItems={sortItems}
-      renderList={(matches): React.ReactElement => (
-        <FeatMatchList
-          matches={matches}
-          evaluations={evaluations}
-          activeUuid={detailTarget?.uuid}
-          onSelect={setDetailTarget}
-        />
-      )}
-      filterControls={
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <SourcePicker sources={sourcesState} selected={selectedSources} onChange={setSelectedSources} />
-            <UnmetToggle hide={hideUnmet} onChange={setHideUnmet} />
-            <FilterSummary filters={filters} />
-          </div>
-          <SortToggle sort={sort} onChange={onSortClick} />
-        </div>
-      }
-      splitPane={{
-        detailOpen,
-        detailSlot: (
-          <FeatDetailPanel
-            target={detailTarget}
-            detail={detail}
-            prereqCache={prereqCacheRef}
-            onPick={(): void => {
-              if (detailTarget) onPick(detailTarget);
-            }}
-            onClose={(): void => {
-              setDetailTarget(null);
-            }}
-          />
-        ),
-      }}
-      onPick={onPick}
-      onClose={onClose}
-      testId="feat-picker"
-      resultsTestId="feat-picker-results"
-      loadMoreTestId="feat-picker-load-more"
+  const renderList = (matches: CompendiumMatch[]): React.ReactElement => (
+    <FeatMatchList
+      matches={matches}
+      evaluations={evaluations}
+      activeUuid={detailTarget?.uuid}
+      onSelect={setDetailTarget}
     />
   );
+
+  const filterControls = (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
+        <SourcePicker sources={sourcesState} selected={selectedSources} onChange={setSelectedSources} />
+        <UnmetToggle hide={hideUnmet} onChange={setHideUnmet} />
+        <FilterSummary filters={filters} />
+      </div>
+      <SortToggle sort={sort} onChange={onSortClick} />
+    </div>
+  );
+
+  const splitPane = {
+    detailOpen,
+    detailSlot: (
+      <FeatDetailPanel
+        target={detailTarget}
+        detail={detail}
+        prereqCache={prereqCacheRef}
+        onPick={(): void => {
+          if (detailTarget) onPickCallback(detailTarget);
+        }}
+        onClose={(): void => {
+          setDetailTarget(null);
+        }}
+      />
+    ),
+  };
+
+  // Build the props object. `exactOptionalPropertyTypes: true` requires
+  // optional fields to be omitted rather than set to undefined.
+  const props: CreatorPickerProps = {
+    onPick: onPickCallback,
+    onPage,
+    onQueryChange: setCurrentQuery,
+    filterItem,
+    sortItems,
+    renderList,
+    filterControls,
+    splitPane,
+  };
+  if (filters.packIds !== undefined) props.packIds = filters.packIds;
+  if (filters.documentType !== undefined) props.documentType = filters.documentType;
+  if (filters.traits !== undefined) props.traits = filters.traits;
+  if (filters.anyTraits !== undefined) props.anyTraits = filters.anyTraits;
+  if (filters.maxLevel !== undefined) props.maxLevel = filters.maxLevel;
+  if (filters.ancestrySlug !== undefined) props.ancestrySlug = filters.ancestrySlug;
+  if (searchSources !== undefined) props.sources = searchSources;
+  return props;
 }

@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { CompendiumMatch } from '../api/types';
-import { FeatPicker } from '../components/creator/FeatPicker';
+import { useCreatorPickerProps } from '../components/creator/useCreatorPickerProps';
 import { PromptModal } from '../components/creator/PromptModal';
+import { CompendiumPicker } from '../components/picker';
 import { usePendingPrompts } from '../lib/usePendingPrompts';
 
 import { CreatorSection } from './CharacterCreator/CreatorSection';
@@ -359,8 +360,9 @@ export function CharacterCreator(): React.ReactElement {
           </CreatorSection>
 
           {openPicker !== null && pickerFilters !== undefined && (
-            <FeatPicker
-              title={`Choose a ${PICKER_LABEL[openPicker]}`}
+            <CreatorPicker
+              key={openPicker}
+              target={openPicker}
               filters={pickerFilters}
               onPick={applyPick}
               onClose={(): void => {
@@ -376,6 +378,25 @@ export function CharacterCreator(): React.ReactElement {
       {activePrompt !== null && <PromptModal prompt={activePrompt} />}
     </main>
   );
+}
+
+// Small wrapper that lets the wizard render CompendiumPicker directly while
+// still scoping the prereq + sort + source-filter state per picker open.
+// Keying the parent on `target` remounts this component when the user
+// switches from e.g. Ancestry to Class — resetting the picker's local state.
+function CreatorPicker({
+  target,
+  filters,
+  onPick,
+  onClose,
+}: {
+  target: PickerTarget;
+  filters: NonNullable<ReturnType<typeof filtersForTarget>>;
+  onPick: (match: CompendiumMatch) => void;
+  onClose: () => void;
+}): React.ReactElement {
+  const props = useCreatorPickerProps(filters, undefined, onPick);
+  return <CompendiumPicker title={`Choose a ${PICKER_LABEL[target]}`} {...props} onClose={onClose} />;
 }
 
 function StepNav({
