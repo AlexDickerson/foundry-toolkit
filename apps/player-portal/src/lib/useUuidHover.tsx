@@ -205,7 +205,7 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
     handleMouseOut(e.target as Element, (e.relatedTarget as Element | null) ?? null);
   };
 
-  const positions = stack.reduce<Array<{ top?: number; bottom?: number; left: number; maxHeight: number }>>(
+  const positions = stack.reduce<Array<{ top: number; transform?: string; left: number; maxHeight: number }>>(
     (acc, level, idx) => {
       const maxLeft = window.innerWidth - POPOVER_WIDTH - VIEWPORT_EDGE_MARGIN;
       if (idx === 0) {
@@ -224,9 +224,10 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
       const rightOfParent = parent.left + POPOVER_WIDTH + POPOVER_GAP;
       const leftOfParent = parent.left - POPOVER_WIDTH - POPOVER_GAP;
       const left = rightOfParent <= maxLeft ? rightOfParent : Math.max(VIEWPORT_EDGE_MARGIN, leftOfParent);
-      // When the parent used bottom-anchoring (above flip), derive a top for
-      // the sibling popover from the parent's bottom anchor and maxHeight.
-      const nestTop = parent.top ?? window.innerHeight - (parent.bottom ?? 0) - parent.maxHeight;
+      // For above-flipped parents the CSS `top` is the trigger's top edge
+      // (before the translateY shift). Subtract maxHeight to approximate
+      // where the parent's visual top is so nested popovers align with it.
+      const nestTop = parent.transform !== undefined ? parent.top - parent.maxHeight : parent.top;
       acc.push({ top: nestTop, left, maxHeight: parent.maxHeight });
       return acc;
     },
@@ -267,11 +268,11 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
               style={{
                 position: 'fixed',
                 top: pos.top,
-                bottom: pos.bottom,
                 left: pos.left,
                 width: POPOVER_WIDTH,
                 maxHeight: pos.maxHeight,
                 overflowY: 'auto',
+                transform: pos.transform,
               }}
               className="z-50 rounded border border-pf-border bg-pf-bg p-4 text-left shadow-xl"
             >
@@ -294,10 +295,13 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
 // it should scroll internally. Falls back to the side with the most
 // room when neither fits the preferred height.
 //
-// "Above" cases return `bottom` (distance from viewport bottom) instead
-// of `top` so a short popover stays kissing the trigger rather than
-// floating away from it — maxHeight is a cap, not the rendered height.
-export function pickVerticalSlot(anchor: DOMRect): { top?: number; bottom?: number; maxHeight: number } {
+// Above cases set `top` to the anchor's top edge minus the gap and pair
+// it with `transform: translateY(-100%)` — this shifts the element up by
+// its own actual rendered height, so the popover bottom always kisses the
+// trigger with exactly POPOVER_GAP separation regardless of content length.
+// Using CSS `bottom` alone fails when a short popover is inside a subtree
+// whose ancestor has a transform/filter (which overrides fixed positioning).
+export function pickVerticalSlot(anchor: DOMRect): { top: number; transform?: string; maxHeight: number } {
   const viewportH = window.innerHeight;
   const spaceBelow = viewportH - anchor.bottom - POPOVER_GAP - VIEWPORT_EDGE_MARGIN;
   const spaceAbove = anchor.top - POPOVER_GAP - VIEWPORT_EDGE_MARGIN;
@@ -306,7 +310,7 @@ export function pickVerticalSlot(anchor: DOMRect): { top?: number; bottom?: numb
     return { top: anchor.bottom + POPOVER_GAP, maxHeight: POPOVER_PREFERRED_HEIGHT };
   }
   if (spaceAbove >= POPOVER_PREFERRED_HEIGHT) {
-    return { bottom: viewportH - anchor.top + POPOVER_GAP, maxHeight: POPOVER_PREFERRED_HEIGHT };
+    return { top: anchor.top - POPOVER_GAP, transform: 'translateY(-100%)', maxHeight: POPOVER_PREFERRED_HEIGHT };
   }
   // Neither side has preferred height — open on whichever side has
   // more space and cap the popover to that space so the content
@@ -315,7 +319,7 @@ export function pickVerticalSlot(anchor: DOMRect): { top?: number; bottom?: numb
     return { top: anchor.bottom + POPOVER_GAP, maxHeight: Math.max(120, spaceBelow) };
   }
   const h = Math.max(120, spaceAbove);
-  return { bottom: viewportH - anchor.top + POPOVER_GAP, maxHeight: h };
+  return { top: anchor.top - POPOVER_GAP, transform: 'translateY(-100%)', maxHeight: h };
 }
 
 function PopoverBody({ state }: { state: DocState | undefined }): React.ReactElement {
