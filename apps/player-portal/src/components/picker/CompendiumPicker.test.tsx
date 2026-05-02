@@ -175,13 +175,30 @@ describe('CompendiumPicker', () => {
     });
   });
 
-  it('calls onPick with the clicked item via the default row', async () => {
+  it('opens a detail panel on row click and calls onPick on Pick button', async () => {
     const onPick = vi.fn();
-    const { getByText } = render(
-      <CompendiumPicker title="t" packIds={['pf2e.equipment-srd']} onPick={onPick} onClose={vi.fn()} />,
+    const docPromise = new Promise<{ document: { name: string; system: object } }>(() => {
+      // Detail panel fetches the full document; never resolve so the
+      // panel stays in its loading state — Pick button is still clickable.
+    });
+    vi.spyOn(api, 'getCompendiumDocument').mockReturnValue(docPromise as never);
+    const { getByText, getByTestId } = render(
+      <CompendiumPicker
+        title="t"
+        packIds={['pf2e.equipment-srd']}
+        onPick={onPick}
+        onClose={vi.fn()}
+        testId="t-picker"
+      />,
     );
     await waitFor(() => expect(getByText('Alchemist Fire')).toBeTruthy());
+    // Click the row — should NOT immediately pick.
     fireEvent.click(getByText('Alchemist Fire'));
+    expect(onPick).not.toHaveBeenCalled();
+    // Detail panel is now visible.
+    expect(getByTestId('t-picker-detail')).toBeTruthy();
+    // Pick button confirms.
+    fireEvent.click(getByTestId('t-picker-pick'));
     expect(onPick).toHaveBeenCalledWith(sampleMatches[0]);
   });
 

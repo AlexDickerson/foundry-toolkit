@@ -5,6 +5,7 @@ import { api } from '../../api/client';
 import type { CompendiumMatch, CompendiumSearchOptions } from '../../api/types';
 import { useDebounce } from '../../lib/useDebounce';
 import { usePaginatedSearch } from '../../lib/usePaginatedSearch';
+import { CompendiumDetailPanel } from './CompendiumDetailPanel';
 
 // ─── Internal list + states area ──────────────────────────────────────────────
 
@@ -242,39 +243,80 @@ export function CompendiumPicker({
       ? allFilteredMessage
       : emptyMessage;
 
-  const detailOpen = splitPane?.detailOpen ?? false;
+  // Internal detail flow: when the caller doesn't provide a custom splitPane
+  // or renderList, clicking a row opens a built-in detail panel that
+  // mirrors the FeatPicker UX (description, traits, Pick button).
+  const [internalDetailTarget, setInternalDetailTarget] = useState<CompendiumMatch | null>(null);
+  const useInternalDetail = splitPane === undefined && renderList === undefined;
 
   const defaultRenderList = useCallback(
     (items: CompendiumMatch[]): ReactNode => (
       <ul className="grid grid-cols-1 gap-1 p-2">
-        {items.map((m) => (
-          <li key={m.uuid}>
-            <button
-              type="button"
-              onClick={(): void => {
-                onPick(m);
-              }}
-              className="flex w-full items-center gap-2 rounded border border-transparent px-2 py-1 text-left hover:border-pf-primary/60 hover:bg-pf-bg-dark/40"
-              data-pick-uuid={m.uuid}
-            >
-              <img
-                src={m.img}
-                alt=""
-                className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-              />
-              <span className="min-w-0 flex-1 truncate text-sm text-pf-text">{m.name}</span>
-              {typeof m.level === 'number' && (
-                <span className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
-                  Lv {m.level}
-                </span>
-              )}
-            </button>
-          </li>
-        ))}
+        {items.map((m) => {
+          const active = useInternalDetail && internalDetailTarget?.uuid === m.uuid;
+          return (
+            <li key={m.uuid}>
+              <button
+                type="button"
+                onClick={(): void => {
+                  if (useInternalDetail) {
+                    setInternalDetailTarget(m);
+                  } else {
+                    onPick(m);
+                  }
+                }}
+                className={[
+                  'flex w-full items-center gap-2 rounded border px-2 py-1 text-left',
+                  active
+                    ? 'border-pf-primary bg-pf-bg-dark/40'
+                    : 'border-transparent hover:border-pf-primary/60 hover:bg-pf-bg-dark/40',
+                ].join(' ')}
+                data-pick-uuid={m.uuid}
+                data-match-uuid={m.uuid}
+              >
+                <img
+                  src={m.img}
+                  alt=""
+                  className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+                />
+                <span className="min-w-0 flex-1 truncate text-sm text-pf-text">{m.name}</span>
+                {typeof m.level === 'number' && (
+                  <span className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
+                    Lv {m.level}
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     ),
-    [onPick],
+    [onPick, useInternalDetail, internalDetailTarget],
   );
+
+  // When the caller didn't supply splitPane and we're in internal-detail mode,
+  // render a built-in CompendiumDetailPanel beside the list.
+  const effectiveSplitPane: CompendiumPickerSplitPane | undefined = useInternalDetail
+    ? {
+        detailOpen: internalDetailTarget !== null,
+        detailSlot:
+          internalDetailTarget !== null ? (
+            <CompendiumDetailPanel
+              target={internalDetailTarget}
+              onPick={(): void => {
+                onPick(internalDetailTarget);
+                setInternalDetailTarget(null);
+              }}
+              onClose={(): void => {
+                setInternalDetailTarget(null);
+              }}
+              testIdPrefix={testId}
+            />
+          ) : null,
+      }
+    : splitPane;
+
+  const detailOpen = effectiveSplitPane?.detailOpen ?? false;
 
   return createPortal(
     <div
@@ -334,7 +376,7 @@ export function CompendiumPicker({
             ? { remainingCount: state.total - state.items.length }
             : {})}
           loadMoreTestId={loadMoreTestId}
-          splitPane={splitPane}
+          splitPane={effectiveSplitPane}
         />
       </div>
     </div>,
