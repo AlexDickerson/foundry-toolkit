@@ -159,7 +159,7 @@ const api: ElectronAPI = {
   globePinLinkNote: (pin: GlobePin): Promise<GlobePin | null> => ipcRenderer.invoke('globePinLinkNote', pin),
   globeExportPlayerData: (): Promise<boolean> => ipcRenderer.invoke('globeExportPlayerData'),
 
-  // Party inventory (live-synced via foundry-mcp)
+  // Party inventory (DM-local storage for party loot via LootPanel)
   inventoryList: (): Promise<PartyInventoryItem[]> => ipcRenderer.invoke('inventoryList'),
   inventoryUpsert: (item: PartyInventoryItem): Promise<void> => ipcRenderer.invoke('inventoryUpsert', item),
   inventoryDelete: (id: string): Promise<void> => ipcRenderer.invoke('inventoryDelete', id),
