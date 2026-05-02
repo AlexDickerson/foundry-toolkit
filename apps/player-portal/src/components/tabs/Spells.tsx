@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import type { FocusPool, PreparedActorItem, SpellItem, SpellcastingEntryItem } from '../../api/types';
 import { isCantripSpell, isSpellItem, isSpellcastingEntryItem } from '../../api/types';
@@ -7,7 +7,9 @@ import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { useActorAction } from '../../lib/useActorAction';
 import { SectionHeader } from '../common/SectionHeader';
-import { SpellPicker } from '../spells/SpellPicker';
+import { CompendiumPicker } from '../picker';
+
+const SPELL_PACKS: string[] = ['pf2e.spells-srd'];
 
 interface Props {
   items: PreparedActorItem[];
@@ -21,6 +23,10 @@ export function Spells({ items, characterLevel, actorId, onCast, focusPoints }: 
   // Hook first — must run on every render regardless of empty-state.
   const uuidHover = useUuidHover();
   const [pickerEntry, setPickerEntry] = useState<SpellcastingEntryItem | null>(null);
+  const pickerTraits = useMemo(
+    () => (pickerEntry?.system.tradition.value ? [pickerEntry.system.tradition.value] : undefined),
+    [pickerEntry],
+  );
   const entries = items.filter(isSpellcastingEntryItem);
   const spells = items.filter(isSpellItem);
 
@@ -69,9 +75,11 @@ export function Spells({ items, characterLevel, actorId, onCast, focusPoints }: 
       )}
       {uuidHover.popover}
       {pickerEntry !== null && (
-        <SpellPicker
-          entryName={pickerEntry.name}
-          tradition={pickerEntry.system.tradition.value !== '' ? pickerEntry.system.tradition.value : null}
+        <CompendiumPicker
+          title={`Add Spell — ${pickerEntry.name}`}
+          packIds={SPELL_PACKS}
+          documentType="Item"
+          traits={pickerTraits}
           onPick={(match): void => {
             void api.addSpell(actorId, match.uuid, pickerEntry.id);
             setPickerEntry(null);
@@ -79,6 +87,9 @@ export function Spells({ items, characterLevel, actorId, onCast, focusPoints }: 
           onClose={(): void => {
             setPickerEntry(null);
           }}
+          testId="spell-picker"
+          resultsTestId="spell-picker-results"
+          loadMoreTestId="spell-picker-load-more"
         />
       )}
     </section>

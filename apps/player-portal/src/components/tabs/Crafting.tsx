@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiRequestError } from '../../api/client';
 import type {
   CompendiumDocument,
@@ -11,7 +11,9 @@ import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useActorAction } from '../../lib/useActorAction';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { SectionHeader } from '../common/SectionHeader';
-import { FormulaPicker } from '../crafting/FormulaPicker';
+import { CompendiumPicker } from '../picker';
+
+const FORMULA_PACKS: string[] = ['pf2e.equipment-srd', 'pf2e.adventure-specific-items'];
 
 interface Props {
   actorId: string;
@@ -61,6 +63,10 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
   const uuids = useMemo(() => collectUuids(formulas, entries), [formulas, entries]);
   const resolutions = useUuidResolutions(uuids);
   const knownUuids = useMemo(() => new Set(formulas.map((f) => f.uuid)), [formulas]);
+  const filterFormula = useCallback(
+    (m: { uuid: string }) => !knownUuids.has(m.uuid),
+    [knownUuids],
+  );
 
   const addFormula = (uuid: string): void => {
     if (knownUuids.has(uuid)) return;
@@ -133,15 +139,22 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
       )}
       {uuidHover.popover}
       {pickerOpen && (
-        <FormulaPicker
-          alreadyKnown={knownUuids}
-          onPick={(match) => {
+        <CompendiumPicker
+          title="Add Formula"
+          packIds={FORMULA_PACKS}
+          documentType="Item"
+          filterItem={filterFormula}
+          allFilteredMessage="Every match is already in the book."
+          onPick={(match): void => {
             addFormula(match.uuid);
             setPickerOpen(false);
           }}
-          onClose={() => {
+          onClose={(): void => {
             setPickerOpen(false);
           }}
+          testId="formula-picker"
+          resultsTestId="formula-picker-results"
+          loadMoreTestId="formula-picker-load-more"
         />
       )}
     </section>

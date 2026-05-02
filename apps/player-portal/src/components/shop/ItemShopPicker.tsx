@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { CompendiumMatch, CompendiumSearchOptions, ItemPrice, PreparedActorItem } from '../../api/types';
 import { sumActorCoinsCp } from '../../lib/coins';
-import { CompendiumPicker } from '../picker';
+import { PickerResultList } from '../picker';
 import { ShopItemDetail } from './ShopItemDetail';
 import { type ItemGroup, ShopTile } from './ShopTile';
 import { useFitPageSize } from './useFitPageSize';
@@ -319,7 +319,7 @@ export function ItemShopPicker({ items, onBuy, pending, disabledRarities }: Prop
         <p className="text-sm italic text-pf-alt-dark">No items match.</p>
       ) : (
         <div className="relative">
-          <CompendiumPicker
+          <PickerResultList
             items={pageSlice}
             renderList={(slice) => (
               <ul
