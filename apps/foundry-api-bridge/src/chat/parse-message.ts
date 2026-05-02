@@ -37,10 +37,12 @@ export interface ParseInput {
 
 // ── PF2e flag shapes ──────────────────────────────────────────────────────
 // Read defensively with optional chaining throughout.
+// Fields can be absent (optional) OR explicitly null — both variants appear
+// in real Foundry messages depending on message type and world state.
 
 interface Pf2eDcFlags {
   value?: number;
-  slug?: string;
+  visible?: boolean;
 }
 
 interface Pf2eContextTarget {
@@ -52,8 +54,13 @@ interface Pf2eContextFlags {
   type?: string;
   actor?: string;
   item?: string;
-  dc?: Pf2eDcFlags;
-  target?: Pf2eContextTarget;
+  // null when no DC is set or not applicable (e.g. uncontested attack rolls)
+  dc?: Pf2eDcFlags | null;
+  // null when no target is set; actor/token are Foundry Document UUIDs
+  // ("Actor.xxx" / "Scene.xxx.Token.yyy")
+  target?: Pf2eContextTarget | null;
+  // Degree of success: set when Foundry can determine it (DC + roll known)
+  outcome?: string | null;
 }
 
 interface Pf2eOriginFlags {
@@ -64,7 +71,6 @@ interface Pf2eOriginFlags {
 interface Pf2eFlags {
   context?: Pf2eContextFlags;
   origin?: Pf2eOriginFlags;
-  outcomePrecise?: string;
 }
 
 // ── Output types (mirror chatStructuredDataSchema in packages/shared) ─────
@@ -118,7 +124,9 @@ export function parseChatMessage(m: ParseInput): ChatStructuredData {
   if (contextType === 'saving-throw' || contextType === 'flat-check') {
     return parseRollCheck('saving-throw', m, pf2e);
   }
-  if (originType === 'spell') return parseSpellCast(m);
+  // 'spell-cast' appears in context.type; origin.type === 'spell' is a fallback
+  // for spell messages that lack an explicit context type.
+  if (contextType === 'spell-cast' || originType === 'spell') return parseSpellCast(m);
 
   return { kind: 'raw', html: m.content ?? '' };
 }
@@ -127,10 +135,12 @@ export function parseChatMessage(m: ParseInput): ChatStructuredData {
 
 function parseStrikeAttack(m: ParseInput, pf2e: Pf2eFlags | null): ChatStructuredData {
   const ctxTarget = pf2e?.context?.target;
+  // outcome is in context.outcome (null when no target/AC to compare against)
   const outcome = extractOutcome(pf2e);
 
   const targets: ChatTargetResult[] = [];
-  if (ctxTarget?.actor !== undefined) {
+  // ctxTarget is null (explicit) or absent when no target was selected
+  if (ctxTarget != null && ctxTarget.actor !== undefined) {
     const t: ChatTargetResult = { name: '' };
     t.actorId = ctxTarget.actor;
     if (ctxTarget.token !== undefined) t.tokenId = ctxTarget.token;
@@ -146,18 +156,28 @@ function parseStrikeAttack(m: ParseInput, pf2e: Pf2eFlags | null): ChatStructure
   };
 }
 
-function parseDamage(m: ParseInput, _pf2e: Pf2eFlags | null): ChatStructuredData {
+function parseDamage(m: ParseInput, pf2e: Pf2eFlags | null): ChatStructuredData {
   const rolls = m.rolls ?? [];
   const parts = extractDamageParts(rolls);
   const total = rolls.reduce((sum, r) => sum + r.total, 0);
+  const outcome = extractOutcome(pf2e);
 
-  return {
+  const result: {
+    kind: 'damage';
+    flavor: string;
+    parts: ChatDamagePart[];
+    total: number;
+    chips: ChatChip[];
+    outcome?: ChatOutcome;
+  } = {
     kind: 'damage',
     flavor: stripHtml(m.flavor ?? ''),
     parts,
     total,
     chips: [{ type: 'apply-damage', label: 'Apply Damage', params: {} }],
   };
+  if (outcome !== undefined) result.outcome = outcome;
+  return result;
 }
 
 function parseRollCheck(
@@ -184,10 +204,24 @@ function parseRollCheck(
 }
 
 function parseSpellCast(m: ParseInput): ChatStructuredData {
+  // PF2e spell-cast messages have an empty flavor field; the spell name is
+  // in the content HTML inside the first <h3> element. The <h3> also contains
+  // a <span class="action-glyph"> with the action-cost icon — strip those
+  // before extracting plain text so the name doesn't include the glyph number.
+  const content = m.content ?? '';
+  const h3Match = /<h3[^>]*>([\s\S]*?)<\/h3>/i.exec(content);
+  let spellName: string;
+  if (h3Match?.[1] !== undefined) {
+    const h3Text = h3Match[1].replace(/<span[^>]*class="action-glyph"[^>]*>[\s\S]*?<\/span>/gi, '');
+    spellName = stripHtml(h3Text);
+  } else {
+    spellName = stripHtml(m.flavor ?? '');
+  }
+
   return {
     kind: 'spell-cast',
-    flavor: stripHtml(m.flavor ?? ''),
-    description: m.content ?? '',
+    flavor: spellName,
+    description: content,
     chips: [],
   };
 }
@@ -201,7 +235,9 @@ function extractPf2eFlags(flags: Record<string, unknown> | undefined): Pf2eFlags
 }
 
 function extractOutcome(pf2e: Pf2eFlags | null): ChatOutcome | undefined {
-  const o = pf2e?.outcomePrecise;
+  // Outcome lives at flags.pf2e.context.outcome (not outcomePrecise).
+  // null means Foundry could not determine it yet (e.g. no target AC known).
+  const o = pf2e?.context?.outcome;
   if (
     o === 'criticalSuccess' ||
     o === 'success' ||
@@ -214,22 +250,28 @@ function extractOutcome(pf2e: Pf2eFlags | null): ChatOutcome | undefined {
 }
 
 function extractDc(pf2e: Pf2eFlags | null): number | undefined {
-  const val = pf2e?.context?.dc?.value;
+  // dc can be null (no DC set) — treat null the same as absent.
+  const dc = pf2e?.context?.dc;
+  if (dc == null) return undefined;
+  const val = dc.value;
   return typeof val === 'number' ? val : undefined;
 }
 
 function extractDamageParts(rolls: ParseInputRoll[]): ChatDamagePart[] {
   return rolls.map((r) => {
-    const typeMatch = /\[([^\]]+)\]/.exec(r.formula);
+    // PF2e formats damage as "2d6 slashing" or "2 * (1d6 + 6) bludgeoning" —
+    // the damage type is the last word in the formula (never a bare number).
+    const lastWord = /(\w+)\s*$/.exec(r.formula.trim())?.[1];
     const part: ChatDamagePart = { formula: r.formula, total: r.total };
-    const damageType = typeMatch?.[1];
-    if (damageType !== undefined) part.damageType = damageType;
+    if (lastWord !== undefined && !/^\d+$/.test(lastWord)) {
+      part.damageType = lastWord;
+    }
     return part;
   });
 }
 
 // Strip HTML tags so flavor text stored in structured data is plain text.
-// PF2e flavor fields are often `<strong>Strike</strong>: Longsword` etc.
+// PF2e flavor fields are often `<h4><strong>Strike</strong></h4>...` etc.
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').trim();
 }
