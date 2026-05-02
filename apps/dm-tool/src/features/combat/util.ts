@@ -1,4 +1,4 @@
-import type { Combatant, Encounter } from '@foundry-toolkit/shared/types';
+import type { Combatant, Encounter, MonsterDetail } from '@foundry-toolkit/shared/types';
 
 /** Sort combatants by initiative descending, tiebreaking on initiativeMod
  *  (PF2e houserules vary — mod is a reasonable default). Unrolled combatants
@@ -41,6 +41,26 @@ export function reserveMonsterName(combatants: Combatant[], baseName: string): {
     if (m) maxIdx = Math.max(maxIdx, parseInt(m[1], 10));
   }
   return { existing: combatants, next: `${baseName} ${maxIdx + 1}` };
+}
+
+/** Build a monster Combatant from the stat-block fields that matter for
+ *  combat. Separated from the React component so it can be tested without
+ *  rendering or mocking the API. */
+export function buildMonsterCombatant(
+  name: string,
+  displayName: string,
+  detail: Pick<MonsterDetail, 'perception' | 'hp'>,
+): Combatant {
+  return {
+    id: crypto.randomUUID(),
+    kind: 'monster',
+    monsterName: name,
+    displayName,
+    initiativeMod: detail.perception,
+    initiative: null,
+    hp: detail.hp,
+    maxHp: detail.hp,
+  };
 }
 
 function escapeRegex(s: string): string {

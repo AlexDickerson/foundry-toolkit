@@ -1,30 +1,28 @@
 import { useCallback, useState } from 'react';
 import { ChevronLeft, ChevronRight, Dice5, Skull, UploadCloud, UserPlus } from 'lucide-react';
-import type {
-  Combatant,
-  Encounter,
-  MonsterDetail,
-  MonsterSummary,
-  PushEncounterResult,
-} from '@foundry-toolkit/shared/types';
+import type { Combatant, Encounter, PushEncounterResult } from '@foundry-toolkit/shared/types';
 import { api } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { reserveMonsterName, rollD20, sortedCombatants } from '../util';
+import { buildMonsterCombatant, reserveMonsterName, rollD20, sortedCombatants } from '../util';
 import { PushResultDialog } from '../PushResultDialog';
 import { isAlreadyInEncounter } from '../party-picker-utils';
 import { CombatantRow } from './CombatantRow';
-import { AddMonsterPanel } from './AddMonsterPanel';
 import { type PcInput, PartyPickerPanel } from './PartyPickerPanel';
 import { AddPcPanel } from './AddPcPanel';
 
 interface Props {
   encounter: Encounter;
   onChange: (next: Encounter) => Promise<void>;
+  /** Called when the user wants to add a monster. Receives an async callback
+   *  that accepts a monster name and adds it to the current encounter. The
+   *  caller is expected to navigate to the Monsters tab and invoke the
+   *  callback when the user picks. */
+  onRequestMonster: (addByName: (name: string) => Promise<void>) => void;
 }
 
-export function InitiativeTracker({ encounter, onChange }: Props) {
-  const [addMode, setAddMode] = useState<'none' | 'monster' | 'party' | 'pc-manual'>('none');
+export function InitiativeTracker({ encounter, onChange, onRequestMonster }: Props) {
+  const [addMode, setAddMode] = useState<'none' | 'party' | 'pc-manual'>('none');
   const [pushing, setPushing] = useState(false);
   const [pushResult, setPushResult] = useState<PushEncounterResult | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
@@ -111,19 +109,18 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
     [order, update],
   );
 
-  const addMonster = useCallback(
-    (monster: MonsterSummary, detail: MonsterDetail) => {
-      const { existing, next } = reserveMonsterName(encounter.combatants, monster.name);
-      const combatant: Combatant = {
-        id: crypto.randomUUID(),
-        kind: 'monster',
-        monsterName: monster.name,
-        displayName: next,
-        initiativeMod: detail.perception,
-        initiative: null,
-        hp: detail.hp,
-        maxHp: detail.hp,
-      };
+  const addMonsterByName = useCallback(
+    async (name: string) => {
+      let detail;
+      try {
+        detail = await api.monstersGetDetail(name);
+      } catch (e) {
+        console.error(`monstersGetDetail failed for "${name}":`, e);
+        return;
+      }
+      if (!detail) return;
+      const { existing, next } = reserveMonsterName(encounter.combatants, name);
+      const combatant = buildMonsterCombatant(name, next, detail);
       return update({ combatants: [...existing, combatant] });
     },
     [encounter.combatants, update],
@@ -296,22 +293,15 @@ export function InitiativeTracker({ encounter, onChange }: Props) {
       >
         {addMode === 'none' && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button size="sm" variant="outline" onClick={() => setAddMode('monster')}>
+            <Button size="sm" variant="outline" onClick={() => onRequestMonster(addMonsterByName)}>
               <Skull className="mr-1 h-3.5 w-3.5" />
-              Add monster
+              Add monster…
             </Button>
             <Button size="sm" variant="outline" onClick={() => setAddMode('party')}>
               <UserPlus className="mr-1 h-3.5 w-3.5" />
               Add PC
             </Button>
           </div>
-        )}
-        {addMode === 'monster' && (
-          <AddMonsterPanel
-            existing={encounter.combatants}
-            onAdd={(m, d) => void addMonster(m, d)}
-            onClose={() => setAddMode('none')}
-          />
         )}
         {addMode === 'party' && (
           <PartyPickerPanel
