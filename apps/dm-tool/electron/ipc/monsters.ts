@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import type { MonsterDetail, MonsterSearchParams } from '@foundry-toolkit/shared/types';
+import type { MonsterDetail, MonsterSearchParams, MonsterSummary } from '@foundry-toolkit/shared/types';
 import { getPreparedCompendium } from '../compendium/singleton.js';
 import { toMonsterFileUrl } from '../compendium/image-url.js';
 
@@ -12,7 +12,7 @@ import { toMonsterFileUrl } from '../compendium/image-url.js';
  *  them. When foundryMcpUrl is configured the image is served through
  *  foundry-mcp's asset proxy (preferred). Otherwise falls back to the
  *  monster-file:// Electron protocol. */
-function rewriteImageUrls(detail: MonsterDetail, mcpBaseUrl: string | undefined): MonsterDetail {
+function rewriteDetailImageUrls(detail: MonsterDetail, mcpBaseUrl: string | undefined): MonsterDetail {
   return {
     ...detail,
     imageUrl: toMonsterFileUrl(detail.imageUrl, mcpBaseUrl),
@@ -20,9 +20,15 @@ function rewriteImageUrls(detail: MonsterDetail, mcpBaseUrl: string | undefined)
   };
 }
 
+function rewriteSummaryImageUrls(summary: MonsterSummary, mcpBaseUrl: string | undefined): MonsterSummary {
+  return { ...summary, tokenUrl: toMonsterFileUrl(summary.tokenUrl, mcpBaseUrl) };
+}
+
 export function registerMonsterHandlers(foundryMcpUrl?: string): void {
   ipcMain.handle('monstersSearch', (_e, params: MonsterSearchParams) => {
-    return getPreparedCompendium().listMonsters(params ?? {});
+    return getPreparedCompendium()
+      .listMonsters(params ?? {})
+      .then((summaries) => summaries.map((s) => rewriteSummaryImageUrls(s, foundryMcpUrl)));
   });
 
   ipcMain.handle('monstersFacets', () => {
@@ -32,6 +38,6 @@ export function registerMonsterHandlers(foundryMcpUrl?: string): void {
   ipcMain.handle('monstersGetDetail', (_e, name: string) => {
     return getPreparedCompendium()
       .getMonsterByName(name)
-      .then((d) => (d ? rewriteImageUrls(d, foundryMcpUrl) : null));
+      .then((d) => (d ? rewriteDetailImageUrls(d, foundryMcpUrl) : null));
   });
 }

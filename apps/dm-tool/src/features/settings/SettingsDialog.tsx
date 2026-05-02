@@ -23,6 +23,7 @@ import {
   THEMES,
   CHAT_MODELS,
   PARTY_LEVEL,
+  MONSTER_CARD_SIZE,
   type FontFamily,
   type ThemeId,
   type ToolEntry,
@@ -50,6 +51,8 @@ export interface SettingsDialogProps {
   onToolFaviconsChange: (v: boolean) => void;
   partyLevel: number;
   onPartyLevelChange: (n: number) => void;
+  monsterCardSize: number;
+  onMonsterCardSizeChange: (n: number) => void;
 }
 
 export function SettingsDialog({
@@ -72,6 +75,8 @@ export function SettingsDialog({
   onToolFaviconsChange,
   partyLevel,
   onPartyLevelChange,
+  monsterCardSize,
+  onMonsterCardSizeChange,
 }: SettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<SettingsTab>('maps');
@@ -481,7 +486,30 @@ export function SettingsDialog({
                 </div>
               )}
 
-              {tab === 'monsters' && <MonsterPacksSettings />}
+              {tab === 'monsters' && (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="monster-card-size" className="text-xs font-medium">
+                        Card Size
+                      </Label>
+                      <span className="text-xs tabular-nums text-muted-foreground">{monsterCardSize}px</span>
+                    </div>
+                    <Slider
+                      id="monster-card-size"
+                      min={MONSTER_CARD_SIZE.min}
+                      max={MONSTER_CARD_SIZE.max}
+                      step={4}
+                      value={[monsterCardSize]}
+                      onValueChange={(v) => onMonsterCardSizeChange(v[0] ?? monsterCardSize)}
+                    />
+                    <p className="pt-0.5 text-[11px] leading-snug text-muted-foreground">
+                      Width of each card in the monster browser grid. Height scales proportionally.
+                    </p>
+                  </div>
+                  <MonsterPacksSettings />
+                </>
+              )}
 
               {tab === 'items' && <p className="text-xs text-muted-foreground">No item settings yet.</p>}
 

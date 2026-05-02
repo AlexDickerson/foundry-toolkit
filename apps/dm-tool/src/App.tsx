@@ -63,6 +63,8 @@ function MainApp() {
     setToolFavicons,
     partyLevel,
     setPartyLevel,
+    monsterCardSize,
+    setMonsterCardSize,
   } = usePreferences();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('maps');
@@ -172,6 +174,8 @@ function MainApp() {
             onToolFaviconsChange={setToolFavicons}
             partyLevel={partyLevel}
             onPartyLevelChange={setPartyLevel}
+            monsterCardSize={monsterCardSize}
+            onMonsterCardSizeChange={setMonsterCardSize}
           />
         </div>
       </header>
@@ -197,7 +201,7 @@ function MainApp() {
           )}
           {activeTab === 'books' && <BookBrowser keywords={keywords} />}
           {activeTab === 'combat' && <CombatTab partyLevel={partyLevel} anthropicApiKey={anthropicApiKey} />}
-          {activeTab === 'monsters' && <MonsterBrowser keywords={keywords} />}
+          {activeTab === 'monsters' && <MonsterBrowser keywords={keywords} cardSize={monsterCardSize} />}
           {activeTab === 'items' && <ItemBrowser keywords={keywords} />}
           {activeTab === 'globe' && <GlobeViewer />}
           {activeTab === 'inventory' && <InventoryTab />}

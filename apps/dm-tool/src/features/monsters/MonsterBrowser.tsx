@@ -8,7 +8,7 @@ import { MonsterDetailPane } from './MonsterDetailPane';
 import { useMonsterSearch, useMonsterFacets, useMonsterDetail, useOpenExternal } from './useMonsters';
 import type { MonsterSearchParams } from '@foundry-toolkit/shared/types';
 
-export function MonsterBrowser({ keywords = '' }: { keywords?: string }) {
+export function MonsterBrowser({ keywords = '', cardSize }: { keywords?: string; cardSize?: number }) {
   const [filters, setFilters] = useState<MonsterSearchParams>({});
   const [selectedMonster, setSelectedMonster] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
@@ -57,7 +57,13 @@ export function MonsterBrowser({ keywords = '' }: { keywords?: string }) {
         </ResizableSidebar>
 
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-          <MonsterCardGrid monsters={monsters ?? []} error={error} selected={selectedMonster} onSelect={handleSelect} />
+          <MonsterCardGrid
+            monsters={monsters ?? []}
+            error={error}
+            selected={selectedMonster}
+            onSelect={handleSelect}
+            cardSize={cardSize}
+          />
 
           {selectedMonster && detail && (
             <DetailOverlay storageKey="dmtool.detail.monsters" closing={closing} onClosed={handleClosed}>

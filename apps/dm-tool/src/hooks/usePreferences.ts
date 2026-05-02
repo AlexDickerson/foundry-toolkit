@@ -13,6 +13,7 @@ import {
   DEFAULT_CHAT_MODEL,
   DEFAULT_TOOLS,
   PARTY_LEVEL,
+  MONSTER_CARD_SIZE,
   type FontFamily,
   type ThemeId,
   type ToolEntry,
@@ -38,6 +39,8 @@ export interface Preferences {
   setToolFavicons: React.Dispatch<React.SetStateAction<boolean>>;
   partyLevel: number;
   setPartyLevel: React.Dispatch<React.SetStateAction<number>>;
+  monsterCardSize: number;
+  setMonsterCardSize: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export function usePreferences(): Preferences {
@@ -59,6 +62,9 @@ export function usePreferences(): Preferences {
   const [toolFavicons, setToolFavicons] = useState<boolean>(() => readString(STORAGE_KEYS.toolFavicons) === 'true');
   const [partyLevel, setPartyLevel] = useState<number>(() =>
     readNumber(STORAGE_KEYS.partyLevel, PARTY_LEVEL.default, PARTY_LEVEL.min, PARTY_LEVEL.max),
+  );
+  const [monsterCardSize, setMonsterCardSize] = useState<number>(() =>
+    readNumber(STORAGE_KEYS.monsterCardSize, MONSTER_CARD_SIZE.default, MONSTER_CARD_SIZE.min, MONSTER_CARD_SIZE.max),
   );
 
   // Load API key from secure storage on mount
@@ -135,6 +141,10 @@ export function usePreferences(): Preferences {
     writeString(STORAGE_KEYS.partyLevel, String(partyLevel));
   }, [partyLevel]);
 
+  useEffect(() => {
+    writeString(STORAGE_KEYS.monsterCardSize, String(monsterCardSize));
+  }, [monsterCardSize]);
+
   return {
     uiScale,
     setUiScale,
@@ -154,5 +164,7 @@ export function usePreferences(): Preferences {
     setToolFavicons,
     partyLevel,
     setPartyLevel,
+    monsterCardSize,
+    setMonsterCardSize,
   };
 }
