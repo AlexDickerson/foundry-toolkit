@@ -44,44 +44,44 @@ describe('FormulaPicker', () => {
     cleanup();
   });
 
-  it('shows "type to search" prompt when query is empty', () => {
-    const { getByText } = render(
-      <FormulaPicker alreadyKnown={new Set()} onPick={vi.fn()} onClose={vi.fn()} />,
-    );
-    expect(getByText('Type to search the equipment compendium.')).toBeTruthy();
-  });
-
-  it('passes physical item packs and documentType to searchCompendium', async () => {
-    const { getByPlaceholderText } = render(
-      <FormulaPicker alreadyKnown={new Set()} onPick={vi.fn()} onClose={vi.fn()} />,
-    );
-    fireEvent.change(getByPlaceholderText(/search equipment/i), { target: { value: 'fire' } });
+  it('fires a search immediately on open (no query required)', async () => {
+    render(<FormulaPicker alreadyKnown={new Set()} onPick={vi.fn()} onClose={vi.fn()} />);
     await waitFor(() => {
       expect(searchSpy).toHaveBeenCalled();
     });
     const call = searchSpy.mock.calls[0]?.[0];
+    expect(call?.q).toBe('');
     expect(call?.documentType).toBe('Item');
     expect(call?.packIds).toEqual(['pf2e.equipment-srd', 'pf2e.adventure-specific-items']);
-    expect(call?.q).toBe('fire');
   });
 
-  it('renders matched items after search', async () => {
-    const { getByPlaceholderText, getByText } = render(
+  it('renders items immediately on open', async () => {
+    const { getByText } = render(
       <FormulaPicker alreadyKnown={new Set()} onPick={vi.fn()} onClose={vi.fn()} />,
     );
-    fireEvent.change(getByPlaceholderText(/search equipment/i), { target: { value: 'al' } });
     await waitFor(() => {
       expect(getByText('Alchemist Fire')).toBeTruthy();
       expect(getByText('Healing Potion')).toBeTruthy();
     });
   });
 
+  it('narrows results when user types', async () => {
+    searchSpy.mockResolvedValue({ matches: [sampleMatches[0]!], total: 1 });
+    const { getByPlaceholderText, getByText, queryByText } = render(
+      <FormulaPicker alreadyKnown={new Set()} onPick={vi.fn()} onClose={vi.fn()} />,
+    );
+    fireEvent.change(getByPlaceholderText(/filter by name/i), { target: { value: 'fire' } });
+    await waitFor(() => {
+      expect(getByText('Alchemist Fire')).toBeTruthy();
+    });
+    expect(queryByText('Healing Potion')).toBeNull();
+  });
+
   it('filters out alreadyKnown items from results', async () => {
     const knownUuid = 'Compendium.pf2e.equipment-srd.Item.item-a';
-    const { getByPlaceholderText, queryByText, getByText } = render(
+    const { queryByText, getByText } = render(
       <FormulaPicker alreadyKnown={new Set([knownUuid])} onPick={vi.fn()} onClose={vi.fn()} />,
     );
-    fireEvent.change(getByPlaceholderText(/search equipment/i), { target: { value: 'al' } });
     await waitFor(() => {
       expect(getByText('Healing Potion')).toBeTruthy();
     });
@@ -90,10 +90,9 @@ describe('FormulaPicker', () => {
 
   it('shows "every match is already in the book" when all results filtered', async () => {
     const knownUuids = new Set(sampleMatches.map((m) => m.uuid));
-    const { getByPlaceholderText, getByText } = render(
+    const { getByText } = render(
       <FormulaPicker alreadyKnown={knownUuids} onPick={vi.fn()} onClose={vi.fn()} />,
     );
-    fireEvent.change(getByPlaceholderText(/search equipment/i), { target: { value: 'al' } });
     await waitFor(() => {
       expect(getByText('Every match is already in the book.')).toBeTruthy();
     });
@@ -101,10 +100,9 @@ describe('FormulaPicker', () => {
 
   it('calls onPick with the selected match', async () => {
     const onPick = vi.fn();
-    const { getByPlaceholderText, getByText } = render(
+    const { getByText } = render(
       <FormulaPicker alreadyKnown={new Set()} onPick={onPick} onClose={vi.fn()} />,
     );
-    fireEvent.change(getByPlaceholderText(/search equipment/i), { target: { value: 'al' } });
     await waitFor(() => {
       expect(getByText('Alchemist Fire')).toBeTruthy();
     });

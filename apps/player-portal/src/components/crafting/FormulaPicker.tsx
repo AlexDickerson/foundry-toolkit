@@ -26,20 +26,14 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
   const debounced = useDebounce(query, 200);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Search is gated on the query being at least 2 characters. We pass a
-  // stable `enabled` flag into the fetcher — when false it short-circuits
-  // to an empty result so `usePaginatedSearch` doesn't fire a real request.
-  const searchEnabled = debounced.trim().length >= 2;
-
   const {
     state: searchState,
     hasMore,
     isLoadingMore,
     loadMore,
   } = usePaginatedSearch<CompendiumMatch>(
-    async (offset, pageSize) => {
-      if (!searchEnabled) return { matches: [], total: 0 };
-      return api.searchCompendium({
+    async (offset, pageSize) =>
+      api.searchCompendium({
         q: debounced,
         documentType: 'Item',
         // Copy to a mutable array — `CompendiumSearchOptions.packIds`
@@ -47,8 +41,7 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
         packIds: [...PHYSICAL_ITEM_PACKS],
         limit: pageSize,
         offset,
-      });
-    },
+      }),
     [debounced],
   );
 
@@ -77,14 +70,12 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
   );
   const filtered = useMemo(() => allMatches.filter((m) => !alreadyKnown.has(m.uuid)), [allMatches, alreadyKnown]);
 
-  const isSearching = searchEnabled && searchState.kind === 'loading';
+  const isSearching = searchState.kind === 'loading';
   const searchError = searchState.kind === 'error' ? searchState.message : null;
 
-  const emptyMessage = !searchEnabled
-    ? 'Type to search the equipment compendium.'
-    : allMatches.length > 0
-      ? 'Every match is already in the book.'
-      : 'No matches.';
+  const emptyMessage = allMatches.length > 0
+    ? 'Every match is already in the book.'
+    : 'No matches.';
 
   return (
     <div
@@ -116,7 +107,7 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
             onChange={(e) => {
               setQuery(e.target.value);
             }}
-            placeholder="Search equipment by name (min 2 characters)…"
+            placeholder="Filter by name…"
             className="w-full rounded border border-pf-border bg-white px-2 py-1 text-sm text-pf-text focus:border-pf-primary focus:outline-none"
           />
         </div>
