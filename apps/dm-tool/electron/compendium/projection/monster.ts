@@ -5,6 +5,7 @@ import type { MonsterDetail, MonsterSpellGroup, MonsterSpellInfo, MonsterSummary
 import type { CompendiumDocument, CompendiumEmbeddedItem, CompendiumMatch } from '../types.js';
 import {
   cleanDescription,
+  isDefaultIcon,
   isRecord,
   readSystem,
   readPath,
@@ -715,6 +716,7 @@ export function monsterDocToSummary(doc: CompendiumDocument): MonsterSummary {
     traits: monsterTraits(system),
     source: monsterSource(system),
     aonUrl: '',
+    tokenUrl: pickTokenUrl(doc),
   };
 }
 
@@ -740,5 +742,6 @@ export function monsterMatchToSummary(m: CompendiumMatch): MonsterSummary {
     traits: m.traits ?? [],
     source: m.source ?? '',
     aonUrl: '',
+    tokenUrl: m.img && !isDefaultIcon(m.img) ? m.img : null,
   };
 }

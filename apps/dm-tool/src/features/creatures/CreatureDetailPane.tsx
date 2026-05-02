@@ -1,7 +1,7 @@
 // Shared creature stat-block layout used by both the monster browser detail
-// overlay and the combat tracker sidebar. Renders the two-column content area
-// only: left stat column (defenses + saves + abilities) and right scrollable
-// section (speed, skills, attacks, abilities, spells, portrait, AoN link).
+// overlay and the combat tracker sidebar. Renders a single scrollable content
+// area: stats row (defenses, saves, abilities), then speed/skills, attacks,
+// abilities, spells, and AoN link.
 //
 // Identity chrome (name, level/rarity/size/traits, close button) and
 // combat chrome (HP bar, conditions) are the responsibility of each caller.
@@ -25,112 +25,113 @@ export function CreatureDetailPane({ detail, onOpenExternal }: Props) {
   const formattedSkills = formatSkills(detail.skills);
 
   return (
-    <div className="flex min-h-0 flex-1">
-      {/* Left stat column */}
-      <div className="flex w-16 shrink-0 flex-col items-center gap-3 border-r border-border py-3 text-[10px]">
-        <StatCell label="AC" value={String(detail.ac)} />
-        <StatCell label="HP" value={String(detail.hp)} />
-        <Separator className="w-8" />
-        <StatCell label="Fort" value={mod(detail.fort)} />
-        <StatCell label="Ref" value={mod(detail.ref)} />
-        <StatCell label="Will" value={mod(detail.will)} />
-        <StatCell label="Perc" value={mod(detail.perception)} />
-        <Separator className="w-8" />
-        {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((a) => (
-          <StatCell key={a} label={a.toUpperCase()} value={mod(detail[a])} />
-        ))}
-      </div>
-
-      {/* Right scrollable content */}
-      <ScrollArea className="min-h-0 min-w-0 flex-1">
-        <div className="space-y-4 p-4">
-          {/* Speed, Skills, Immunities / Weaknesses / Resistances */}
-          <div className="space-y-1 text-xs">
-            <Stat label="Speed" value={detail.speed} />
-            {formattedSkills && <Stat label="Skills" value={formattedSkills} />}
-            {detail.immunities && <Stat label="Immunities" value={detail.immunities} />}
-            {detail.weaknesses && <Stat label="Weaknesses" value={detail.weaknesses} />}
-            {detail.resistances && <Stat label="Resistances" value={detail.resistances} />}
+    <ScrollArea className="min-h-0 min-w-0 flex-1">
+      <div className="space-y-4 p-4">
+        {/* Stats + token two-column layout */}
+        <div className="flex items-start gap-4">
+          {/* Stats column */}
+          <div className="flex flex-col gap-2 text-[10px]">
+            <div className="flex gap-4">
+              <StatCell label="AC" value={String(detail.ac)} />
+              <StatCell label="HP" value={String(detail.hp)} />
+            </div>
+            <div className="flex gap-4">
+              <StatCell label="Fort" value={mod(detail.fort)} />
+              <StatCell label="Ref" value={mod(detail.ref)} />
+              <StatCell label="Will" value={mod(detail.will)} />
+              <StatCell label="Perc" value={mod(detail.perception)} />
+            </div>
+            <div className="flex gap-4">
+              {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((a) => (
+                <StatCell key={a} label={a.toUpperCase()} value={mod(detail[a])} />
+              ))}
+            </div>
           </div>
 
-          {/* Attacks */}
-          {(detail.melee || detail.ranged) && (
-            <>
-              <Separator />
-              <section>
-                <SectionLabel>Attacks</SectionLabel>
-                <div className="space-y-1.5 text-xs">
-                  {detail.melee &&
-                    cleanFoundryMarkup(detail.melee)
-                      .split(';')
-                      .map((a) => a.trim())
-                      .filter(Boolean)
-                      .map((a, i) => (
-                        <div key={`m${i}`}>
-                          <span className="font-semibold text-muted-foreground">Melee </span>
-                          {a}
-                        </div>
-                      ))}
-                  {detail.ranged &&
-                    cleanFoundryMarkup(detail.ranged)
-                      .split(';')
-                      .map((a) => a.trim())
-                      .filter(Boolean)
-                      .map((a, i) => (
-                        <div key={`r${i}`}>
-                          <span className="font-semibold text-muted-foreground">Ranged </span>
-                          {a}
-                        </div>
-                      ))}
-                </div>
-              </section>
-            </>
-          )}
-
-          {/* Abilities */}
-          {detail.abilities && (
-            <>
-              <Separator />
-              <section>
-                <SectionLabel>Abilities</SectionLabel>
-                <AbilityBlock text={detail.abilities} />
-              </section>
-            </>
-          )}
-
-          {/* Spells */}
-          {detail.spells.length > 0 && (
-            <>
-              <Separator />
-              <section>
-                <SectionLabel>Spells</SectionLabel>
-                <SpellsSection groups={detail.spells} />
-              </section>
-            </>
-          )}
-
-          {/* Full portrait art */}
-          {detail.imageUrl && (
-            <>
-              <Separator />
-              <img src={detail.imageUrl} alt={detail.name} className="w-full rounded-md object-contain" />
-            </>
-          )}
-
-          {/* Archives of Nethys link — opens in the system browser */}
-          {detail.aonUrl && (
-            <button
-              type="button"
-              onClick={() => onOpenExternal(detail.aonUrl)}
-              className="flex items-center gap-1.5 self-start text-xs text-primary hover:underline"
-            >
-              <ExternalLink className="h-3 w-3" />
-              Archives of Nethys
-            </button>
-          )}
+          {/* Full art column */}
+          {detail.imageUrl && <img src={detail.imageUrl} alt="" className="ml-auto h-40 w-40 rounded object-contain" />}
         </div>
-      </ScrollArea>
-    </div>
+
+        <Separator />
+
+        {/* Speed, Skills, Immunities / Weaknesses / Resistances */}
+        <div className="space-y-1 text-xs">
+          <Stat label="Speed" value={detail.speed} />
+          {formattedSkills && <Stat label="Skills" value={formattedSkills} />}
+          {detail.immunities && <Stat label="Immunities" value={detail.immunities} />}
+          {detail.weaknesses && <Stat label="Weaknesses" value={detail.weaknesses} />}
+          {detail.resistances && <Stat label="Resistances" value={detail.resistances} />}
+        </div>
+
+        {/* Attacks */}
+        {(detail.melee || detail.ranged) && (
+          <>
+            <Separator />
+            <section>
+              <SectionLabel>Attacks</SectionLabel>
+              <div className="space-y-1.5 text-xs">
+                {detail.melee &&
+                  cleanFoundryMarkup(detail.melee)
+                    .split(';')
+                    .map((a) => a.trim())
+                    .filter(Boolean)
+                    .map((a, i) => (
+                      <div key={`m${i}`}>
+                        <span className="font-semibold text-muted-foreground">Melee </span>
+                        {a}
+                      </div>
+                    ))}
+                {detail.ranged &&
+                  cleanFoundryMarkup(detail.ranged)
+                    .split(';')
+                    .map((a) => a.trim())
+                    .filter(Boolean)
+                    .map((a, i) => (
+                      <div key={`r${i}`}>
+                        <span className="font-semibold text-muted-foreground">Ranged </span>
+                        {a}
+                      </div>
+                    ))}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Abilities */}
+        {detail.abilities && (
+          <>
+            <Separator />
+            <section>
+              <SectionLabel>Abilities</SectionLabel>
+              <AbilityBlock text={detail.abilities} />
+            </section>
+          </>
+        )}
+
+        {/* Spells */}
+        {detail.spells.length > 0 && (
+          <>
+            <Separator />
+            <section>
+              <SectionLabel>Spells</SectionLabel>
+              <SpellsSection groups={detail.spells} />
+            </section>
+          </>
+        )}
+
+        {/* Archives of Nethys link — opens in the system browser */}
+        {detail.aonUrl && (
+          <button
+            type="button"
+            onClick={() => onOpenExternal(detail.aonUrl)}
+            className="flex items-center gap-1.5 self-start text-xs text-primary hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Archives of Nethys
+          </button>
+        )}
+      </div>
+    </ScrollArea>
   );
 }
 

@@ -118,6 +118,8 @@ export interface MonsterSummary {
   traits: string[];
   source: string;
   aonUrl: string;
+  /** Token image URL, rewritten to monster-file:// or mcp proxy. Null when unavailable. */
+  tokenUrl: string | null;
 }
 
 export interface MonsterSpellInfo {

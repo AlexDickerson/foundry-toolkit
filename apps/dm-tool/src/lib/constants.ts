@@ -18,6 +18,7 @@ export const STORAGE_KEYS = {
   toolUrls: 'dmtool.toolUrls',
   toolFavicons: 'dmtool.toolFavicons',
   partyLevel: 'dmtool.partyLevel',
+  monsterCardSize: 'dmtool.monsterCardSize',
 } as const;
 
 // --- Party level (global) ----------------------------------------------------
@@ -46,6 +47,11 @@ export const HEADER_REMS = 3;
 // --- Thumbnail scale ---------------------------------------------------------
 
 export const THUMB_SCALE = { default: 1, min: 0.7, max: 2 } as const;
+
+// --- Monster card size -------------------------------------------------------
+
+/** Width of a monster browser card in px. Height scales at a fixed 108:200 ratio. */
+export const MONSTER_CARD_SIZE = { default: 108, min: 72, max: 200 } as const;
 
 // --- Font families -----------------------------------------------------------
 
