@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyFoundryInitiativeUpdate, sortedCombatants } from './util';
+import { applyFoundryInitiativeUpdate, buildMonsterCombatant, sortedCombatants } from './util';
 import type { Combatant, Encounter } from '@foundry-toolkit/shared/types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -29,6 +29,39 @@ function makeEncounter(overrides: Partial<Encounter> & { id: string }): Encounte
     ...overrides,
   };
 }
+
+// ─── buildMonsterCombatant ────────────────────────────────────────────────────
+
+describe('buildMonsterCombatant', () => {
+  it('creates a monster combatant with stats from the detail', () => {
+    const result = buildMonsterCombatant('Goblin', 'Goblin', { perception: 7, hp: 16 });
+    expect(result.kind).toBe('monster');
+    expect(result.monsterName).toBe('Goblin');
+    expect(result.displayName).toBe('Goblin');
+    expect(result.initiativeMod).toBe(7);
+    expect(result.hp).toBe(16);
+    expect(result.maxHp).toBe(16);
+    expect(result.initiative).toBeNull();
+    expect(typeof result.id).toBe('string');
+    expect(result.id.length).toBeGreaterThan(0);
+  });
+
+  it('uses displayName for numbered duplicates when name and displayName differ', () => {
+    const result = buildMonsterCombatant('Goblin', 'Goblin 2', { perception: 7, hp: 16 });
+    expect(result.monsterName).toBe('Goblin');
+    expect(result.displayName).toBe('Goblin 2');
+  });
+
+  it('always starts with null initiative (not yet rolled)', () => {
+    const result = buildMonsterCombatant('Ancient Dragon', 'Ancient Dragon', { perception: 32, hp: 450 });
+    expect(result.initiative).toBeNull();
+  });
+
+  it('assigns maxHp equal to hp', () => {
+    const result = buildMonsterCombatant('Troll', 'Troll', { perception: 5, hp: 115 });
+    expect(result.hp).toBe(result.maxHp);
+  });
+});
 
 // ─── sortedCombatants ─────────────────────────────────────────────────────────
 

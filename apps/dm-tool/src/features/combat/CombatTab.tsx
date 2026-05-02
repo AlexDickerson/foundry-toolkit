@@ -21,9 +21,10 @@ import { useFoundryHpSync } from './useFoundryHpSync';
 interface CombatTabProps {
   partyLevel: number;
   anthropicApiKey: string;
+  onRequestMonster: (addByName: (name: string) => Promise<void>) => void;
 }
 
-export function CombatTab({ partyLevel, anthropicApiKey }: CombatTabProps) {
+export function CombatTab({ partyLevel, anthropicApiKey, onRequestMonster }: CombatTabProps) {
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -153,7 +154,7 @@ export function CombatTab({ partyLevel, anthropicApiKey }: CombatTabProps) {
               }}
             >
               <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-                <InitiativeTracker encounter={active} onChange={saveEncounter} />
+                <InitiativeTracker encounter={active} onChange={saveEncounter} onRequestMonster={onRequestMonster} />
               </div>
               <LootPanel
                 encounter={active}

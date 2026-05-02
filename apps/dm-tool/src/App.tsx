@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Backpack, BookOpen, Globe, Map, MessageSquare, Search, Skull, Swords, Trophy, Wrench } from 'lucide-react';
 import { MapBrowser } from './features/map-browser/MapBrowser';
 import { BookBrowser } from './features/book-browser/BookBrowser';
@@ -55,12 +55,37 @@ function MainApp() {
   } = usePreferences();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('maps');
+  // When the user clicks "Add monster…" in the Combat tab, this stores the
+  // callback that will add the chosen monster to the encounter. MonsterBrowser
+  // enters pick mode and calls it on selection, then we switch back to Combat.
+  // Cleared automatically whenever the user leaves the Monsters tab.
+  const [pendingCombatAdd, setPendingCombatAdd] = useState<((name: string) => Promise<void>) | null>(null);
   // Bumped when pack mapping is imported via Settings so MapBrowser
   // knows to re-fetch. Passed as a prop — MapBrowser watches it.
   const [packMappingVersion, setPackMappingVersion] = useState(0);
   const [activeToolId, setActiveToolId] = useState(toolUrls[0]?.id ?? '');
   const [chatOpen, setChatOpen] = useState(false);
   const [keywords, setKeywords] = useState('');
+
+  // Cancel pick mode if the user navigates away from Monsters by any means.
+  useEffect(() => {
+    if (activeTab !== 'monsters') setPendingCombatAdd(null);
+  }, [activeTab]);
+
+  const handleRequestMonster = useCallback((addByName: (name: string) => Promise<void>) => {
+    setPendingCombatAdd(() => addByName);
+    setActiveTab('monsters');
+  }, []);
+
+  const handleMonsterPick = useCallback(
+    async (name: string) => {
+      if (!pendingCombatAdd) return;
+      await pendingCombatAdd(name).catch((e) => console.error('addMonsterByName failed:', e));
+      setPendingCombatAdd(null);
+      setActiveTab('combat');
+    },
+    [pendingCombatAdd],
+  );
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
@@ -177,8 +202,21 @@ function MainApp() {
             />
           )}
           {activeTab === 'books' && <BookBrowser keywords={keywords} />}
-          {activeTab === 'combat' && <CombatTab partyLevel={partyLevel} anthropicApiKey={anthropicApiKey} />}
-          {activeTab === 'monsters' && <MonsterBrowser keywords={keywords} cardSize={monsterCardSize} />}
+          {activeTab === 'combat' && (
+            <CombatTab
+              partyLevel={partyLevel}
+              anthropicApiKey={anthropicApiKey}
+              onRequestMonster={handleRequestMonster}
+            />
+          )}
+          {activeTab === 'monsters' && (
+            <MonsterBrowser
+              keywords={keywords}
+              cardSize={monsterCardSize}
+              onPick={pendingCombatAdd ? handleMonsterPick : undefined}
+              onPickCancel={pendingCombatAdd ? () => setActiveTab('combat') : undefined}
+            />
+          )}
           {activeTab === 'items' && <ItemBrowser keywords={keywords} />}
           {activeTab === 'globe' && <GlobeViewer />}
           {activeTab === 'aurus' && <AurusTab />}
