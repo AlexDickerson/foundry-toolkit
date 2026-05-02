@@ -42,10 +42,11 @@ services:
       ALLOW_EVAL: ${ALLOW_EVAL:-0}
       HOST: 0.0.0.0
       PORT: '8765'
-      # Give foundry-mcp read access to Foundry's data dir for compendium packs.
+      # foundry-mcp needs read access (compendium packs) and write access
+      # (upload_asset writes map images into Data/maps/ when pushing scenes).
       FOUNDRY_DATA: /foundry-data
     volumes:
-      - foundry-data:/foundry-data:ro
+      - foundry-data:/foundry-data
     depends_on:
       - foundry
     networks:
