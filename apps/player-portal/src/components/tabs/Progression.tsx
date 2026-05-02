@@ -65,9 +65,10 @@ const slotKey = (level: number, slot: SlotType): SlotKey => `${level.toString()}
 // The current character level is highlighted; past levels are muted,
 // future levels render as a normal preview.
 //
-// Class-feat slots are clickable — they open a compendium-search modal
-// (FeatPicker) scoped to the character's class trait and capped at the
-// slot's level. Picks for current/past levels write to Foundry immediately;
+// Class-feat slots are clickable — they open a CompendiumPicker scoped
+// to the character's class trait and capped at the slot's level (with
+// the creator's prereq + source-filter behavior layered in via
+// useCreatorPickerProps). Picks for current/past levels write to Foundry immediately;
 // picks for future levels are stored in flags only and auto-applied when
 // the character reaches that level.
 export function Progression({ actorId, characterLevel, items, characterContext, onActorChanged, persistedPicks }: Props): React.ReactElement {
@@ -516,7 +517,7 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
       </div>
       {pickedHover.popover}
       {pickerTarget && pickerFilters && (
-        <ProgressionFeatPicker
+        <ProgressionPicker
           key={`${pickerTarget.level.toString()}:${pickerTarget.slot}`}
           title={pickerTitleFor(pickerTarget.slot, pickerTarget.level)}
           filters={pickerFilters}
@@ -1166,7 +1167,7 @@ type _CreatorFilters = {
     | 'ancestrySlug']?: CompendiumSearchOptions[K];
 };
 
-function ProgressionFeatPicker({
+function ProgressionPicker({
   title,
   filters,
   characterContext,

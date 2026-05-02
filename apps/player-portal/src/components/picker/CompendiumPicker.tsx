@@ -226,8 +226,10 @@ export function CompendiumPicker({
       : emptyMessage;
 
   // Internal detail flow: when the caller doesn't provide a custom splitPane
-  // or renderList, clicking a row opens a built-in detail panel that
-  // mirrors the FeatPicker UX (description, traits, Pick button).
+  // or renderList, clicking a row opens a built-in CompendiumDetailPanel
+  // (description, traits, Pick button). Callers that need a custom detail
+  // panel — e.g. character-creator picks with prereq breakdown — provide
+  // their own splitPane and renderList instead.
   const [internalDetailTarget, setInternalDetailTarget] = useState<CompendiumMatch | null>(null);
   const useInternalDetail = splitPane === undefined && renderList === undefined;
 

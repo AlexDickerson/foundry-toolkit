@@ -19,8 +19,9 @@ interface Props {
 // Generic detail panel for the built-in CompendiumPicker detail flow.
 // Fetches the full document for description + price + spell metadata,
 // and renders a Pick button so callers can confirm the selection.
-// Pickers needing prereq-aware behavior (FeatPicker) provide their own
-// detail panel via the splitPane prop instead.
+// Picker callers that need prereq-aware detail (the character creator
+// and Progression class-feat picker) provide their own panel via the
+// CompendiumPicker `splitPane` prop instead.
 export function CompendiumDetailPanel({ target, onPick, onClose, testIdPrefix }: Props): React.ReactElement {
   const [state, setState] = useState<Resolution>({ kind: 'loading' });
 
