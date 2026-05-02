@@ -113,16 +113,16 @@ describe('FormulaPicker', () => {
   it('calls onClose when Escape is pressed', () => {
     const onClose = vi.fn();
     render(<FormulaPicker alreadyKnown={new Set()} onPick={vi.fn()} onClose={onClose} />);
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
 
   it('calls onClose when backdrop is clicked', () => {
     const onClose = vi.fn();
-    const { getByRole } = render(
+    const { getByTestId } = render(
       <FormulaPicker alreadyKnown={new Set()} onPick={vi.fn()} onClose={onClose} />,
     );
-    fireEvent.click(getByRole('dialog'));
+    fireEvent.click(getByTestId('formula-picker'));
     expect(onClose).toHaveBeenCalled();
   });
 });

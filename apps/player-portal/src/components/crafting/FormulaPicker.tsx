@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../api/client';
 import type { CompendiumMatch } from '../../api/types';
 import { useDebounce } from '../../lib/useDebounce';
@@ -15,12 +16,14 @@ interface Props {
   onClose: () => void;
 }
 
-// Dedicated formula picker. Searches pf2e physical-item packs by free
-// text; filters to items with a declared max level so it skips the
-// ~thousand treasure entries that don't have a craftable recipe in
-// practice. Deliberately narrower than the `ItemShopPicker` (which
-// carries buy/sell buttons + coin math) since crafting just needs a
-// uuid to hand off to the bridge.
+// Equipment packs pf2e ships in its SRD. Keeping the list narrow
+// prevents searches from pulling bestiary/feat packs; widen when
+// real use cases surface.
+const PHYSICAL_ITEM_PACKS: readonly string[] = [
+  'pf2e.equipment-srd',
+  'pf2e.adventure-specific-items',
+];
+
 export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.ReactElement {
   const [query, setQuery] = useState('');
   const debounced = useDebounce(query, 200);
@@ -36,8 +39,6 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
       api.searchCompendium({
         q: debounced,
         documentType: 'Item',
-        // Copy to a mutable array — `CompendiumSearchOptions.packIds`
-        // is typed `string[]`, not `readonly string[]`.
         packIds: [...PHYSICAL_ITEM_PACKS],
         limit: pageSize,
         offset,
@@ -49,54 +50,62 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
     inputRef.current?.focus();
   }, []);
 
-  // Trap Esc to close.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
+    function onKey(e: KeyboardEvent): void {
       if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
+    }
+    document.addEventListener('keydown', onKey);
     return (): void => {
-      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey);
     };
   }, [onClose]);
 
-  // Filter out already-known items client-side on top of the server results.
-  // `allMatches` is memoised to produce a stable reference when the search
-  // state hasn't changed, preventing useMemo from seeing new array identity
-  // on every render when the search is in the loading/error state.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return (): void => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
+  // Filter out already-known items client-side on top of server results.
   const allMatches = useMemo(
     () => (searchState.kind === 'ready' ? searchState.items : []),
     [searchState],
   );
-  const filtered = useMemo(() => allMatches.filter((m) => !alreadyKnown.has(m.uuid)), [allMatches, alreadyKnown]);
+  const filtered = useMemo(
+    () => allMatches.filter((m) => !alreadyKnown.has(m.uuid)),
+    [allMatches, alreadyKnown],
+  );
 
-  const isSearching = searchState.kind === 'loading';
-  const searchError = searchState.kind === 'error' ? searchState.message : null;
+  const isLoading = searchState.kind === 'loading';
+  const error = searchState.kind === 'error' ? searchState.message : null;
+  const emptyMessage = allMatches.length > 0 ? 'Every match is already in the book.' : 'No matches.';
 
-  const emptyMessage = allMatches.length > 0
-    ? 'Every match is already in the book.'
-    : 'No matches.';
-
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4 sm:p-8"
-      onClick={(e) => {
-        // Backdrop click closes; click inside the dialog shouldn't.
-        if (e.target === e.currentTarget) onClose();
-      }}
       role="dialog"
       aria-modal="true"
       aria-label="Add formula"
+      data-testid="formula-picker"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-pf-text/50 p-4 pt-[10vh]"
+      onClick={onClose}
     >
-      <div className="flex max-h-full w-full max-w-2xl flex-col rounded border border-pf-primary/60 bg-pf-bg shadow-xl">
-        <header className="flex items-center justify-between gap-3 border-b border-pf-border px-4 py-2">
-          <h2 className="font-serif text-base font-semibold uppercase tracking-wide text-pf-alt-dark">Add Formula</h2>
+      <div
+        className="flex max-h-[80vh] w-full max-w-xl flex-col rounded border border-pf-border bg-pf-bg shadow-xl"
+        onClick={(e): void => {
+          e.stopPropagation();
+        }}
+      >
+        <header className="flex items-center justify-between border-b border-pf-border px-4 py-2">
+          <h2 className="font-serif text-lg font-semibold text-pf-text">Add Formula</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-neutral-300 bg-white px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-50"
+            aria-label="Close picker"
+            className="rounded px-2 py-0.5 text-lg text-pf-alt-dark hover:bg-pf-bg-dark hover:text-pf-primary"
           >
-            Close
+            ×
           </button>
         </header>
         <div className="border-b border-pf-border px-4 py-2">
@@ -104,16 +113,17 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
             ref={inputRef}
             type="search"
             value={query}
-            onChange={(e) => {
+            onChange={(e): void => {
               setQuery(e.target.value);
             }}
             placeholder="Filter by name…"
-            className="w-full rounded border border-pf-border bg-white px-2 py-1 text-sm text-pf-text focus:border-pf-primary focus:outline-none"
+            className="w-full rounded border border-pf-border bg-pf-bg px-2 py-1 text-sm text-pf-text placeholder:text-pf-alt focus:border-pf-primary focus:outline-none"
+            data-testid="formula-picker-input"
           />
         </div>
         <CompendiumPicker
-          isLoading={isSearching}
-          error={searchError}
+          isLoading={isLoading}
+          error={error}
           items={filtered}
           emptyMessage={emptyMessage}
           renderList={(items) => (
@@ -122,7 +132,7 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
                 <li key={m.uuid}>
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(): void => {
                       onPick(m);
                     }}
                     className="flex w-full items-center gap-2 rounded border border-transparent px-2 py-1 text-left hover:border-pf-primary/60 hover:bg-pf-bg-dark/40"
@@ -147,17 +157,14 @@ export function FormulaPicker({ alreadyKnown, onPick, onClose }: Props): React.R
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={loadMore}
+          {...(searchState.kind === 'ready'
+            ? { remainingCount: searchState.total - searchState.items.length }
+            : {})}
           loadMoreTestId="formula-picker-load-more"
+          resultsTestId="formula-picker-results"
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
-
-// Equipment packs pf2e ships in its SRD. Keeping the list narrow
-// prevents searches from pulling bestiary/feat packs; widen when
-// real use cases surface.
-const PHYSICAL_ITEM_PACKS: readonly string[] = [
-  'pf2e.equipment-srd',
-  'pf2e.adventure-specific-items',
-];
