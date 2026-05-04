@@ -60,13 +60,8 @@ describe('buildSheetSurfaceStyle', () => {
     expect(style?.backgroundImage).not.toContain('url(//');
   });
 
-  it('includes the overlay gradient', () => {
+  it('sets cover background-size', () => {
     const style = buildSheetSurfaceStyle('modules/character-creator-bg/actor.png');
-    expect(style?.backgroundImage).toMatch(/^linear-gradient\(var\(--pf-bg-overlay\)/);
-  });
-
-  it('sets cover background-size for the image layer', () => {
-    const style = buildSheetSurfaceStyle('modules/character-creator-bg/actor.png');
-    expect(style?.backgroundSize).toBe('auto, cover');
+    expect(style?.backgroundSize).toBe('cover');
   });
 });

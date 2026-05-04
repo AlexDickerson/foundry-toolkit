@@ -9,18 +9,14 @@ export function readBackgroundPath(character: PreparedCharacter): string | null 
   return raw.replace(/\\/g, '/');
 }
 
-// Layers a semi-transparent overlay on top of the user's image so arbitrary
-// artwork (dark, busy, saturated) stays readable behind the sheet content.
-// Uses var(--pf-bg-overlay) so the overlay colour follows the portal theme
-// toggle (light: cream parchment at 88%, dark: navy at 88%).
 export function buildSheetSurfaceStyle(bgPath: string | null): CSSProperties | undefined {
   if (!bgPath) return undefined;
   const url = bgPath.startsWith('/') ? bgPath : `/${bgPath}`;
   return {
-    backgroundImage: `linear-gradient(var(--pf-bg-overlay), var(--pf-bg-overlay)), url(${url})`,
-    backgroundSize: 'auto, cover',
-    backgroundPosition: 'center, center',
-    backgroundRepeat: 'no-repeat, no-repeat',
-    backgroundAttachment: 'local, local',
+    backgroundImage: `url(${url})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+    backgroundAttachment: 'local',
   };
 }
