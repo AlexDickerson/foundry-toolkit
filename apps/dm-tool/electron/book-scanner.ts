@@ -76,7 +76,7 @@ function walk(rootPath: string, dir: string, out: ScannedFile[]): void {
 
 /** Derive category/subcategory/ruleset from the relative path segments.
  *  Exported for unit-testability if we ever add tests. */
-export function classifyPath(parts: string[]): {
+function classifyPath(parts: string[]): {
   category: string;
   subcategory: string | null;
   ruleset: 'legacy' | 'remastered' | null;
@@ -107,7 +107,7 @@ export function classifyPath(parts: string[]): {
  *  for apostrophes (`Player_s Guide`) and ampersands (`Guns _ Gears`).
  *
  *  Exported so we can reuse the same logic in the reader title bar. */
-export function normalizeTitle(fileName: string): string {
+function normalizeTitle(fileName: string): string {
   let s = fileName;
   // Strip .pdf (case-insensitive).
   if (s.toLowerCase().endsWith('.pdf')) s = s.slice(0, -4);

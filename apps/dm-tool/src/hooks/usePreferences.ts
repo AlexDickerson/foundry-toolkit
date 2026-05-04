@@ -20,7 +20,7 @@ import {
 } from '@/lib/constants';
 import { readJson, readNumber, readString, writeJson, writeString } from '@/lib/storage-utils';
 
-export interface Preferences {
+interface Preferences {
   uiScale: number;
   setUiScale: React.Dispatch<React.SetStateAction<number>>;
   thumbScale: number;

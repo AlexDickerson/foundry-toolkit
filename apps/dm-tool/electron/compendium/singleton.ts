@@ -37,7 +37,7 @@ let prepared: PreparedCompendium | null = null;
 let availableActorPacks: Set<string> | null = null;
 let availableActorPacksFetch: Promise<void> | null = null;
 
-export interface InitPreparedCompendiumOptions {
+interface InitPreparedCompendiumOptions {
   /** foundry-mcp base URL, e.g. `http://server.ad:8765`. Trailing slash
    *  is tolerated; an empty string throws. */
   foundryMcpUrl: string;

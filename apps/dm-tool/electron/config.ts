@@ -197,14 +197,6 @@ export function loadBootstrapConfig(): BootstrapConfig {
   return { dbPath: join(app.getPath('userData'), 'dm-tool.db') };
 }
 
-/** Path the setup IPC should write the bootstrap config.json to. Prefers
- *  the dev location (apps/dm-tool/config.json) when not packaged, falls
- *  back to userData otherwise. */
-export function bootstrapConfigWritePath(): string {
-  if (app.isPackaged) return join(app.getPath('userData'), 'config.json');
-  return join(process.cwd(), 'config.json');
-}
-
 // ---------------------------------------------------------------------------
 // Settings load (reads the DB)
 // ---------------------------------------------------------------------------

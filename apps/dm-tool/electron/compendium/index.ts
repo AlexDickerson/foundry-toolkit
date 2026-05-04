@@ -107,14 +107,5 @@ export function createCompendiumApi(opts: CreateCompendiumApiOptions): Compendiu
   };
 }
 
-export type { CompendiumApi as default };
 export { CompendiumRequestError } from './client.js';
-export type {
-  ApiError,
-  CompendiumDocument,
-  CompendiumMatch,
-  CompendiumPack,
-  CompendiumSearchOptions,
-  CompendiumSource,
-  ItemPrice,
-} from './types.js';
+export type { CompendiumPack } from './types.js';

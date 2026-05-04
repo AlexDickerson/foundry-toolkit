@@ -36,7 +36,6 @@ import { getItemFacetsIndex, getMonsterFacetsIndex } from './facets-index.js';
 import type { CompendiumApi } from './index.js';
 import {
   itemDocToBrowserDetail,
-  itemDocToLootShortlistItem,
   itemMatchToBrowserRow,
   monsterDocToDetail,
   monsterDocToResult,
@@ -97,7 +96,7 @@ export interface PreparedCompendium {
   buildLootShortlist(partyLevel: number): Promise<LootShortlistItem[]>;
 }
 
-export interface PreparedCompendiumOptions {
+interface PreparedCompendiumOptions {
   /** Resolver called at each monster-facing query to decide which
    *  compendium packs to search. Invoked once per outer call so changes
    *  (e.g. via Settings → Monsters) take effect immediately — no
@@ -536,7 +535,3 @@ function matchToLootShortlistItem(m: CompendiumMatch): LootShortlistItem {
     source: null,
   };
 }
-
-// Exported for tests that want to exercise the projection without
-// reinstantiating the factory.
-export { itemDocToLootShortlistItem };

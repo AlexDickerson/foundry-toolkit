@@ -39,7 +39,7 @@ export function NavItem({
 }
 
 /** Expandable nav group — chevron + label + count, with children. */
-export function NavGroup({
+function NavGroup({
   name,
   count,
   active,

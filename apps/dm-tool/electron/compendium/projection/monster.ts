@@ -137,7 +137,7 @@ function formatAttackList(raw: unknown): string {
 }
 
 export const formatMelee = formatAttackList;
-export const formatRanged = formatAttackList;
+const formatRanged = formatAttackList;
 
 // ---------------------------------------------------------------------------
 // PF2e processed-actor strike format
