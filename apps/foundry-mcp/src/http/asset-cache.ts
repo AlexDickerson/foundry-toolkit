@@ -12,7 +12,7 @@
 // preserve insertion order so the first-iterated key is always the
 // least-recently-used.
 
-export interface AssetCacheEntry {
+interface AssetCacheEntry {
   contentType: string;
   body: Buffer;
   /** HTTP status — 200 for real assets, 404 for negative-cached dead paths. */
@@ -21,7 +21,7 @@ export interface AssetCacheEntry {
   expiresAt: number | null;
 }
 
-export interface AssetCacheStats {
+interface AssetCacheStats {
   entries: number;
   bytes: number;
   capBytes: number;

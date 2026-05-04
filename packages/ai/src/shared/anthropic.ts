@@ -10,7 +10,7 @@ import { ANTHROPIC_API_URL, ANTHROPIC_API_VERSION } from './constants.js';
 
 export type VisionMediaType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
 
-export interface AnthropicCallInput {
+interface AnthropicCallInput {
   apiKey: string;
   model: string;
   maxTokens: number;

@@ -1,6 +1,6 @@
 const MAX_ENTRIES = 500;
 
-export interface LogEntry {
+interface LogEntry {
   ts: string;
   level: 'info' | 'warn' | 'error';
   msg: string;
