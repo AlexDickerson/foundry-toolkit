@@ -1,6 +1,6 @@
 import type { JournalPageResult, JournalResult } from '@/commands/types';
 
-export interface FoundryJournalPage {
+interface FoundryJournalPage {
   id: string;
   name: string;
   type: string;
@@ -14,12 +14,12 @@ export interface FoundryPageUpdateData {
   };
 }
 
-export interface FoundryPagesCollection {
+interface FoundryPagesCollection {
   get(id: string): FoundryJournalPage | undefined;
   map<T>(callback: (page: FoundryJournalPage) => T): T[];
 }
 
-export interface FoundryJournalEntry {
+interface FoundryJournalEntry {
   id: string;
   name: string;
   folder: { id: string } | null;
@@ -53,7 +53,7 @@ export interface JournalEntryConstructor {
   create(data: FoundryJournalCreateData): Promise<FoundryJournalEntry>;
 }
 
-export interface FoundryJournalCollection {
+interface FoundryJournalCollection {
   get(id: string): FoundryJournalEntry | undefined;
 }
 

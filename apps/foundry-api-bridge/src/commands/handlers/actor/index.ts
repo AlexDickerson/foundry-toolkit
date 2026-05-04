@@ -2,7 +2,7 @@ export { createActorHandler } from './CreateActorHandler';
 export { createActorFromCompendiumHandler } from './CreateActorFromCompendiumHandler';
 export { updateActorHandler } from './UpdateActorHandler';
 export { deleteActorHandler } from './DeleteActorHandler';
-export { invokeActorActionHandler, KNOWN_ACTIONS } from './InvokeActorActionHandler';
+export { invokeActorActionHandler } from './InvokeActorActionHandler';
 export { getActorsHandler } from './GetActorsHandler';
 export { getActorHandler } from './GetActorHandler';
 export { getPreparedActorHandler } from './GetPreparedActorHandler';

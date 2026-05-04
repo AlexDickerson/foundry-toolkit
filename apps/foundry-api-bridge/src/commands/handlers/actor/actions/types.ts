@@ -31,7 +31,7 @@ export interface FoundryActor {
   getStatistic?: (slug: string) => Pf2eStatistic | null;
 }
 
-export interface Pf2eStatistic {
+interface Pf2eStatistic {
   roll(args: {
     skipDialog?: boolean;
     createMessage?: boolean;
@@ -39,7 +39,7 @@ export interface Pf2eStatistic {
   }): Promise<FoundryD20Roll | null>;
 }
 
-export interface Pf2eStrikeVariant {
+interface Pf2eStrikeVariant {
   roll(args: Record<string, unknown>): Promise<unknown>;
 }
 
@@ -65,7 +65,7 @@ interface ActorsCollection {
   get(id: string): FoundryActor | undefined;
 }
 
-export type PF2eActionFn = (options: Record<string, unknown>) => Promise<unknown>;
+type PF2eActionFn = (options: Record<string, unknown>) => Promise<unknown>;
 
 interface FoundryGame {
   actors: ActorsCollection;
@@ -91,11 +91,11 @@ export type ActionHandler = (actor: FoundryActor, params: Record<string, unknown
 // Spell-related types shared by get-spellcasting and cast-spell.
 export type SpellPreparationMode = 'prepared' | 'spontaneous' | 'innate' | 'focus' | 'ritual' | 'items';
 
-export interface Pf2eSpellcasting {
+interface Pf2eSpellcasting {
   get(id: string): Pf2eSpellcastingEntry | undefined;
 }
 
-export interface Pf2eSpellcastingEntry {
+interface Pf2eSpellcastingEntry {
   cast(spell: Pf2eSpellItem, opts: { rank?: number; slot?: number }): Promise<unknown>;
 }
 

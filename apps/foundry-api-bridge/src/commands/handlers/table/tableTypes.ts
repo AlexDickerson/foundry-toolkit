@@ -14,7 +14,7 @@ export interface FoundryTableResult {
   documentId: string | undefined;
 }
 
-export interface FoundryTableResultsCollection {
+interface FoundryTableResultsCollection {
   contents: FoundryTableResult[];
 }
 
@@ -39,11 +39,11 @@ export interface FoundryRollTable {
   delete(): Promise<FoundryRollTable>;
 }
 
-export interface FoundryRollTableConstructor {
+interface FoundryRollTableConstructor {
   create(data: Record<string, unknown>): Promise<FoundryRollTable>;
 }
 
-export interface FoundryTablesCollection {
+interface FoundryTablesCollection {
   get(id: string): FoundryRollTable | undefined;
   forEach(fn: (table: FoundryRollTable) => void): void;
   documentClass: FoundryRollTableConstructor;

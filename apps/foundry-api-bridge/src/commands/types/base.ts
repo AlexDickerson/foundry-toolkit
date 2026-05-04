@@ -279,8 +279,6 @@ export type CommandType =
   | 'get-party-stash'
   | 'dispatch';
 
-export type CommandHandler<TParams = unknown, TResult = unknown> = (params: TParams) => Promise<TResult>;
-
 export interface CommandParamsMap {
   'roll-dice': RollDiceParams;
   'get-world-info': GetWorldInfoParams;

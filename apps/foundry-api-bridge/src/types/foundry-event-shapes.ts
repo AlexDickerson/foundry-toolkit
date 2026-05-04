@@ -15,20 +15,6 @@ export interface FoundryD20Roll {
   isFumble: boolean;
 }
 
-export interface FoundryDamageRoll {
-  total: number;
-  formula: string;
-  terms: FoundryDiceTerm[];
-}
-
-export interface RollDialogConfig {
-  configure: boolean;
-}
-
-export interface RollMessageConfig {
-  create: boolean;
-}
-
 // Superset of the FoundryRoll shapes in itemTypes.ts (required terms) and
 // tableTypes.ts (no terms). tableTypes only needs {total, formula}.
 export interface FoundryRoll {
@@ -50,14 +36,10 @@ export interface ActorItem {
   toMessage?(args?: Record<string, unknown>): Promise<unknown>;
 }
 
-export type FoundryItem = ActorItem;
-
 export interface ActorItemsCollection {
   contents?: ActorItem[];
   get(id: string): ActorItem | undefined;
 }
-
-export type FoundryItemsCollection = ActorItemsCollection;
 
 // Superset of FoundryActor across actorTypes.ts, itemTypes.ts, and
 // actor/actions/types.ts. PF2e-specific methods are optional.
@@ -179,23 +161,3 @@ export interface FoundryScenesCollection {
   forEach?(fn: (scene: FoundryScene) => void): void;
 }
 
-// ── Game global shim ──────────────────────────────────────────────────────
-
-// Base Foundry game global shape covering the actors + packs slice.
-// Handler files that need combat, tables, journal, etc. declare domain-specific
-// extensions locally. The `declare const game: FoundryGame` idiom in each
-// handler file narrows this to whatever properties the handler actually reads.
-export interface FoundryGame {
-  actors?: ActorsCollection & {
-    documentClass?: {
-      create(data: Record<string, unknown>): Promise<FoundryActor>;
-      createDocuments(data: Record<string, unknown>[]): Promise<FoundryActor[]>;
-    };
-  };
-  packs?: PacksCollection;
-  scenes?: FoundryScenesCollection;
-  messages?: { contents: Array<{ id: string; isRoll?: boolean }> };
-  pf2e?: {
-    actions?: Record<string, ((options: Record<string, unknown>) => Promise<unknown>) | undefined>;
-  };
-}

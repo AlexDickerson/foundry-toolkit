@@ -10,7 +10,6 @@ export {
   updateActorHandler,
   deleteActorHandler,
   invokeActorActionHandler,
-  KNOWN_ACTIONS,
   getActorsHandler,
   getActorHandler,
   getPreparedActorHandler,

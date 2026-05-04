@@ -7,7 +7,7 @@ export interface CollisionChecker {
   testCollision(origin: Point, destination: Point, config: { type: string; mode: string }): boolean;
 }
 
-export interface PathfinderConfig {
+interface PathfinderConfig {
   startX: number;
   startY: number;
   endX: number;

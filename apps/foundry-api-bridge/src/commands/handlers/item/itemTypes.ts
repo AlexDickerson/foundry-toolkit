@@ -9,7 +9,7 @@ export interface FoundryRoll {
   isFumble?: boolean;
 }
 
-export interface ActivityConsumeConfig {
+interface ActivityConsumeConfig {
   resources?: boolean;
   spellSlot?: boolean;
   action?: boolean;
@@ -23,11 +23,11 @@ export interface ActivityUsageConfig {
   event?: { shiftKey?: boolean };
 }
 
-export interface ActivityDialogConfig {
+interface ActivityDialogConfig {
   configure?: boolean;
 }
 
-export interface ActivityMessageConfig {
+interface ActivityMessageConfig {
   create?: boolean;
 }
 
@@ -42,13 +42,13 @@ export interface FoundryActivity {
   ): Promise<FoundryUsageResult | null>;
 }
 
-export interface FoundryActivitiesCollection {
+interface FoundryActivitiesCollection {
   contents: FoundryActivity[];
   get(id: string): FoundryActivity | undefined;
   find(predicate: (activity: FoundryActivity) => boolean): FoundryActivity | undefined;
 }
 
-export interface FoundryItemSystem {
+interface FoundryItemSystem {
   activities?: FoundryActivitiesCollection;
   uses?: { value: number; max: number; per: string };
   quantity?: number;
@@ -60,7 +60,7 @@ export interface FoundryItemSystem {
   range?: Record<string, unknown>;
 }
 
-export interface FoundryChatMessage {
+interface FoundryChatMessage {
   id: string;
 }
 
@@ -83,7 +83,7 @@ export interface FoundryItem {
   displayCard(message?: { create?: boolean }): Promise<FoundryChatMessage | null>;
 }
 
-export interface FoundryItemsCollection {
+interface FoundryItemsCollection {
   contents: FoundryItem[];
   get(id: string): FoundryItem | undefined;
 }
@@ -102,33 +102,33 @@ export interface FoundryTargetToken {
   setTarget(targeted: boolean, options?: { user?: FoundryUser; releaseOthers?: boolean }): void;
 }
 
-export interface FoundryCanvasTokensLayer {
+interface FoundryCanvasTokensLayer {
   get(id: string): FoundryTargetToken | undefined;
 }
 
-export interface FoundryCanvasScene {
+interface FoundryCanvasScene {
   createEmbeddedDocuments(type: string, data: Record<string, unknown>[]): Promise<unknown[]>;
 }
 
-export interface FoundryCanvas {
+interface FoundryCanvas {
   tokens: FoundryCanvasTokensLayer;
   scene: FoundryCanvasScene | undefined;
 }
 
-export interface FoundryUser {
+interface FoundryUser {
   id: string;
   targets: Set<FoundryTargetToken>;
 }
 
-export interface FoundryModule {
+interface FoundryModule {
   active: boolean;
 }
 
-export interface FoundryModulesCollection {
+interface FoundryModulesCollection {
   get(id: string): FoundryModule | undefined;
 }
 
-export interface MidiWorkflowToken {
+interface MidiWorkflowToken {
   id: string;
 }
 
@@ -142,7 +142,7 @@ export interface MidiWorkflow {
   failedSaves?: Set<MidiWorkflowToken>;
 }
 
-export interface FoundryHooks {
+interface FoundryHooks {
   once(hook: string, callback: (workflow: MidiWorkflow) => void): number;
   off(hook: string, id: number): void;
 }
@@ -169,22 +169,22 @@ export function isMidiQolActive(): boolean {
   return getGame().modules.get('midi-qol')?.active ?? false;
 }
 
-export interface AbilityTemplateDocument {
+interface AbilityTemplateDocument {
   toObject(): Record<string, unknown>;
   updateSource(data: Record<string, unknown>): void;
 }
 
-export interface AbilityTemplateInstance {
+interface AbilityTemplateInstance {
   document: AbilityTemplateDocument;
   drawPreview(): Promise<unknown>;
 }
 
-export interface AbilityTemplateClass {
+interface AbilityTemplateClass {
   fromActivity(activity: FoundryActivity): AbilityTemplateInstance[];
   prototype: { drawPreview: () => Promise<unknown> };
 }
 
-export interface Dnd5eCanvas {
+interface Dnd5eCanvas {
   AbilityTemplate: AbilityTemplateClass;
 }
 
