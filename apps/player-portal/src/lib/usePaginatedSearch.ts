@@ -16,12 +16,12 @@ export function computeHasMore(total: number, loadedCount: number): boolean {
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-export type PaginatedState<T> =
+type PaginatedState<T> =
   | { kind: 'loading' }
   | { kind: 'ready'; items: T[]; total: number }
   | { kind: 'error'; message: string };
 
-export interface UsePaginatedSearchOptions<T> {
+interface UsePaginatedSearchOptions<T> {
   pageSize?: number;
   /** Called after each successful page fetch with only the NEW items for
    *  that page. Use for background work like document prefetch.
@@ -30,7 +30,7 @@ export interface UsePaginatedSearchOptions<T> {
   onPage?: (newItems: T[], isCancelled: () => boolean) => void;
 }
 
-export interface UsePaginatedSearchResult<T> {
+interface UsePaginatedSearchResult<T> {
   state: PaginatedState<T>;
   /** True when server has items beyond those already accumulated. */
   hasMore: boolean;

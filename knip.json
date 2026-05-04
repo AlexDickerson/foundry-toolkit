@@ -25,7 +25,8 @@
       "ignore": ["src/config/index.ts"]
     },
     "apps/player-portal": {
-      "ignoreDependencies": ["@eslint/js"]
+      "ignoreDependencies": ["@eslint/js"],
+      "ignore": ["src/api/types/**", "src/components/tabs/Proficiencies.tsx"]
     },
     "packages/ai": {
       "entry": [

@@ -51,7 +51,7 @@ export async function prefetchDocuments(
   await Promise.all(workers);
 }
 
-export async function resolvePrereqsForDoc(
+async function resolvePrereqsForDoc(
   doc: CompendiumDocument,
   cache: Map<string, string | null>,
   isCancelled: () => boolean,

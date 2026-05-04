@@ -1,4 +1,4 @@
-import { Outlet, useOutletContext } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { usePortalTheme } from '../hooks/usePortalTheme';
 import { Nav } from './Nav';
 import type { AuthUser } from '../api/auth';
@@ -6,11 +6,6 @@ import type { AuthUser } from '../api/auth';
 interface LayoutContext {
   user: AuthUser;
   onSignOut: () => void;
-}
-
-/** Typed accessor for child routes that need the auth context. */
-export function useLayoutContext(): LayoutContext {
-  return useOutletContext<LayoutContext>();
 }
 
 interface Props {

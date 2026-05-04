@@ -51,7 +51,7 @@ interface RequestOptions {
   body?: unknown;
 }
 
-export interface LongRestResponse {
+interface LongRestResponse {
   ok: boolean;
   messageCount: number;
 }

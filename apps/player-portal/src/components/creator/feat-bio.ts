@@ -1,6 +1,6 @@
 import type { CompendiumDocument } from '../../api/types';
 
-export interface DetailBio {
+interface DetailBio {
   description?: string;
   prerequisites?: string[];
   actions?: string;

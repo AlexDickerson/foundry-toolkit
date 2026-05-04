@@ -99,7 +99,7 @@ export function ItemRow({
   );
 }
 
-export function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement {
+function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement {
   const card = useExpandableCard();
   return (
     <li className="relative" data-item-id={item.id} data-item-type={item.type}>
@@ -244,7 +244,7 @@ export function GridTile({
 
 // Bare description block — used inside the list-mode absolute panel
 // and the grid-mode floating card (each brings its own container styling).
-export function ItemDescription({ item }: { item: PhysicalItem }): React.ReactElement {
+function ItemDescription({ item }: { item: PhysicalItem }): React.ReactElement {
   const description = (item.system.description as { value?: unknown } | undefined)?.value;
   const enriched = typeof description === 'string' && description.length > 0 ? enrichDescription(description) : '';
   if (enriched.length === 0) {

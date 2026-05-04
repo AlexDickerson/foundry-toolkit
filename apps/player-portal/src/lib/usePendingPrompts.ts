@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 // `PromptRequestPayload` type on the module side — kept as a plain
 // structural type here rather than imported so the frontend has no
 // module-package dep.
-export interface PendingPromptPayload {
+interface PendingPromptPayload {
   title: string;
   prompt: string;
   item: { name: string | null; img: string | null; uuid: string | null };

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 // exposes a programmatic `window.__shopMode.set({...})` API for the
 // DM client to flip the flag remotely.
 
-export interface ShopModeState {
+interface ShopModeState {
   enabled: boolean;
   // Fraction of an item's price that the player receives when selling.
   // 0.5 is the pf2e baseline; rolled lower by haggle, up by lore.

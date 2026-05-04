@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export interface ExpandableCardHandle {
+interface ExpandableCardHandle {
   isOpen: boolean;
   open: () => void;
   close: () => void;

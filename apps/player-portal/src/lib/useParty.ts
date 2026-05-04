@@ -4,7 +4,7 @@ import type { PartyForMember, PartyMember, PartyRef } from '@foundry-toolkit/sha
 import { api } from '../api/client';
 import { useEventChannel } from './useEventChannel';
 
-export interface UsePartyResult {
+interface UsePartyResult {
   party: PartyRef | null;
   members: PartyMember[];
   isLoading: boolean;

@@ -1,7 +1,5 @@
 export { fromPreparedCharacter } from './character-context';
-export { parsePrerequisite } from './parser';
-export { evaluateAll, evaluatePredicate } from './evaluator';
-export type { CharacterContext, Evaluation, Predicate } from './types';
+export type { CharacterContext, Evaluation } from './types';
 
 import type { CompendiumDocument } from '../api/types';
 import { parsePrerequisite } from './parser';

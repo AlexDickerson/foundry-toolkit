@@ -33,7 +33,7 @@ export interface ItemGroup {
 }
 
 // Known quality tiers with explicit sort order.
-export const QUALITY_ORDER: Record<string, number> = {
+const QUALITY_ORDER: Record<string, number> = {
   minor: 0,
   lesser: 1,
   moderate: 2,
@@ -63,7 +63,7 @@ export const QUALITY_ORDER: Record<string, number> = {
   'rank 9': 18,
 };
 
-export const QUALITY_WORD_RE =
+const QUALITY_WORD_RE =
   /\b(minor|lesser|moderate|greater|major|true|young|adult|wyrm|[1-9](?:st|nd|rd|th)-rank|rank\s+[1-9])(?:\s+spell)?\b/i;
 
 /** Splits "Name (Variant)" into `{ base, variant }`. Only strips the
@@ -78,7 +78,7 @@ export function parseItemName(name: string): { base: string; variant: string | n
 /** Sort rank for a variant string. Known quality keywords get explicit
  *  ranks; unknown variants sort alphabetically (rank 99); the base item
  *  with no variant sorts first (-1). */
-export function variantRank(variant: string | null): number {
+function variantRank(variant: string | null): number {
   if (variant === null) return -1;
   const m = QUALITY_WORD_RE.exec(variant);
   return m ? (QUALITY_ORDER[(m[1] as string).toLowerCase()] ?? 99) : 99;

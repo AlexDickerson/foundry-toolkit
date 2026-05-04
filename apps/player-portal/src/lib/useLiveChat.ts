@@ -13,7 +13,7 @@
 import { useEffect, useState } from 'react';
 import { chatMessageSnapshotSchema, type ChatMessageSnapshot } from '@foundry-toolkit/shared/rpc';
 
-export interface LiveChatState {
+interface LiveChatState {
   messages: ChatMessageSnapshot[];
   /** 'loading' until the first backfill or SSE open. */
   status: 'loading' | 'connected' | 'disconnected';

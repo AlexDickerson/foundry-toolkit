@@ -294,6 +294,6 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-export function toAbsoluteUrl(relativePath: string): string {
+function toAbsoluteUrl(relativePath: string): string {
   return relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
 }

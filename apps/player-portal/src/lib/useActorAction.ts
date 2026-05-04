@@ -8,7 +8,7 @@ export type ActorActionState = 'idle' | 'pending' | { error: string };
  * option is set. Callers render a `ConfirmDialog` keyed off this value
  * instead of relying on `window.confirm()`.
  */
-export interface ConfirmingState {
+interface ConfirmingState {
   message: string;
   accept: () => void;
   cancel: () => void;
