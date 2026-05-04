@@ -123,11 +123,18 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
     }
   });
 
+  const bgPath = state.kind === 'ready' ? readBackgroundPath(state.actor) : null;
+
   return (
     // Two-column layout on large screens: sheet on the left, chat sidebar
     // on the right in the previously-empty column space. Single column on
     // narrower viewports where the sidebar would be too cramped.
-    <div className="flex gap-6 py-6 font-sans">
+    // Background image (when set) spans all three columns so it covers
+    // everything below the nav bar — party rail, sheet, and chat.
+    <div
+      className={`flex gap-6 py-6 font-sans${bgPath ? ' min-h-full' : ''}`}
+      style={buildSheetSurfaceStyle(bgPath)}
+    >
       {/* ── Party rail (left column, desktop only) ───────────────────── */}
       <div className="hidden w-[230px] shrink-0 pl-3 lg:block">
         <PartyRail party={party} members={members} currentActorId={actorId} />
@@ -176,11 +183,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
         )}
 
         {state.kind === 'ready' && (
-          <div
-            data-testid="sheet-surface"
-            style={buildSheetSurfaceStyle(readBackgroundPath(state.actor))}
-            className={readBackgroundPath(state.actor) ? '-mx-4 rounded-lg px-4 py-2' : undefined}
-          >
+          <div data-testid="sheet-surface">
             <SheetHeader
               character={state.actor}
               actorId={actorId}
