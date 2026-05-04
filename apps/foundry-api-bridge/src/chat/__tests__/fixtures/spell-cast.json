@@ -1,0 +1,25 @@
+{
+  "id": "spellMsg001",
+  "uuid": "ChatMessage.spellMsg001",
+  "isRoll": false,
+  "type": 5,
+  "timestamp": 1698765450000,
+  "flavor": "",
+  "content": "<div class=\"pf2e chat-card item-card\"><header class=\"card-header flexrow\"><img src=\"icons/magic/fire/flame.webp\" alt=\"Magic Missile\"><h3>Magic Missile <span class=\"action-glyph\">1</span></h3></header><p>You send a dart of force streaking toward a creature that you can see. It automatically hits and deals 1d4+1 force damage.</p></div>",
+  "speaker": { "alias": "Ezren", "actor": "actor002" },
+  "whisper": [],
+  "author": { "id": "user001", "name": "Player1" },
+  "rolls": [],
+  "flags": {
+    "pf2e": {
+      "context": {
+        "type": "spell-cast",
+        "actor": "Actor.actor002",
+        "target": null,
+        "outcome": null
+      },
+      "origin": { "actor": "Actor.actor002", "type": "spell" },
+      "casting": { "id": "spellSlot001", "tradition": "arcane" }
+    }
+  }
+}

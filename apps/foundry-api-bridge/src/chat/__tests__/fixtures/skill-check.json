@@ -1,0 +1,31 @@
+{
+  "id": "skillMsg001",
+  "uuid": "ChatMessage.skillMsg001",
+  "isRoll": true,
+  "type": 5,
+  "timestamp": 1698765440000,
+  "flavor": "<h4 class=\"action\"><strong>Perception Check</strong></h4>",
+  "content": "21",
+  "speaker": { "alias": "Valeros", "actor": "actor001" },
+  "whisper": [],
+  "author": { "id": "user001", "name": "Player1" },
+  "rolls": [
+    {
+      "formula": "1d20 + 9",
+      "total": 21,
+      "dice": [{ "faces": 20, "results": [{ "result": 12, "active": true }] }]
+    }
+  ],
+  "flags": {
+    "pf2e": {
+      "context": {
+        "type": "skill-check",
+        "actor": "Actor.actor001",
+        "dc": { "value": 18, "visible": true },
+        "target": null,
+        "outcome": "success"
+      },
+      "origin": { "actor": "Actor.actor001", "type": "character" }
+    }
+  }
+}

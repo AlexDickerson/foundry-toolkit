@@ -1,0 +1,32 @@
+{
+  "id": "strikeMsg001",
+  "uuid": "ChatMessage.strikeMsg001",
+  "isRoll": true,
+  "type": 5,
+  "timestamp": 1698765432000,
+  "flavor": "<h4 class=\"action\"><strong>Strike</strong>: Longsword</h4>",
+  "content": "19",
+  "speaker": { "alias": "Valeros", "actor": "actor001" },
+  "whisper": [],
+  "author": { "id": "user001", "name": "Player1" },
+  "rolls": [
+    {
+      "formula": "1d20 + 8",
+      "total": 24,
+      "dice": [{ "faces": 20, "results": [{ "result": 16, "active": true }] }]
+    }
+  ],
+  "flags": {
+    "pf2e": {
+      "context": {
+        "type": "attack-roll",
+        "actor": "Actor.actor001",
+        "item": "Item.weapon001",
+        "target": { "actor": "Actor.targetActor001", "token": "Scene.scene001.Token.targetToken001" },
+        "outcome": "criticalSuccess",
+        "dc": null
+      },
+      "origin": { "actor": "Actor.actor001", "type": "character" }
+    }
+  }
+}
