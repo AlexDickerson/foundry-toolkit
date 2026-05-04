@@ -231,7 +231,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
                   {...(party !== null ? { partyId: party.id } : {})}
                 />
                 {!shopMode.enabled && (
-                  <div className="mt-10 border-t border-pf-border pt-6">
+                  <div className="mt-10 rounded-lg border border-pf-border bg-pf-bg px-4 py-4">
                     <SectionHeader>Crafting</SectionHeader>
                     <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
                   </div>
