@@ -1,4 +1,5 @@
 import type { TableResultData, RollTableResult, RollTableSummary } from '@/commands/types';
+import type { FoundryRoll } from '../../../types/foundry-event-shapes.js';
 
 export interface FoundryTableResult {
   _id: string;
@@ -15,11 +16,6 @@ export interface FoundryTableResult {
 
 export interface FoundryTableResultsCollection {
   contents: FoundryTableResult[];
-}
-
-export interface FoundryRoll {
-  total: number;
-  formula: string;
 }
 
 export interface FoundryRollTableDraw {
@@ -53,7 +49,7 @@ export interface FoundryTablesCollection {
   documentClass: FoundryRollTableConstructor;
 }
 
-export interface FoundryGame {
+interface FoundryGame {
   tables: FoundryTablesCollection;
 }
 

@@ -1,5 +1,5 @@
 import type { InvokeActorActionResult } from '@/commands/types';
-import type { FoundryD20Roll } from '../actorTypes';
+import type { FoundryD20Roll } from '../../../../types/foundry-event-shapes.js';
 
 // Minimal Foundry type snippets. Kept local to the actions layer because
 // the pf2e runtime surface isn't covered by the bundled foundry-vtt
@@ -50,24 +50,24 @@ export interface Pf2eStrike {
   critical?: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
-export interface FoundryItem {
+interface FoundryItem {
   id: string;
   name: string;
   type: string;
   toMessage(args?: Record<string, unknown>): Promise<unknown>;
 }
 
-export interface FoundryItemCollection {
+interface FoundryItemCollection {
   get(id: string): FoundryItem | undefined;
 }
 
-export interface ActorsCollection {
+interface ActorsCollection {
   get(id: string): FoundryActor | undefined;
 }
 
 export type PF2eActionFn = (options: Record<string, unknown>) => Promise<unknown>;
 
-export interface FoundryGame {
+interface FoundryGame {
   actors: ActorsCollection;
   messages?: { contents: Array<{ id: string; isRoll?: boolean }> };
   pf2e?: {
@@ -75,7 +75,7 @@ export interface FoundryGame {
   };
 }
 
-export interface FoundryGlobals {
+interface FoundryGlobals {
   game: FoundryGame;
 }
 

@@ -1,4 +1,5 @@
 import type { TokenResult } from '@/commands/types';
+import type { FoundryToken as SharedFoundryToken } from '../../../types/foundry-event-shapes.js';
 
 export interface TokenUpdateData {
   x?: number;
@@ -13,17 +14,14 @@ export interface TokenUpdateData {
   lockRotation?: boolean;
 }
 
-export interface FoundryToken {
-  id: string;
+// Strict token shape for CRUD operations. Extends the shared superset and
+// narrows the fields that token handlers require to be non-optional.
+export interface FoundryToken extends SharedFoundryToken {
   name: string;
-  x: number;
-  y: number;
   elevation: number;
   rotation: number;
   hidden: boolean;
-  texture: {
-    src: string;
-  };
+  texture: { src: string };
   disposition: number;
   actor: {
     id: string;
@@ -43,7 +41,7 @@ export interface TokenUpdateOptions {
   animate?: boolean;
 }
 
-export interface FoundryTokensCollection {
+interface FoundryTokensCollection {
   get(id: string): FoundryToken | undefined;
   contents: FoundryToken[];
 }
@@ -58,7 +56,7 @@ export interface TokenCreateData {
   scale?: number;
 }
 
-export interface FoundryScene {
+interface FoundryScene {
   id: string;
   name: string;
   tokens: FoundryTokensCollection;
@@ -66,7 +64,7 @@ export interface FoundryScene {
   deleteEmbeddedDocuments(type: 'Token', ids: string[]): Promise<unknown[]>;
 }
 
-export interface FoundryScenesCollection {
+interface FoundryScenesCollection {
   get(id: string): FoundryScene | undefined;
   active: FoundryScene | null;
 }
