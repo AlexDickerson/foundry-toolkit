@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { api, ApiRequestError } from '../../api/client';
 import type { CompendiumDocument, CompendiumMatch } from '../../api/types';
+import { useUuidHover } from '../../lib/useUuidHover';
+import type { Evaluation } from '../../prereqs';
 
 type Resolution =
   | { kind: 'loading' }
@@ -12,26 +14,48 @@ interface Props {
   target: CompendiumMatch;
   onPick: () => void;
   onClose: () => void;
-  /** Prefix for the detail panel and Pick button data-testid attributes. */
+  /** Optional prereq evaluation for this match. Drives the prereq-row tint. */
+  evaluation?: Evaluation;
+  /** Optional warm doc cache (e.g. populated by the character creator's
+   *  background prefetch). Hit short-circuits the fetch. */
+  docCache?: Map<string, CompendiumDocument>;
+  /** Prefix for the detail panel + Pick button data-testid attributes. */
   testIdPrefix?: string;
 }
 
 // Generic detail panel for the built-in CompendiumPicker detail flow.
-// Fetches the full document for description + price + spell metadata,
-// and renders a Pick button so callers can confirm the selection.
-// Picker callers that need prereq-aware detail (the character creator
-// and Progression class-feat picker) provide their own panel via the
-// CompendiumPicker `splitPane` prop instead.
-export function CompendiumDetailPanel({ target, onPick, onClose, testIdPrefix }: Props): React.ReactElement {
-  const [state, setState] = useState<Resolution>({ kind: 'loading' });
+// Reads PF2e item / spell / feat fields conservatively so the panel
+// works for every document type — only fields that are present render.
+// Picker callers that need extra behavior layer it in via props (e.g.
+// `evaluation` for prereq tinting, `docCache` to skip the doc fetch).
+export function CompendiumDetailPanel({
+  target,
+  onPick,
+  onClose,
+  evaluation,
+  docCache,
+  testIdPrefix,
+}: Props): React.ReactElement {
+  const uuidHover = useUuidHover();
+  const [state, setState] = useState<Resolution>(() => {
+    const cached = docCache?.get(target.uuid);
+    return cached ? { kind: 'ok', document: cached } : { kind: 'loading' };
+  });
 
   useEffect(() => {
+    const cached = docCache?.get(target.uuid);
+    if (cached) {
+      setState({ kind: 'ok', document: cached });
+      return;
+    }
     let cancelled = false;
     setState({ kind: 'loading' });
     void api
       .getCompendiumDocument(target.uuid)
       .then(({ document }) => {
-        if (!cancelled) setState({ kind: 'ok', document });
+        if (cancelled) return;
+        docCache?.set(target.uuid, document);
+        setState({ kind: 'ok', document });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -46,39 +70,61 @@ export function CompendiumDetailPanel({ target, onPick, onClose, testIdPrefix }:
     return (): void => {
       cancelled = true;
     };
-  }, [target.uuid]);
+  }, [target.uuid, docCache]);
 
-  const docTraits = state.kind === 'ok' ? readTraits(state.document) : null;
+  const doc = state.kind === 'ok' ? state.document : null;
+  const docTraits = doc ? readTraits(doc) : null;
   const traits = docTraits ?? target.traits ?? [];
-  const rarity = state.kind === 'ok' ? readRarity(state.document) : null;
-  const price = state.kind === 'ok' ? readPrice(state.document) : null;
-  const description = state.kind === 'ok' ? readDescription(state.document) : '';
-  const castCost = state.kind === 'ok' ? readCastCost(state.document) : null;
-  const range = state.kind === 'ok' ? readSystemString(state.document, 'range') : null;
-  const targetField = state.kind === 'ok' ? readSystemString(state.document, 'target') : null;
-  const area = state.kind === 'ok' ? readArea(state.document) : null;
+  const rarity = doc ? readRarity(doc) : null;
+  const description = doc ? readDescription(doc) : '';
+  const prerequisites = doc ? readPrerequisites(doc) : null;
+  const actions = doc ? readActions(doc) : null;
+  const trigger = doc ? readSystemTopLevelString(doc, 'trigger') : null;
+  const frequency = doc ? readSystemString(doc, 'frequency') : null;
+  const requirements = doc ? readSystemTopLevelString(doc, 'requirements') : null;
+  const price = doc ? readPrice(doc) : null;
+  const castCost = doc ? readCastCost(doc) : null;
+  const range = doc ? readSystemString(doc, 'range') : null;
+  const targetField = doc ? readSystemString(doc, 'target') : null;
+  const area = doc ? readArea(doc) : null;
   const enriched = description.length > 0 ? enrichDescription(description) : '';
 
+  const failed = evaluation === 'fails';
+
   return (
-    <div
-      className="flex w-full flex-1 flex-col"
+    <aside
+      className="flex w-full min-w-0 flex-1 flex-col"
       data-testid={testIdPrefix !== undefined ? `${testIdPrefix}-detail` : undefined}
+      data-detail-uuid={target.uuid}
     >
-      <div className="flex items-start gap-3 border-b border-pf-border px-4 py-3">
-        <img
-          src={target.img}
-          alt=""
-          className="h-12 w-12 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-        />
+      <header className="flex items-start gap-3 border-b border-pf-border px-4 py-3">
+        {target.img && (
+          <img
+            src={target.img}
+            alt=""
+            className="h-12 w-12 shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+          />
+        )}
         <div className="min-w-0 flex-1">
           <h3 className="font-serif text-base font-semibold text-pf-text">{target.name}</h3>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-pf-alt-dark">
-            {target.level !== undefined && <span>Level {target.level}</span>}
-            {rarity !== null && rarity !== 'common' && (
-              <span className="font-semibold uppercase tracking-widest">{rarity}</span>
-            )}
-            {castCost !== null && <span>Cast {castCost}</span>}
-          </div>
+          <p className="mt-0.5 text-[10px] uppercase tracking-widest text-pf-alt">
+            {target.packLabel}
+            {target.level !== undefined && ` · L${target.level.toString()}`}
+            {rarity != null && rarity !== 'common' && ` · ${rarity}`}
+            {castCost !== null && ` · Cast ${castCost}`}
+          </p>
+          {traits.length > 0 && (
+            <ul className="mt-1 flex flex-wrap gap-1">
+              {traits.map((t) => (
+                <li
+                  key={t}
+                  className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
+                >
+                  {humanizeSlug(t)}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <button
           type="button"
@@ -88,72 +134,76 @@ export function CompendiumDetailPanel({ target, onPick, onClose, testIdPrefix }:
         >
           ×
         </button>
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 py-3 text-sm text-pf-text">
-        {traits.length > 0 && (
-          <ul className="flex flex-wrap gap-1">
-            {traits.map((t) => (
-              <li
-                key={t}
-                className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
-              >
-                {humanizeSlug(t)}
-              </li>
-            ))}
-          </ul>
-        )}
-        {(price !== null || range !== null || targetField !== null || area !== null) && (
-          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-pf-alt-dark">
-            {price !== null && (
-              <>
-                <dt className="font-semibold uppercase tracking-widest">Price</dt>
-                <dd>{price}</dd>
-              </>
-            )}
-            {range !== null && (
-              <>
-                <dt className="font-semibold uppercase tracking-widest">Range</dt>
-                <dd>{range}</dd>
-              </>
-            )}
-            {area !== null && (
-              <>
-                <dt className="font-semibold uppercase tracking-widest">Area</dt>
-                <dd>{area}</dd>
-              </>
-            )}
-            {targetField !== null && (
-              <>
-                <dt className="font-semibold uppercase tracking-widest">Targets</dt>
-                <dd>{targetField}</dd>
-              </>
-            )}
-          </dl>
-        )}
-        {state.kind === 'loading' && <p className="mt-3 italic text-pf-alt">Loading details…</p>}
+      </header>
+
+      <div className="flex-1 overflow-y-auto px-4 py-3">
+        {state.kind === 'loading' && <p className="text-sm italic text-pf-alt">Loading…</p>}
         {state.kind === 'error' && (
-          <p className="mt-3 text-pf-primary">Failed to load: {state.message}</p>
+          <p className="text-sm text-pf-primary">Failed to load: {state.message}</p>
         )}
-        {state.kind === 'ok' &&
-          (enriched.length > 0 ? (
-            <div
-              className="mt-3 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-              dangerouslySetInnerHTML={{ __html: enriched }}
-            />
-          ) : (
-            <p className="mt-3 italic text-pf-alt">No description.</p>
-          ))}
+        {state.kind === 'ok' && (
+          <div className="space-y-3 text-sm text-pf-text">
+            {prerequisites && prerequisites.length > 0 && (
+              <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
+            )}
+            {actions != null && <DetailRow label="Actions" value={actions} />}
+            {trigger != null && <DetailRow label="Trigger" value={trigger} />}
+            {frequency != null && <DetailRow label="Frequency" value={frequency} />}
+            {requirements != null && <DetailRow label="Requirements" value={requirements} />}
+            {price != null && <DetailRow label="Price" value={price} />}
+            {range != null && <DetailRow label="Range" value={range} />}
+            {area != null && <DetailRow label="Area" value={area} />}
+            {targetField != null && <DetailRow label="Targets" value={targetField} />}
+            {enriched.length > 0 ? (
+              <div
+                {...uuidHover.delegationHandlers}
+                className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+                dangerouslySetInnerHTML={{ __html: enriched }}
+              />
+            ) : (
+              <p className="italic text-pf-alt">No description.</p>
+            )}
+            {uuidHover.popover}
+          </div>
+        )}
       </div>
-      <div className="flex items-center justify-end gap-2 border-t border-pf-border px-4 py-2">
+
+      <footer className="flex items-center justify-end gap-2 border-t border-pf-border px-4 py-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded border border-pf-border bg-pf-bg px-3 py-1 text-xs font-semibold uppercase tracking-widest text-pf-alt-dark hover:text-pf-primary"
+        >
+          Back
+        </button>
         <button
           type="button"
           onClick={onPick}
           data-testid={testIdPrefix !== undefined ? `${testIdPrefix}-pick` : undefined}
-          className="rounded border border-pf-primary bg-pf-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-pf-primary hover:bg-pf-primary/20"
+          className="rounded border border-pf-primary bg-pf-primary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white hover:brightness-110"
         >
-          Pick
+          Pick {target.name}
         </button>
-      </div>
+      </footer>
+    </aside>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  fail,
+}: {
+  label: string;
+  value: string;
+  fail?: boolean;
+}): React.ReactElement {
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
+      <dt className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+        {label}
+      </dt>
+      <dd className={fail === true ? 'text-pf-primary' : 'text-pf-text'}>{value}</dd>
     </div>
   );
 }
@@ -198,6 +248,36 @@ function readSystemString(doc: CompendiumDocument, key: string): string | null {
     const v = (field as { value?: unknown }).value;
     if (typeof v === 'string' && v.trim() !== '') return v;
   }
+  return null;
+}
+
+function readSystemTopLevelString(doc: CompendiumDocument, key: string): string | null {
+  const system = doc.system as Record<string, unknown>;
+  const field = system[key];
+  if (typeof field === 'string' && field.trim() !== '') return field;
+  // Fall through to the {value} shape pf2e sometimes uses for the same field.
+  return readSystemString(doc, key);
+}
+
+function readPrerequisites(doc: CompendiumDocument): string[] | null {
+  const system = doc.system as { prerequisites?: { value?: unknown } };
+  const raw = system?.prerequisites?.value;
+  if (!Array.isArray(raw)) return null;
+  const entries = raw
+    .map((p) => (typeof p === 'string' ? p : (p as { value?: unknown } | undefined)?.value))
+    .filter((v): v is string => typeof v === 'string' && v.length > 0);
+  return entries.length > 0 ? entries : null;
+}
+
+function readActions(doc: CompendiumDocument): string | null {
+  const system = doc.system as Record<string, unknown>;
+  const actionsField = system['actions'] as { value?: unknown } | undefined;
+  const av = actionsField?.value;
+  if (typeof av === 'number') return `${av.toString()} action${av === 1 ? '' : 's'}`;
+  if (typeof av === 'string' && av.length > 0) return av;
+  const actionTypeField = system['actionType'] as { value?: unknown } | undefined;
+  const at = actionTypeField?.value;
+  if (typeof at === 'string' && at.length > 0) return at.charAt(0).toUpperCase() + at.slice(1);
   return null;
 }
 

@@ -7,14 +7,11 @@ import type {
   CompendiumSource,
 } from '../../api/types';
 import { type RemoteDataState, useRemoteData } from '../../lib/useRemoteData';
-import { evaluateDocument } from '../../prereqs';
 import type { CharacterContext, Evaluation } from '../../prereqs';
+import { evaluateDocument } from '../../prereqs';
 import type { CompendiumPickerProps } from '../picker';
 import { prefetchDocuments } from './feat-prefetch';
 import { type SortMode, type SortState, FilterSummary, SourcePicker, SortToggle, UnmetToggle } from './FeatFilters';
-import { FeatMatchList } from './FeatMatchRow';
-import { FeatDetailPanel } from './FeatDetailPanel';
-import { useFeatDetail } from './useFeatDetail';
 
 type CreatorFilters = Pick<
   CompendiumSearchOptions,
@@ -34,22 +31,19 @@ type CreatorPickerProps = Pick<
   | 'onQueryChange'
   | 'filterItem'
   | 'sortItems'
-  | 'renderList'
   | 'filterControls'
-  | 'splitPane'
+  | 'evaluations'
+  | 'docCache'
 > & {
-  /** Wrap the caller's onPick so the prereq detail panel's Pick button works. */
   onPick: (match: CompendiumMatch) => void;
 };
 
-// All the picker behavior for the character creator: source-book filter,
-// alpha/level sort, prereq evaluation + hide-unmet toggle, prereq-aware
-// row rendering, prereq-breakdown detail panel. Returns props ready to
-// spread onto CompendiumPicker.
-//
-// CharacterCreator passes the result via the spread operator:
-//   const props = useCreatorPickerProps(filters, ctx);
-//   <CompendiumPicker {...props} title={...} onPick={...} onClose={...} />
+// Builds the props the character creator's picks need on top of the
+// shared CompendiumPicker: source-book filter, alpha/level sort, prereq
+// evaluation + hide-unmet toggle, and a doc/eval cache fed by background
+// prefetch. The picker uses CompendiumPicker's own row + detail panel —
+// prereq awareness is conveyed via the `evaluations` map which the
+// shared row + detail panel already understand.
 export function useCreatorPickerProps(
   filters: CreatorFilters,
   characterContext: CharacterContext | undefined,
@@ -62,8 +56,6 @@ export function useCreatorPickerProps(
   const [currentQuery, setCurrentQuery] = useState('');
   const docCacheRef = useRef<Map<string, CompendiumDocument>>(new Map());
   const prereqCacheRef = useRef<Map<string, string | null>>(new Map());
-
-  const { detailTarget, setDetailTarget, detail } = useFeatDetail(docCacheRef, characterContext, setEvaluations);
 
   const callerPackIdsKey = (filters.packIds ?? []).join('|');
   const traitsKey = (filters.traits ?? []).join('|');
@@ -146,22 +138,11 @@ export function useCreatorPickerProps(
     [sort],
   );
 
-  const detailOpen = detailTarget !== null;
-
   const sourcesKey = selectedSources.join('|');
   const searchSources = useMemo(
     () => (selectedSources.length > 0 ? selectedSources : undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sourcesKey],
-  );
-
-  const renderList = (matches: CompendiumMatch[]): React.ReactElement => (
-    <FeatMatchList
-      matches={matches}
-      evaluations={evaluations}
-      activeUuid={detailTarget?.uuid}
-      onSelect={setDetailTarget}
-    />
   );
 
   const filterControls = (
@@ -175,34 +156,17 @@ export function useCreatorPickerProps(
     </div>
   );
 
-  const splitPane = {
-    detailOpen,
-    detailSlot: (
-      <FeatDetailPanel
-        target={detailTarget}
-        detail={detail}
-        prereqCache={prereqCacheRef}
-        onPick={(): void => {
-          if (detailTarget) onPickCallback(detailTarget);
-        }}
-        onClose={(): void => {
-          setDetailTarget(null);
-        }}
-      />
-    ),
-  };
-
-  // Build the props object. `exactOptionalPropertyTypes: true` requires
-  // optional fields to be omitted rather than set to undefined.
+  // `exactOptionalPropertyTypes: true` requires optional fields to be
+  // omitted rather than set to undefined.
   const props: CreatorPickerProps = {
     onPick: onPickCallback,
     onPage,
     onQueryChange: setCurrentQuery,
     filterItem,
     sortItems,
-    renderList,
     filterControls,
-    splitPane,
+    evaluations,
+    docCache: docCacheRef.current,
   };
   if (filters.packIds !== undefined) props.packIds = filters.packIds;
   if (filters.documentType !== undefined) props.documentType = filters.documentType;

@@ -163,15 +163,15 @@ describe('CompendiumPicker', () => {
 
   // ── Item rendering ────────────────────────────────────────────────────
 
-  it('shows items with the default row (img + name + Lv badge)', async () => {
+  it('shows items with the default row (img + name + level badge)', async () => {
     const { getByText, getAllByText } = render(
       <CompendiumPicker title="t" packIds={['pf2e.equipment-srd']} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(getByText('Alchemist Fire')).toBeTruthy();
       expect(getByText('Healing Potion')).toBeTruthy();
-      // Both items are level 1 so there are two Lv badges.
-      expect(getAllByText('Lv 1').length).toBe(2);
+      // Both items are level 1 so there are two level badges.
+      expect(getAllByText('L1').length).toBe(2);
     });
   });
 

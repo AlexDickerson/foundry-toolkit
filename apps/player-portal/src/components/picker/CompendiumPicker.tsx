@@ -4,6 +4,8 @@ import { api } from '../../api/client';
 import type { CompendiumMatch, CompendiumSearchOptions } from '../../api/types';
 import { useDebounce } from '../../lib/useDebounce';
 import { usePaginatedSearch } from '../../lib/usePaginatedSearch';
+import type { CompendiumDocument } from '../../api/types';
+import type { Evaluation } from '../../prereqs';
 import { CompendiumDetailPanel } from './CompendiumDetailPanel';
 import { PickerDialog } from './PickerDialog';
 
@@ -131,6 +133,12 @@ export interface CompendiumPickerProps {
    * When omitted, a default row (img + name + Lv badge) calling onPick is used.
    */
   renderList?: ((items: CompendiumMatch[]) => ReactNode) | undefined;
+  /** Optional prereq evaluation map. When provided, the default row shows
+   *  a prereq-status badge and the detail panel tints unmet prereqs. */
+  evaluations?: Map<string, Evaluation> | undefined;
+  /** Optional warm doc cache (e.g. populated by the character creator's
+   *  background prefetch). Hits short-circuit the detail panel's fetch. */
+  docCache?: Map<string, CompendiumDocument> | undefined;
   /** Extra controls rendered below the search input (source picker, sort, etc.) */
   filterControls?: ReactNode | undefined;
   splitPane?: CompendiumPickerSplitPane | undefined;
@@ -157,6 +165,8 @@ export function CompendiumPicker({
   sortItems,
   onPage,
   onQueryChange,
+  evaluations,
+  docCache,
   renderList,
   filterControls,
   splitPane,
@@ -235,9 +245,19 @@ export function CompendiumPicker({
 
   const defaultRenderList = useCallback(
     (items: CompendiumMatch[]): ReactNode => (
-      <ul className="grid grid-cols-1 gap-1 p-2">
+      <ul className="divide-y divide-pf-border">
         {items.map((m) => {
           const active = useInternalDetail && internalDetailTarget?.uuid === m.uuid;
+          const evaluation = evaluations?.get(m.uuid);
+          const fails = evaluation === 'fails';
+          const unknown = evaluation === 'unknown';
+          const traitsSummary =
+            m.traits && m.traits.length > 0 ? m.traits.slice(0, 5).join(', ') : '';
+          const rowTitle = fails
+            ? "Character doesn't meet this entry's prerequisites"
+            : unknown
+              ? "Prereqs couldn't be auto-checked — verify manually before picking"
+              : undefined;
           return (
             <li key={m.uuid}>
               <button
@@ -249,37 +269,62 @@ export function CompendiumPicker({
                     onPick(m);
                   }
                 }}
+                aria-pressed={active}
+                title={rowTitle}
                 className={[
-                  'flex w-full items-center gap-2 rounded border px-2 py-1 text-left',
-                  active
-                    ? 'border-pf-primary bg-pf-bg-dark/40'
-                    : 'border-transparent hover:border-pf-primary/60 hover:bg-pf-bg-dark/40',
+                  'flex w-full items-center gap-3 px-4 py-2 text-left transition-colors',
+                  active ? 'bg-pf-tertiary/50' : 'hover:bg-pf-tertiary/20',
+                  fails ? 'opacity-60' : '',
                 ].join(' ')}
                 data-pick-uuid={m.uuid}
                 data-match-uuid={m.uuid}
+                data-prereq-state={evaluation ?? 'pending'}
               >
-                <img
-                  src={m.img}
-                  alt=""
-                  className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-                />
-                <span className="min-w-0 flex-1 truncate text-sm text-pf-text">{m.name}</span>
-                {typeof m.level === 'number' && (
-                  <span className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
-                    Lv {m.level}
-                  </span>
+                {m.img && (
+                  <img
+                    src={m.img}
+                    alt=""
+                    className="h-8 w-8 shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+                  />
                 )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="flex min-w-0 items-baseline gap-1.5">
+                      <span className="truncate text-sm font-medium text-pf-text">{m.name}</span>
+                      {unknown && (
+                        <span
+                          aria-label="Prereqs unchecked"
+                          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-amber-500 bg-amber-100 text-[10px] font-semibold text-amber-800"
+                        >
+                          !
+                        </span>
+                      )}
+                    </span>
+                    {typeof m.level === 'number' && (
+                      <span className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">
+                        L{m.level}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 text-[10px] text-pf-alt">
+                    <span className="truncate">{m.packLabel}</span>
+                    {traitsSummary && <span className="truncate">{traitsSummary}</span>}
+                  </div>
+                </div>
               </button>
             </li>
           );
         })}
       </ul>
     ),
-    [onPick, useInternalDetail, internalDetailTarget],
+    [onPick, useInternalDetail, internalDetailTarget, evaluations],
   );
 
   // When the caller didn't supply splitPane and we're in internal-detail mode,
   // render a built-in CompendiumDetailPanel beside the list.
+  const internalDetailUuid = internalDetailTarget?.uuid;
+  const internalDetailEvaluation =
+    internalDetailUuid !== undefined ? evaluations?.get(internalDetailUuid) : undefined;
   const effectiveSplitPane: CompendiumPickerSplitPane | undefined = useInternalDetail
     ? {
         detailOpen: internalDetailTarget !== null,
@@ -294,7 +339,11 @@ export function CompendiumPicker({
               onClose={(): void => {
                 setInternalDetailTarget(null);
               }}
-              testIdPrefix={testId}
+              {...(internalDetailEvaluation !== undefined
+                ? { evaluation: internalDetailEvaluation }
+                : {})}
+              {...(docCache !== undefined ? { docCache } : {})}
+              {...(testId !== undefined ? { testIdPrefix: testId } : {})}
             />
           ) : null,
       }
