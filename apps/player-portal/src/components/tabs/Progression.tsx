@@ -8,6 +8,7 @@ import type {
   ClassItem,
   CompendiumDocument,
   CompendiumMatch,
+  CompendiumSearchOptions,
   PreparedActorItem,
   ProficiencyRank,
 } from '../../api/types';
@@ -16,8 +17,9 @@ import { useUuidHover } from '../../lib/useUuidHover';
 import type { CharacterContext } from '../../prereqs';
 import { SectionHeader } from '../common/SectionHeader';
 import { AbilityBoostPicker } from '../creator/AbilityBoostPicker';
-import { FeatPicker } from '../creator/FeatPicker';
+import { useCreatorPickerProps } from '../creator/useCreatorPickerProps';
 import { SkillIncreasePicker } from '../creator/SkillIncreasePicker';
+import { CompendiumPicker } from '../picker';
 
 // All picks share the same map keyed by `${level}:${slot}`. The value
 // is a discriminated union so each slot kind can store the shape it
@@ -63,9 +65,10 @@ const slotKey = (level: number, slot: SlotType): SlotKey => `${level.toString()}
 // The current character level is highlighted; past levels are muted,
 // future levels render as a normal preview.
 //
-// Class-feat slots are clickable — they open a compendium-search modal
-// (FeatPicker) scoped to the character's class trait and capped at the
-// slot's level. Picks for current/past levels write to Foundry immediately;
+// Class-feat slots are clickable — they open a CompendiumPicker scoped
+// to the character's class trait and capped at the slot's level (with
+// the creator's prereq + source-filter behavior layered in via
+// useCreatorPickerProps). Picks for current/past levels write to Foundry immediately;
 // picks for future levels are stored in flags only and auto-applied when
 // the character reaches that level.
 export function Progression({ actorId, characterLevel, items, characterContext, onActorChanged, persistedPicks }: Props): React.ReactElement {
@@ -514,7 +517,8 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
       </div>
       {pickedHover.popover}
       {pickerTarget && pickerFilters && (
-        <FeatPicker
+        <ProgressionPicker
+          key={`${pickerTarget.level.toString()}:${pickerTarget.slot}`}
           title={pickerTitleFor(pickerTarget.slot, pickerTarget.level)}
           filters={pickerFilters}
           characterContext={characterContext}
@@ -1144,4 +1148,47 @@ function buildLevelSlotMap(sys: ClassItem['system']): Map<number, readonly SlotT
     }
   }
   return out;
+}
+
+// Wraps CompendiumPicker with the creator's prereq + sort + source-filter
+// behavior. Keying on level+slot remounts this on each open so picker
+// state resets per slot.
+// `Pick` is shadowed by the local progression-pick discriminated-union
+// type, so we use the global helper via this alias to work around the
+// scoping collision. (Putting this at module scope captures the
+// built-in Pick before the local declaration.)
+type _CreatorFilters = {
+  [K in
+    | 'packIds'
+    | 'documentType'
+    | 'traits'
+    | 'anyTraits'
+    | 'maxLevel'
+    | 'ancestrySlug']?: CompendiumSearchOptions[K];
+};
+
+function ProgressionPicker({
+  title,
+  filters,
+  characterContext,
+  onPick,
+  onClose,
+}: {
+  title: string;
+  filters: _CreatorFilters;
+  characterContext: CharacterContext;
+  onPick: (match: CompendiumMatch) => void;
+  onClose: () => void;
+}): React.ReactElement {
+  const props = useCreatorPickerProps(filters, characterContext, onPick);
+  return (
+    <CompendiumPicker
+      title={title}
+      {...props}
+      onClose={onClose}
+      testId="feat-picker"
+      resultsTestId="feat-picker-results"
+      loadMoreTestId="feat-picker-load-more"
+    />
+  );
 }

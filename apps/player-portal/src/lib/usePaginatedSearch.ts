@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Default page size for compendium pickers. Bounded at 50 so the
- *  background document prefetch (FeatPicker) doesn't stampede the server
- *  on a fresh query. */
+ *  creator's background document prefetch (used for prereq evaluation
+ *  in useCreatorPickerProps) doesn't stampede the server on a fresh query. */
 export const PICKER_PAGE_SIZE = 50;
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────

@@ -215,6 +215,19 @@ export const api = {
     api.invokeActorAction<{ ok: boolean; removed: boolean; uuid: string; formulaCount: number }>(id, 'remove-formula', {
       uuid,
     }),
+  // Adds a spell from a compendium UUID to a specific spellcasting entry
+  // on the actor. Sets system.location.value so the PF2e system assigns
+  // the spell to the correct entry (arcane/divine/etc.). Actor state
+  // refresh comes via the `actors` event channel.
+  addSpell: (actorId: string, uuid: string, entryId: string): Promise<ActorItemRef> => {
+    const parsed = parseCompendiumUuid(uuid);
+    if (parsed === null) return Promise.reject(new Error(`Cannot parse compendium UUID: ${uuid}`));
+    return api.addItemFromCompendium(actorId, {
+      packId: parsed.packId,
+      itemId: parsed.itemId,
+      systemOverrides: { location: { value: entryId } },
+    });
+  },
   listCompendiumSources: (
     opts: {
       documentType?: string;
@@ -234,3 +247,12 @@ export const api = {
     return request<{ sources: CompendiumSource[] }>(`/compendium/sources${qs ? `?${qs}` : ''}`);
   },
 };
+
+// Splits a Foundry compendium UUID into packId + itemId.
+// Format: Compendium.<scope>.<name>.Item.<id>
+// e.g. "Compendium.pf2e.spells-srd.Item.XyzAbc123" → { packId: "pf2e.spells-srd", itemId: "XyzAbc123" }
+function parseCompendiumUuid(uuid: string): { packId: string; itemId: string } | null {
+  const m = /^Compendium\.([^.]+\.[^.]+)\.Item\.(.+)$/.exec(uuid);
+  if (!m) return null;
+  return { packId: m[1]!, itemId: m[2]! };
+}

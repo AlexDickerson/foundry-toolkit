@@ -1,8 +1,38 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import { api } from '../../api/client';
-import type { CompendiumMatch } from '../../api/types';
-import { FeatPicker } from './FeatPicker';
+import type { CompendiumMatch, CompendiumSearchOptions } from '../../api/types';
+import { CompendiumPicker } from '../picker';
+import { useCreatorPickerProps } from './useCreatorPickerProps';
+
+// Test wrapper that exercises the same surface CharacterCreator uses:
+// useCreatorPickerProps + CompendiumPicker with no characterContext.
+function CreatorPicker({
+  title,
+  filters,
+  onPick,
+  onClose,
+}: {
+  title: string;
+  filters: Pick<
+    CompendiumSearchOptions,
+    'packIds' | 'documentType' | 'traits' | 'anyTraits' | 'maxLevel' | 'ancestrySlug'
+  >;
+  onPick: (match: CompendiumMatch) => void;
+  onClose: () => void;
+}): React.ReactElement {
+  const props = useCreatorPickerProps(filters, undefined, onPick);
+  return (
+    <CompendiumPicker
+      title={title}
+      {...props}
+      onClose={onClose}
+      testId="feat-picker"
+      resultsTestId="feat-picker-results"
+      loadMoreTestId="feat-picker-load-more"
+    />
+  );
+}
 
 const sampleMatches: CompendiumMatch[] = [
   {
@@ -29,7 +59,7 @@ const sampleMatches: CompendiumMatch[] = [
   },
 ];
 
-describe('FeatPicker', () => {
+describe('CreatorPicker', () => {
   let searchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -42,7 +72,7 @@ describe('FeatPicker', () => {
 
   it('renders the title, filter summary, and match list', async () => {
     const { getByText } = render(
-      <FeatPicker
+      <CreatorPicker
         title="Pick a Class Feat (Level 1)"
         filters={{ packIds: ['pf2e.feats-srd'], documentType: 'Item', traits: ['barbarian'], maxLevel: 1 }}
         onPick={vi.fn()}
@@ -61,7 +91,7 @@ describe('FeatPicker', () => {
 
   it('calls searchCompendium with the configured filters', async () => {
     render(
-      <FeatPicker
+      <CreatorPicker
         title="t"
         filters={{ packIds: ['pf2e.feats-srd'], documentType: 'Item', traits: ['barbarian'], maxLevel: 1 }}
         onPick={vi.fn()}
@@ -83,7 +113,7 @@ describe('FeatPicker', () => {
   it('calls onPick with the selected match via the detail panel Pick button', async () => {
     const onPick = vi.fn();
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={onPick} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={onPick} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -102,7 +132,7 @@ describe('FeatPicker', () => {
 
   it('closes on Escape', () => {
     const onClose = vi.fn();
-    render(<FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={onClose} />);
+    render(<CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={onClose} />);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
@@ -110,7 +140,7 @@ describe('FeatPicker', () => {
   it('closes when the backdrop is clicked but not when the card is clicked', async () => {
     const onClose = vi.fn();
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={onClose} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={onClose} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -126,7 +156,7 @@ describe('FeatPicker', () => {
   it('shows an empty-state message when no matches come back', async () => {
     searchSpy.mockResolvedValueOnce({ matches: [], total: 0 });
     render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.body.textContent).toMatch(/no matches/i);
@@ -136,7 +166,7 @@ describe('FeatPicker', () => {
   it('shows an error banner when the search throws', async () => {
     searchSpy.mockRejectedValueOnce(new Error('boom'));
     render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.body.textContent).toMatch(/search failed/i);
@@ -147,7 +177,7 @@ describe('FeatPicker', () => {
 
   it('renders an A-Z / Level sort toggle with A-Z selected by default', async () => {
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -162,7 +192,7 @@ describe('FeatPicker', () => {
   it('sorts matches A-Z by default regardless of server order', async () => {
     // Server returns Sudden Charge first; A-Z should surface Raging Intimidation first.
     render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -213,7 +243,7 @@ describe('FeatPicker', () => {
       total: 3,
     });
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -232,7 +262,7 @@ describe('FeatPicker', () => {
 
   it('reverses direction when the active sort option is clicked again', async () => {
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -297,7 +327,7 @@ describe('FeatPicker', () => {
       total: 3,
     });
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -360,7 +390,7 @@ describe('FeatPicker', () => {
       total: 3,
     });
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -377,7 +407,7 @@ describe('FeatPicker', () => {
 
   it('resets direction to asc when switching between modes', async () => {
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -435,7 +465,7 @@ describe('FeatPicker', () => {
       total: 3,
     });
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['x'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -454,7 +484,7 @@ describe('FeatPicker', () => {
     // Return 2 matches but declare total=10 → "Load more" should appear.
     searchSpy.mockResolvedValue({ matches: sampleMatches, total: 10 });
     render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -465,7 +495,7 @@ describe('FeatPicker', () => {
   it('does not show "Load more" when total equals the loaded count', async () => {
     // Default mock has total === matches.length (2) → no more button.
     render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
     await waitFor(() => {
       expect(document.querySelector('[data-match-uuid]')).toBeTruthy();
@@ -493,7 +523,7 @@ describe('FeatPicker', () => {
     searchSpy.mockResolvedValueOnce({ matches: page2Matches, total: 3 });
 
     const { getByTestId } = render(
-      <FeatPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
+      <CreatorPicker title="t" filters={{ traits: ['barbarian'] }} onPick={vi.fn()} onClose={vi.fn()} />,
     );
 
     await waitFor(() => {

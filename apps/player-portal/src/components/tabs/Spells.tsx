@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import type { FocusPool, PreparedActorItem, SpellItem, SpellcastingEntryItem } from '../../api/types';
 import { isCantripSpell, isSpellItem, isSpellcastingEntryItem } from '../../api/types';
@@ -6,6 +7,9 @@ import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useUuidHover } from '../../lib/useUuidHover';
 import { useActorAction } from '../../lib/useActorAction';
 import { SectionHeader } from '../common/SectionHeader';
+import { CompendiumPicker } from '../picker';
+
+const SPELL_PACKS: string[] = ['pf2e.spells-srd'];
 
 interface Props {
   items: PreparedActorItem[];
@@ -18,6 +22,11 @@ interface Props {
 export function Spells({ items, characterLevel, actorId, onCast, focusPoints }: Props): React.ReactElement {
   // Hook first — must run on every render regardless of empty-state.
   const uuidHover = useUuidHover();
+  const [pickerEntry, setPickerEntry] = useState<SpellcastingEntryItem | null>(null);
+  const pickerTraits = useMemo(
+    () => (pickerEntry?.system.tradition.value ? [pickerEntry.system.tradition.value] : undefined),
+    [pickerEntry],
+  );
   const entries = items.filter(isSpellcastingEntryItem);
   const spells = items.filter(isSpellItem);
 
@@ -54,6 +63,7 @@ export function Spells({ items, characterLevel, actorId, onCast, focusPoints }: 
           actorId={actorId}
           onCast={onCast}
           focusPoints={focusPoints}
+          onAddSpell={setPickerEntry}
         />
       ))}
       {orphans.length > 0 && (
@@ -64,6 +74,24 @@ export function Spells({ items, characterLevel, actorId, onCast, focusPoints }: 
         </div>
       )}
       {uuidHover.popover}
+      {pickerEntry !== null && (
+        <CompendiumPicker
+          title={`Add Spell — ${pickerEntry.name}`}
+          packIds={SPELL_PACKS}
+          documentType="Item"
+          traits={pickerTraits}
+          onPick={(match): void => {
+            void api.addSpell(actorId, match.uuid, pickerEntry.id);
+            setPickerEntry(null);
+          }}
+          onClose={(): void => {
+            setPickerEntry(null);
+          }}
+          testId="spell-picker"
+          resultsTestId="spell-picker-results"
+          loadMoreTestId="spell-picker-load-more"
+        />
+      )}
     </section>
   );
 }
@@ -75,6 +103,7 @@ function EntryBlock({
   actorId,
   onCast,
   focusPoints,
+  onAddSpell,
 }: {
   entry: SpellcastingEntryItem;
   spells: SpellItem[];
@@ -82,6 +111,7 @@ function EntryBlock({
   actorId: string;
   onCast: () => void;
   focusPoints: FocusPool;
+  onAddSpell: (entry: SpellcastingEntryItem) => void;
 }): React.ReactElement {
   const traditionRaw = entry.system.tradition.value;
   const tradition = traditionRaw !== '' ? traditionRaw : null;
@@ -94,6 +124,9 @@ function EntryBlock({
   ].filter((s): s is string => s !== null);
 
   const isFocus = prepRaw === 'focus';
+  // Prepared and spontaneous entries support adding spells from the compendium.
+  // Focus, innate, and ritual spells come from feats/abilities, not manual add.
+  const canAddSpells = prepRaw === 'prepared' || prepRaw === 'spontaneous';
 
   return (
     <div data-spellcasting-entry-id={entry.id}>
@@ -104,6 +137,18 @@ function EntryBlock({
         )}
         {isFocus && focusPoints.max > 0 && (
           <FocusControl focusPoints={focusPoints} actorId={actorId} onChanged={onCast} />
+        )}
+        {canAddSpells && (
+          <button
+            type="button"
+            onClick={(): void => {
+              onAddSpell(entry);
+            }}
+            className="ml-auto rounded border border-pf-primary bg-pf-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-pf-primary hover:bg-pf-primary/20"
+            data-testid={`add-spell-${entry.id}`}
+          >
+            + Add Spell
+          </button>
         )}
       </div>
       {spells.length === 0 ? (

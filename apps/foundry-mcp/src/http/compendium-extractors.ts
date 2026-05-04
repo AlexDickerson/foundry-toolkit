@@ -11,9 +11,31 @@
 import type { CompendiumDocument, ItemPrice } from './compendium-types.js';
 
 export function extractTraits(doc: CompendiumDocument): string[] {
-  const raw = (doc.system as { traits?: { value?: unknown } }).traits?.value;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((v): v is string => typeof v === 'string');
+  const traits = (doc.system as { traits?: { value?: unknown; traditions?: unknown } }).traits;
+  const value = Array.isArray(traits?.value)
+    ? traits.value.filter((v): v is string => typeof v === 'string')
+    : [];
+  // pf2e spells store magical-tradition tags (arcane / divine / occult /
+  // primal) in `system.traits.traditions`, not `system.traits.value`.
+  // Merge them in so trait-based search and filter callsites — including
+  // the spell picker's tradition filter — see traditions as regular traits.
+  // Other doc types (NPC abilities, magical items) already encode their
+  // tradition in `system.traits.value`, so this only affects spells.
+  const traditions = Array.isArray(traits?.traditions)
+    ? traits.traditions.filter((v): v is string => typeof v === 'string')
+    : [];
+  if (traditions.length === 0) return value;
+  // Merge with dedup. Order: traits.value first, then any tradition not
+  // already present.
+  const seen = new Set(value);
+  const out = [...value];
+  for (const t of traditions) {
+    if (!seen.has(t)) {
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  return out;
 }
 
 export function extractLevel(doc: CompendiumDocument): number | undefined {

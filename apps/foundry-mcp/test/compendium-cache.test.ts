@@ -78,6 +78,39 @@ const equipmentDocs: CompendiumDocument[] = [
   },
 ];
 
+// Synthetic spells pack — exercises the tradition merging in
+// extractTraits. PF2e spells store tradition tags
+// (arcane / divine / occult / primal) in `system.traits.traditions`,
+// distinct from `system.traits.value`. The spell picker filters by
+// tradition via the `traits` filter, so the extractor must surface
+// traditions alongside regular traits.
+const spellDocs: CompendiumDocument[] = [
+  {
+    id: 'fireball',
+    uuid: 'Compendium.pf2e.spells-srd.Item.fireball',
+    name: 'Fireball',
+    type: 'spell',
+    img: '/icons/fireball.webp',
+    system: {
+      level: { value: 3 },
+      traits: { value: ['concentrate', 'fire', 'manipulate'], rarity: 'common', traditions: ['arcane', 'primal'] },
+      publication: { title: 'Player Core' },
+    },
+  },
+  {
+    id: 'heal',
+    uuid: 'Compendium.pf2e.spells-srd.Item.heal',
+    name: 'Heal',
+    type: 'spell',
+    img: '/icons/heal.webp',
+    system: {
+      level: { value: 1 },
+      traits: { value: ['healing', 'manipulate', 'vitality'], rarity: 'common', traditions: ['divine', 'primal'] },
+      publication: { title: 'Player Core' },
+    },
+  },
+];
+
 // Synthetic bestiary pack — enough NPC actors to exercise the
 // monster-only filters (rarity, size, creatureType, combat-stat
 // ranges). All three creatures level 1-3 with distinct sizes and
@@ -151,6 +184,7 @@ for (const doc of bestiaryDocs) {
 function docsForPack(packId: string): { packLabel: string; documents: CompendiumDocument[] } | null {
   if (packId === 'pf2e.equipment-srd') return { packLabel: 'Equipment', documents: equipmentDocs };
   if (packId === 'pf2e.pathfinder-bestiary') return { packLabel: 'Pathfinder Bestiary', documents: bestiaryDocs };
+  if (packId === 'pf2e.spells-srd') return { packLabel: 'Spells', documents: spellDocs };
   return null;
 }
 
@@ -341,6 +375,23 @@ describe('CompendiumCache.search — filters', () => {
     const result = cache.search({ packIds: ['pf2e.equipment-srd'], traits: ['consumable', 'healing'] });
     assert.equal(result?.matches.length, 1);
     assert.equal(result?.matches[0]?.name, 'Healing Potion (Greater)');
+  });
+
+  it('treats spell traditions as traits so the spell picker tradition filter matches', async () => {
+    // Spells store tradition tags in `system.traits.traditions`, separate
+    // from `system.traits.value`. The extractor must merge them so a
+    // search with `traits: ['arcane']` returns spells with that tradition.
+    const spellCache = new CompendiumCache(makeSendCommand());
+    await spellCache.warmPack('pf2e.spells-srd');
+    const arcaneOnly = spellCache.search({ packIds: ['pf2e.spells-srd'], traits: ['arcane'] });
+    assert.equal(arcaneOnly?.matches.length, 1, 'only Fireball is on the arcane list');
+    assert.equal(arcaneOnly?.matches[0]?.name, 'Fireball');
+    const primal = spellCache.search({ packIds: ['pf2e.spells-srd'], traits: ['primal'] });
+    const primalNames = primal?.matches.map((m) => m.name).sort();
+    assert.deepEqual(primalNames, ['Fireball', 'Heal']);
+    const divine = spellCache.search({ packIds: ['pf2e.spells-srd'], traits: ['divine'] });
+    assert.equal(divine?.matches.length, 1);
+    assert.equal(divine?.matches[0]?.name, 'Heal');
   });
 
   it('filters by maxLevel', () => {
