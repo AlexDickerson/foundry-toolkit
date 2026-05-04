@@ -38,7 +38,7 @@ function nonRarityTraits(traits: string[]): string[] {
 // ---------------------------------------------------------------------------
 
 /** Format an ItemPrice object as a human-readable string ("1,600 gp"). */
-export function formatPriceStructured(price: ItemPrice | undefined): string | null {
+function formatPriceStructured(price: ItemPrice | undefined): string | null {
   if (!price || !isRecord(price.value)) return null;
   const parts: string[] = [];
   const { pp, gp, sp, cp } = price.value;

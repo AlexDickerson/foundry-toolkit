@@ -11,7 +11,7 @@
       ]
     },
     "apps/dm-tool": {
-      "entry": ["electron.vite.config.ts", "electron/main.ts", "electron/preload.ts"],
+      "entry": ["electron.vite.config.ts", "electron/main.ts", "electron/preload.ts", "electron/**/*.test.ts"],
       "project": ["electron/**/*.ts", "src/**/*.{ts,tsx}"],
       "ignoreDependencies": ["tailwindcss", "tailwindcss-animate"]
     },

@@ -12,7 +12,7 @@ import { MCP_PROTOCOL_VERSION } from './constants.js';
 // Re-export for backwards compatibility with existing dm-tool imports that
 // expect these types from this module. New code should import directly from
 // `@foundry-toolkit/shared/foundry-api`.
-export type { ActorRef as ActorResult, CompendiumMatch };
+export type { CompendiumMatch };
 
 // ---------------------------------------------------------------------------
 // Transport
@@ -154,7 +154,7 @@ export async function createActorFromCompendium(
   return result as unknown as ActorRef;
 }
 
-export type FolderDocumentType =
+type FolderDocumentType =
   | 'Actor'
   | 'Item'
   | 'Scene'
@@ -165,7 +165,7 @@ export type FolderDocumentType =
   | 'Adventure'
   | 'Card';
 
-export interface FolderResult {
+interface FolderResult {
   id: string;
   name: string;
   type: string;

@@ -10,7 +10,6 @@ export { DEFAULT_CHAT_MODEL as DEFAULT_MODEL } from '@foundry-toolkit/shared/typ
 // --- Archives of Nethys ------------------------------------------------------
 
 export const AON_ELASTICSEARCH_URL = 'https://elasticsearch.aonprd.com/aon/_search';
-export const AON_BASE_URL = 'https://2e.aonprd.com';
 
 // --- Foundry VTT MCP --------------------------------------------------------
 

@@ -4,7 +4,7 @@
 
 import type { Book } from '@foundry-toolkit/shared/types';
 
-export interface ApPartInfo {
+interface ApPartInfo {
   book: Book;
   partNumber: number;
   totalParts: number;

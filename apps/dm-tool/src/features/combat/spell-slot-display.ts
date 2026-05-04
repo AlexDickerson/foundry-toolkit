@@ -5,7 +5,7 @@
 import type { CombatSpellEntry, SpellPreparationMode } from '@foundry-toolkit/shared/types';
 
 /** Which visual treatment to apply for this entry's slot state. */
-export type SlotDisplayKind =
+type SlotDisplayKind =
   | 'spontaneous' // n/max per rank
   | 'focus' // dot indicators for focus points
   | 'prepared' // per-spell expended checkboxes (handled by SpellRow)

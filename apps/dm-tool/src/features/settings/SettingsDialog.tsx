@@ -31,7 +31,7 @@ import {
 
 type SettingsTab = 'paths' | 'maps' | 'books' | 'combat' | 'monsters' | 'items' | 'tools';
 
-export interface SettingsDialogProps {
+interface SettingsDialogProps {
   uiScale: number;
   onUiScaleChange: (n: number) => void;
   fontFamily: FontFamily;
