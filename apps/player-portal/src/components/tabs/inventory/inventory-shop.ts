@@ -106,7 +106,7 @@ export async function grantCoins(actorId: string, items: readonly PreparedActorI
   }
 }
 
-export async function applyCoinChanges(
+async function applyCoinChanges(
   actorId: string,
   coinStacks: Partial<Record<Denom, PhysicalItem>>,
   next: Partial<Record<Denom, number>>,

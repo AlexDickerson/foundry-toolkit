@@ -13,7 +13,7 @@ export interface User {
   createdAt: string;
 }
 
-export interface PublicUser {
+interface PublicUser {
   id: string;
   username: string;
   actorId: string;
@@ -54,10 +54,6 @@ let _users: User[] = [];
 export function initUsers(filePath: string = DEFAULT_USERS_FILE): void {
   _users = loadUsersFile(filePath);
   console.info(`[auth] loaded ${_users.length.toString()} user(s) from ${filePath}`);
-}
-
-export function getUsers(): readonly User[] {
-  return _users;
 }
 
 export function findByUsername(username: string): User | undefined {

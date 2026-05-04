@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
-export interface LiveState<T> {
+interface LiveState<T> {
   data: T | null;
   status: ConnectionStatus;
   /** Last time we received data (for "stale" indicators). */

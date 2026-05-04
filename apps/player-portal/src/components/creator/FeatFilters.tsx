@@ -4,7 +4,7 @@ import type { CompendiumSource } from '../../api/types';
 import type { CompendiumSearchOptions } from '../../api/types';
 
 export type SortMode = 'alpha' | 'level';
-export type SortDir = 'asc' | 'desc';
+type SortDir = 'asc' | 'desc';
 export interface SortState {
   mode: SortMode;
   dir: SortDir;

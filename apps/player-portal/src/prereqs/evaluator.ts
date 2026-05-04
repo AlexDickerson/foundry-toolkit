@@ -19,7 +19,7 @@ function resolveRank(ctx: CharacterContext, skill: string): number | undefined {
 // `unknown` for cases we intentionally don't enforce yet (unsupported
 // patterns, feat-name lookups, etc.) so the filter UI can still let the
 // match through.
-export function evaluatePredicate(pred: Predicate, ctx: CharacterContext): Evaluation {
+function evaluatePredicate(pred: Predicate, ctx: CharacterContext): Evaluation {
   switch (pred.kind) {
     case 'skill-rank': {
       const rank = resolveRank(ctx, pred.skill.toLowerCase());

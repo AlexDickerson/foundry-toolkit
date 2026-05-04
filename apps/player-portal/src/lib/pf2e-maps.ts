@@ -7,14 +7,6 @@ import type { FeatCategory, FeatItem, ProficiencyRank } from '../api/types';
 // rank palette (dark green/blue/purple/amber) without vendoring Foundry's
 // full SCSS token system.
 
-export const RANK_LABEL: Record<ProficiencyRank, string> = {
-  0: 'Untrained',
-  1: 'Trained',
-  2: 'Expert',
-  3: 'Master',
-  4: 'Legendary',
-};
-
 export const RANK_I18N_KEY: Record<ProficiencyRank, string> = {
   0: 'PF2E.ProficiencyLevel0',
   1: 'PF2E.ProficiencyLevel1',

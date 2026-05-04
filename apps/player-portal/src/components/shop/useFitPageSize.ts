@@ -10,7 +10,7 @@ const MIN_FIT_PAGE_SIZE = 6;
 // (bottom pagination bar ~32px + container p-6 24px + safety margin).
 const VIEWPORT_BOTTOM_MARGIN_PX = 72;
 
-export const FALLBACK_PAGE_SIZE = 25;
+const FALLBACK_PAGE_SIZE = 25;
 
 export function useFitPageSize(): {
   pageSize: number;

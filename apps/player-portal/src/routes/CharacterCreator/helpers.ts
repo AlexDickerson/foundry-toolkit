@@ -92,13 +92,13 @@ export function isStepFilled(step: Step, draft: Draft): boolean {
 
 // Feat-slot location strings mirror pf2e's own convention
 // (`<category>-<level>`). Only L1 feats at creation for now.
-export function featLocationFor(target: PickerTarget): string | null {
+function featLocationFor(target: PickerTarget): string | null {
   if (target === 'class-feat') return 'class-1';
   if (target === 'ancestry-feat') return 'ancestry-1';
   return null;
 }
 
-export function previousItemIdFor(draft: Draft, target: PickerTarget): string | null {
+function previousItemIdFor(draft: Draft, target: PickerTarget): string | null {
   switch (target) {
     case 'ancestry':
       return draft.ancestry?.itemId ?? null;

@@ -7,7 +7,7 @@ import { isCoin, isPhysicalItem } from '../api/types';
 
 export type Denom = 'pp' | 'gp' | 'sp' | 'cp';
 
-export const COIN_DENOMS: readonly Denom[] = ['pp', 'gp', 'sp', 'cp'];
+const COIN_DENOMS: readonly Denom[] = ['pp', 'gp', 'sp', 'cp'];
 
 const CP_PER: Record<Denom, number> = {
   pp: 1000,
@@ -76,7 +76,7 @@ export function coinItemValueCp(item: PhysicalItem): number {
   return priceToCp(item.system.price) * item.system.quantity;
 }
 
-export function coinDenomOf(item: PhysicalItem): Denom | undefined {
+function coinDenomOf(item: PhysicalItem): Denom | undefined {
   const slug = item.system.slug;
   if (slug && slug in DENOM_BY_SLUG) return DENOM_BY_SLUG[slug];
   return undefined;

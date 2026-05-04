@@ -13,7 +13,7 @@ export type RemoteDataState<T> =
   | { kind: 'ready'; data: T }
   | { kind: 'error'; message: string };
 
-export interface UseRemoteDataOptions<T> {
+interface UseRemoteDataOptions<T> {
   /** Optional side effect run on each successful fetch, after the
    *  hook's state has been set. Receives the resolved data plus an
    *  `isCancelled` probe so any background work it kicks off

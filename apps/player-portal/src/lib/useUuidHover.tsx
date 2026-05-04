@@ -36,7 +36,7 @@ const VIEWPORT_EDGE_MARGIN = 12;
 const HOVER_CLOSE_DELAY_MS = 140;
 const HOVER_OPEN_DELAY_MS = 300;
 
-export interface UseUuidHoverOptions {
+interface UseUuidHoverOptions {
   // Synchronously resolve a uuid to a CompendiumDocument *without*
   // going through the API. Used for uuids that reference actor-local
   // items (e.g. hydrated feat picks whose source compendium id has
