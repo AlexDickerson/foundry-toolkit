@@ -9,6 +9,7 @@ import type {
   SceneRegionResult,
   SceneTokenSummary,
 } from '@/commands/types';
+import type { FoundryToken } from '../../../types/foundry-event-shapes.js';
 
 export interface FoundryNote {
   x: number;
@@ -82,29 +83,7 @@ export interface FoundryRegion {
   shapes: FoundryRegionShape[] | undefined;
 }
 
-export interface FoundryToken {
-  id: string;
-  name: string | undefined;
-  x: number;
-  y: number;
-  width: number | undefined;
-  height: number | undefined;
-  elevation: number | undefined;
-  hidden: boolean | undefined;
-  disposition: number | undefined;
-  actor: {
-    id: string;
-    system?: {
-      attributes?: {
-        hp?: { value: number; max: number };
-        ac?: { value: number };
-      };
-    };
-    statuses?: Set<string>;
-  } | null;
-}
-
-export interface FoundryScene {
+interface FoundryScene {
   id: string;
   name: string;
   active: boolean;
@@ -124,7 +103,7 @@ export interface FoundryScene {
   activate(): Promise<FoundryScene>;
 }
 
-export interface FoundryScenesCollection {
+interface FoundryScenesCollection {
   get(id: string): FoundryScene | undefined;
   active: FoundryScene | null;
   forEach(fn: (scene: FoundryScene) => void): void;

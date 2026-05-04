@@ -37,7 +37,7 @@ export interface FoundryEffectsCollection {
   get(id: string): FoundryActiveEffect | undefined;
 }
 
-export interface EffectFoundryActor {
+interface EffectFoundryActor {
   id: string;
   name: string;
   effects: FoundryEffectsCollection;
@@ -59,11 +59,11 @@ export interface ActiveEffectCreateData {
   duration?: EffectDurationData;
 }
 
-export interface EffectActorsCollection {
+interface EffectActorsCollection {
   get(id: string): EffectFoundryActor | undefined;
 }
 
-export interface EffectFoundryGame {
+interface EffectFoundryGame {
   actors: EffectActorsCollection;
 }
 

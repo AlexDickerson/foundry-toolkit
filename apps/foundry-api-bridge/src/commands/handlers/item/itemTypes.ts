@@ -1,10 +1,5 @@
 import type { RollResult } from '@/commands/types';
-
-export interface FoundryDiceTerm {
-  faces?: number;
-  number?: number;
-  results?: Array<{ result: number }>;
-}
+import type { FoundryDiceTerm } from '../../../types/foundry-event-shapes.js';
 
 export interface FoundryRoll {
   total: number;
@@ -93,13 +88,13 @@ export interface FoundryItemsCollection {
   get(id: string): FoundryItem | undefined;
 }
 
-export interface FoundryActor {
+interface FoundryActor {
   id: string;
   name: string;
   items: FoundryItemsCollection;
 }
 
-export interface ActorsCollection {
+interface ActorsCollection {
   get(id: string): FoundryActor | undefined;
 }
 
@@ -152,7 +147,7 @@ export interface FoundryHooks {
   off(hook: string, id: number): void;
 }
 
-export interface ItemFoundryGame {
+interface ItemFoundryGame {
   actors: ActorsCollection;
   user: FoundryUser;
   modules: FoundryModulesCollection;
