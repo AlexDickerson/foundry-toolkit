@@ -6,11 +6,9 @@ import { SheetHeader } from '../components/sheet/SheetHeader';
 import { SettingsDialog } from '../components/settings/SettingsDialog';
 import { TabStrip } from '../components/common/TabStrip';
 import type { Tab } from '../components/common/TabStrip';
-import { SectionHeader } from '../components/common/SectionHeader';
 import { Actions } from '../components/tabs/Actions';
 import { Background } from '../components/tabs/Background';
 import { Character } from '../components/tabs/character';
-import { Crafting } from '../components/tabs/Crafting';
 import { Feats } from '../components/tabs/Feats';
 import { Inventory } from '../components/tabs/Inventory';
 import { Proficiencies } from '../components/tabs/Proficiencies';
@@ -25,9 +23,9 @@ import { usePreferences } from '../lib/usePreferences';
 import { prefetchIcons } from '../lib/prefetchIcons';
 import { PromptQueue } from '../components/dialog/PromptQueue';
 import type { TabId } from '../lib/tabUtils';
-import { useShopMode } from '../lib/useShopMode';
 import { PartyRail } from '../components/sheet/PartyRail';
 import { MemberCard } from '../components/sheet/MemberCard';
+import { readBackgroundPath, buildSheetSurfaceStyle } from '../lib/sheetBackground';
 
 type State =
   | { kind: 'loading' }
@@ -65,7 +63,6 @@ interface InnerProps {
 }
 
 function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): React.ReactElement {
-  const shopMode = useShopMode();
   const { party, members } = useParty(actorId);
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [activeTab, setActiveTab] = useState<TabId>('character');
@@ -122,11 +119,18 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
     }
   });
 
+  const bgPath = state.kind === 'ready' ? readBackgroundPath(state.actor) : null;
+
   return (
     // Two-column layout on large screens: sheet on the left, chat sidebar
     // on the right in the previously-empty column space. Single column on
     // narrower viewports where the sidebar would be too cramped.
-    <div className="flex gap-6 py-6 font-sans">
+    // Background image (when set) spans all three columns so it covers
+    // everything below the nav bar — party rail, sheet, and chat.
+    <div
+      className={`flex gap-6 py-6 font-sans${bgPath ? ' min-h-full' : ''}`}
+      style={buildSheetSurfaceStyle(bgPath)}
+    >
       {/* ── Party rail (left column, desktop only) ───────────────────── */}
       <div className="hidden w-[230px] shrink-0 pl-3 lg:block">
         <PartyRail party={party} members={members} currentActorId={actorId} />
@@ -175,11 +179,7 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
         )}
 
         {state.kind === 'ready' && (
-          <div
-            data-testid="sheet-surface"
-            style={buildSheetSurfaceStyle(readBackgroundPath(state.actor))}
-            className={readBackgroundPath(state.actor) ? '-mx-4 rounded-lg px-4 py-2' : undefined}
-          >
+          <div data-testid="sheet-surface">
             <SheetHeader
               character={state.actor}
               actorId={actorId}
@@ -218,21 +218,14 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
               />
             )}
             {activeTab === 'inventory' && (
-              <>
-                <Inventory
-                  items={state.actor.items}
-                  actorId={actorId}
-                  onActorChanged={reloadActor}
-                  investiture={state.actor.system.resources.investiture}
-                  {...(party !== null ? { partyId: party.id } : {})}
-                />
-                {!shopMode.enabled && (
-                  <div className="mt-10 border-t border-pf-border pt-6">
-                    <SectionHeader>Crafting</SectionHeader>
-                    <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
-                  </div>
-                )}
-              </>
+              <Inventory
+                items={state.actor.items}
+                actorId={actorId}
+                onActorChanged={reloadActor}
+                investiture={state.actor.system.resources.investiture}
+                crafting={state.actor.system.crafting}
+                {...(party !== null ? { partyId: party.id } : {})}
+              />
             )}
             {activeTab === 'feats' && <Feats items={state.actor.items} />}
             {activeTab === 'progression' && (
@@ -285,25 +278,4 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
       )}
     </div>
   );
-}
-
-function readBackgroundPath(character: PreparedCharacter): string | null {
-  const raw = character.flags?.['character-creator']?.['backgroundImage'];
-  return typeof raw === 'string' && raw.length > 0 ? raw : null;
-}
-
-// Layers a semi-transparent overlay on top of the user's image so arbitrary
-// artwork (dark, busy, saturated) stays readable behind the sheet content.
-// Uses var(--pf-bg-overlay) so the overlay colour follows the portal theme
-// toggle (light: cream parchment at 88%, dark: navy at 88%).
-function buildSheetSurfaceStyle(bgPath: string | null): React.CSSProperties | undefined {
-  if (!bgPath) return undefined;
-  const url = bgPath.startsWith('/') ? bgPath : `/${bgPath}`;
-  return {
-    backgroundImage: `linear-gradient(var(--pf-bg-overlay), var(--pf-bg-overlay)), url(${url})`,
-    backgroundSize: 'auto, cover',
-    backgroundPosition: 'center, center',
-    backgroundRepeat: 'no-repeat, no-repeat',
-    backgroundAttachment: 'local, local',
-  };
 }

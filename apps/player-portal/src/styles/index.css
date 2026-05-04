@@ -10,9 +10,6 @@
  * compile-time values only and cannot chain through runtime var() refs. */
 :root {
   --portal-bg: var(--color-pf-bg); /* #f8f4f1 cream parchment */
-  /* Semi-transparent overlay used when a background image is set on the
-   * sheet surface. Must match --color-pf-bg at 88% opacity. */
-  --pf-bg-overlay: rgba(248, 244, 241, 0.88);
   --portal-surface: var(--color-pf-bg-dark); /* #e6dfd7 */
   --portal-surface-hover: #d4cbc2;
   --portal-border: var(--color-pf-border); /* #baa991 */

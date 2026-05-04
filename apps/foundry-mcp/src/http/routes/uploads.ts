@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, normalize, resolve } from 'node:path';
+import { dirname, extname, normalize, resolve } from 'node:path';
 import { FOUNDRY_DATA_DIR } from '../../config.js';
 import { uploadAssetBody } from '../schemas.js';
 
@@ -17,13 +17,16 @@ import { uploadAssetBody } from '../schemas.js';
 // while keeping a lid on accidental giant-file uploads.
 const UPLOAD_BODY_LIMIT = 16 * 1024 * 1024;
 
-export function registerUploadRoutes(app: FastifyInstance): void {
+const ALLOWED_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.svg']);
+
+export function registerUploadRoutes(app: FastifyInstance, opts: { dataDir?: string } = {}): void {
+  const dataDir = opts.dataDir ?? FOUNDRY_DATA_DIR;
   app.post('/api/uploads', { bodyLimit: UPLOAD_BODY_LIMIT }, async (req, reply) => {
     const body = uploadAssetBody.parse(req.body);
 
     // Reject any path that tries to escape the Data dir — either via a
     // leading `..`, a mid-path `..`, or an absolute path that resolves
-    // outside FOUNDRY_DATA_DIR after normalisation.
+    // outside dataDir after normalisation.
     const safeRel = normalize(body.path);
     if (safeRel.startsWith('..') || safeRel.includes('/..') || safeRel.includes('\\..')) {
       reply.code(400).send({
@@ -32,9 +35,18 @@ export function registerUploadRoutes(app: FastifyInstance): void {
       });
       return;
     }
-    const absPath = resolve(FOUNDRY_DATA_DIR, safeRel);
-    if (!absPath.startsWith(FOUNDRY_DATA_DIR)) {
+    const absPath = resolve(dataDir, safeRel);
+    if (!absPath.startsWith(dataDir)) {
       reply.code(400).send({ error: 'path must resolve inside the Data directory' });
+      return;
+    }
+
+    const ext = extname(safeRel).toLowerCase();
+    if (!ALLOWED_IMAGE_EXTS.has(ext)) {
+      reply.code(400).send({
+        error: `File type "${ext || '(none)'}" is not allowed`,
+        suggestion: 'Upload a PNG, JPG, WebP, GIF, AVIF, or SVG image.',
+      });
       return;
     }
 
@@ -46,9 +58,24 @@ export function registerUploadRoutes(app: FastifyInstance): void {
       return;
     }
 
-    await mkdir(dirname(absPath), { recursive: true });
-    await writeFile(absPath, buf);
+    try {
+      await mkdir(dirname(absPath), { recursive: true });
+      await writeFile(absPath, buf);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT' || code === 'EACCES' || code === 'EPERM') {
+        reply.code(500).send({
+          error: 'Could not write to the Foundry Data directory',
+          suggestion: `Set FOUNDRY_DATA or FOUNDRY_DATA_DIR in your .env to the actual path of your Foundry data folder. Current value: "${dataDir}".`,
+        });
+      } else {
+        reply.code(500).send({ error: 'File write failed', suggestion: String(err) });
+      }
+      return;
+    }
 
-    return { path: safeRel, bytes: buf.length };
+    // Always return forward slashes regardless of platform so the stored
+    // path is a valid URL segment on every OS.
+    return { path: safeRel.replace(/\\/g, '/'), bytes: buf.length };
   });
 }
