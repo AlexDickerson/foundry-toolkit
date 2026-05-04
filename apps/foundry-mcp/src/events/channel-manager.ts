@@ -1,8 +1,8 @@
 import { log } from '../logger.js';
 
-export type SubscriberFn = (chunk: string) => void;
+type SubscriberFn = (chunk: string) => void;
 
-export type SubscriptionChangeCallback = (channel: string, active: boolean) => void;
+type SubscriptionChangeCallback = (channel: string, active: boolean) => void;
 
 /**
  * Multi-channel SSE fan-out with activation tracking. A channel is "active"

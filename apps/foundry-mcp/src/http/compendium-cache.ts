@@ -35,11 +35,7 @@ import type {
 // (e.g. `import { CompendiumCache, type CompendiumDocument } from
 // './compendium-cache.js'`) keep working without churning consumers.
 export type {
-  CompendiumCacheStats,
   CompendiumDocument,
-  EnrichedMatch,
-  ItemPrice,
-  SearchOptions,
   SendCommand,
 } from './compendium-types.js';
 

@@ -12,7 +12,7 @@ import { AssetCache, assetCache, NEGATIVE_CACHE_TTL_MS } from '../asset-cache.js
 // Deliberately omitted:
 // - `/assets/*` — owned by @fastify/static for the Vite SPA bundle.
 // - `/api/*`, `/healthz`, `/mcp`, `/foundry` — server-owned.
-export const ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds', '/ui'] as const;
+const ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds', '/ui'] as const;
 
 // Envelope from the bridge (matches foundry-api-bridge `fetch-asset`):
 //   success: { ok: true,  contentType: string, bytes: string /* base64 */ }
@@ -30,7 +30,7 @@ function isFetchAssetEnvelope(v: unknown): v is FetchAssetEnvelope {
 }
 
 /** Optional DI hooks for tests — production callers don't pass anything. */
-export interface AssetRouteDeps {
+interface AssetRouteDeps {
   cache?: AssetCache;
   sendCommand?: (type: string, params?: Record<string, unknown>) => Promise<unknown>;
   isFoundryConnected?: () => boolean;
