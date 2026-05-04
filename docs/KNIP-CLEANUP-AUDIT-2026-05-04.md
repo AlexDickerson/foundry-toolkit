@@ -3,7 +3,8 @@
 ## Summary
 
 - **Total findings**: 265 (64 unused exports + 201 unused exported types)
-- **By category**: DELETE 150, PUBLIC 59, F13 34, JUDGMENT 17, SCRIPT-USED 5
+- **By category** (post-resolution): DELETE **167**, PUBLIC 59, F13 34, JUDGMENT **0**, SCRIPT-USED 5
+- **Original audit categorization**: DELETE 150, PUBLIC 59, F13 34, JUDGMENT 17, SCRIPT-USED 5 — see Resolutions section below for the 17 items that moved JUDGMENT → DELETE.
 - **By workspace**:
   | Workspace | Exports | Types | Total |
   |-----------|---------|-------|-------|
@@ -15,6 +16,44 @@
 
 - **Knip configuration hints** (22 "redundant entry" warnings for packages/ai, packages/db, packages/shared, packages/pf2e-rules): not code findings; address in a separate config-tightening PR.
 - **Extra finding**: `lint-staged` in root `package.json:42` flagged as unused devDependency — DELETE in the cleanup PR if confirmed unused.
+
+---
+
+## Resolutions (2026-05-04)
+
+The original audit raised 4 questions covering 17 JUDGMENT items. All resolved by grep-based investigation across `apps/` and `packages/`. **All 17 items move JUDGMENT → DELETE.** Evidence summarized below; cleanup PRs should treat them as standard DELETE-bucket items.
+
+### Q1 — dm-tool `electron/compendium/index.ts` barrel (10 types) → DELETE
+
+The barrel re-exports `ApiError`, `CompendiumDocument`, `CompendiumMatch`, `CompendiumSearchOptions`, `CompendiumSource`, `ItemPrice`, plus a default type alias. Repo-wide grep:
+
+- `grep -rn "from ['\"].*electron/compendium['\"]" apps packages` → zero matches.
+
+No consumers of the barrel anywhere. Safe to delete the barrel and the unused type re-exports. Direct imports from `electron/compendium/types.js` and `electron/compendium/client.ts` continue to work.
+
+### Q2 — api-bridge `KNOWN_ACTIONS` re-export chain (2 exports) → DELETE
+
+Repo-wide grep for `KNOWN_ACTIONS`:
+
+- The only consumer is `InvokeActorActionHandler.test.ts`, which imports directly from `../InvokeActorActionHandler`.
+- Re-exports in `commands/handlers/index.ts` and `commands/handlers/actor/index.ts` have no consumers.
+- The two `from './actor'` references in `commands/types/base.ts` and `commands/types/index.ts` point at `commands/types/actor`, **not** `commands/handlers/actor`. Different barrel.
+
+The handler-side barrels are dead. Delete the `KNOWN_ACTIONS` re-exports from both files; if those barrels become empty, delete the barrel files too.
+
+### Q3 — foundry-mcp `compendium-cache.ts` re-exports (4 types) → DELETE
+
+`CompendiumCacheStats`, `EnrichedMatch`, `SearchOptions`, `ItemPrice` are defined in `apps/foundry-mcp/src/http/compendium-types.ts`. Other consumers (e.g. `compendium-search.ts:30`) import them directly from `compendium-types.js`. The re-exports in `compendium-cache.ts` (lines 27–42) have no callers — only the file's own internal usage references them, and that usage works directly through the source `compendium-types.ts` after deletion.
+
+### Q4 — `packages/ai` `AnthropicCallInput` (1 type) → DELETE
+
+All three callers of `callAnthropic()` use inline object literals (`callAnthropic({ ... })`) and never annotate the parameter type explicitly:
+
+- `packages/ai/src/classifier/index.ts:41`
+- `packages/ai/src/hooks/index.ts:48`
+- `packages/ai/src/loot/index.ts:196`
+
+The exported interface is unused as a type annotation. Delete the `export` (the interface stays as an internal type for the function signature) or inline it.
 
 ---
 
@@ -448,10 +487,12 @@ These are intentional API types: transport contracts, config shapes, and wire-pr
 
 ## Open questions for the user
 
-1. **dm-tool `compendium/index.ts` barrel** (10 JUDGMENT types): Is the compendium HTTP API barrel in `electron/compendium/index.ts` still active? The re-exported types (`ApiError`, `CompendiumDocument`, `CompendiumMatch`, `CompendiumSearchOptions`, `CompendiumSource`, `ItemPrice`, and the `default` type alias) appear to have no consumers. Are they backwards-compat stubs that can be deleted, or is there an import site I missed?
+> **All four resolved on 2026-05-04 — see Resolutions section near the top of this doc. All 17 JUDGMENT items moved to DELETE.**
 
-2. **api-bridge `KNOWN_ACTIONS` re-export chain** (2 JUDGMENT exports): `handlers/index.ts` and `actor/index.ts` both re-export `KNOWN_ACTIONS`. Tests import it directly from `InvokeActorActionHandler.ts`. Are these re-export paths intentional API surface (keep with ignore annotation) or dead (delete)?
+1. ~~**dm-tool `compendium/index.ts` barrel** (10 JUDGMENT types)~~ — **Resolved → DELETE.** No consumers anywhere in `apps/` or `packages/`.
 
-3. **foundry-mcp `compendium-cache.ts` re-exports** (4 JUDGMENT types): `CompendiumCacheStats`, `EnrichedMatch`, `ItemPrice`, `SearchOptions` appear to be backwards-compat re-exports. Any consumers?
+2. ~~**api-bridge `KNOWN_ACTIONS` re-export chain** (2 JUDGMENT exports)~~ — **Resolved → DELETE.** Tests and the only real consumer import directly from `InvokeActorActionHandler.ts`; the handler-side barrels are dead.
 
-4. **`AnthropicCallInput` in packages/ai** (1 JUDGMENT type): Do dm-tool callers of `callAnthropic()` ever need to explicitly type their parameter using this interface, or is inline object construction sufficient?
+3. ~~**foundry-mcp `compendium-cache.ts` re-exports** (4 JUDGMENT types)~~ — **Resolved → DELETE.** Other consumers import directly from `compendium-types.ts`; the re-exports have no callers.
+
+4. ~~**`AnthropicCallInput` in packages/ai** (1 JUDGMENT type)~~ — **Resolved → DELETE.** All three callers of `callAnthropic()` use inline object literals; the export is unused as a type annotation.
