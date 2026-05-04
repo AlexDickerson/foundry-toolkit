@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { api } from '../../../api/client';
-import type { PhysicalItem, PointPool, PreparedActorItem } from '../../../api/types';
+import type { CraftingField, PhysicalItem, PointPool, PreparedActorItem } from '../../../api/types';
 import { isCoin, isContainer, isPhysicalItem } from '../../../api/types';
+import { Crafting } from '../Crafting';
 import { useShopMode } from '../../../lib/useShopMode';
 import { useUuidHover } from '../../../lib/useUuidHover';
 import { supportsInvestment, wouldExceedInvestmentCap } from '../../../lib/investment';
@@ -30,6 +31,9 @@ interface Props {
    *  Party Stash tab. Undefined = no party (or lookup still in flight) —
    *  Party Stash tab is hidden. */
   partyId?: string;
+  /** Crafting data from the prepared actor. When present, adds a Crafting
+   *  tab to the switcher. */
+  crafting?: CraftingField;
 }
 
 // Inventory tab — reads `items[]`, filters to physical item types
@@ -43,7 +47,7 @@ interface Props {
 // inventory.hbs, but flattened — our read-only viewer doesn't need
 // stow/carry/drop controls or quantity adjusters.
 //
-export function Inventory({ items, actorId, onActorChanged, investiture, partyId }: Props): React.ReactElement {
+export function Inventory({ items, actorId, onActorChanged, investiture, partyId, crafting }: Props): React.ReactElement {
   // One uuid-hover instance for every expanded item description —
   // event delegation on the section picks up anchors produced by
   // `enrichDescription` regardless of which item was expanded.
@@ -177,15 +181,18 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
   // Force back to 'inventory' when the chosen pane's prerequisite is gone:
   // - 'shop' requires shop mode + transact rights
   // - 'party-stash' requires a known party actor
+  // - 'crafting' requires crafting data
   const effectiveShopView: ShopView =
-    shopView === 'party-stash' && partyId !== undefined
-      ? 'party-stash'
-      : shopMode.enabled && canTransact && shopView === 'shop'
-        ? 'shop'
-        : 'inventory';
+    shopView === 'crafting' && crafting !== undefined
+      ? 'crafting'
+      : shopView === 'party-stash' && partyId !== undefined
+        ? 'party-stash'
+        : shopMode.enabled && canTransact && shopView === 'shop'
+          ? 'shop'
+          : 'inventory';
 
   // Whether the segmented selector is rendered at all.
-  const hasSelector = (shopMode.enabled && canTransact) || partyId !== undefined;
+  const hasSelector = (shopMode.enabled && canTransact) || partyId !== undefined || crafting !== undefined;
 
   return (
     <section
@@ -210,9 +217,10 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
                 onChange={setShopView}
                 showShop={shopMode.enabled && canTransact}
                 showPartyStash={partyId !== undefined}
+                showCrafting={crafting !== undefined}
               />
             )}
-            {effectiveShopView !== 'shop' && <ViewToggle view={view} onChange={setView} />}
+            {effectiveShopView === 'inventory' && <ViewToggle view={view} onChange={setView} />}
             <ShopGearMenu shopMode={shopMode} tileColumns={tileColumns} onTileColumnsChange={setTileColumns} />
             {investiture !== undefined && investiture.max > 0 && (
               <div className="flex items-center gap-2" data-stat="investiture">
@@ -226,7 +234,9 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
               </div>
             )}
           </div>
-          {effectiveShopView === 'party-stash' && partyId !== undefined ? (
+          {effectiveShopView === 'crafting' && crafting !== undefined && actorId !== undefined ? (
+            <Crafting actorId={actorId} crafting={crafting} />
+          ) : effectiveShopView === 'party-stash' && partyId !== undefined ? (
             <PartyStash
               partyId={partyId}
               refreshKey={stashNonce}

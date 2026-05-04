@@ -6,11 +6,9 @@ import { SheetHeader } from '../components/sheet/SheetHeader';
 import { SettingsDialog } from '../components/settings/SettingsDialog';
 import { TabStrip } from '../components/common/TabStrip';
 import type { Tab } from '../components/common/TabStrip';
-import { SectionHeader } from '../components/common/SectionHeader';
 import { Actions } from '../components/tabs/Actions';
 import { Background } from '../components/tabs/Background';
 import { Character } from '../components/tabs/character';
-import { Crafting } from '../components/tabs/Crafting';
 import { Feats } from '../components/tabs/Feats';
 import { Inventory } from '../components/tabs/Inventory';
 import { Proficiencies } from '../components/tabs/Proficiencies';
@@ -25,7 +23,6 @@ import { usePreferences } from '../lib/usePreferences';
 import { prefetchIcons } from '../lib/prefetchIcons';
 import { PromptQueue } from '../components/dialog/PromptQueue';
 import type { TabId } from '../lib/tabUtils';
-import { useShopMode } from '../lib/useShopMode';
 import { PartyRail } from '../components/sheet/PartyRail';
 import { MemberCard } from '../components/sheet/MemberCard';
 import { readBackgroundPath, buildSheetSurfaceStyle } from '../lib/sheetBackground';
@@ -66,7 +63,6 @@ interface InnerProps {
 }
 
 function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): React.ReactElement {
-  const shopMode = useShopMode();
   const { party, members } = useParty(actorId);
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [activeTab, setActiveTab] = useState<TabId>('character');
@@ -222,21 +218,14 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
               />
             )}
             {activeTab === 'inventory' && (
-              <>
-                <Inventory
-                  items={state.actor.items}
-                  actorId={actorId}
-                  onActorChanged={reloadActor}
-                  investiture={state.actor.system.resources.investiture}
-                  {...(party !== null ? { partyId: party.id } : {})}
-                />
-                {!shopMode.enabled && (
-                  <div className="mt-10 rounded-lg border border-pf-border bg-pf-bg px-4 py-4">
-                    <SectionHeader>Crafting</SectionHeader>
-                    <Crafting actorId={actorId} crafting={state.actor.system.crafting} />
-                  </div>
-                )}
-              </>
+              <Inventory
+                items={state.actor.items}
+                actorId={actorId}
+                onActorChanged={reloadActor}
+                investiture={state.actor.system.resources.investiture}
+                crafting={state.actor.system.crafting}
+                {...(party !== null ? { partyId: party.id } : {})}
+              />
             )}
             {activeTab === 'feats' && <Feats items={state.actor.items} />}
             {activeTab === 'progression' && (

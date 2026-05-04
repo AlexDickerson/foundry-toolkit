@@ -82,15 +82,13 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
 
   return (
     <section
-      className="space-y-6"
+      className="space-y-4"
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
-      <div>
-        <div className="mb-2 flex items-center justify-between gap-2 border-b border-pf-border pb-1">
-          <h2 className="font-serif text-base font-semibold uppercase tracking-wide text-pf-alt-dark">
-            Formula Book
-          </h2>
+      <div className="rounded-lg border border-pf-border bg-pf-bg-dark p-4">
+        <div className="-mx-4 -mt-4 mb-3 flex items-center justify-between rounded-t-lg border-b border-pf-border bg-pf-bg px-4 pb-2.5 pt-3">
+          <h2 className="font-serif text-sm font-bold uppercase tracking-wider text-pf-alt-dark">Formula Book</h2>
           <button
             type="button"
             onClick={() => {
@@ -122,8 +120,8 @@ export function Crafting({ actorId, crafting }: Props): React.ReactElement {
       </div>
 
       {entries.length > 0 && (
-        <div>
-          <SectionHeader>Crafting Abilities</SectionHeader>
+        <div className="rounded-lg border border-pf-border bg-pf-bg-dark p-4">
+          <SectionHeader band>Crafting Abilities</SectionHeader>
           <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {entries.map((entry) => (
               <CraftingAbilityCard key={entry.slug} entry={entry} resolutions={resolutions} />

@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
+import { Hammer, LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
 import type { PhysicalItem } from '../../../api/types';
 import { useShopMode } from '../../../lib/useShopMode';
 import type { ViewMode, ShopView } from './inventory-categories';
@@ -92,11 +92,13 @@ export function ShopViewToggle({
   onChange,
   showShop = true,
   showPartyStash = false,
+  showCrafting = false,
 }: {
   view: ShopView;
   onChange: (v: ShopView) => void;
   showShop?: boolean;
   showPartyStash?: boolean;
+  showCrafting?: boolean;
 }): React.ReactElement {
   const base = 'flex items-center justify-center px-2 py-2 transition-colors';
   const active = 'bg-pf-primary text-white';
@@ -143,6 +145,19 @@ export function ShopViewToggle({
           }}
         >
           <ShoppingBag size={14} aria-hidden="true" />
+        </button>
+      )}
+      {showCrafting && (
+        <button
+          type="button"
+          className={`${base} border-l border-pf-border ${view === 'crafting' ? active : inactive}`}
+          aria-pressed={view === 'crafting'}
+          aria-label="Crafting"
+          onClick={(): void => {
+            onChange('crafting');
+          }}
+        >
+          <Hammer size={14} aria-hidden="true" />
         </button>
       )}
     </div>
