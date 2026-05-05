@@ -4,7 +4,6 @@
 // monorepo, the shared module is the single source of truth.
 
 export type {
-  ApiError,
   CompendiumDocument,
   CompendiumEmbeddedItem,
   CompendiumMatch,

@@ -10,4 +10,4 @@ export {
   type MonsterRow,
   type MonsterResult,
 } from './monster.js';
-export { priceToCopper, itemDocToBrowserDetail, itemMatchToBrowserRow, itemDocToLootShortlistItem } from './item.js';
+export { priceToCopper, itemDocToBrowserDetail, itemMatchToBrowserRow } from './item.js';

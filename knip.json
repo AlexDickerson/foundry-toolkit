@@ -1,5 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
       "ignoreDependencies": [
@@ -7,12 +8,14 @@
         "@secretlint/secretlint-rule-aws",
         "@secretlint/secretlint-rule-github",
         "@secretlint/secretlint-rule-openai",
-        "@secretlint/secretlint-rule-pattern"
+        "@secretlint/secretlint-rule-pattern",
+        "lint-staged"
       ]
     },
     "apps/dm-tool": {
       "entry": ["electron.vite.config.ts", "electron/main.ts", "electron/preload.ts", "electron/**/*.test.ts"],
       "project": ["electron/**/*.ts", "src/**/*.{ts,tsx}"],
+      "ignore": ["electron/compendium/singleton.ts"],
       "ignoreDependencies": ["tailwindcss", "tailwindcss-animate"]
     },
     "apps/foundry-mcp": {
@@ -32,7 +35,7 @@
     },
     "apps/player-portal": {
       "ignoreDependencies": ["@eslint/js"],
-      "ignore": ["src/api/types/**", "src/components/tabs/Proficiencies.tsx"]
+      "ignore": ["src/api/types/**", "src/components/tabs/Proficiencies.tsx", "src/components/picker/**"]
     },
     "packages/ai": {
       "entry": [
