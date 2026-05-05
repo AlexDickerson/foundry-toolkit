@@ -22,7 +22,13 @@
     "apps/foundry-api-bridge": {
       "entry": ["src/main.ts"],
       "project": ["src/**/*.ts"],
-      "ignore": ["src/config/index.ts"]
+      "ignore": [
+        "src/config/index.ts",
+        "src/config/types.ts",
+        "src/transport/WebSocketClient.ts",
+        "src/commands/types/**",
+        "src/types/foundry-event-shapes.ts"
+      ]
     },
     "apps/player-portal": {
       "ignoreDependencies": ["@eslint/js"],

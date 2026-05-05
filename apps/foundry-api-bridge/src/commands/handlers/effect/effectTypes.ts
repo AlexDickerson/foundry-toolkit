@@ -1,13 +1,13 @@
 import type { EffectSummary, EffectChangeData, EffectDurationData } from '@/commands/types';
 
-export interface FoundryEffectChange {
+interface FoundryEffectChange {
   key: string;
   value: string;
   mode: number;
   priority?: number;
 }
 
-export interface FoundryEffectDuration {
+interface FoundryEffectDuration {
   startTime?: number;
   seconds?: number;
   rounds?: number;
@@ -17,7 +17,7 @@ export interface FoundryEffectDuration {
   startTurn?: number;
 }
 
-export interface FoundryActiveEffect {
+interface FoundryActiveEffect {
   _id: string;
   name: string;
   img: string;
@@ -32,7 +32,7 @@ export interface FoundryActiveEffect {
   delete(): Promise<FoundryActiveEffect>;
 }
 
-export interface FoundryEffectsCollection {
+interface FoundryEffectsCollection {
   contents: FoundryActiveEffect[];
   get(id: string): FoundryActiveEffect | undefined;
 }

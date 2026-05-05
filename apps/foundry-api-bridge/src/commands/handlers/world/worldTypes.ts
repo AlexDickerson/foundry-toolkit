@@ -1,9 +1,9 @@
-export interface FoundryWorld {
+interface FoundryWorld {
   id: string;
   title: string;
 }
 
-export interface FoundrySystem {
+interface FoundrySystem {
   id: string;
   version: string;
 }
@@ -15,7 +15,7 @@ export interface FoundryPackMetadata {
   packageName: string;
 }
 
-export interface FoundryPackIndex {
+interface FoundryPackIndex {
   size: number;
 }
 
@@ -25,7 +25,7 @@ export interface FoundryPack {
   index: FoundryPackIndex;
 }
 
-export interface FoundryCollection<T> {
+interface FoundryCollection<T> {
   size: number;
   forEach(fn: (item: T) => void): void;
 }
@@ -47,13 +47,13 @@ export function getGame(): FoundryGame {
 
 // Compendium document loading types
 
-export interface FoundryCompendiumDocument {
+interface FoundryCompendiumDocument {
   id: string;
   uuid: string;
   name: string;
 }
 
-export interface FoundryCompendiumPack {
+interface FoundryCompendiumPack {
   collection: string;
   metadata: FoundryPackMetadata;
   index: FoundryPackIndex;

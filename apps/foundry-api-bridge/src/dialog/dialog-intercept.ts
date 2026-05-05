@@ -223,7 +223,7 @@ export async function handleDialog(
 
 // ─── Foundry dialog resolution ───────────────────────────────────────────
 
-export function resolveFoundryDialog(
+function resolveFoundryDialog(
   dialogId: string,
   buttonId: string,
   formData: Record<string, string | number | boolean>,

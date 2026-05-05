@@ -10,27 +10,27 @@
 // player-portal). The mcp server caches hits indefinitely so each asset is
 // only fetched once per server process lifetime.
 
-export interface FetchAssetParams {
+interface FetchAssetParams {
   /** Root-relative Foundry asset path, e.g.
    *  `modules/pf2e-tokens-bestiaries/portraits/bestial/goblin.webp`.
    *  A leading slash is tolerated and stripped before the fetch. */
   path: string;
 }
 
-export interface FetchAssetResult {
+interface FetchAssetResult {
   ok: true;
   contentType: string;
   /** Asset body encoded as a base64 string. */
   bytes: string;
 }
 
-export interface FetchAssetError {
+interface FetchAssetError {
   ok: false;
   status: number;
   error: string;
 }
 
-export type FetchAssetResponse = FetchAssetResult | FetchAssetError;
+type FetchAssetResponse = FetchAssetResult | FetchAssetError;
 
 export async function fetchAssetHandler(params: FetchAssetParams): Promise<FetchAssetResponse> {
   const rawPath = params.path;

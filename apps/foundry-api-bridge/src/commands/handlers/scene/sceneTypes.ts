@@ -11,7 +11,7 @@ import type {
 } from '@/commands/types';
 import type { FoundryToken } from '../../../types/foundry-event-shapes.js';
 
-export interface FoundryNote {
+interface FoundryNote {
   x: number;
   y: number;
   text: string | undefined;
@@ -19,7 +19,7 @@ export interface FoundryNote {
   entryId: string | null | undefined;
 }
 
-export interface FoundryWall {
+interface FoundryWall {
   c: number[];
   move: number;
   sense: number;
@@ -27,14 +27,14 @@ export interface FoundryWall {
   ds: number | undefined;
 }
 
-export interface FoundryGrid {
+interface FoundryGrid {
   size: number | undefined;
   type: number | undefined;
   units: string | undefined;
   distance: number | undefined;
 }
 
-export interface FoundryLight {
+interface FoundryLight {
   x: number;
   y: number;
   config:
@@ -49,7 +49,7 @@ export interface FoundryLight {
   hidden: boolean | undefined;
 }
 
-export interface FoundryTile {
+interface FoundryTile {
   x: number;
   y: number;
   width: number | undefined;
@@ -60,7 +60,7 @@ export interface FoundryTile {
   rotation: number | undefined;
 }
 
-export interface FoundryDrawing {
+interface FoundryDrawing {
   x: number;
   y: number;
   shape:
@@ -72,11 +72,11 @@ export interface FoundryDrawing {
   strokeColor: string | null | undefined;
 }
 
-export interface FoundryRegionShape {
+interface FoundryRegionShape {
   type: string | undefined;
 }
 
-export interface FoundryRegion {
+interface FoundryRegion {
   id: string;
   name: string | undefined;
   color: string | null | undefined;
@@ -129,7 +129,7 @@ export function getScene(game: FoundryGame, sceneId?: string): FoundryScene {
   return activeScene;
 }
 
-export function pixelToGrid(x: number, y: number, gridSize: number): { gridX: number; gridY: number } {
+function pixelToGrid(x: number, y: number, gridSize: number): { gridX: number; gridY: number } {
   const size = gridSize > 0 ? gridSize : 100;
   return {
     gridX: Math.floor(x / size),
@@ -137,7 +137,7 @@ export function pixelToGrid(x: number, y: number, gridSize: number): { gridX: nu
   };
 }
 
-export function mapNoteToResult(note: FoundryNote): SceneNoteResult {
+function mapNoteToResult(note: FoundryNote): SceneNoteResult {
   return {
     x: note.x,
     y: note.y,
@@ -147,7 +147,7 @@ export function mapNoteToResult(note: FoundryNote): SceneNoteResult {
   };
 }
 
-export function mapWallToResult(wall: FoundryWall): SceneWallResult {
+function mapWallToResult(wall: FoundryWall): SceneWallResult {
   return {
     c: wall.c,
     move: wall.move,
@@ -156,7 +156,7 @@ export function mapWallToResult(wall: FoundryWall): SceneWallResult {
   };
 }
 
-export function mapLightToResult(light: FoundryLight): SceneLightResult {
+function mapLightToResult(light: FoundryLight): SceneLightResult {
   return {
     x: light.x,
     y: light.y,
@@ -169,7 +169,7 @@ export function mapLightToResult(light: FoundryLight): SceneLightResult {
   };
 }
 
-export function mapTileToResult(tile: FoundryTile): SceneTileResult {
+function mapTileToResult(tile: FoundryTile): SceneTileResult {
   return {
     x: tile.x,
     y: tile.y,
@@ -182,7 +182,7 @@ export function mapTileToResult(tile: FoundryTile): SceneTileResult {
   };
 }
 
-export function mapDrawingToResult(drawing: FoundryDrawing): SceneDrawingResult {
+function mapDrawingToResult(drawing: FoundryDrawing): SceneDrawingResult {
   return {
     x: drawing.x,
     y: drawing.y,
@@ -199,7 +199,7 @@ export function mapDrawingToResult(drawing: FoundryDrawing): SceneDrawingResult 
   };
 }
 
-export function mapRegionToResult(region: FoundryRegion): SceneRegionResult {
+function mapRegionToResult(region: FoundryRegion): SceneRegionResult {
   return {
     id: region.id,
     name: region.name ?? '',
@@ -208,7 +208,7 @@ export function mapRegionToResult(region: FoundryRegion): SceneRegionResult {
   };
 }
 
-export function mapTokenToSummary(token: FoundryToken, gridSize: number): SceneTokenSummary {
+function mapTokenToSummary(token: FoundryToken, gridSize: number): SceneTokenSummary {
   const { gridX, gridY } = pixelToGrid(token.x, token.y, gridSize);
   const result: SceneTokenSummary = {
     id: token.id,

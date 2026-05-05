@@ -37,7 +37,7 @@ export interface FoundryToken extends SharedFoundryToken {
   delete(): Promise<FoundryToken>;
 }
 
-export interface TokenUpdateOptions {
+interface TokenUpdateOptions {
   animate?: boolean;
 }
 

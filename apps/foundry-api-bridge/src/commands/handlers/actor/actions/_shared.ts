@@ -21,7 +21,7 @@ export function resolveStrike(actor: FoundryActor, slug: string): Pf2eStrike {
   return strike;
 }
 
-export interface CraftingFormulaEntry {
+interface CraftingFormulaEntry {
   uuid: string;
 }
 

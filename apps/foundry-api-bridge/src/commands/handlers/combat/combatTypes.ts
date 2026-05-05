@@ -6,7 +6,7 @@ export interface CombatantUpdateData {
   hidden?: boolean;
 }
 
-export interface FoundryCombatant {
+interface FoundryCombatant {
   id: string;
   actorId: string;
   tokenId: string | null;
@@ -18,7 +18,7 @@ export interface FoundryCombatant {
   update(data: CombatantUpdateData): Promise<FoundryCombatant>;
 }
 
-export interface FoundryCombatantsCollection {
+interface FoundryCombatantsCollection {
   get(id: string): FoundryCombatant | undefined;
   map<T>(callback: (combatant: FoundryCombatant) => T): T[];
   contents: FoundryCombatant[];
@@ -29,7 +29,7 @@ export interface RollInitiativeOptions {
   messageOptions?: Record<string, unknown>;
 }
 
-export interface FoundryCombat {
+interface FoundryCombat {
   id: string;
   round: number;
   turn: number;
@@ -67,7 +67,7 @@ export interface CombatConstructor {
   create(data?: FoundryCombatCreateData): Promise<FoundryCombat>;
 }
 
-export interface FoundryCombatsCollection {
+interface FoundryCombatsCollection {
   get(id: string): FoundryCombat | undefined;
   active: FoundryCombat | null;
 }
