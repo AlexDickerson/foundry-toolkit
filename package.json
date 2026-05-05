@@ -17,7 +17,7 @@
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint . && npm run lint --workspaces --if-present",
     "lint:fix": "eslint . --fix",
-    "knip": "knip --include files,dependencies,unresolved",
+    "knip": "knip --include files,dependencies,unresolved,exports,types,nsExports,nsTypes",
     "build": "npm run build --workspaces --if-present",
     "dev:dm-tool": "npm --workspace apps/dm-tool run dev",
     "dev:mcp": "npm --workspace apps/foundry-mcp run dev",

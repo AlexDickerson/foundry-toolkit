@@ -35,7 +35,7 @@ import type {
 // server side has shifted.
 const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export interface CreateCompendiumApiOptions {
+interface CreateCompendiumApiOptions {
   /** Base URL of the foundry-mcp server, e.g. `http://localhost:8765`.
    *  Trailing slash is tolerated. */
   baseUrl: string;
