@@ -1,5 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { CompendiumFacets } from '@foundry-toolkit/shared/foundry-api';
+import {
+  createCompendiumItemBody,
+  ensureCompendiumPackBody,
+  type CreateCompendiumItemResponse,
+  type EnsureCompendiumPackResponse,
+} from '@foundry-toolkit/shared/rpc';
 import { sendCommand } from '../../bridge.js';
 import { log } from '../../logger.js';
 import { compendiumCache } from '../compendium-cache-singleton.js';
@@ -131,6 +137,36 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
       traits,
       maxLevel,
     });
+  });
+
+  // Idempotent create-or-reuse of a world compendium pack. Used by
+  // dm-tool's homebrew-item editor to lazily provision the target pack
+  // on the first save. The bridge handler is the source of truth for
+  // the `world.<name>` id composition and type validation.
+  app.post('/api/compendium/packs/ensure', async (req): Promise<EnsureCompendiumPackResponse> => {
+    const body = ensureCompendiumPackBody.parse(req.body);
+    const result = (await sendCommand('ensure-compendium-pack', {
+      name: body.name,
+      label: body.label,
+      ...(body.type !== undefined ? { type: body.type } : {}),
+    })) as EnsureCompendiumPackResponse;
+    log.info(
+      `compendium-ensure: ${result.created ? 'created' : 'reused'} pack ${result.id} ` +
+        `(label="${result.label}", type=${result.type})`,
+    );
+    return result;
+  });
+
+  // Create a single Item document inside a world pack. The pack must
+  // already exist (call /api/compendium/packs/ensure first) and must
+  // be an Item pack — the bridge errors otherwise. The dm-tool editor
+  // strips identity fields (`_id`, `_stats`, embedded `_id`s) before
+  // posting so the payload is always a fresh document.
+  app.post('/api/compendium/items', async (req): Promise<CreateCompendiumItemResponse> => {
+    const body = createCompendiumItemBody.parse(req.body);
+    const result = (await sendCommand('create-compendium-item', body)) as CreateCompendiumItemResponse;
+    log.info(`compendium-create-item: ${result.uuid} (name="${result.name}", type=${result.type})`);
+    return result;
   });
 
   // Pre-aggregated facets for the Monster/Item Browser sidebars. Served
