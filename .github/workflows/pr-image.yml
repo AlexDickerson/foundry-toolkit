@@ -65,7 +65,7 @@ jobs:
             type=raw,value=pr-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
             type=raw,value=pr-${{ github.event.pull_request.number || github.event.inputs.pr_number }}-${{ steps.sha.outputs.short }}
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
