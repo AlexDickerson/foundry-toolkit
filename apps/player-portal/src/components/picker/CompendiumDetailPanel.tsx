@@ -242,7 +242,7 @@ function readPrice(doc: CompendiumDocument): string | null {
 }
 
 function readSystemString(doc: CompendiumDocument, key: string): string | null {
-  const system = doc.system as Record<string, unknown>;
+  const system = doc.system;
   const field = system[key];
   if (typeof field === 'object' && field !== null && 'value' in field) {
     const v = (field as { value?: unknown }).value;
@@ -252,7 +252,7 @@ function readSystemString(doc: CompendiumDocument, key: string): string | null {
 }
 
 function readSystemTopLevelString(doc: CompendiumDocument, key: string): string | null {
-  const system = doc.system as Record<string, unknown>;
+  const system = doc.system;
   const field = system[key];
   if (typeof field === 'string' && field.trim() !== '') return field;
   // Fall through to the {value} shape pf2e sometimes uses for the same field.
@@ -270,7 +270,7 @@ function readPrerequisites(doc: CompendiumDocument): string[] | null {
 }
 
 function readActions(doc: CompendiumDocument): string | null {
-  const system = doc.system as Record<string, unknown>;
+  const system = doc.system;
   const actionsField = system['actions'] as { value?: unknown } | undefined;
   const av = actionsField?.value;
   if (typeof av === 'number') return `${av.toString()} action${av === 1 ? '' : 's'}`;
