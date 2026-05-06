@@ -191,11 +191,19 @@ describe('draftToPayload', () => {
     });
   });
 
-  it('writes armor mechanical fields on armor type', () => {
+  it('writes armor mechanical fields on armor type using PF2e remaster field names', () => {
     const draft: ItemDraft = {
       ...emptyDraft('armor'),
       name: 'Plate',
-      armor: { category: 'heavy', group: 'plate', acBonus: 6, strength: 18, dex: 0, check: -3, slowness: -10 },
+      armor: {
+        category: 'heavy',
+        group: 'plate',
+        acBonus: 6,
+        strength: 18,
+        dexCap: 0,
+        checkPenalty: -3,
+        speedPenalty: -10,
+      },
     };
     const payload = draftToPayload(draft);
     expect(payload.system).toMatchObject({
@@ -203,10 +211,123 @@ describe('draftToPayload', () => {
       group: 'plate',
       acBonus: 6,
       strength: 18,
-      dex: 0,
-      check: -3,
-      slowness: -10,
+      dexCap: 0,
+      checkPenalty: -3,
+      speedPenalty: -10,
     });
+    // Legacy field names must not be written — Foundry's data model
+    // ignores them and a typo would silently drop the value.
+    expect(payload.system).not.toHaveProperty('dex');
+    expect(payload.system).not.toHaveProperty('check');
+    expect(payload.system).not.toHaveProperty('slowness');
+  });
+
+  it('reads armor fields from a real PF2e document shape', () => {
+    // Shape captured from `pf2e.equipment-srd` Leather Armor via /api/eval.
+    const draft = templateToDraft({
+      name: 'Leather Armor',
+      type: 'armor',
+      img: null,
+      system: {
+        category: 'light',
+        group: 'leather',
+        acBonus: 1,
+        strength: 0,
+        dexCap: 4,
+        checkPenalty: -1,
+        speedPenalty: 0,
+      },
+      effects: [],
+      flags: {},
+    });
+    expect(draft.armor).toEqual({
+      category: 'light',
+      group: 'leather',
+      acBonus: 1,
+      strength: 0,
+      dexCap: 4,
+      checkPenalty: -1,
+      speedPenalty: 0,
+    });
+  });
+
+  it('preserves description sibling fields (gm, addenda, override) through round-trip', () => {
+    const draft = templateToDraft({
+      name: 'X',
+      type: 'equipment',
+      img: null,
+      system: {
+        description: {
+          value: '<p>Original</p>',
+          gm: 'GM-only note',
+          addenda: ['extra'],
+          override: null,
+          initialized: false,
+        },
+      },
+      effects: [],
+      flags: {},
+    });
+    draft.description = '<p>Edited</p>';
+    const payload = draftToPayload({ ...draft, name: 'X' });
+    expect(payload.system['description']).toMatchObject({
+      value: '<p>Edited</p>',
+      gm: 'GM-only note',
+      addenda: ['extra'],
+      override: null,
+      initialized: false,
+    });
+  });
+
+  it('preserves price sibling fields (per, sizeSensitive, credits, upb) through round-trip', () => {
+    const draft = templateToDraft({
+      name: 'X',
+      type: 'equipment',
+      img: null,
+      system: {
+        price: { value: { pp: 0, gp: 5, sp: 0, cp: 0, credits: 0, upb: 0 }, per: 1, sizeSensitive: true },
+      },
+      effects: [],
+      flags: {},
+    });
+    draft.price = { pp: 0, gp: 10, sp: 0, cp: 0 };
+    const payload = draftToPayload({ ...draft, name: 'X' });
+    const price = payload.system['price'] as Record<string, unknown>;
+    expect(price['per']).toBe(1);
+    expect(price['sizeSensitive']).toBe(true);
+    const value = price['value'] as Record<string, unknown>;
+    expect(value['gp']).toBe(10);
+    // Sibling currency fields the editor doesn't surface must survive.
+    expect(value['credits']).toBe(0);
+    expect(value['upb']).toBe(0);
+  });
+
+  it('preserves bulk sibling fields (heldOrStowed, per) through round-trip', () => {
+    const draft = templateToDraft({
+      name: 'X',
+      type: 'weapon',
+      img: null,
+      system: { bulk: { value: 1, heldOrStowed: 1, per: 1 } },
+      effects: [],
+      flags: {},
+    });
+    draft.bulk = '2';
+    const payload = draftToPayload({ ...draft, name: 'X' });
+    expect(payload.system['bulk']).toEqual({ value: 2, heldOrStowed: 1, per: 1 });
+  });
+
+  it('preserves uses.autoDestroy when uses are written', () => {
+    const draft = templateToDraft({
+      name: 'X',
+      type: 'consumable',
+      img: null,
+      system: { uses: { value: 1, max: 1, autoDestroy: true } },
+      effects: [],
+      flags: {},
+    });
+    draft.uses = { value: 0, max: 3 };
+    const payload = draftToPayload({ ...draft, name: 'X' });
+    expect(payload.system['uses']).toEqual({ value: 0, max: 3, autoDestroy: true });
   });
 
   it('omits frequency and uses when max is 0', () => {

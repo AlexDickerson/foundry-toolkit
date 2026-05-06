@@ -525,22 +525,22 @@ function PerTypeSection({ draft, update }: { draft: ItemDraft; update: DraftUpda
             <Field label="Dex cap">
               <Input
                 type="number"
-                value={draft.armor.dex}
-                onChange={(e) => update('armor', { ...draft.armor, dex: Number(e.target.value) || 0 })}
+                value={draft.armor.dexCap}
+                onChange={(e) => update('armor', { ...draft.armor, dexCap: Number(e.target.value) || 0 })}
               />
             </Field>
             <Field label="Check penalty">
               <Input
                 type="number"
-                value={draft.armor.check}
-                onChange={(e) => update('armor', { ...draft.armor, check: Number(e.target.value) || 0 })}
+                value={draft.armor.checkPenalty}
+                onChange={(e) => update('armor', { ...draft.armor, checkPenalty: Number(e.target.value) || 0 })}
               />
             </Field>
             <Field label="Speed penalty" className="col-span-2">
               <Input
                 type="number"
-                value={draft.armor.slowness}
-                onChange={(e) => update('armor', { ...draft.armor, slowness: Number(e.target.value) || 0 })}
+                value={draft.armor.speedPenalty}
+                onChange={(e) => update('armor', { ...draft.armor, speedPenalty: Number(e.target.value) || 0 })}
               />
             </Field>
           </div>
@@ -605,11 +605,11 @@ function PerTypeSection({ draft, update }: { draft: ItemDraft; update: DraftUpda
       return (
         <div className="space-y-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Treasure</h3>
-          <Field label="Stack group">
+          <Field label="Category">
             <Input
-              value={draft.treasure.stackGroup}
-              onChange={(e) => update('treasure', { ...draft.treasure, stackGroup: e.target.value })}
-              placeholder="coins / gems / …"
+              value={draft.treasure.category}
+              onChange={(e) => update('treasure', { ...draft.treasure, category: e.target.value })}
+              placeholder="gem / currency / art-object / …"
             />
           </Field>
         </div>

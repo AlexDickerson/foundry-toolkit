@@ -75,9 +75,13 @@ export interface ArmorDraft {
   group: string;
   acBonus: number;
   strength: number;
-  dex: number;
-  check: number;
-  slowness: number;
+  /** Dex cap — PF2e remaster field is `system.dexCap`. */
+  dexCap: number;
+  /** Check penalty — PF2e remaster field is `system.checkPenalty`. */
+  checkPenalty: number;
+  /** Speed penalty — PF2e remaster field is `system.speedPenalty`
+   *  (the legacy field name `slowness` was renamed). */
+  speedPenalty: number;
 }
 
 export interface ShieldDraft {
@@ -95,7 +99,9 @@ export interface EquipmentDraft {
 }
 
 export interface TreasureDraft {
-  stackGroup: string;
+  /** PF2e treasure types: 'gem', 'currency', 'art-object', etc.
+   *  Stored at `system.category` on the document. */
+  category: string;
 }
 
 export interface ActiveEffectChangeDraft {
@@ -159,7 +165,7 @@ function emptyWeapon(): WeaponDraft {
 }
 
 function emptyArmor(): ArmorDraft {
-  return { category: 'light', group: 'leather', acBonus: 1, strength: 10, dex: 4, check: 0, slowness: 0 };
+  return { category: 'light', group: 'leather', acBonus: 1, strength: 0, dexCap: 4, checkPenalty: 0, speedPenalty: 0 };
 }
 
 function emptyShield(): ShieldDraft {
@@ -175,7 +181,7 @@ function emptyEquipment(): EquipmentDraft {
 }
 
 function emptyTreasure(): TreasureDraft {
-  return { stackGroup: '' };
+  return { category: 'gem' };
 }
 
 export function emptyDraft(type: ItemType = 'equipment'): ItemDraft {
@@ -322,10 +328,10 @@ function readArmorFromSystem(system: Record<string, unknown>): ArmorDraft {
     category,
     group: readString(system['group'], 'leather'),
     acBonus: readNumber(system['acBonus'], 1),
-    strength: readNumber(system['strength'], 10),
-    dex: readNumber(system['dex'], 4),
-    check: readNumber(system['check'], 0),
-    slowness: readNumber(system['slowness'], 0),
+    strength: readNumber(system['strength'], 0),
+    dexCap: readNumber(system['dexCap'], 4),
+    checkPenalty: readNumber(system['checkPenalty'], 0),
+    speedPenalty: readNumber(system['speedPenalty'], 0),
   };
 }
 
@@ -352,7 +358,7 @@ function readEquipmentFromSystem(system: Record<string, unknown>): EquipmentDraf
 }
 
 function readTreasureFromSystem(system: Record<string, unknown>): TreasureDraft {
-  return { stackGroup: readString(system['stackGroup'], '') };
+  return { category: readString(system['category'], 'gem') };
 }
 
 function readEffectsFromTemplate(effects: Array<Record<string, unknown>>): ActiveEffectDraft[] {
@@ -445,20 +451,38 @@ export function draftToPayload(draft: ItemDraft): CompendiumItemPayload {
 
   const system: Record<string, unknown> = { ...draft.systemRaw };
 
-  // Common fields — overlay onto whatever the template carried.
-  system['level'] = { value: draft.level };
+  // Common fields — overlay onto whatever the template carried, but
+  // preserve sibling fields the editor doesn't surface (PF2e items
+  // carry adjacent metadata on every nested record — `description.gm`,
+  // `price.per`, `bulk.heldOrStowed`, `traits.otherTags`, etc. — and
+  // a clobbering write would silently delete them when cloning).
+  const existingLevel = isRecord(system['level']) ? (system['level'] as Record<string, unknown>) : {};
+  system['level'] = { ...existingLevel, value: draft.level };
+
+  const existingTraits = isRecord(system['traits']) ? (system['traits'] as Record<string, unknown>) : {};
   system['traits'] = {
-    ...((isRecord(system['traits']) ? system['traits'] : {}) as Record<string, unknown>),
+    ...existingTraits,
     value: [...draft.traits],
     rarity: draft.rarity,
   };
-  system['price'] = { value: { ...draft.price } };
-  system['bulk'] = { value: parseBulk(draft.bulk) };
-  system['description'] = { value: draft.description };
-  system['publication'] = {
-    ...((isRecord(system['publication']) ? system['publication'] : {}) as Record<string, unknown>),
-    title: draft.source,
+
+  const existingPrice = isRecord(system['price']) ? (system['price'] as Record<string, unknown>) : {};
+  const existingPriceValue = isRecord(existingPrice['value'])
+    ? (existingPrice['value'] as Record<string, unknown>)
+    : {};
+  system['price'] = {
+    ...existingPrice,
+    value: { ...existingPriceValue, ...draft.price },
   };
+
+  const existingBulk = isRecord(system['bulk']) ? (system['bulk'] as Record<string, unknown>) : {};
+  system['bulk'] = { ...existingBulk, value: parseBulk(draft.bulk) };
+
+  const existingDesc = isRecord(system['description']) ? (system['description'] as Record<string, unknown>) : {};
+  system['description'] = { ...existingDesc, value: draft.description };
+
+  const existingPub = isRecord(system['publication']) ? (system['publication'] as Record<string, unknown>) : {};
+  system['publication'] = { ...existingPub, title: draft.source };
 
   // Per-type fields — only set for the active type.
   switch (draft.type) {
@@ -479,9 +503,9 @@ export function draftToPayload(draft: ItemDraft): CompendiumItemPayload {
       system['group'] = draft.armor.group;
       system['acBonus'] = draft.armor.acBonus;
       system['strength'] = draft.armor.strength;
-      system['dex'] = draft.armor.dex;
-      system['check'] = draft.armor.check;
-      system['slowness'] = draft.armor.slowness;
+      system['dexCap'] = draft.armor.dexCap;
+      system['checkPenalty'] = draft.armor.checkPenalty;
+      system['speedPenalty'] = draft.armor.speedPenalty;
       break;
     }
     case 'shield': {
@@ -505,7 +529,7 @@ export function draftToPayload(draft: ItemDraft): CompendiumItemPayload {
       break;
     }
     case 'treasure': {
-      system['stackGroup'] = draft.treasure.stackGroup;
+      system['category'] = draft.treasure.category;
       break;
     }
   }
@@ -518,9 +542,11 @@ export function draftToPayload(draft: ItemDraft): CompendiumItemPayload {
     delete system['frequency'];
   }
 
-  // Uses — same pattern.
+  // Uses — same pattern. Merge into the existing object so a
+  // template's `autoDestroy` (consumables) survives the round trip.
   if (draft.uses.max > 0) {
-    system['uses'] = { value: draft.uses.value, max: draft.uses.max };
+    const existingUses = isRecord(system['uses']) ? (system['uses'] as Record<string, unknown>) : {};
+    system['uses'] = { ...existingUses, value: draft.uses.value, max: draft.uses.max };
   } else {
     delete system['uses'];
   }
