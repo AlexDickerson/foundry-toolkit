@@ -144,8 +144,8 @@ const api: ElectronAPI = {
   getItemFacets: (): Promise<ItemFacets> => ipcRenderer.invoke('getItemFacets'),
 
   // Homebrew item creator
-  getCompendiumItemTemplate: (uuid: string): Promise<CompendiumItemTemplate> =>
-    ipcRenderer.invoke('getCompendiumItemTemplate', uuid),
+  getCompendiumItemTemplate: (idOrUuid: string): Promise<CompendiumItemTemplate> =>
+    ipcRenderer.invoke('getCompendiumItemTemplate', idOrUuid),
   ensureHomebrewItemPack: (body: EnsureCompendiumPackBody): Promise<EnsureCompendiumPackResponse> =>
     ipcRenderer.invoke('ensureHomebrewItemPack', body),
   createHomebrewItem: (payload: {

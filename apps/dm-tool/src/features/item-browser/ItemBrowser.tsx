@@ -54,9 +54,9 @@ export function ItemBrowser({ keywords = '' }: { keywords?: string }) {
   const [filters, setFilters] = useState<ItemSearchParams>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
-  const [editor, setEditor] = useState<{ open: boolean; templateUuid: string | null }>({
+  const [editor, setEditor] = useState<{ open: boolean; templateRef: string | null }>({
     open: false,
-    templateUuid: null,
+    templateRef: null,
   });
 
   const searchParams = useMemo<ItemSearchParams>(
@@ -113,7 +113,7 @@ export function ItemBrowser({ keywords = '' }: { keywords?: string }) {
       {/* Grid + overlay container */}
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex shrink-0 justify-end gap-2 border-b border-border px-3 py-2">
-          <Button size="sm" onClick={() => setEditor({ open: true, templateUuid: null })}>
+          <Button size="sm" onClick={() => setEditor({ open: true, templateRef: null })}>
             <Plus className="mr-1 h-3.5 w-3.5" />
             New homebrew item
           </Button>
@@ -127,7 +127,7 @@ export function ItemBrowser({ keywords = '' }: { keywords?: string }) {
               siblings={selectedSiblings}
               onSelectSibling={setSelectedId}
               onClose={handleClose}
-              onUseAsTemplate={(uuid) => setEditor({ open: true, templateUuid: uuid })}
+              onUseAsTemplate={(idOrUuid) => setEditor({ open: true, templateRef: idOrUuid })}
             />
           </DetailOverlay>
         )}
@@ -135,8 +135,8 @@ export function ItemBrowser({ keywords = '' }: { keywords?: string }) {
 
       <HomebrewItemEditorModal
         open={editor.open}
-        templateUuid={editor.templateUuid}
-        onClose={() => setEditor({ open: false, templateUuid: null })}
+        templateRef={editor.templateRef}
+        onClose={() => setEditor({ open: false, templateRef: null })}
       />
     </div>
   );

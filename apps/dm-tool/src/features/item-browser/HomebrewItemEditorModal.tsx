@@ -57,13 +57,16 @@ interface SaveResult {
 interface HomebrewItemEditorModalProps {
   open: boolean;
   /** When set, the modal opens seeded from this template (clone path).
-   *  When null/undefined, the modal opens empty (greenfield create). */
-  templateUuid?: string | null;
+   *  Accepts either a full Foundry uuid or a bare document id from
+   *  `pf2e.equipment-srd` (the form `ItemBrowserRow.id` carries — the
+   *  IPC layer resolves it). When null/undefined, the modal opens
+   *  empty (greenfield create). */
+  templateRef?: string | null;
   onClose: () => void;
   onSaved?: (result: SaveResult) => void;
 }
 
-export function HomebrewItemEditorModal({ open, templateUuid, onClose, onSaved }: HomebrewItemEditorModalProps) {
+export function HomebrewItemEditorModal({ open, templateRef, onClose, onSaved }: HomebrewItemEditorModalProps) {
   const [draft, setDraft] = useState<ItemDraft>(() => emptyDraft());
   const [tab, setTab] = useState<Tab>('basic');
   const [loading, setLoading] = useState(false);
@@ -79,7 +82,7 @@ export function HomebrewItemEditorModal({ open, templateUuid, onClose, onSaved }
     setTab('basic');
     setAdvancedDirty(false);
 
-    if (!templateUuid) {
+    if (!templateRef) {
       const fresh = emptyDraft();
       setDraft(fresh);
       setAdvancedJson(JSON.stringify(fresh.systemRaw, null, 2));
@@ -89,7 +92,7 @@ export function HomebrewItemEditorModal({ open, templateUuid, onClose, onSaved }
     let cancelled = false;
     setLoading(true);
     api
-      .getCompendiumItemTemplate(templateUuid)
+      .getCompendiumItemTemplate(templateRef)
       .then((template: CompendiumItemTemplate) => {
         if (cancelled) return;
         const seeded = templateToDraft(template);
@@ -105,7 +108,7 @@ export function HomebrewItemEditorModal({ open, templateUuid, onClose, onSaved }
     return () => {
       cancelled = true;
     };
-  }, [open, templateUuid]);
+  }, [open, templateRef]);
 
   const update = useCallback(<K extends keyof ItemDraft>(key: K, value: ItemDraft[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -166,7 +169,7 @@ export function HomebrewItemEditorModal({ open, templateUuid, onClose, onSaved }
     >
       <DialogContent className="grid max-h-[90vh] w-full max-w-3xl grid-rows-[auto_auto_1fr_auto] gap-4">
         <DialogHeader>
-          <DialogTitle>{templateUuid ? 'Edit homebrew item (from template)' : 'New homebrew item'}</DialogTitle>
+          <DialogTitle>{templateRef ? 'Edit homebrew item (from template)' : 'New homebrew item'}</DialogTitle>
           <DialogDescription>
             Lands in <span className="font-mono">world.homebrew-items</span>. The pack is created on first save.
           </DialogDescription>

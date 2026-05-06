@@ -26,18 +26,19 @@ import type {
   EnsureCompendiumPackResponse,
 } from '@foundry-toolkit/shared/rpc';
 import { getCompendiumApi, isPreparedCompendiumInitialized } from '../compendium/singleton.js';
-import { stripIdentityForClone, type CompendiumItemTemplate } from './homebrew-items-clone.js';
+import { resolveItemTemplateUuid, stripIdentityForClone, type CompendiumItemTemplate } from './homebrew-items-clone.js';
 
 export type { CompendiumItemTemplate } from './homebrew-items-clone.js';
 
 export function registerHomebrewItemHandlers(): void {
-  ipcMain.handle('getCompendiumItemTemplate', async (_e, uuid: string): Promise<CompendiumItemTemplate> => {
+  ipcMain.handle('getCompendiumItemTemplate', async (_e, idOrUuid: string): Promise<CompendiumItemTemplate> => {
     if (!isPreparedCompendiumInitialized()) {
       throw new Error('Compendium API not available — set a foundry-mcp URL in Settings → Paths and restart the app.');
     }
-    if (typeof uuid !== 'string' || uuid.length === 0) {
-      throw new Error('getCompendiumItemTemplate: uuid must be a non-empty string');
+    if (typeof idOrUuid !== 'string' || idOrUuid.length === 0) {
+      throw new Error('getCompendiumItemTemplate: id or uuid must be a non-empty string');
     }
+    const uuid = resolveItemTemplateUuid(idOrUuid);
     const { document } = await getCompendiumApi().getCompendiumDocument(uuid);
     return stripIdentityForClone(document);
   });

@@ -4,7 +4,7 @@
 // document rather than reattaching to the source compendium item.
 
 import { describe, expect, it } from 'vitest';
-import { stripIdentityForClone } from './homebrew-items-clone';
+import { resolveItemTemplateUuid, stripIdentityForClone } from './homebrew-items-clone';
 import type { CompendiumDocument } from '../compendium/types';
 
 function doc(overrides: Partial<CompendiumDocument> & Record<string, unknown> = {}): CompendiumDocument {
@@ -88,5 +88,21 @@ describe('stripIdentityForClone', () => {
     expect(result.system).toEqual({});
     expect(result.effects).toEqual([]);
     expect(result.flags).toEqual({});
+  });
+});
+
+describe('resolveItemTemplateUuid', () => {
+  it('wraps a bare pf2e.equipment-srd document id into a full uuid', () => {
+    expect(resolveItemTemplateUuid('c4PSK2Q7ikF8jgrm')).toBe('Compendium.pf2e.equipment-srd.Item.c4PSK2Q7ikF8jgrm');
+  });
+
+  it('passes through an already-formed uuid unchanged', () => {
+    const uuid = 'Compendium.pf2e.equipment-srd.Item.abc123';
+    expect(resolveItemTemplateUuid(uuid)).toBe(uuid);
+  });
+
+  it('passes through a uuid from a non-pf2e pack untouched', () => {
+    const uuid = 'Compendium.world.homebrew-items.Item.xyz789';
+    expect(resolveItemTemplateUuid(uuid)).toBe(uuid);
   });
 });

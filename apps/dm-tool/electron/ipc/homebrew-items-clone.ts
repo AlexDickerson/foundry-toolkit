@@ -7,6 +7,18 @@
 
 import type { CompendiumDocument } from '../compendium/types.js';
 
+/** Resolve either a full Foundry uuid (`Compendium.<pack>.<docType>.<id>`)
+ *  or a bare document id from `pf2e.equipment-srd` to a full uuid the
+ *  bridge can fetch. The renderer's `ItemBrowserRow.id` is a bare doc
+ *  id (set in `projection/item.ts` to `m.documentId` / `doc.id`),
+ *  matching the convention in `prepared.ts::getItemBrowserDetail`.
+ *  Constructing the uuid here keeps the renderer free of pack-id
+ *  knowledge while staying in lockstep with the single-pack scope
+ *  (`ITEM_PACK_IDS = ['pf2e.equipment-srd']`). */
+export function resolveItemTemplateUuid(idOrUuid: string): string {
+  return idOrUuid.startsWith('Compendium.') ? idOrUuid : `Compendium.pf2e.equipment-srd.Item.${idOrUuid}`;
+}
+
 /** Shape returned by `getCompendiumItemTemplate`. Slimmer than the raw
  *  bridge document — we only need the fields the editor will populate. */
 export interface CompendiumItemTemplate {

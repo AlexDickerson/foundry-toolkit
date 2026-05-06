@@ -14,8 +14,10 @@ interface ItemDetailPaneProps {
   onSelectSibling?: (id: string) => void;
   onClose: () => void;
   /** Callback to open the homebrew editor seeded from this item's
-   *  data. The id passed in is the Foundry uuid. */
-  onUseAsTemplate?: (uuid: string) => void;
+   *  data. Receives whatever the browser stores as `id` — currently a
+   *  bare `pf2e.equipment-srd` document id; the IPC layer resolves it
+   *  to a full uuid before fetching. */
+  onUseAsTemplate?: (idOrUuid: string) => void;
 }
 
 const RARITY_CHIP: Record<string, string> = {

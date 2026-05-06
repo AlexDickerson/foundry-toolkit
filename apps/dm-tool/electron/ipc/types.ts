@@ -216,11 +216,14 @@ export interface ElectronAPI {
   // -----------------------------------------------------------------------
 
   /** Fetch the full Foundry document for an item the user wants to use as
-   *  a template for a new homebrew item. Identity fields (`_id`,
-   *  `_stats`, embedded `_id`s, effect `origin`) are stripped server-side
-   *  before the renderer receives the result so a re-submit produces a
-   *  fresh document. Throws when foundry-mcp isn't configured. */
-  getCompendiumItemTemplate(uuid: string): Promise<CompendiumItemTemplate>;
+   *  a template for a new homebrew item. Accepts either a full Foundry
+   *  uuid (`Compendium.<pack>.<docType>.<id>`) or a bare document id
+   *  from `pf2e.equipment-srd` (the form `ItemBrowserRow.id` carries).
+   *  Identity fields (`_id`, `_stats`, embedded `_id`s, effect `origin`)
+   *  are stripped server-side before the renderer receives the result so
+   *  a re-submit produces a fresh document. Throws when foundry-mcp
+   *  isn't configured. */
+  getCompendiumItemTemplate(idOrUuid: string): Promise<CompendiumItemTemplate>;
   /** Idempotently create the configured homebrew compendium pack
    *  (`world.<name>`) and return its full id. Subsequent calls reuse
    *  the existing pack. */
