@@ -15,7 +15,10 @@ import type {
   addItemFromCompendiumBody,
   adjustActorConditionBody,
   adjustActorResourceBody,
+  compendiumItemPayload,
   createActorBody,
+  createCompendiumItemBody,
+  ensureCompendiumPackBody,
   invokeActorActionBody,
   resolvePromptBody,
   rollActorStatisticBody,
@@ -33,6 +36,34 @@ export type UpdateActorItemBody = z.infer<typeof updateActorItemBody>;
 export type ResolvePromptBody = z.infer<typeof resolvePromptBody>;
 export type UploadAssetBody = z.infer<typeof uploadAssetBody>;
 export type InvokeActorActionBody = z.infer<typeof invokeActorActionBody>;
+export type EnsureCompendiumPackBody = z.infer<typeof ensureCompendiumPackBody>;
+export type CreateCompendiumItemBody = z.infer<typeof createCompendiumItemBody>;
+export type CompendiumItemPayload = z.infer<typeof compendiumItemPayload>;
+
+// Response from POST /api/compendium/packs/ensure — mirrored on the
+// bridge side. `created: true` means a new pack was provisioned;
+// `false` means an existing pack with the same id was reused.
+export interface EnsureCompendiumPackResponse {
+  /** Full Foundry pack id, e.g. `world.homebrew-items`. */
+  id: string;
+  /** Display label as stored in pack metadata. */
+  label: string;
+  /** Document type — currently always `'Item'` (constrained by request schema). */
+  type: 'Item';
+  created: boolean;
+}
+
+// Response from POST /api/compendium/items — the new document's
+// identity for the caller to navigate to or stash.
+export interface CreateCompendiumItemResponse {
+  /** Document id within the pack. */
+  id: string;
+  /** Full uuid, e.g. `Compendium.world.homebrew-items.Item.<id>`. */
+  uuid: string;
+  packId: string;
+  name: string;
+  type: string;
+}
 
 // Action-specific param/response shapes. Each action routes through
 // `POST /api/actors/:id/actions/:action` with `params` shaped like the

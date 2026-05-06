@@ -297,3 +297,89 @@ export const uploadAssetBody = z.object({
   path: z.string().min(1),
   dataBase64: z.string().min(1),
 });
+
+// ---------------------------------------------------------------------------
+// Homebrew item creator (dm-tool's Item Browser → Create)
+// ---------------------------------------------------------------------------
+
+// World pack scope-less name. Foundry composes the actual id as
+// `world.<name>`, so `name` must be safe for that key — lowercase
+// kebab-case, no dots. The bridge also enforces this.
+const packShortName = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9][a-z0-9-]*$/, 'pack name must be lowercase kebab-case (a-z, 0-9, -)');
+
+// POST /api/compendium/packs/ensure — idempotent create of a world pack.
+// `name` is the scope-less short name; the bridge prefixes `world.` to
+// build the full id. `label` is the display name shown in the Foundry
+// sidebar. `type` is fixed to 'Item' for now — the editor only creates
+// items, and constraining the schema means a misuse 400s rather than
+// silently producing an Actor pack the consumer can't write to.
+export const ensureCompendiumPackBody = z.object({
+  name: packShortName,
+  label: z.string().min(1).max(128),
+  type: z.literal('Item').optional(),
+});
+
+// One ActiveEffect change row. Mirrors Foundry's
+// `ActiveEffectData.changes` shape — `mode` is one of the numeric
+// CONST.ACTIVE_EFFECT_MODES values (0=custom, 1=multiply, 2=add,
+// 3=downgrade, 4=upgrade, 5=override). `priority` is optional and
+// defaults to mode * 10 in Foundry.
+export const activeEffectChange = z.object({
+  key: z.string().min(1),
+  mode: z.number().int().min(0).max(5),
+  value: z.string(),
+  priority: z.number().int().optional(),
+});
+
+// One ActiveEffect document. Kept minimal — the editor writes name,
+// changes, transfer, disabled, duration, and an optional icon. The
+// bridge passes the object through to `pack.documentClass.create`'s
+// `effects` array verbatim.
+export const activeEffectPayload = z.object({
+  name: z.string().min(1),
+  img: z.string().optional(),
+  disabled: z.boolean().optional(),
+  // ActiveEffect transfer flag — when true on an item, applying the
+  // item to an actor copies the effect onto the actor. PF2e mostly
+  // uses RuleElements (system.rules) for this, but vanilla
+  // ActiveEffects still work.
+  transfer: z.boolean().optional(),
+  changes: z.array(activeEffectChange).optional(),
+  duration: z
+    .object({
+      seconds: z.number().int().nonnegative().optional(),
+      rounds: z.number().int().nonnegative().optional(),
+      turns: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
+});
+
+// Item document payload accepted by `create-compendium-item`. `system`
+// is opaque (`Record<string, unknown>`) because each pf2e item type
+// has a different shape and the editor knows the difference; the
+// bridge writes `system` verbatim. `effects` is a parallel array of
+// embedded ActiveEffect docs (Foundry handles `effects` as embedded
+// documents on Item.create). `flags` is left open for future
+// callers (module-scoped flags, source attribution, etc.).
+export const compendiumItemPayload = z.object({
+  name: z.string().min(1).max(256),
+  type: z.string().min(1).max(64),
+  img: z.string().optional(),
+  system: z.record(z.string(), z.unknown()),
+  effects: z.array(activeEffectPayload).optional(),
+  flags: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+});
+
+// POST /api/compendium/items — create a single Item document in a
+// world pack. The bridge resolves `packId` against `game.packs`, errors
+// if it doesn't exist or isn't an Item pack, and returns the new
+// document's id + uuid. Use `ensureCompendiumPackBody` first to
+// guarantee the pack exists.
+export const createCompendiumItemBody = z.object({
+  packId: z.string().min(1),
+  item: compendiumItemPayload,
+});
