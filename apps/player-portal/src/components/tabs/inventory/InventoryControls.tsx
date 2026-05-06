@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
+import { api } from '../../../api/client';
 import type { PhysicalItem, PreparedActorItem } from '../../../api/types';
 import { useShopMode } from '../../../lib/useShopMode';
-import type { Denom } from '../../../lib/coins';
+import { coinItemsByDenom, coinSlugFor, type Denom } from '../../../lib/coins';
 import type { ViewMode, ShopView } from './inventory-categories';
-import { spendCoins, grantCoins } from './inventory-shop';
 
 // Slug → denomination order (largest first — pp > gp > sp > cp). Amiri's
 // coin items have slugs like "silver-pieces" / "gold-pieces"; unknown
@@ -19,12 +19,6 @@ const COIN_SLUG_DENOM: Record<string, Denom> = {
 
 const DENOMS: readonly Denom[] = ['pp', 'gp', 'sp', 'cp'];
 
-// cp equivalent for one unit of each denomination.
-const DENOM_CP: Record<Denom, number> = { pp: 1000, gp: 100, sp: 10, cp: 1 };
-
-const STEP_BTN =
-  'rounded border border-pf-border bg-pf-bg px-1 py-0.5 font-mono text-[10px] text-pf-text hover:bg-pf-bg-dark disabled:opacity-40';
-
 export function CoinStrip({
   coins,
   actorId,
@@ -33,15 +27,15 @@ export function CoinStrip({
   onError,
 }: {
   coins: PhysicalItem[];
-  /** When provided alongside items + onActorChanged, renders per-denomination +/- controls. */
+  /** When provided alongside items + onActorChanged, the strip renders an
+   *  "Edit coins" button that opens a dialog for batched +/- per-denomination
+   *  edits. */
   actorId?: string;
   items?: readonly PreparedActorItem[];
   onActorChanged?: () => void;
   onError?: (msg: string | null) => void;
 }): React.ReactElement {
-  const [pendingDenom, setPendingDenom] = useState<Denom | null>(null);
-  const [amounts, setAmounts] = useState<Record<Denom, string>>({ pp: '1', gp: '1', sp: '1', cp: '1' });
-
+  const [editing, setEditing] = useState(false);
   const editable = actorId !== undefined && items !== undefined && onActorChanged !== undefined;
 
   const totals: Record<Denom, number> = { pp: 0, gp: 0, sp: 0, cp: 0 };
@@ -52,64 +46,58 @@ export function CoinStrip({
     }
   }
 
-  const handleAdjust = async (denom: Denom, sign: 1 | -1): Promise<void> => {
-    const aId = actorId;
-    const itms = items;
-    const onChanged = onActorChanged;
-    if (aId === undefined || itms === undefined || onChanged === undefined) return;
-    const raw = parseInt(amounts[denom], 10);
-    if (!Number.isInteger(raw) || raw <= 0) return;
-    const totalCp = raw * DENOM_CP[denom];
-    setPendingDenom(denom);
+  const handleApply = async (deltas: Partial<Record<Denom, number>>): Promise<void> => {
+    if (actorId === undefined || items === undefined || onActorChanged === undefined) return;
     onError?.(null);
-    try {
-      if (sign === 1) {
-        await grantCoins(aId, itms, totalCp);
-      } else {
-        await spendCoins(aId, itms, totalCp);
+    const coinItems = coinItemsByDenom(items);
+    // Per-denom direct updates so the user's "−2 sp" doesn't drain a gp via
+    // largest-first greedy logic. Sequential awaits — each touches a different
+    // coin item, so there's no cross-contamination of stale quantities.
+    for (const denom of DENOMS) {
+      const delta = deltas[denom];
+      if (delta === undefined || delta === 0) continue;
+      const item = coinItems[denom];
+      const currentQty = item?.system.quantity ?? 0;
+      const newQty = currentQty + delta;
+      if (newQty < 0) {
+        throw new Error(`Cannot remove ${(-delta).toString()} ${denom} — only ${currentQty.toString()} on hand.`);
       }
-      onChanged();
-    } catch (err) {
-      onError?.(err instanceof Error ? err.message : String(err));
-    } finally {
-      setPendingDenom(null);
+      if (item) {
+        await api.updateActorItem(actorId, item.id, { system: { quantity: newQty } });
+      } else if (delta > 0) {
+        // No existing stack for this denom — pull a fresh one from the
+        // pf2e equipment pack at the requested quantity. Mirrors grantCoins'
+        // missing-stack fallback.
+        await api.addItemFromCompendium(actorId, {
+          packId: 'pf2e.equipment-srd',
+          itemId: coinSlugFor(denom),
+          quantity: delta,
+        });
+      }
     }
+    onActorChanged();
   };
 
   return (
-    <div
-      className="flex flex-wrap items-center gap-3 rounded border border-pf-tertiary-dark bg-pf-tertiary/20 px-3 py-2"
-      data-section="coins"
-    >
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">Coins</span>
-      {DENOMS.map((denom) => (
-        <span key={denom} className="flex items-center gap-1">
-          {editable && (
-            <button
-              type="button"
-              aria-label={`Remove ${denom}`}
-              disabled={pendingDenom !== null}
-              onClick={(): void => {
-                void handleAdjust(denom, -1);
-              }}
-              className={STEP_BTN}
-            >
-              −
-            </button>
-          )}
-          {editable && (
-            <input
-              type="number"
-              min="1"
-              aria-label={`${denom} amount`}
-              value={amounts[denom]}
-              onChange={(e): void => {
-                setAmounts((prev) => ({ ...prev, [denom]: e.target.value }));
-              }}
-              className="w-10 rounded border border-pf-border bg-pf-bg px-1 py-0.5 text-center font-mono text-xs text-pf-text"
-            />
-          )}
+    <>
+      {editing && editable && (
+        <CoinEditDialog
+          items={items}
+          onClose={(): void => {
+            setEditing(false);
+          }}
+          onApply={handleApply}
+          {...(onError !== undefined ? { onError } : {})}
+        />
+      )}
+      <div
+        className="flex flex-wrap items-center gap-3 rounded border border-pf-tertiary-dark bg-pf-tertiary/20 px-3 py-2"
+        data-section="coins"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">Coins</span>
+        {DENOMS.map((denom) => (
           <span
+            key={denom}
             className={[
               'font-mono text-sm tabular-nums',
               totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
@@ -118,21 +106,175 @@ export function CoinStrip({
             <strong>{totals[denom]}</strong>{' '}
             <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
           </span>
-          {editable && (
-            <button
-              type="button"
-              aria-label={`Add ${denom}`}
-              disabled={pendingDenom !== null}
-              onClick={(): void => {
-                void handleAdjust(denom, 1);
-              }}
-              className={STEP_BTN}
+        ))}
+        {editable && (
+          <button
+            type="button"
+            aria-label="Edit coins"
+            data-testid="coin-edit-button"
+            onClick={(): void => {
+              setEditing(true);
+            }}
+            className="ml-auto rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-[11px] font-semibold text-pf-text hover:bg-pf-bg-dark"
+          >
+            Edit
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Coin edit dialog ────────────────────────────────────────────────────────
+
+function CoinEditDialog({
+  items,
+  onClose,
+  onApply,
+  onError,
+}: {
+  items: readonly PreparedActorItem[];
+  onClose: () => void;
+  onApply: (deltas: Partial<Record<Denom, number>>) => Promise<void>;
+  onError?: (msg: string | null) => void;
+}): React.ReactElement {
+  const [deltas, setDeltas] = useState<Record<Denom, string>>({ pp: '', gp: '', sp: '', cp: '' });
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return (): void => {
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [onClose]);
+
+  const coinItems = coinItemsByDenom(items);
+  const currentQty: Record<Denom, number> = {
+    pp: coinItems.pp?.system.quantity ?? 0,
+    gp: coinItems.gp?.system.quantity ?? 0,
+    sp: coinItems.sp?.system.quantity ?? 0,
+    cp: coinItems.cp?.system.quantity ?? 0,
+  };
+
+  // Parse non-empty inputs into ints, dropping zeros and unparseable values.
+  const parsedDeltas: Partial<Record<Denom, number>> = {};
+  for (const denom of DENOMS) {
+    const text = deltas[denom].trim();
+    if (text === '' || text === '-' || text === '+') continue;
+    const n = parseInt(text, 10);
+    if (Number.isInteger(n) && n !== 0) parsedDeltas[denom] = n;
+  }
+
+  // Inline validation: any negative delta whose abs() exceeds current qty.
+  let validationError: string | null = null;
+  for (const denom of DENOMS) {
+    const delta = parsedDeltas[denom];
+    if (delta === undefined) continue;
+    if (delta < 0 && Math.abs(delta) > currentQty[denom]) {
+      validationError = `Cannot remove ${Math.abs(delta).toString()} ${denom} — only ${currentQty[denom].toString()} on hand.`;
+      break;
+    }
+  }
+
+  const hasChanges = Object.keys(parsedDeltas).length > 0;
+  const canApply = hasChanges && validationError === null && !applying;
+
+  const handleApply = async (): Promise<void> => {
+    setApplyError(null);
+    setApplying(true);
+    try {
+      await onApply(parsedDeltas);
+      onClose();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setApplyError(msg);
+      onError?.(msg);
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      data-testid="coin-edit-dialog-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit coins"
+      onClick={onClose}
+    >
+      <div
+        className="flex w-full max-w-sm flex-col overflow-hidden rounded border border-pf-border bg-pf-bg shadow-2xl"
+        data-testid="coin-edit-dialog"
+        onClick={(e): void => {
+          e.stopPropagation();
+        }}
+      >
+        <div className="px-5 py-4">
+          <h2 className="text-sm font-semibold text-pf-text">Edit coins</h2>
+          <p className="mt-1 text-[11px] text-pf-text-muted">
+            Positive values add coins; negative values remove them.
+          </p>
+          <div className="mt-3 space-y-2">
+            {DENOMS.map((denom) => (
+              <div
+                key={denom}
+                className="flex items-center gap-3 text-xs"
+                data-coin-edit-row={denom}
+              >
+                <span className="w-8 font-semibold uppercase tracking-wider text-pf-alt-dark">{denom}</span>
+                <span className="w-12 text-right font-mono tabular-nums text-pf-text">
+                  {currentQty[denom]}
+                </span>
+                <input
+                  type="number"
+                  step="1"
+                  placeholder="0"
+                  aria-label={`${denom} delta`}
+                  value={deltas[denom]}
+                  onChange={(e): void => {
+                    setDeltas((prev) => ({ ...prev, [denom]: e.target.value }));
+                  }}
+                  className="w-24 rounded border border-pf-border bg-pf-bg px-2 py-1 text-center font-mono text-pf-text"
+                />
+              </div>
+            ))}
+          </div>
+          {(applyError ?? validationError) !== null && (
+            <p
+              className="mt-3 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800"
+              data-role="coin-edit-error"
             >
-              +
-            </button>
+              {applyError ?? validationError}
+            </p>
           )}
-        </span>
-      ))}
+        </div>
+        <footer className="flex items-center justify-end gap-2 border-t border-pf-border bg-pf-bg-dark/60 px-4 py-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            data-testid="coin-edit-cancel"
+            className="rounded border border-pf-border bg-pf-bg px-3 py-1.5 text-sm text-pf-text hover:bg-pf-bg-dark"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canApply}
+            onClick={(): void => {
+              void handleApply();
+            }}
+            data-testid="coin-edit-apply"
+            className="rounded border border-pf-primary bg-pf-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-pf-primary-dark disabled:opacity-50"
+          >
+            {applying ? 'Applying…' : 'Apply'}
+          </button>
+        </footer>
+      </div>
     </div>
   );
 }

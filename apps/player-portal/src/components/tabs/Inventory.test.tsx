@@ -214,33 +214,70 @@ describe('Inventory tab — party stash selector', () => {
   });
 });
 
-// ─── Coin edit controls ───────────────────────────────────────────────────────
+// ─── Coin edit dialog ─────────────────────────────────────────────────────────
 // Amiri's gp item id (from fixture): ABg0ouzYy9py3sCh, qty=6
 // Amiri's sp item id (from fixture): fo1yVhGWohLg3sFn, qty=5
 
-describe('Inventory tab — coin edit controls', () => {
+describe('Inventory tab — coin edit dialog', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
   });
 
-  it('does not show add/remove buttons when no actorId', () => {
+  function openDialog(container: HTMLElement): void {
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-testid="coin-edit-button"]')!);
+  }
+
+  function applyButton(container: HTMLElement): HTMLButtonElement {
+    const btn = container.querySelector<HTMLButtonElement>('[data-testid="coin-edit-apply"]');
+    if (!btn) throw new Error('Apply button not rendered');
+    return btn;
+  }
+
+  it('does not show the Edit coins button when no actorId', () => {
     const { container } = render(<Inventory items={items} />);
-    expect(container.querySelector('button[aria-label="Add gp"]')).toBeNull();
-    expect(container.querySelector('button[aria-label="Remove gp"]')).toBeNull();
+    expect(container.querySelector('[data-testid="coin-edit-button"]')).toBeNull();
   });
 
-  it('shows add/remove buttons for each denomination when actorId is provided', () => {
+  it('shows the Edit coins button when actorId is provided', () => {
     const { container } = render(
       <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
     );
+    expect(container.querySelector('[data-testid="coin-edit-button"]')).toBeTruthy();
+  });
+
+  it('opens a dialog with one delta input per denomination when Edit is clicked', () => {
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    openDialog(container);
+    expect(container.querySelector('[data-testid="coin-edit-dialog"]')).toBeTruthy();
     for (const denom of ['pp', 'gp', 'sp', 'cp'] as const) {
-      expect(container.querySelector(`button[aria-label="Add ${denom}"]`), `Add ${denom}`).toBeTruthy();
-      expect(container.querySelector(`button[aria-label="Remove ${denom}"]`), `Remove ${denom}`).toBeTruthy();
+      expect(container.querySelector(`input[aria-label="${denom} delta"]`), `${denom} delta input`).toBeTruthy();
     }
   });
 
-  it('calls api.updateActorItem to increase gp quantity when + is clicked', async () => {
+  it('shows current per-denomination quantity in the dialog', () => {
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    openDialog(container);
+    // Amiri has 6 gp and 5 sp; the row text should reflect those numbers.
+    const gpRow = container.querySelector('[data-coin-edit-row="gp"]');
+    const spRow = container.querySelector('[data-coin-edit-row="sp"]');
+    expect(gpRow?.textContent).toContain('6');
+    expect(spRow?.textContent).toContain('5');
+  });
+
+  it('disables Apply when no deltas are entered', () => {
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    openDialog(container);
+    expect(applyButton(container).disabled).toBe(true);
+  });
+
+  it('calls api.updateActorItem to increase gp when +1 is entered and Apply is clicked', async () => {
     vi.spyOn(api, 'updateActorItem').mockResolvedValue({
       id: 'ABg0ouzYy9py3sCh',
       name: 'Gold Pieces',
@@ -253,9 +290,12 @@ describe('Inventory tab — coin edit controls', () => {
     const { container } = render(
       <Inventory items={items} actorId="actor-1" onActorChanged={onActorChanged} />,
     );
-    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Add gp"]')!);
+    openDialog(container);
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp delta"]')!, {
+      target: { value: '1' },
+    });
+    fireEvent.click(applyButton(container));
     await waitFor(() => {
-      // grantCoins adds 1 gp (100 cp) to the existing 6 gp stack → qty 7
       expect(api.updateActorItem).toHaveBeenCalledWith('actor-1', 'ABg0ouzYy9py3sCh', {
         system: { quantity: 7 },
       });
@@ -263,7 +303,7 @@ describe('Inventory tab — coin edit controls', () => {
     expect(onActorChanged).toHaveBeenCalled();
   });
 
-  it('calls api.updateActorItem to decrease gp quantity when − is clicked', async () => {
+  it('calls api.updateActorItem to decrease gp when −1 is entered', async () => {
     vi.spyOn(api, 'updateActorItem').mockResolvedValue({
       id: 'ABg0ouzYy9py3sCh',
       name: 'Gold Pieces',
@@ -276,9 +316,12 @@ describe('Inventory tab — coin edit controls', () => {
     const { container } = render(
       <Inventory items={items} actorId="actor-1" onActorChanged={onActorChanged} />,
     );
-    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Remove gp"]')!);
+    openDialog(container);
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp delta"]')!, {
+      target: { value: '-1' },
+    });
+    fireEvent.click(applyButton(container));
     await waitFor(() => {
-      // spendCoins removes 1 gp (100 cp) from the 6 gp stack → qty 5
       expect(api.updateActorItem).toHaveBeenCalledWith('actor-1', 'ABg0ouzYy9py3sCh', {
         system: { quantity: 5 },
       });
@@ -286,10 +329,10 @@ describe('Inventory tab — coin edit controls', () => {
     expect(onActorChanged).toHaveBeenCalled();
   });
 
-  it('uses the amount input value when adjusting coins', async () => {
+  it('applies multiple denominations in one Apply', async () => {
     vi.spyOn(api, 'updateActorItem').mockResolvedValue({
-      id: 'ABg0ouzYy9py3sCh',
-      name: 'Gold Pieces',
+      id: 'unused',
+      name: 'unused',
       type: 'treasure',
       img: '',
       actorId: 'actor-1',
@@ -298,32 +341,75 @@ describe('Inventory tab — coin edit controls', () => {
     const { container } = render(
       <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
     );
-    // Set gp amount to 3
-    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp amount"]')!, {
-      target: { value: '3' },
+    openDialog(container);
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp delta"]')!, {
+      target: { value: '2' },
     });
-    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Add gp"]')!);
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="sp delta"]')!, {
+      target: { value: '-3' },
+    });
+    fireEvent.click(applyButton(container));
     await waitFor(() => {
-      // 6 + 3 = 9
+      // gp: 6 + 2 = 8
       expect(api.updateActorItem).toHaveBeenCalledWith('actor-1', 'ABg0ouzYy9py3sCh', {
-        system: { quantity: 9 },
+        system: { quantity: 8 },
+      });
+      // sp: 5 - 3 = 2
+      expect(api.updateActorItem).toHaveBeenCalledWith('actor-1', 'fo1yVhGWohLg3sFn', {
+        system: { quantity: 2 },
       });
     });
   });
 
-  it('shows a tx-error when trying to remove more gp than the player has', async () => {
+  it('creates a coin item from the equipment pack when adding a denomination the player does not have', async () => {
+    vi.spyOn(api, 'addItemFromCompendium').mockResolvedValue({
+      id: 'new-pp',
+      name: 'Platinum Pieces',
+      type: 'treasure',
+      img: '',
+      actorId: 'actor-1',
+      actorName: 'Amiri',
+    });
     const { container } = render(
       <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
     );
-    // Amiri has 6 gp + 5 sp = 650 cp total. Attempt to remove 100 gp (10 000 cp) which exceeds her balance.
-    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp amount"]')!, {
-      target: { value: '100' },
+    openDialog(container);
+    // Amiri has no platinum item; entering +2 pp should add from compendium.
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="pp delta"]')!, {
+      target: { value: '2' },
     });
-    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Remove gp"]')!);
+    fireEvent.click(applyButton(container));
     await waitFor(() => {
-      const err = container.querySelector('[data-role="tx-error"]');
-      expect(err?.textContent).toMatch(/not enough coin/i);
+      expect(api.addItemFromCompendium).toHaveBeenCalledWith('actor-1', {
+        packId: 'pf2e.equipment-srd',
+        itemId: 'platinum-pieces',
+        quantity: 2,
+      });
     });
+  });
+
+  it('shows an inline validation error and disables Apply when removing more than on hand', () => {
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    openDialog(container);
+    // Amiri has 6 gp; try to remove 10.
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp delta"]')!, {
+      target: { value: '-10' },
+    });
+    const err = container.querySelector('[data-role="coin-edit-error"]');
+    expect(err?.textContent).toMatch(/cannot remove 10 gp/i);
+    expect(applyButton(container).disabled).toBe(true);
+  });
+
+  it('closes the dialog when Cancel is clicked', () => {
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    openDialog(container);
+    expect(container.querySelector('[data-testid="coin-edit-dialog"]')).toBeTruthy();
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-testid="coin-edit-cancel"]')!);
+    expect(container.querySelector('[data-testid="coin-edit-dialog"]')).toBeNull();
   });
 });
 
