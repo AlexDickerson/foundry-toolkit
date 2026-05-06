@@ -1,43 +1,136 @@
+import { useState } from 'react';
 import { LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
-import type { PhysicalItem } from '../../../api/types';
+import type { PhysicalItem, PreparedActorItem } from '../../../api/types';
 import { useShopMode } from '../../../lib/useShopMode';
+import type { Denom } from '../../../lib/coins';
 import type { ViewMode, ShopView } from './inventory-categories';
+import { spendCoins, grantCoins } from './inventory-shop';
 
 // Slug → denomination order (largest first — pp > gp > sp > cp). Amiri's
 // coin items have slugs like "silver-pieces" / "gold-pieces"; unknown
 // slugs fall back to reading system.price.value for the denomination
 // weight, multiplied by quantity.
-const COIN_SLUG_DENOM: Record<string, 'pp' | 'gp' | 'sp' | 'cp'> = {
+const COIN_SLUG_DENOM: Record<string, Denom> = {
   'platinum-pieces': 'pp',
   'gold-pieces': 'gp',
   'silver-pieces': 'sp',
   'copper-pieces': 'cp',
 };
 
-export function CoinStrip({ coins }: { coins: PhysicalItem[] }): React.ReactElement {
-  const totals: Record<'pp' | 'gp' | 'sp' | 'cp', number> = { pp: 0, gp: 0, sp: 0, cp: 0 };
+const DENOMS: readonly Denom[] = ['pp', 'gp', 'sp', 'cp'];
+
+// cp equivalent for one unit of each denomination.
+const DENOM_CP: Record<Denom, number> = { pp: 1000, gp: 100, sp: 10, cp: 1 };
+
+const STEP_BTN =
+  'rounded border border-pf-border bg-pf-bg px-1 py-0.5 font-mono text-[10px] text-pf-text hover:bg-pf-bg-dark disabled:opacity-40';
+
+export function CoinStrip({
+  coins,
+  actorId,
+  items,
+  onActorChanged,
+  onError,
+}: {
+  coins: PhysicalItem[];
+  /** When provided alongside items + onActorChanged, renders per-denomination +/- controls. */
+  actorId?: string;
+  items?: readonly PreparedActorItem[];
+  onActorChanged?: () => void;
+  onError?: (msg: string | null) => void;
+}): React.ReactElement {
+  const [pendingDenom, setPendingDenom] = useState<Denom | null>(null);
+  const [amounts, setAmounts] = useState<Record<Denom, string>>({ pp: '1', gp: '1', sp: '1', cp: '1' });
+
+  const editable = actorId !== undefined && items !== undefined && onActorChanged !== undefined;
+
+  const totals: Record<Denom, number> = { pp: 0, gp: 0, sp: 0, cp: 0 };
   for (const coin of coins) {
     const denom = coin.system.slug ? COIN_SLUG_DENOM[coin.system.slug] : undefined;
     if (denom) {
       totals[denom] += coin.system.quantity;
     }
   }
+
+  const handleAdjust = async (denom: Denom, sign: 1 | -1): Promise<void> => {
+    const aId = actorId;
+    const itms = items;
+    const onChanged = onActorChanged;
+    if (aId === undefined || itms === undefined || onChanged === undefined) return;
+    const raw = parseInt(amounts[denom], 10);
+    if (!Number.isInteger(raw) || raw <= 0) return;
+    const totalCp = raw * DENOM_CP[denom];
+    setPendingDenom(denom);
+    onError?.(null);
+    try {
+      if (sign === 1) {
+        await grantCoins(aId, itms, totalCp);
+      } else {
+        await spendCoins(aId, itms, totalCp);
+      }
+      onChanged();
+    } catch (err) {
+      onError?.(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPendingDenom(null);
+    }
+  };
+
   return (
     <div
-      className="flex items-center gap-4 rounded border border-pf-tertiary-dark bg-pf-tertiary/20 px-3 py-2"
+      className="flex flex-wrap items-center gap-3 rounded border border-pf-tertiary-dark bg-pf-tertiary/20 px-3 py-2"
       data-section="coins"
     >
       <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">Coins</span>
-      {(['pp', 'gp', 'sp', 'cp'] as const).map((denom) => (
-        <span
-          key={denom}
-          className={[
-            'font-mono text-sm tabular-nums',
-            totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
-          ].join(' ')}
-        >
-          <strong>{totals[denom]}</strong>{' '}
-          <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
+      {DENOMS.map((denom) => (
+        <span key={denom} className="flex items-center gap-1">
+          {editable && (
+            <button
+              type="button"
+              aria-label={`Remove ${denom}`}
+              disabled={pendingDenom !== null}
+              onClick={(): void => {
+                void handleAdjust(denom, -1);
+              }}
+              className={STEP_BTN}
+            >
+              −
+            </button>
+          )}
+          {editable && (
+            <input
+              type="number"
+              min="1"
+              aria-label={`${denom} amount`}
+              value={amounts[denom]}
+              onChange={(e): void => {
+                setAmounts((prev) => ({ ...prev, [denom]: e.target.value }));
+              }}
+              className="w-10 rounded border border-pf-border bg-pf-bg px-1 py-0.5 text-center font-mono text-xs text-pf-text"
+            />
+          )}
+          <span
+            className={[
+              'font-mono text-sm tabular-nums',
+              totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
+            ].join(' ')}
+          >
+            <strong>{totals[denom]}</strong>{' '}
+            <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
+          </span>
+          {editable && (
+            <button
+              type="button"
+              aria-label={`Add ${denom}`}
+              disabled={pendingDenom !== null}
+              onClick={(): void => {
+                void handleAdjust(denom, 1);
+              }}
+              className={STEP_BTN}
+            >
+              +
+            </button>
+          )}
         </span>
       ))}
     </div>

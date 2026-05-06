@@ -213,3 +213,300 @@ describe('Inventory tab — party stash selector', () => {
     expect(group).toBeNull();
   });
 });
+
+// ─── Coin edit controls ───────────────────────────────────────────────────────
+// Amiri's gp item id (from fixture): ABg0ouzYy9py3sCh, qty=6
+// Amiri's sp item id (from fixture): fo1yVhGWohLg3sFn, qty=5
+
+describe('Inventory tab — coin edit controls', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('does not show add/remove buttons when no actorId', () => {
+    const { container } = render(<Inventory items={items} />);
+    expect(container.querySelector('button[aria-label="Add gp"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="Remove gp"]')).toBeNull();
+  });
+
+  it('shows add/remove buttons for each denomination when actorId is provided', () => {
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    for (const denom of ['pp', 'gp', 'sp', 'cp'] as const) {
+      expect(container.querySelector(`button[aria-label="Add ${denom}"]`), `Add ${denom}`).toBeTruthy();
+      expect(container.querySelector(`button[aria-label="Remove ${denom}"]`), `Remove ${denom}`).toBeTruthy();
+    }
+  });
+
+  it('calls api.updateActorItem to increase gp quantity when + is clicked', async () => {
+    vi.spyOn(api, 'updateActorItem').mockResolvedValue({
+      id: 'ABg0ouzYy9py3sCh',
+      name: 'Gold Pieces',
+      type: 'treasure',
+      img: '',
+      actorId: 'actor-1',
+      actorName: 'Amiri',
+    });
+    const onActorChanged = vi.fn();
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={onActorChanged} />,
+    );
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Add gp"]')!);
+    await waitFor(() => {
+      // grantCoins adds 1 gp (100 cp) to the existing 6 gp stack → qty 7
+      expect(api.updateActorItem).toHaveBeenCalledWith('actor-1', 'ABg0ouzYy9py3sCh', {
+        system: { quantity: 7 },
+      });
+    });
+    expect(onActorChanged).toHaveBeenCalled();
+  });
+
+  it('calls api.updateActorItem to decrease gp quantity when − is clicked', async () => {
+    vi.spyOn(api, 'updateActorItem').mockResolvedValue({
+      id: 'ABg0ouzYy9py3sCh',
+      name: 'Gold Pieces',
+      type: 'treasure',
+      img: '',
+      actorId: 'actor-1',
+      actorName: 'Amiri',
+    });
+    const onActorChanged = vi.fn();
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={onActorChanged} />,
+    );
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Remove gp"]')!);
+    await waitFor(() => {
+      // spendCoins removes 1 gp (100 cp) from the 6 gp stack → qty 5
+      expect(api.updateActorItem).toHaveBeenCalledWith('actor-1', 'ABg0ouzYy9py3sCh', {
+        system: { quantity: 5 },
+      });
+    });
+    expect(onActorChanged).toHaveBeenCalled();
+  });
+
+  it('uses the amount input value when adjusting coins', async () => {
+    vi.spyOn(api, 'updateActorItem').mockResolvedValue({
+      id: 'ABg0ouzYy9py3sCh',
+      name: 'Gold Pieces',
+      type: 'treasure',
+      img: '',
+      actorId: 'actor-1',
+      actorName: 'Amiri',
+    });
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    // Set gp amount to 3
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp amount"]')!, {
+      target: { value: '3' },
+    });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Add gp"]')!);
+    await waitFor(() => {
+      // 6 + 3 = 9
+      expect(api.updateActorItem).toHaveBeenCalledWith('actor-1', 'ABg0ouzYy9py3sCh', {
+        system: { quantity: 9 },
+      });
+    });
+  });
+
+  it('shows a tx-error when trying to remove more gp than the player has', async () => {
+    const { container } = render(
+      <Inventory items={items} actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    // Amiri has 6 gp + 5 sp = 650 cp total. Attempt to remove 100 gp (10 000 cp) which exceeds her balance.
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp amount"]')!, {
+      target: { value: '100' },
+    });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Remove gp"]')!);
+    await waitFor(() => {
+      const err = container.querySelector('[data-role="tx-error"]');
+      expect(err?.textContent).toMatch(/not enough coin/i);
+    });
+  });
+});
+
+// ─── Party stash coin transfers ───────────────────────────────────────────────
+
+const STASH_GP = {
+  id: 'stash-gp-1',
+  name: 'Gold Pieces',
+  type: 'treasure' as const,
+  img: '',
+  system: { slug: 'gold-pieces', category: 'coin', quantity: 3 },
+};
+
+const STASH_PP = {
+  id: 'stash-pp-1',
+  name: 'Platinum Pieces',
+  type: 'treasure' as const,
+  img: '',
+  system: { slug: 'platinum-pieces', category: 'coin', quantity: 5 },
+};
+
+describe('Inventory tab — party stash coin transfers', () => {
+  const MockEventSourceClass = vi.fn(function (this: Record<string, unknown>) {
+    this.close = vi.fn();
+    this.onmessage = null;
+    this.onerror = null;
+  });
+
+  beforeEach(() => {
+    vi.stubGlobal('EventSource', MockEventSourceClass);
+    vi.spyOn(api, 'getPartyStash').mockResolvedValue({ items: [STASH_GP] });
+    vi.spyOn(api, 'invokeActorAction').mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    MockEventSourceClass.mockClear();
+  });
+
+  async function openPartyStashTab(container: HTMLElement): Promise<void> {
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Party stash"]')!);
+    await waitFor(() => {
+      expect(container.querySelector('[data-section="party-coins"]')).toBeTruthy();
+    });
+  }
+
+  it('shows the party coin section with stash balance when switching to party stash tab', async () => {
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    await openPartyStashTab(container);
+    const gpRow = container.querySelector('[data-coin-denom="gp"]');
+    expect(gpRow?.textContent).toContain('3'); // 3 gp in stash
+  });
+
+  it('also shows player balance in coin row', async () => {
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    await openPartyStashTab(container);
+    const gpRow = container.querySelector('[data-coin-denom="gp"]');
+    // Player (Amiri) has 6 gp — shown in the "you: N" readout
+    expect(gpRow?.textContent).toContain('6');
+  });
+
+  it('calls transferItemToParty when Send gp is clicked', async () => {
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    await openPartyStashTab(container);
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Send gp to party stash"]')!);
+    await waitFor(() => {
+      // transferItemToParty('actor-1', playerGpItemId, 'party-1', 1)
+      expect(api.invokeActorAction).toHaveBeenCalledWith('actor-1', 'transfer-to-party', {
+        itemId: 'ABg0ouzYy9py3sCh',
+        targetActorId: 'party-1',
+        quantity: 1,
+      });
+    });
+  });
+
+  it('calls takeItemFromParty when Take gp is clicked', async () => {
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    await openPartyStashTab(container);
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Take gp from party stash"]')!);
+    await waitFor(() => {
+      // takeItemFromParty('party-1', stashGpItemId, 'actor-1', 1)
+      expect(api.invokeActorAction).toHaveBeenCalledWith('party-1', 'transfer-to-party', {
+        itemId: 'stash-gp-1',
+        targetActorId: 'actor-1',
+        quantity: 1,
+      });
+    });
+  });
+
+  it('uses the transfer amount input when sending', async () => {
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    await openPartyStashTab(container);
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp transfer amount"]')!, {
+      target: { value: '3' },
+    });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Send gp to party stash"]')!);
+    await waitFor(() => {
+      expect(api.invokeActorAction).toHaveBeenCalledWith('actor-1', 'transfer-to-party', {
+        itemId: 'ABg0ouzYy9py3sCh',
+        targetActorId: 'party-1',
+        quantity: 3,
+      });
+    });
+  });
+
+  it('disables the Take button when stash has 0 of that denomination', async () => {
+    // Stash has pp but player has none — pp row shows; Send is disabled (no player pp)
+    // Stash has gp — row shows; both Send and Take enabled
+    // Override with empty stash for this test
+    vi.spyOn(api, 'getPartyStash').mockResolvedValue({ items: [] });
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Party stash"]')!);
+    // gp row should appear because player has gp (even with empty stash)
+    await waitFor(() => {
+      expect(container.querySelector('[data-coin-denom="gp"]')).toBeTruthy();
+    });
+    const takeGpBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Take gp from party stash"]');
+    expect(takeGpBtn?.disabled).toBe(true);
+  });
+
+  it('disables the Send button when player has none of that denomination', async () => {
+    // Stash has pp; player (Amiri) has no pp
+    vi.spyOn(api, 'getPartyStash').mockResolvedValue({ items: [STASH_PP] });
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Party stash"]')!);
+    await waitFor(() => {
+      expect(container.querySelector('[data-coin-denom="pp"]')).toBeTruthy();
+    });
+    const sendPpBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Send pp to party stash"]');
+    expect(sendPpBtn?.disabled).toBe(true);
+  });
+
+  it('disables the Send button when the transfer amount exceeds player balance', async () => {
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    await openPartyStashTab(container);
+    // Amiri has 6 gp — set transfer amount to 100 (exceeds balance)
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp transfer amount"]')!, {
+      target: { value: '100' },
+    });
+    const sendGpBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Send gp to party stash"]');
+    expect(sendGpBtn?.disabled).toBe(true);
+  });
+
+  it('disables the Take button when the transfer amount exceeds stash balance', async () => {
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    await openPartyStashTab(container);
+    // Stash has 3 gp — set transfer amount to 10 (exceeds stash)
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[aria-label="gp transfer amount"]')!, {
+      target: { value: '10' },
+    });
+    const takeGpBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Take gp from party stash"]');
+    expect(takeGpBtn?.disabled).toBe(true);
+  });
+
+  it('shows coin-tx-error when a coin send fails', async () => {
+    vi.spyOn(api, 'invokeActorAction').mockRejectedValue(new Error('Bridge error'));
+    const { container } = render(
+      <Inventory items={items} partyId="party-1" actorId="actor-1" onActorChanged={vi.fn()} />,
+    );
+    await openPartyStashTab(container);
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Send gp to party stash"]')!);
+    await waitFor(() => {
+      expect(container.querySelector('[data-role="coin-tx-error"]')?.textContent).toContain('Bridge error');
+    });
+  });
+});

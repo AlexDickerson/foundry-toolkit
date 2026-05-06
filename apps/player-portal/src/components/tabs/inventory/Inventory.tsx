@@ -203,7 +203,14 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            {coins.length > 0 && <CoinStrip coins={coins} />}
+            {(coins.length > 0 || canTransact) && (
+              <CoinStrip
+                coins={coins}
+                {...(canTransact
+                  ? { actorId, items, onActorChanged, onError: setTxError }
+                  : {})}
+              />
+            )}
             {hasSelector && (
               <ShopViewToggle
                 view={effectiveShopView}
@@ -230,6 +237,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
             <PartyStash
               partyId={partyId}
               refreshKey={stashNonce}
+              playerItems={items}
               {...(actorId !== undefined ? { actorId } : {})}
               {...(onActorChanged !== undefined ? { onActorChanged } : {})}
             />
