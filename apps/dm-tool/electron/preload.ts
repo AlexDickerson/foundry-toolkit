@@ -13,7 +13,7 @@ import type {
   EnsureCompendiumPackBody,
   EnsureCompendiumPackResponse,
 } from '@foundry-toolkit/shared/rpc';
-import type { CompendiumItemTemplate } from './ipc/homebrew-items.js';
+import type { CompendiumItemTemplate } from './ipc/homebrew-items-clone.js';
 import type { ElectronAPI } from './ipc/types.js';
 import type {
   ActorSpellcasting,

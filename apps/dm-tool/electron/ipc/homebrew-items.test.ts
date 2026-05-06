@@ -4,7 +4,7 @@
 // document rather than reattaching to the source compendium item.
 
 import { describe, expect, it } from 'vitest';
-import { stripIdentityForClone } from './homebrew-items';
+import { stripIdentityForClone } from './homebrew-items-clone';
 import type { CompendiumDocument } from '../compendium/types';
 
 function doc(overrides: Partial<CompendiumDocument> & Record<string, unknown> = {}): CompendiumDocument {

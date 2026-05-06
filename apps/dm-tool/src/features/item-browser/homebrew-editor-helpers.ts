@@ -17,7 +17,7 @@
 // untouched through `systemRaw`.
 
 import type { CompendiumItemPayload } from '@foundry-toolkit/shared/rpc';
-import type { CompendiumItemTemplate } from '../../../electron/ipc/homebrew-items.js';
+import type { CompendiumItemTemplate } from '../../../electron/ipc/homebrew-items-clone.js';
 
 // PF2e item types this editor handles directly. Other types ("kit",
 // "backpack", "spell"…) can still be cloned + edited via the advanced

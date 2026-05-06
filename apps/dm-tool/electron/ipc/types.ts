@@ -8,7 +8,7 @@ import type {
   EnsureCompendiumPackBody,
   EnsureCompendiumPackResponse,
 } from '@foundry-toolkit/shared/rpc';
-import type { CompendiumItemTemplate } from './homebrew-items.js';
+import type { CompendiumItemTemplate } from './homebrew-items-clone.js';
 import type {
   ActorSpellcasting,
   ActorUpdate,

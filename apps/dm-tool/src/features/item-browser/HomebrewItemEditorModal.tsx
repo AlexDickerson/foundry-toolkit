@@ -33,7 +33,7 @@ import {
   type ItemDraft,
   type ItemType,
 } from './homebrew-editor-helpers';
-import type { CompendiumItemTemplate } from '../../../electron/ipc/homebrew-items';
+import type { CompendiumItemTemplate } from '../../../electron/ipc/homebrew-items-clone';
 
 const HOMEBREW_PACK_NAME = 'homebrew-items';
 const HOMEBREW_PACK_LABEL = 'Homebrew Items';

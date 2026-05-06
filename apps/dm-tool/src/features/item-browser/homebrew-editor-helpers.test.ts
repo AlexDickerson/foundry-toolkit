@@ -6,7 +6,7 @@ import {
   templateToDraft,
   type ItemDraft,
 } from './homebrew-editor-helpers';
-import type { CompendiumItemTemplate } from '../../../electron/ipc/homebrew-items';
+import type { CompendiumItemTemplate } from '../../../electron/ipc/homebrew-items-clone';
 
 const fullWeaponTemplate: CompendiumItemTemplate = {
   name: 'Greatsword',
