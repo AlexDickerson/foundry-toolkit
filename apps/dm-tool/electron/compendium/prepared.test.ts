@@ -62,6 +62,8 @@ function fakeApi(overrides: Partial<CompendiumApi> = {}): CompendiumApi {
     getCompendiumDocument: vi.fn().mockResolvedValue({ document: doc(), stale: false }),
     listCompendiumPacks: vi.fn().mockResolvedValue({ packs: [] }),
     listCompendiumSources: vi.fn().mockResolvedValue({ sources: [] }),
+    ensureCompendiumPack: vi.fn(),
+    createCompendiumItem: vi.fn(),
     invalidateDocument: vi.fn(),
     invalidateAllDocuments: vi.fn(),
     ...overrides,

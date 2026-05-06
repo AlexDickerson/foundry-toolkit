@@ -1,6 +1,7 @@
-import { ExternalLink, Sparkles, X } from 'lucide-react';
+import { Copy, ExternalLink, Sparkles, X } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useItemDetail } from './useItems';
@@ -12,6 +13,9 @@ interface ItemDetailPaneProps {
   siblings?: ItemBrowserRow[] | null;
   onSelectSibling?: (id: string) => void;
   onClose: () => void;
+  /** Callback to open the homebrew editor seeded from this item's
+   *  data. The id passed in is the Foundry uuid. */
+  onUseAsTemplate?: (uuid: string) => void;
 }
 
 const RARITY_CHIP: Record<string, string> = {
@@ -21,7 +25,7 @@ const RARITY_CHIP: Record<string, string> = {
   UNIQUE: 'bg-purple-900/40 text-purple-300 border-purple-700/40',
 };
 
-export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: ItemDetailPaneProps) {
+export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose, onUseAsTemplate }: ItemDetailPaneProps) {
   const { data: detail, loading, error } = useItemDetail(itemId);
 
   if (!itemId) return null;
@@ -29,15 +33,28 @@ export function ItemDetailPane({ itemId, siblings, onSelectSibling, onClose }: I
   return (
     <>
       {/* Header */}
-      <div className="flex h-12 shrink-0 items-center justify-between px-3">
+      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-3">
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">{detail?.name ?? 'Loading...'}</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          {onUseAsTemplate && itemId && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onUseAsTemplate(itemId)}
+              title="Open the homebrew editor seeded from this item"
+            >
+              <Copy className="mr-1 h-3.5 w-3.5" />
+              Use as template
+            </Button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
       <Separator />
 

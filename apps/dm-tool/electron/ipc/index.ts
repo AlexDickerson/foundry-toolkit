@@ -14,6 +14,7 @@ import { registerChatHandlers } from './chat.js';
 import { registerMonsterHandlers } from './monsters.js';
 import { registerItemHandlers } from './items.js';
 import { registerCompendiumHandlers } from './compendium.js';
+import { registerHomebrewItemHandlers } from './homebrew-items.js';
 import { registerTaggerHandlers } from './tagger.js';
 import { registerAutoWallHandlers } from './auto-wall.js';
 import { registerFoundryHandlers } from './foundry.js';
@@ -36,6 +37,7 @@ export function registerIpcHandlers(
   registerMonsterHandlers(cfg.foundryMcpUrl);
   registerItemHandlers(cfg.foundryMcpUrl);
   registerCompendiumHandlers();
+  registerHomebrewItemHandlers();
   registerTaggerHandlers(cfg, getMainWindow);
   registerAutoWallHandlers(cfg);
   registerFoundryHandlers(db, cfg);
