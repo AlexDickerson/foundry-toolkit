@@ -149,6 +149,10 @@ import type {
   DumpCompendiumPackResult,
   FindOrCreateFolderParams,
   FindOrCreateFolderResult,
+  EnsureCompendiumPackParams,
+  EnsureCompendiumPackResult,
+  CreateCompendiumItemParams,
+  CreateCompendiumItemResult,
 } from './compendium';
 
 import type {
@@ -261,6 +265,8 @@ export type CommandType =
   | 'get-compendium-document'
   | 'dump-compendium-pack'
   | 'find-or-create-folder'
+  | 'ensure-compendium-pack'
+  | 'create-compendium-item'
   | 'list-roll-tables'
   | 'get-roll-table'
   | 'roll-on-table'
@@ -357,6 +363,8 @@ export interface CommandParamsMap {
   'get-compendium-document': GetCompendiumDocumentParams;
   'dump-compendium-pack': DumpCompendiumPackParams;
   'find-or-create-folder': FindOrCreateFolderParams;
+  'ensure-compendium-pack': EnsureCompendiumPackParams;
+  'create-compendium-item': CreateCompendiumItemParams;
   'list-roll-tables': ListRollTablesParams;
   'get-roll-table': GetRollTableParams;
   'roll-on-table': RollOnTableParams;
@@ -454,6 +462,8 @@ export interface CommandResultMap {
   'get-compendium-document': GetCompendiumDocumentResult;
   'dump-compendium-pack': DumpCompendiumPackResult;
   'find-or-create-folder': FindOrCreateFolderResult;
+  'ensure-compendium-pack': EnsureCompendiumPackResult;
+  'create-compendium-item': CreateCompendiumItemResult;
   'list-roll-tables': RollTableSummary[];
   'get-roll-table': RollTableResult;
   'roll-on-table': RollOnTableResult;
