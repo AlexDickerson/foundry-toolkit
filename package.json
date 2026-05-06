@@ -35,15 +35,15 @@
     "@secretlint/secretlint-rule-github": "^12.3.1",
     "@secretlint/secretlint-rule-openai": "^12.3.1",
     "@secretlint/secretlint-rule-pattern": "^12.3.1",
-    "eslint": "^10.2.1",
+    "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
-    "knip": "^6.8.0",
+    "knip": "^6.11.0",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
     "secretlint": "^12.3.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.1"
+    "typescript-eslint": "^8.59.2"
   },
   "lint-staged": {
     "*.{ts,tsx,js,json,md,html,css,scss,py}": "secretlint"
