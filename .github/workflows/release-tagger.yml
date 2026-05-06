@@ -49,7 +49,7 @@ jobs:
           "$hash  $name" | Out-File -Encoding ascii "$name.sha256"
           "name=$name" | Out-File -Append $env:GITHUB_OUTPUT
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: |
             tagger/dist/${{ steps.asset.outputs.name }}
