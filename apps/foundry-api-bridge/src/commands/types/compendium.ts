@@ -202,3 +202,70 @@ export interface FindOrCreateFolderResult {
    *  status message. */
   created: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Compendium pack create + item create — used by dm-tool's homebrew item
+// editor. The pack creation is idempotent (mirrors find-or-create-folder)
+// so callers can safely call it on every save.
+// ---------------------------------------------------------------------------
+
+export interface EnsureCompendiumPackParams {
+  /** Scope-less short name. The handler prefixes `world.` to build
+   *  the full Foundry pack id. Must match `[a-z0-9][a-z0-9-]*`. */
+  name: string;
+  /** Display label shown in the Foundry sidebar. */
+  label: string;
+  /** Document type the pack holds. Constrained to 'Item' for now. */
+  type?: 'Item';
+}
+
+export interface EnsureCompendiumPackResult {
+  /** Full pack id, e.g. `world.homebrew-items`. */
+  id: string;
+  label: string;
+  type: 'Item';
+  created: boolean;
+}
+
+export interface ActiveEffectChangePayload {
+  key: string;
+  mode: number;
+  value: string;
+  priority?: number;
+}
+
+export interface ActiveEffectPayload {
+  name: string;
+  img?: string;
+  disabled?: boolean;
+  transfer?: boolean;
+  changes?: ActiveEffectChangePayload[];
+  duration?: {
+    seconds?: number;
+    rounds?: number;
+    turns?: number;
+  };
+}
+
+export interface CompendiumItemPayload {
+  name: string;
+  type: string;
+  img?: string;
+  system: Record<string, unknown>;
+  effects?: ActiveEffectPayload[];
+  flags?: Record<string, Record<string, unknown>>;
+}
+
+export interface CreateCompendiumItemParams {
+  /** Full pack id, e.g. `world.homebrew-items`. */
+  packId: string;
+  item: CompendiumItemPayload;
+}
+
+export interface CreateCompendiumItemResult {
+  id: string;
+  uuid: string;
+  packId: string;
+  name: string;
+  type: string;
+}

@@ -42,6 +42,8 @@ function fakeApi(searchResult: CompendiumMatch[], sources: { title: string; coun
     getCompendiumDocument: vi.fn(),
     listCompendiumPacks: vi.fn().mockResolvedValue({ packs: [] }),
     listCompendiumSources: vi.fn().mockResolvedValue({ sources }),
+    ensureCompendiumPack: vi.fn(),
+    createCompendiumItem: vi.fn(),
     invalidateDocument: vi.fn(),
     invalidateAllDocuments: vi.fn(),
   };

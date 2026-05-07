@@ -39,6 +39,8 @@ vi.mock('./index.js', () => ({
     getCompendiumDocument: vi.fn(),
     listCompendiumPacks,
     listCompendiumSources: vi.fn(),
+    ensureCompendiumPack: vi.fn(),
+    createCompendiumItem: vi.fn(),
     invalidateDocument: vi.fn(),
     invalidateAllDocuments: vi.fn(),
   }),

@@ -7,6 +7,13 @@
 // src/vite-env.d.ts which declares `window.electronAPI` for TypeScript.
 
 import { contextBridge, ipcRenderer } from 'electron';
+import type {
+  CompendiumItemPayload,
+  CreateCompendiumItemResponse,
+  EnsureCompendiumPackBody,
+  EnsureCompendiumPackResponse,
+} from '@foundry-toolkit/shared/rpc';
+import type { CompendiumItemTemplate } from './ipc/homebrew-items-clone.js';
 import type { ElectronAPI } from './ipc/types.js';
 import type {
   ActorSpellcasting,
@@ -135,6 +142,16 @@ const api: ElectronAPI = {
   getItemBrowserDetail: (id: string): Promise<ItemBrowserDetail | null> =>
     ipcRenderer.invoke('getItemBrowserDetail', id),
   getItemFacets: (): Promise<ItemFacets> => ipcRenderer.invoke('getItemFacets'),
+
+  // Homebrew item creator
+  getCompendiumItemTemplate: (idOrUuid: string): Promise<CompendiumItemTemplate> =>
+    ipcRenderer.invoke('getCompendiumItemTemplate', idOrUuid),
+  ensureHomebrewItemPack: (body: EnsureCompendiumPackBody): Promise<EnsureCompendiumPackResponse> =>
+    ipcRenderer.invoke('ensureHomebrewItemPack', body),
+  createHomebrewItem: (payload: {
+    packId: string;
+    item: CompendiumItemPayload;
+  }): Promise<CreateCompendiumItemResponse> => ipcRenderer.invoke('createHomebrewItem', payload),
 
   // Monster browser
   monstersSearch: (params: MonsterSearchParams): Promise<MonsterSummary[]> =>

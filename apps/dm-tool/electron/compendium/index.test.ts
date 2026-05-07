@@ -53,6 +53,8 @@ function fakeClient(overrides: Partial<CompendiumHttpClient> = {}): CompendiumHt
     getCompendiumDocument: vi.fn().mockResolvedValue({ document: doc('default-uuid') }),
     listCompendiumPacks: vi.fn().mockResolvedValue({ packs: [] }),
     listCompendiumSources: vi.fn().mockResolvedValue({ sources: [] }),
+    ensureCompendiumPack: vi.fn(),
+    createCompendiumItem: vi.fn(),
   };
   return { ...base, ...overrides };
 }

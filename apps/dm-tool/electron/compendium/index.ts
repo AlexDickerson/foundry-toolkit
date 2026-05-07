@@ -21,6 +21,12 @@ import {
   invalidateCachedDocument,
   putCachedDocument,
 } from '@foundry-toolkit/db/pf2e';
+import type {
+  CompendiumItemPayload,
+  CreateCompendiumItemResponse,
+  EnsureCompendiumPackBody,
+  EnsureCompendiumPackResponse,
+} from '@foundry-toolkit/shared/rpc';
 import { type CompendiumHttpClient, CompendiumRequestError, createCompendiumHttpClient } from './client.js';
 import type {
   CompendiumDocument,
@@ -56,6 +62,16 @@ export interface CompendiumApi {
     traits?: string[];
     maxLevel?: number;
   }): Promise<{ sources: CompendiumSource[] }>;
+  /** Idempotent create-or-reuse of a world compendium pack. Mutations
+   *  bypass the document cache — caller is responsible for invalidating
+   *  cached docs after a related write if any apply. */
+  ensureCompendiumPack(body: EnsureCompendiumPackBody): Promise<EnsureCompendiumPackResponse>;
+  /** Create a single Item document inside a world compendium pack.
+   *  Returns the new document's id + uuid so the caller can navigate
+   *  to it or stash it. The document cache is left alone (the new
+   *  document isn't yet in any cached pack-dump, so no invalidation
+   *  is needed). */
+  createCompendiumItem(payload: { packId: string; item: CompendiumItemPayload }): Promise<CreateCompendiumItemResponse>;
   invalidateDocument(uuid: string): void;
   invalidateAllDocuments(): void;
 }
@@ -95,6 +111,14 @@ export function createCompendiumApi(opts: CreateCompendiumApiOptions): Compendiu
 
     listCompendiumSources(sourcesOpts) {
       return http.listCompendiumSources(sourcesOpts);
+    },
+
+    ensureCompendiumPack(body) {
+      return http.ensureCompendiumPack(body);
+    },
+
+    createCompendiumItem(payload) {
+      return http.createCompendiumItem(payload);
     },
 
     invalidateDocument(uuid) {

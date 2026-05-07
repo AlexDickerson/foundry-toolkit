@@ -9,6 +9,13 @@
 // callsites + `instanceof` checks keep working.
 
 import { buildCompendiumQuery, requestJson } from '@foundry-toolkit/shared/http';
+import type {
+  CompendiumItemPayload,
+  CreateCompendiumItemBody,
+  CreateCompendiumItemResponse,
+  EnsureCompendiumPackBody,
+  EnsureCompendiumPackResponse,
+} from '@foundry-toolkit/shared/rpc';
 
 import type {
   CompendiumDocument,
@@ -40,6 +47,14 @@ export interface CompendiumHttpClient {
     traits?: string[];
     maxLevel?: number;
   }): Promise<{ sources: CompendiumSource[] }>;
+  /** Idempotent create-or-reuse of a world compendium pack via
+   *  `POST /api/compendium/packs/ensure`. Used by the homebrew item
+   *  editor to lazily provision the target pack on first save. */
+  ensureCompendiumPack(body: EnsureCompendiumPackBody): Promise<EnsureCompendiumPackResponse>;
+  /** Create a single Item document inside a world compendium pack via
+   *  `POST /api/compendium/items`. The pack must exist (call
+   *  `ensureCompendiumPack` first). */
+  createCompendiumItem(payload: { packId: string; item: CompendiumItemPayload }): Promise<CreateCompendiumItemResponse>;
 }
 
 /** Build a typed HTTP client rooted at a foundry-mcp base URL. Example
@@ -74,6 +89,23 @@ export function createCompendiumHttpClient(baseUrl: string): CompendiumHttpClien
       if (opts.maxLevel !== undefined) params.set('maxLevel', opts.maxLevel.toString());
       const qs = params.toString();
       return requestJson<{ sources: CompendiumSource[] }>(`${base}/api/compendium/sources${qs ? `?${qs}` : ''}`);
+    },
+
+    ensureCompendiumPack(body) {
+      return requestJson<EnsureCompendiumPackResponse>(`${base}/api/compendium/packs/ensure`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    },
+
+    createCompendiumItem(payload) {
+      const wireBody: CreateCompendiumItemBody = payload;
+      return requestJson<CreateCompendiumItemResponse>(`${base}/api/compendium/items`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(wireBody),
+      });
     },
   };
 }

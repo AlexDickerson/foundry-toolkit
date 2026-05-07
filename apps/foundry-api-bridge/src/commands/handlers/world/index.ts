@@ -7,3 +7,5 @@ export { listCompendiumSourcesHandler } from './ListCompendiumSourcesHandler';
 export { getCompendiumDocumentHandler } from './GetCompendiumDocumentHandler';
 export { dumpCompendiumPackHandler } from './DumpCompendiumPackHandler';
 export { findOrCreateFolderHandler } from './FindOrCreateFolderHandler';
+export { ensureCompendiumPackHandler } from './EnsureCompendiumPackHandler';
+export { createCompendiumItemHandler } from './CreateCompendiumItemHandler';

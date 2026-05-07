@@ -105,6 +105,8 @@ export {
   getCompendiumDocumentHandler,
   dumpCompendiumPackHandler,
   findOrCreateFolderHandler,
+  ensureCompendiumPackHandler,
+  createCompendiumItemHandler,
 } from '@/commands/handlers/world';
 
 // Table handlers

@@ -1,10 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 import { ResizableSidebar } from '@/components/ResizableSidebar';
 import { DetailOverlay } from '@/components/FloatingPanel';
+import { Button } from '@/components/ui/button';
 import { ItemFilterPanel } from './ItemFilterPanel';
 import { ItemCardGrid, type GroupedItem } from './ItemCardGrid';
 import { ItemDetailPane } from './ItemDetailPane';
+import { HomebrewItemEditorModal } from './HomebrewItemEditorModal';
 import { useItemSearch, useItemFacets } from './useItems';
 import type { ItemBrowserRow, ItemSearchParams } from '@foundry-toolkit/shared/types';
 
@@ -51,6 +54,10 @@ export function ItemBrowser({ keywords = '' }: { keywords?: string }) {
   const [filters, setFilters] = useState<ItemSearchParams>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
+  const [editor, setEditor] = useState<{ open: boolean; templateRef: string | null }>({
+    open: false,
+    templateRef: null,
+  });
 
   const searchParams = useMemo<ItemSearchParams>(
     () => ({
@@ -105,6 +112,12 @@ export function ItemBrowser({ keywords = '' }: { keywords?: string }) {
 
       {/* Grid + overlay container */}
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex shrink-0 justify-end gap-2 border-b border-border px-3 py-2">
+          <Button size="sm" onClick={() => setEditor({ open: true, templateRef: null })}>
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            New homebrew item
+          </Button>
+        </div>
         <ItemCardGrid groups={grouped} selectedId={selectedId} onSelect={handleSelect} loading={loading} />
 
         {selectedId && (
@@ -114,10 +127,17 @@ export function ItemBrowser({ keywords = '' }: { keywords?: string }) {
               siblings={selectedSiblings}
               onSelectSibling={setSelectedId}
               onClose={handleClose}
+              onUseAsTemplate={(idOrUuid) => setEditor({ open: true, templateRef: idOrUuid })}
             />
           </DetailOverlay>
         )}
       </div>
+
+      <HomebrewItemEditorModal
+        open={editor.open}
+        templateRef={editor.templateRef}
+        onClose={() => setEditor({ open: false, templateRef: null })}
+      />
     </div>
   );
 }
