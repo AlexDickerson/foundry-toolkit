@@ -7,6 +7,9 @@ import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import { useActorAction } from '@/features/characters/sheet/hooks/useActorAction';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
+import { DetailsCard } from '@/shared/ui/DetailsCard';
+import { EnrichedDescription } from '@/shared/ui/EnrichedDescription';
+import { TraitChips } from '@/shared/ui/TraitChips';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 
 const SPELL_PACKS: string[] = ['pf2e.spells-srd'];
@@ -362,15 +365,14 @@ function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel
     description.length > 0 ? enrichDescription(description, heightening !== null ? { heightening } : undefined) : '';
 
   return (
-    <li
-      className="relative rounded border border-pf-border bg-pf-bg"
+    <DetailsCard
       data-item-id={spell.id}
       data-spell-slug={spell.system.slug ?? ''}
-    >
-      <details className="group open:rounded-b-none open:border-pf-primary/60 open:shadow-md">
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 hover:bg-pf-bg-dark/40">
+      shadow="md"
+      summary={
+        <>
           <img src={spell.img} alt="" className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
-          <span className="truncate text-sm font-medium text-pf-text">{spell.name}</span>
+          <span className="flex-1 truncate text-sm font-medium text-pf-text">{spell.name}</span>
           {castCost !== null && (
             <span
               className="flex-shrink-0 rounded border border-pf-border bg-pf-bg px-1 font-mono text-[10px] text-pf-alt-dark"
@@ -379,34 +381,13 @@ function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel
               {castCost}
             </span>
           )}
-          <span className="ml-auto text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span className="ml-auto hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
-        </summary>
-        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
-          {traits.length > 0 && (
-            <ul className="mb-2 flex flex-wrap gap-1">
-              {traits.map((t) => (
-                <li
-                  key={t}
-                  className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
-                >
-                  {capitaliseSlug(t)}
-                </li>
-              ))}
-            </ul>
-          )}
-          <SpellMeta spell={spell} />
-          {enriched.length > 0 ? (
-            <div
-              className="mt-2 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-              dangerouslySetInnerHTML={{ __html: enriched }}
-            />
-          ) : (
-            <p className="mt-2 italic text-pf-text-muted">No description.</p>
-          )}
-        </div>
-      </details>
-    </li>
+        </>
+      }
+    >
+      <TraitChips traits={traits} className="mb-2 flex flex-wrap gap-1" />
+      <SpellMeta spell={spell} />
+      <EnrichedDescription html={enriched} className="mt-2" />
+    </DetailsCard>
   );
 }
 
@@ -459,15 +440,14 @@ function SpellCardWithCast({
   const castDisabled = pending || isExpended || noSlotsLeft || noFocus;
 
   return (
-    <li
-      className="relative rounded border border-pf-border bg-pf-bg"
+    <DetailsCard
       data-item-id={spell.id}
       data-spell-slug={spell.system.slug ?? ''}
-    >
-      <details className="group open:rounded-b-none open:border-pf-primary/60 open:shadow-md">
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 hover:bg-pf-bg-dark/40">
+      shadow="md"
+      summary={
+        <>
           <img src={spell.img} alt="" className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
-          <span className={['truncate text-sm font-medium', isExpended ? 'text-pf-text-muted line-through' : 'text-pf-text'].join(' ')}>
+          <span className={['flex-1 truncate text-sm font-medium', isExpended ? 'text-pf-text-muted line-through' : 'text-pf-text'].join(' ')}>
             {spell.name}
           </span>
           {castCost !== null && (
@@ -483,44 +463,23 @@ function SpellCardWithCast({
             type="button"
             disabled={castDisabled}
             onClick={(e) => { e.preventDefault(); trigger(); }}
-            className="ml-auto flex-shrink-0 rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pf-text hover:bg-pf-bg-dark disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex-shrink-0 rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pf-text hover:bg-pf-bg-dark disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={pending ? 'Casting…' : `Cast ${spell.name}`}
           >
             {pending ? '…' : 'Cast'}
           </button>
-          <span className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
-        </summary>
-        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
-          {castError !== null && (
-            <p className="mb-2 rounded border border-red-400/40 bg-red-400/10 px-2 py-1 text-xs text-red-400">
-              {castError}
-            </p>
-          )}
-          {traits.length > 0 && (
-            <ul className="mb-2 flex flex-wrap gap-1">
-              {traits.map((t) => (
-                <li
-                  key={t}
-                  className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
-                >
-                  {capitaliseSlug(t)}
-                </li>
-              ))}
-            </ul>
-          )}
-          <SpellMeta spell={spell} />
-          {enriched.length > 0 ? (
-            <div
-              className="mt-2 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-              dangerouslySetInnerHTML={{ __html: enriched }}
-            />
-          ) : (
-            <p className="mt-2 italic text-pf-text-muted">No description.</p>
-          )}
-        </div>
-      </details>
-    </li>
+        </>
+      }
+    >
+      {castError !== null && (
+        <p className="mb-2 rounded border border-red-400/40 bg-red-400/10 px-2 py-1 text-xs text-red-400">
+          {castError}
+        </p>
+      )}
+      <TraitChips traits={traits} className="mb-2 flex flex-wrap gap-1" />
+      <SpellMeta spell={spell} />
+      <EnrichedDescription html={enriched} className="mt-2" />
+    </DetailsCard>
   );
 }
 
@@ -669,13 +628,6 @@ function nonEmpty(s: string | undefined): string | null {
 
 function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function capitaliseSlug(s: string): string {
-  return s
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
 }
 
 function ordinal(n: number): string {

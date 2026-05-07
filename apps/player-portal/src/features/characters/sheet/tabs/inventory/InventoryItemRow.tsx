@@ -1,10 +1,10 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { PhysicalItem } from '@/features/characters/types';
 import { isContainer } from '@/features/characters/types';
-import { useExpandableCard } from '@/features/characters/sheet/hooks/useExpandableCard';
 import { supportsInvestment } from '@/features/characters/lib/investment';
 import { cpToDenominations, priceToCp } from '@/features/characters/lib/coins';
-import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
+import { DetailsCard } from '@/shared/ui/DetailsCard';
+import { EnrichedDescription } from '@/shared/ui/EnrichedDescription';
 import type { SellContext, InvestContext, PartyContext } from './inventory-shop';
 
 // Each tile that opens claims the next value, ensuring the most recently
@@ -24,7 +24,6 @@ export function ItemRow({
   investContext: InvestContext | undefined;
   partyContext: PartyContext | undefined;
 }): React.ReactElement {
-  const card = useExpandableCard();
   const isContainerRow = isContainer(item);
   const bulk = item.system.bulk;
   const capacityText =
@@ -34,57 +33,41 @@ export function ItemRow({
   const hasInvestButton = investContext !== undefined && supportsInvestment(item);
 
   return (
-    <li className="relative" data-item-id={item.id} data-item-type={item.type}>
-      {/* <details> is the visual card (owns the border). Making it
-          relative means the absolute panel positions from the bottom of
-          the summary rather than from the bottom of the <li>, so it
-          appears directly below the row even on container items whose
-          <li> is taller due to nested contents.
-          open:rounded-b-none seals the seam with the panel's rounded-b. */}
-      <details
-        className="group relative rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg"
-        open={card.isOpen}
+    <>
+      <DetailsCard
+        data-item-id={item.id}
+        data-item-type={item.type}
+        summaryClassName="flex cursor-pointer list-none items-center gap-3 px-3 py-2 hover:bg-pf-bg-dark/40 [&::-webkit-details-marker]:hidden"
+        summary={
+          <>
+            <img src={item.img} alt="" className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-2">
+                <span className="truncate text-sm text-pf-text">{item.name}</span>
+                {item.system.quantity > 1 && (
+                  <span className="flex-shrink-0 text-xs text-pf-text-muted">×{item.system.quantity}</span>
+                )}
+                {capacityText !== undefined && (
+                  <span className="flex-shrink-0 text-[10px] uppercase tracking-wider text-pf-text-muted">
+                    {capacityText}
+                  </span>
+                )}
+              </div>
+            </div>
+            <EquippedBadge item={item} suppressInvested={hasInvestButton} />
+            {hasInvestButton && <InvestButton item={item} context={investContext} />}
+            <BulkLabel value={bulk.value} />
+            {sellContext && <SellButton item={item} context={sellContext} />}
+          </>
+        }
       >
-        <summary
-          className="flex cursor-pointer list-none items-center gap-3 px-3 py-2 hover:bg-pf-bg-dark/40"
-          onClick={(e): void => {
-            e.preventDefault();
-            card.toggle();
-          }}
-        >
-          <img src={item.img} alt="" className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className="truncate text-sm text-pf-text">{item.name}</span>
-              {item.system.quantity > 1 && (
-                <span className="flex-shrink-0 text-xs text-pf-text-muted">×{item.system.quantity}</span>
-              )}
-              {capacityText !== undefined && (
-                <span className="flex-shrink-0 text-[10px] uppercase tracking-wider text-pf-text-muted">
-                  {capacityText}
-                </span>
-              )}
-            </div>
+        {partyContext && (
+          <div className="mb-2">
+            <StashButton item={item} context={partyContext} />
           </div>
-          <EquippedBadge item={item} suppressInvested={hasInvestButton} />
-          {hasInvestButton && <InvestButton item={item} context={investContext} />}
-          <BulkLabel value={bulk.value} />
-          {sellContext && <SellButton item={item} context={sellContext} />}
-          <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
-        </summary>
-        {/* Absolute panel shares border color with the open <details>,
-            drops the top border (seam is the <details> bottom edge),
-            and gets the bottom rounding that <details> gives up. */}
-        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
-          {partyContext && (
-            <div className="mb-2">
-              <StashButton item={item} context={partyContext} />
-            </div>
-          )}
-          <ItemDescription item={item} />
-        </div>
-      </details>
+        )}
+        <ItemDescription item={item} />
+      </DetailsCard>
       {isContainerRow && contents.length > 0 && (
         <ul
           className="rounded-b border-x border-b border-pf-border divide-y divide-neutral-100 pl-6"
@@ -95,39 +78,29 @@ export function ItemRow({
           ))}
         </ul>
       )}
-    </li>
+    </>
   );
 }
 
 function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement {
-  const card = useExpandableCard();
   return (
-    <li className="relative" data-item-id={item.id} data-item-type={item.type}>
-      <details
-        className="group relative rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg"
-        open={card.isOpen}
-      >
-        <summary
-          className="flex cursor-pointer list-none items-center gap-3 px-3 py-1.5 hover:bg-pf-bg-dark/40"
-          onClick={(e): void => {
-            e.preventDefault();
-            card.toggle();
-          }}
-        >
+    <DetailsCard
+      data-item-id={item.id}
+      data-item-type={item.type}
+      summaryClassName="flex cursor-pointer list-none items-center gap-3 px-3 py-1.5 hover:bg-pf-bg-dark/40 [&::-webkit-details-marker]:hidden"
+      summary={
+        <>
           <img src={item.img} alt="" className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
           <div className="min-w-0 flex-1">
             <span className="truncate text-sm text-neutral-800">{item.name}</span>
             {item.system.quantity > 1 && <span className="ml-2 text-xs text-pf-text-muted">×{item.system.quantity}</span>}
           </div>
           <BulkLabel value={item.system.bulk.value} />
-          <span className="ml-1 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
-        </summary>
-        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
-          <ItemDescription item={item} />
-        </div>
-      </details>
-    </li>
+        </>
+      }
+    >
+      <ItemDescription item={item} />
+    </DetailsCard>
   );
 }
 
@@ -246,16 +219,8 @@ export function GridTile({
 // and the grid-mode floating card (each brings its own container styling).
 function ItemDescription({ item }: { item: PhysicalItem }): React.ReactElement {
   const description = (item.system.description as { value?: unknown } | undefined)?.value;
-  const enriched = typeof description === 'string' && description.length > 0 ? enrichDescription(description) : '';
-  if (enriched.length === 0) {
-    return <p className="italic text-neutral-400">No description.</p>;
-  }
-  return (
-    <div
-      className="max-h-[24rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-      dangerouslySetInnerHTML={{ __html: enriched }}
-    />
-  );
+  const raw = typeof description === 'string' ? description : undefined;
+  return <EnrichedDescription raw={raw} maxHeightClass="max-h-[24rem]" />;
 }
 
 function StashButton({ item, context }: { item: PhysicalItem; context: PartyContext }): React.ReactElement {

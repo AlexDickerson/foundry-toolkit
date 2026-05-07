@@ -7,10 +7,12 @@ import type {
   CraftingFormulaEntry,
   PreparedFormulaData,
 } from '@/features/characters/types';
-import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useActorAction } from '@/features/characters/sheet/hooks/useActorAction';
 import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
+import { DetailsCard } from '@/shared/ui/DetailsCard';
+import { EnrichedDescription } from '@/shared/ui/EnrichedDescription';
+import { TraitChips } from '@/shared/ui/TraitChips';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 
 const FORMULA_PACKS: string[] = ['pf2e.equipment-srd', 'pf2e.adventure-specific-items'];
@@ -194,9 +196,11 @@ function FormulaCard({
   const craftError = typeof craft.state === 'object' ? craft.state.error : null;
 
   return (
-    <li className="relative" data-formula-uuid={formula.uuid}>
-      <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
-        <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-2 hover:bg-pf-bg-dark/40">
+    <DetailsCard
+      data-formula-uuid={formula.uuid}
+      summaryClassName="flex cursor-pointer list-none items-start gap-3 px-3 py-2 hover:bg-pf-bg-dark/40 [&::-webkit-details-marker]:hidden"
+      summary={
+        <>
           {img !== null ? (
             <img
               src={img}
@@ -248,18 +252,11 @@ function FormulaCard({
               {pending ? 'Crafting…' : 'Craft'}
             </button>
           </div>
-          <span className="ml-1 self-center text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span className="ml-1 hidden self-center text-[10px] text-pf-alt-dark group-open:inline">▾</span>
-        </summary>
-        {/* Absolute-positioned body overlays the grid below rather
-            than pushing siblings down — matches the Feats tab pattern.
-            Containing block is the relative <li>, so left/right: 0
-            align body to the summary's border-box. */}
-        <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
-          <FormulaDetail state={state} uuid={formula.uuid} onRemove={onRemove} />
-        </div>
-      </details>
-    </li>
+        </>
+      }
+    >
+      <FormulaDetail state={state} uuid={formula.uuid} onRemove={onRemove} />
+    </DetailsCard>
   );
 }
 
@@ -292,7 +289,6 @@ function FormulaDetail({
   const rarity = readRarity(doc);
   const price = readPrice(doc);
   const description = readDescription(doc);
-  const enriched = description.length > 0 ? enrichDescription(description) : '';
 
   return (
     <>
@@ -308,15 +304,9 @@ function FormulaDetail({
           )}
         </div>
       ) : null}
-      {traits.length > 0 && <TraitChips traits={traits} />}
-      {enriched.length > 0 ? (
-        <div
-          className="mt-2 max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-          dangerouslySetInnerHTML={{ __html: enriched }}
-        />
-      ) : (
-        <p className="mt-2 italic text-neutral-400">No description.</p>
-      )}
+      <TraitChips traits={traits} className="mt-1 flex flex-wrap gap-1" />
+      <EnrichedDescription raw={description} className="mt-2" maxHeightClass="max-h-[28rem]" />
+
       <div className="mt-2 flex justify-end">
         <RemoveFormulaButton onClick={onRemove} />
       </div>
@@ -433,21 +423,6 @@ function RemoveFormulaButton({ onClick }: { onClick: () => void }): React.ReactE
     >
       Remove
     </button>
-  );
-}
-
-function TraitChips({ traits }: { traits: string[] }): React.ReactElement {
-  return (
-    <ul className="mt-1 flex flex-wrap gap-1">
-      {traits.map((t) => (
-        <li
-          key={t}
-          className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
-        >
-          {humanizeSlug(t)}
-        </li>
-      ))}
-    </ul>
   );
 }
 

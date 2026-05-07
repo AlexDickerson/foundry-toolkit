@@ -1,9 +1,11 @@
 import type { FeatCategory, FeatItem, PreparedActorItem } from '@/features/characters/types';
 import { isFeatItem } from '@/features/characters/types';
-import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { FEAT_CATEGORY_LABEL, FEAT_CATEGORY_ORDER, resolveFeatCategory } from '@/shared/lib/pf2e-maps';
 import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
+import { DetailsCard } from '@/shared/ui/DetailsCard';
+import { EnrichedDescription } from '@/shared/ui/EnrichedDescription';
+import { TraitChips } from '@/shared/ui/TraitChips';
 
 interface Props {
   items: PreparedActorItem[];
@@ -63,64 +65,42 @@ function FeatCard({ feat }: { feat: FeatItem }): React.ReactElement {
   const level = feat.system.level.value;
   const traits = feat.system.traits.value.filter((t) => t !== feat.system.category);
   const description = feat.system.description?.value ?? '';
-  const enriched = description.length > 0 ? enrichDescription(description) : '';
   const prereqs = (feat.system.prerequisites?.value ?? [])
     .map((p) => p.value)
     .filter((v) => typeof v === 'string' && v.length > 0);
 
   return (
-    <li className="relative" data-item-id={feat.id} data-feat-slug={feat.system.slug ?? ''}>
-      <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-lg">
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden hover:bg-pf-bg-dark/40">
+    <DetailsCard
+      data-item-id={feat.id}
+      data-feat-slug={feat.system.slug ?? ''}
+      panelClassName="absolute left-0 top-full z-20 flex w-[calc(200%+0.5rem)] rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg shadow-lg"
+      summary={
+        <>
           <img
             src={feat.img}
             alt=""
             className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
           />
           <span className="line-clamp-2 min-h-[2.5em] min-w-0 flex-1 text-sm font-medium leading-tight text-pf-text">{feat.name}</span>
-          <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-          <span aria-hidden className="flex-shrink-0 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
-        </summary>
-        {/* Single bottom panel: two-column interior avoids z-index overlap entirely. */}
-        <div className="absolute left-0 top-full z-20 flex w-[calc(200%+0.5rem)] rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg shadow-lg">
-          <div className="w-36 flex-shrink-0 border-r border-t border-pf-primary/60 px-3 py-3 text-sm text-pf-text">
-            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {level}</p>
-            {traits.length > 0 && <TraitChips traits={traits} />}
-            {prereqs.length > 0 && (
-              <p className="mt-2 text-xs text-pf-alt-dark">
-                <span className="font-semibold uppercase tracking-widest">Prerequisites</span>{' '}
-                {prereqs.join('; ')}
-              </p>
-            )}
-          </div>
-          <div className="min-w-0 flex-1 border-t border-pf-primary/60 px-4 py-3 text-sm text-pf-text">
-            {enriched.length > 0 ? (
-              <div
-                className="max-h-[28rem] overflow-y-auto pr-1 leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-                dangerouslySetInnerHTML={{ __html: enriched }}
-              />
-            ) : (
-              <p className="italic text-neutral-400">No description.</p>
-            )}
-          </div>
-        </div>
-      </details>
-    </li>
-  );
-}
-
-function TraitChips({ traits }: { traits: string[] }): React.ReactElement {
-  return (
-    <ul className="mt-1 flex flex-wrap gap-1">
-      {traits.map((t) => (
-        <li
-          key={t}
-          className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
-        >
-          {capitaliseSlug(t)}
-        </li>
-      ))}
-    </ul>
+        </>
+      }
+    >
+      {/* Two-column interior — panel spans 2x summary width to avoid z-index
+       *  overlap with the sibling card to the right. */}
+      <div className="w-36 flex-shrink-0 border-r border-t border-pf-primary/60 px-3 py-3 text-sm text-pf-text">
+        <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-pf-alt-dark">Level {level}</p>
+        <TraitChips traits={traits} className="mt-1 flex flex-wrap gap-1" />
+        {prereqs.length > 0 && (
+          <p className="mt-2 text-xs text-pf-alt-dark">
+            <span className="font-semibold uppercase tracking-widest">Prerequisites</span>{' '}
+            {prereqs.join('; ')}
+          </p>
+        )}
+      </div>
+      <div className="min-w-0 flex-1 border-t border-pf-primary/60 px-4 py-3 text-sm text-pf-text">
+        <EnrichedDescription raw={description} maxHeightClass="max-h-[28rem]" />
+      </div>
+    </DetailsCard>
   );
 }
 

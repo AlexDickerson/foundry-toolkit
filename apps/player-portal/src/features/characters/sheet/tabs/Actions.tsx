@@ -2,9 +2,11 @@ import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import { api } from '@/features/characters/api';
 import type { Ability, AbilityKey, ActionItem, PreparedActorItem, Strike } from '@/features/characters/types';
 import { isActionItem } from '@/features/characters/types';
-import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useActorAction, type ActorActionState } from '@/features/characters/sheet/hooks/useActorAction';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
+import { DetailsCard } from '@/shared/ui/DetailsCard';
+import { EnrichedDescription } from '@/shared/ui/EnrichedDescription';
+import { TraitChips } from '@/shared/ui/TraitChips';
 
 interface Props {
   actions: Strike[];
@@ -156,7 +158,7 @@ function StrikeCard({
             </button>
           </div>
           {error !== null && <p className="mt-1 text-[11px] text-red-700">{error}</p>}
-          {allTraits.length > 0 && <TraitChips traits={allTraits} />}
+          <TraitChips traits={allTraits} variant="subdued" className="mt-1.5 flex flex-wrap gap-1" />
           {range !== null && range !== undefined && (
             <p className="mt-1 text-[10px] text-pf-text-muted">Range: {range} ft</p>
           )}
@@ -278,17 +280,19 @@ function ActionCard({
   const count = item.system.actions.value;
   const traits = item.system.traits.value;
   const description = item.system.description?.value ?? '';
-  const hasDescription = description.trim() !== '';
-  const enriched = hasDescription ? enrichDescription(description) : '';
   const use = useActorAction({
     run: () => api.useItem(actorId, item.id),
     onSuccess: onUsed,
   });
 
   return (
-    <li className="relative" data-action-id={item.id} data-action-kind={kind}>
-      <details className="group rounded border border-pf-border bg-pf-bg open:rounded-b-none open:border-pf-primary/60 open:shadow-md">
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden">
+    <DetailsCard
+      data-action-id={item.id}
+      data-action-kind={kind}
+      shadow="md"
+      panelClassName="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 shadow-lg"
+      summary={
+        <>
           <img
             src={item.img}
             alt=""
@@ -305,38 +309,20 @@ function ActionCard({
           >
             {use.state === 'pending' ? 'Using…' : 'Use'}
           </button>
-          <span aria-hidden className="flex-shrink-0 text-[10px] text-pf-alt-dark group-open:hidden">▸</span>
-        </summary>
+          {typeof use.state === 'object' && (
+            <span className="sr-only" data-role="action-error">{use.state.error}</span>
+          )}
+        </>
+      }
+    >
+      <div data-role="action-description">
         {typeof use.state === 'object' && (
-          <p className="px-3 pb-1 text-[11px] text-red-700">{use.state.error}</p>
+          <p className="mb-2 text-[11px] text-red-700">{use.state.error}</p>
         )}
-        <div
-          className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg p-3 shadow-lg"
-          data-role="action-description"
-        >
-          {traits.length > 0 && (
-            <ul className="mb-2 flex flex-wrap gap-1">
-              {traits.map((slug) => (
-                <li
-                  key={slug}
-                  className="rounded-full border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[10px] text-pf-text-muted"
-                >
-                  {capitaliseSlug(slug)}
-                </li>
-              ))}
-            </ul>
-          )}
-          {hasDescription ? (
-            <div
-              className="text-sm leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-              dangerouslySetInnerHTML={{ __html: enriched }}
-            />
-          ) : (
-            <p className="text-sm italic text-neutral-400">No description.</p>
-          )}
-        </div>
-      </details>
-    </li>
+        <TraitChips traits={traits} variant="subdued" className="mb-2 flex flex-wrap gap-1" />
+        <EnrichedDescription raw={description} className="text-sm" />
+      </div>
+    </DetailsCard>
   );
 }
 
@@ -355,27 +341,3 @@ function ActionCostBadge({ kind, count }: { kind: string; count: number | null }
   );
 }
 
-// ─── Shared ────────────────────────────────────────────────────────────
-
-function TraitChips({ traits }: { traits: { name: string; label: string }[] }): React.ReactElement {
-  return (
-    <ul className="mt-1.5 flex flex-wrap gap-1">
-      {traits.map((t) => (
-        <li
-          key={t.name}
-          className="rounded-full border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[10px] text-pf-text-muted"
-          title={t.name}
-        >
-          {t.label}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function capitaliseSlug(slug: string): string {
-  return slug
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
