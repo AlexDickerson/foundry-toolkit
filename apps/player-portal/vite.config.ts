@@ -36,6 +36,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), ...(useMock ? [mockApi(fixturesDir)] : [])],
     resolve: {
       alias: {
+        // Mirrors tsconfig.json `paths` — '@/...' resolves to src/ regardless
+        // of the importer's depth.
+        '@': path.resolve(here, 'src'),
         // Allow CSS @import '@foundry-toolkit/shared/tokens/...' to resolve
         // directly to the file system without going through exports-map
         // resolution, which @tailwindcss/postcss's bundler doesn't support
