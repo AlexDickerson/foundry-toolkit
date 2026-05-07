@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ProficiencyRank } from '@/features/characters/types';
-import { PickerDialog } from '@/_quarantine/picker/PickerDialog';
+import { PickerDialog } from '@/shared/ui/PickerDialog';
 import type { CharacterContext } from '@/features/characters/internal/prereqs';
 
 interface Props {

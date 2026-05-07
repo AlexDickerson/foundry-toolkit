@@ -9,7 +9,7 @@ import type {
 import { type RemoteDataState, useRemoteData } from '@/_quarantine/lib/useRemoteData';
 import type { CharacterContext, Evaluation } from '@/features/characters/internal/prereqs';
 import { evaluateDocument } from '@/features/characters/internal/prereqs';
-import type { CompendiumPickerProps } from '@/_quarantine/picker';
+import type { CompendiumPickerProps } from '@/features/characters/internal/CompendiumPicker';
 import { prefetchDocuments } from './feat-prefetch';
 import { type SortMode, type SortState, FilterSummary, SourcePicker, SortToggle, UnmetToggle } from './FeatFilters';
 

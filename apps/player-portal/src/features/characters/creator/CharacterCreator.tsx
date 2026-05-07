@@ -4,7 +4,7 @@ import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
 import { useCreatorPickerProps } from '@/features/characters/creator/useCreatorPickerProps';
 import { PromptModal } from '@/features/characters/creator/PromptModal';
-import { CompendiumPicker } from '@/_quarantine/picker';
+import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 import { usePendingPrompts } from '@/_quarantine/lib/usePendingPrompts';
 
 import { CreatorSection } from '@/features/characters/creator/CreatorSection';

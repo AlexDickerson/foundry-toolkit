@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch, CompendiumSearchOptions } from '@/features/characters/types';
-import { CompendiumPicker } from '@/_quarantine/picker';
+import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 import { useCreatorPickerProps } from './useCreatorPickerProps';
 
 // Test wrapper that exercises the same surface CharacterCreator uses:

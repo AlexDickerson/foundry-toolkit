@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch, CompendiumSearchOptions, ItemPrice, PreparedActorItem } from '@/features/characters/types';
 import { sumActorCoinsCp } from '@/_quarantine/lib/coins';
-import { PickerResultList } from '@/_quarantine/picker';
+import { PickerResultList } from '@/features/characters/internal/CompendiumPicker';
 import { ShopItemDetail } from './ShopItemDetail';
 import { type ItemGroup, ShopTile } from './ShopTile';
 import { useFitPageSize } from './useFitPageSize';

@@ -19,7 +19,7 @@ import { SectionHeader } from '@/shared/ui/SectionHeader';
 import { AbilityBoostPicker } from '@/features/characters/creator/AbilityBoostPicker';
 import { useCreatorPickerProps } from '@/features/characters/creator/useCreatorPickerProps';
 import { SkillIncreasePicker } from '@/features/characters/creator/SkillIncreasePicker';
-import { CompendiumPicker } from '@/_quarantine/picker';
+import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 
 // All picks share the same map keyed by `${level}:${slot}`. The value
 // is a discriminated union so each slot kind can store the shape it

@@ -7,7 +7,7 @@ import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
 import { useActorAction } from '@/_quarantine/lib/useActorAction';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
-import { CompendiumPicker } from '@/_quarantine/picker';
+import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 
 const SPELL_PACKS: string[] = ['pf2e.spells-srd'];
 

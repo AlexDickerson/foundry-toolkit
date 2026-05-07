@@ -7,7 +7,7 @@ import { usePaginatedSearch } from '@/_quarantine/lib/usePaginatedSearch';
 import type { CompendiumDocument } from '@/features/characters/types';
 import type { Evaluation } from '@/features/characters/internal/prereqs';
 import { CompendiumDetailPanel } from './CompendiumDetailPanel';
-import { PickerDialog } from './PickerDialog';
+import { PickerDialog } from '@/shared/ui/PickerDialog';
 
 // ─── Internal list + states area ──────────────────────────────────────────────
 

@@ -11,7 +11,7 @@ import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useActorAction } from '@/_quarantine/lib/useActorAction';
 import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
-import { CompendiumPicker } from '@/_quarantine/picker';
+import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 
 const FORMULA_PACKS: string[] = ['pf2e.equipment-srd', 'pf2e.adventure-specific-items'];
 
