@@ -3,7 +3,7 @@ import { render, cleanup } from '@testing-library/react';
 import amiri from '@/fixtures/amiri-prepared.json';
 import type { FeatItem, PreparedActorItem } from '@/features/characters/types';
 import { Feats } from './Feats';
-import { resolveFeatCategory } from '@/_quarantine/lib/pf2e-maps';
+import { resolveFeatCategory } from '@/shared/lib/pf2e-maps';
 
 // Amiri's expected feats grouped by category, from the live fixture.
 // Shape: { category: [featName, featName, ...] }

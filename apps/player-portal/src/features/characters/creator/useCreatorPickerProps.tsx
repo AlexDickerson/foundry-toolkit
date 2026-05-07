@@ -6,7 +6,7 @@ import type {
   CompendiumSearchOptions,
   CompendiumSource,
 } from '@/features/characters/types';
-import { type RemoteDataState, useRemoteData } from '@/_quarantine/lib/useRemoteData';
+import { type RemoteDataState, useRemoteData } from '@/shared/hooks/useRemoteData';
 import type { CharacterContext, Evaluation } from '@/features/characters/internal/prereqs';
 import { evaluateDocument } from '@/features/characters/internal/prereqs';
 import type { CompendiumPickerProps } from '@/features/characters/internal/CompendiumPicker';

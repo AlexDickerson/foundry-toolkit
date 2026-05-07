@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { api } from '@/features/characters/api';
 import type { PhysicalItem, PointPool, PreparedActorItem } from '@/features/characters/types';
 import { isCoin, isContainer, isPhysicalItem } from '@/features/characters/types';
-import { useShopMode } from '@/_quarantine/lib/useShopMode';
-import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
-import { supportsInvestment, wouldExceedInvestmentCap } from '@/_quarantine/lib/investment';
-import { priceToCp } from '@/_quarantine/lib/coins';
+import { useShopMode } from '@/features/characters/sheet/hooks/useShopMode';
+import { useUuidHover } from '@/shared/hooks/useUuidHover';
+import { supportsInvestment, wouldExceedInvestmentCap } from '@/features/characters/lib/investment';
+import { priceToCp } from '@/features/characters/lib/coins';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 import { ItemShopPicker, type BuyRequest } from '@/features/characters/sheet/shop/ItemShopPicker';
 import {

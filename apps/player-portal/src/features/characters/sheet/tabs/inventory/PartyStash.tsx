@@ -2,8 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { PartyStashItem } from '@foundry-toolkit/shared/rpc';
 import { api } from '@/features/characters/api';
 import type { PreparedActorItem } from '@/features/characters/types';
-import { coinItemsByDenom, type Denom } from '@/_quarantine/lib/coins';
-import { useEventChannel } from '@/_quarantine/lib/useEventChannel';
+import { coinItemsByDenom, type Denom } from '@/features/characters/lib/coins';
+import { useEventChannel } from '@/features/characters/sheet/hooks/useEventChannel';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 import { CATEGORY_ORDER, CATEGORY_LABEL, type InventoryCategory } from './inventory-categories';
 

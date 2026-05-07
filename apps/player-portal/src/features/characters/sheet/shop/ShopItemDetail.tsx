@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/features/characters/api';
 import type { CompendiumDocument, CompendiumMatch } from '@/features/characters/types';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
-import { formatCp, priceToCp } from '@/_quarantine/lib/coins';
+import { formatCp, priceToCp } from '@/features/characters/lib/coins';
 import { extractPriceFromDocument, qualityLabel, rarityChipClass, type ItemGroup } from './shop-utils';
 
 // ─── Document helpers (private) ──────────────────────────────────────────

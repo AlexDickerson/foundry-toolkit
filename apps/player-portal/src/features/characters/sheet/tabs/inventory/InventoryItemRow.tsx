@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { PhysicalItem } from '@/features/characters/types';
 import { isContainer } from '@/features/characters/types';
-import { useExpandableCard } from '@/_quarantine/lib/useExpandableCard';
-import { supportsInvestment } from '@/_quarantine/lib/investment';
-import { cpToDenominations, priceToCp } from '@/_quarantine/lib/coins';
+import { useExpandableCard } from '@/features/characters/sheet/hooks/useExpandableCard';
+import { supportsInvestment } from '@/features/characters/lib/investment';
+import { cpToDenominations, priceToCp } from '@/features/characters/lib/coins';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import type { SellContext, InvestContext, PartyContext } from './inventory-shop';
 

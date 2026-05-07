@@ -3,7 +3,7 @@ import { api } from '@/features/characters/api';
 import type { Ability, AbilityKey, ActionItem, PreparedActorItem, Strike } from '@/features/characters/types';
 import { isActionItem } from '@/features/characters/types';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
-import { useActorAction, type ActorActionState } from '@/_quarantine/lib/useActorAction';
+import { useActorAction, type ActorActionState } from '@/features/characters/sheet/hooks/useActorAction';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 
 interface Props {

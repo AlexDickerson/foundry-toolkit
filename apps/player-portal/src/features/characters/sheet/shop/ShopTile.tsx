@@ -1,5 +1,5 @@
 import type { CompendiumMatch } from '@/features/characters/types';
-import { formatCp, priceToCp } from '@/_quarantine/lib/coins';
+import { formatCp, priceToCp } from '@/features/characters/lib/coins';
 import { rarityFooterClass, type ItemGroup, type PriceState } from './shop-utils';
 
 // Re-export the type so callers can import it from either place.

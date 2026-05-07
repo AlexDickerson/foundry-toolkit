@@ -1,7 +1,7 @@
 import type { AbilityKey, CharacterSystem } from '@/features/characters/types';
 import { ABILITY_KEYS } from '@/features/characters/types';
 import { t } from '@/shared/i18n/t';
-import { formatSignedInt } from '@/_quarantine/lib/format';
+import { formatSignedInt } from '@/shared/lib/format';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 
 export function AbilityBlock({

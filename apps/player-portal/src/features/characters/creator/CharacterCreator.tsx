@@ -5,7 +5,7 @@ import type { CompendiumMatch } from '@/features/characters/types';
 import { useCreatorPickerProps } from '@/features/characters/creator/useCreatorPickerProps';
 import { PromptModal } from '@/features/characters/creator/PromptModal';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
-import { usePendingPrompts } from '@/_quarantine/lib/usePendingPrompts';
+import { usePendingPrompts } from '@/features/characters/sheet/hooks/usePendingPrompts';
 
 import { CreatorSection } from '@/features/characters/creator/CreatorSection';
 import { EMPTY_DRAFT, PICKER_LABEL, STEPS, STEP_LABEL } from '@/features/characters/creator/constants';

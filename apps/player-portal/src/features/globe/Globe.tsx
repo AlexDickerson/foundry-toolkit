@@ -23,7 +23,7 @@ import {
 } from '@foundry-toolkit/shared/golarion-map';
 import { MissionBriefing } from '@foundry-toolkit/shared/MissionBriefing';
 import type { GlobePin, MissionData } from '@foundry-toolkit/shared/types';
-import { useLiveStream } from '@/_quarantine/lib/live';
+import { useLiveStream } from '@/features/characters/lib/live';
 
 interface GlobeSnapshot {
   pins: GlobePin[];

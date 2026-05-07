@@ -4,8 +4,8 @@ import type { FocusPool, PreparedActorItem, SpellItem, SpellcastingEntryItem } f
 import { isCantripSpell, isSpellItem, isSpellcastingEntryItem } from '@/features/characters/types';
 import { api } from '@/features/characters/api';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
-import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
-import { useActorAction } from '@/_quarantine/lib/useActorAction';
+import { useUuidHover } from '@/shared/hooks/useUuidHover';
+import { useActorAction } from '@/features/characters/sheet/hooks/useActorAction';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 

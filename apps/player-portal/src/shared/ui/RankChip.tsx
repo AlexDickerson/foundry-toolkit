@@ -1,6 +1,6 @@
 import type { ProficiencyRank } from '@/features/characters/types';
 import { t } from '@/shared/i18n/t';
-import { RANK_BG, RANK_I18N_KEY } from '@/_quarantine/lib/pf2e-maps';
+import { RANK_BG, RANK_I18N_KEY } from '@/shared/lib/pf2e-maps';
 
 interface Props {
   rank: ProficiencyRank;

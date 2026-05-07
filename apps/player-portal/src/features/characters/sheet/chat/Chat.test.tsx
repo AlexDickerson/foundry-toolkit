@@ -2,11 +2,11 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import type { ChatMessageSnapshot } from '@foundry-toolkit/shared/rpc';
 
-vi.mock('@/_quarantine/lib/useLiveChat', () => ({
+vi.mock('@/features/characters/sheet/hooks/useLiveChat', () => ({
   useLiveChat: vi.fn(),
 }));
 
-import { useLiveChat } from '@/_quarantine/lib/useLiveChat';
+import { useLiveChat } from '@/features/characters/sheet/hooks/useLiveChat';
 import { Chat } from './Chat';
 
 function makeMsg(id: string, content: string, timestamp: number): ChatMessageSnapshot {

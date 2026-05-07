@@ -6,8 +6,8 @@ import type {
   ProficiencyRank,
 } from '@/features/characters/types';
 import { t } from '@/shared/i18n/t';
-import { formatSignedInt } from '@/_quarantine/lib/format';
-import { ATTACK_LABEL_KEY, DEFENSE_LABEL_KEY } from '@/_quarantine/lib/pf2e-maps';
+import { formatSignedInt } from '@/shared/lib/format';
+import { ATTACK_LABEL_KEY, DEFENSE_LABEL_KEY } from '@/shared/lib/pf2e-maps';
 import { ModifierTooltip } from '@/shared/ui/ModifierTooltip';
 import { RankChip } from '@/shared/ui/RankChip';
 import { SectionHeader } from '@/shared/ui/SectionHeader';

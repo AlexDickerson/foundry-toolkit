@@ -18,14 +18,14 @@ import { Progression } from '@/features/characters/sheet/tabs/Progression';
 
 import { Chat } from '@/features/characters/sheet/chat/Chat';
 import { Spells } from '@/features/characters/sheet/tabs/Spells';
-import { useEventChannel } from '@/_quarantine/lib/useEventChannel';
-import { useParty } from '@/_quarantine/lib/useParty';
+import { useEventChannel } from '@/features/characters/sheet/hooks/useEventChannel';
+import { useParty } from '@/features/characters/sheet/hooks/useParty';
 import { fromPreparedCharacter } from '@/features/characters/internal/prereqs';
-import { usePreferences } from '@/_quarantine/lib/usePreferences';
-import { prefetchIcons } from '@/_quarantine/lib/prefetchIcons';
+import { usePreferences } from '@/features/characters/sheet/hooks/usePreferences';
+import { prefetchIcons } from '@/shared/lib/prefetchIcons';
 import { PromptQueue } from '@/features/characters/sheet/dialog/PromptQueue';
-import type { TabId } from '@/_quarantine/lib/tabUtils';
-import { useShopMode } from '@/_quarantine/lib/useShopMode';
+import type { TabId } from '@/shared/lib/tabUtils';
+import { useShopMode } from '@/features/characters/sheet/hooks/useShopMode';
 import { PartyRail } from '@/features/characters/sheet/party/PartyRail';
 import { MemberCard } from '@/features/characters/sheet/party/MemberCard';
 

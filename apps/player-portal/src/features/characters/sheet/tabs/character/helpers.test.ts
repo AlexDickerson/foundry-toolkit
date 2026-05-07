@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { firstError, primarySpeed, humaniseSlug } from './helpers';
-import type { ActorActionState } from '@/_quarantine/lib/useActorAction';
+import type { ActorActionState } from '@/features/characters/sheet/hooks/useActorAction';
 
 describe('firstError', () => {
   it('returns null when all states are idle', () => {

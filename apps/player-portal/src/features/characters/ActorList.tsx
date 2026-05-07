@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, ApiRequestError } from '@/features/characters/api';
 import type { ActorSummary } from '@/features/characters/types';
-import { isPlayerCharacter } from '@/_quarantine/lib/actor-utils';
+import { isPlayerCharacter } from '@/features/characters/lib/actor-utils';
 
 type State =
   | { kind: 'loading' }

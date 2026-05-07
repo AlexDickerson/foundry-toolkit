@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { RemoteDataState } from '@/_quarantine/lib/useRemoteData';
+import type { RemoteDataState } from '@/shared/hooks/useRemoteData';
 import type { CompendiumSource } from '@/features/characters/types';
 import type { CompendiumSearchOptions } from '@/features/characters/types';
 

@@ -1,7 +1,7 @@
 import { api } from '@/features/characters/api';
 import type { CharacterSystem, Shield } from '@/features/characters/types';
 import { t } from '@/shared/i18n/t';
-import { useActorAction } from '@/_quarantine/lib/useActorAction';
+import { useActorAction } from '@/features/characters/sheet/hooks/useActorAction';
 
 export function ConditionsRow({
   dying,

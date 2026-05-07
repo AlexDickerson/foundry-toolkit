@@ -1,8 +1,8 @@
 import type { FeatCategory, FeatItem, PreparedActorItem } from '@/features/characters/types';
 import { isFeatItem } from '@/features/characters/types';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
-import { FEAT_CATEGORY_LABEL, FEAT_CATEGORY_ORDER, resolveFeatCategory } from '@/_quarantine/lib/pf2e-maps';
-import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
+import { FEAT_CATEGORY_LABEL, FEAT_CATEGORY_ORDER, resolveFeatCategory } from '@/shared/lib/pf2e-maps';
+import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 
 interface Props {

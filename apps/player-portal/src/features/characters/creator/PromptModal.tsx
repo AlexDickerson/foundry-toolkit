@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { api, ApiRequestError } from '@/features/characters/api';
 import type { CompendiumDocument } from '@/features/characters/types';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
-import type { PendingPrompt } from '@/_quarantine/lib/usePendingPrompts';
-import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
+import type { PendingPrompt } from '@/features/characters/sheet/hooks/usePendingPrompts';
+import { useUuidHover } from '@/shared/hooks/useUuidHover';
 
 // Renders a pf2e ChoiceSet prompt as a two-pane picker: choices on
 // the left, detail pane on the right (compendium docs fetched lazily

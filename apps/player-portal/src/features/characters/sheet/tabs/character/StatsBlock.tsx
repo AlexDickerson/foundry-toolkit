@@ -2,8 +2,8 @@ import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import { api } from '@/features/characters/api';
 import type { CharacterSystem, Save } from '@/features/characters/types';
 import { t } from '@/shared/i18n/t';
-import { formatSignedInt } from '@/_quarantine/lib/format';
-import { useActorAction } from '@/_quarantine/lib/useActorAction';
+import { formatSignedInt } from '@/shared/lib/format';
+import { useActorAction } from '@/features/characters/sheet/hooks/useActorAction';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 import { firstError, primarySpeed } from './helpers';
 

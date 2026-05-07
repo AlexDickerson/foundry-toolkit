@@ -7,7 +7,7 @@ import {
   coinItemValueCp,
   sumActorCoinsCp,
   type Denom,
-} from '@/_quarantine/lib/coins';
+} from '@/features/characters/lib/coins';
 
 export interface SellContext {
   sellRatio: number;

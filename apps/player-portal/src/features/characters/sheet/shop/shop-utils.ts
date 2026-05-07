@@ -1,5 +1,5 @@
 import type { CompendiumDocument, CompendiumMatch, ItemPrice } from '@/features/characters/types';
-import { priceToCp } from '@/_quarantine/lib/coins';
+import { priceToCp } from '@/features/characters/lib/coins';
 
 // ─── Type filter ─────────────────────────────────────────────────────────
 

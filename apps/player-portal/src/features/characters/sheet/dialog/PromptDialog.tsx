@@ -12,7 +12,7 @@
 
 import { useState } from 'react';
 import type { DialogSpec, DialogField, DialogResolution } from '@foundry-toolkit/shared/rpc';
-import type { PendingPrompt } from '@/_quarantine/lib/usePromptStream';
+import type { PendingPrompt } from '@/features/characters/sheet/hooks/usePromptStream';
 import { api } from '@/features/characters/api';
 import { BRIDGE_EVENT_DIALOG_REQUEST, BRIDGE_EVENT_PROMPT_REQUEST } from '@foundry-toolkit/shared/rpc';
 

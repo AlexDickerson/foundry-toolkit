@@ -8,8 +8,8 @@ import type {
   PreparedFormulaData,
 } from '@/features/characters/types';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
-import { useActorAction } from '@/_quarantine/lib/useActorAction';
-import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
+import { useActorAction } from '@/features/characters/sheet/hooks/useActorAction';
+import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 

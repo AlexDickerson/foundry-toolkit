@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
 import { api } from '@/features/characters/api';
 import type { PhysicalItem, PreparedActorItem } from '@/features/characters/types';
-import { useShopMode } from '@/_quarantine/lib/useShopMode';
-import { coinItemsByDenom, coinSlugFor, type Denom } from '@/_quarantine/lib/coins';
+import { useShopMode } from '@/features/characters/sheet/hooks/useShopMode';
+import { coinItemsByDenom, coinSlugFor, type Denom } from '@/features/characters/lib/coins';
 import type { ViewMode, ShopView } from './inventory-categories';
 
 // Slug → denomination order (largest first — pp > gp > sp > cp). Amiri's

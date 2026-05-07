@@ -13,7 +13,7 @@ import type {
   ProficiencyRank,
 } from '@/features/characters/types';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
-import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
+import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import type { CharacterContext } from '@/features/characters/internal/prereqs';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 import { AbilityBoostPicker } from '@/features/characters/creator/AbilityBoostPicker';

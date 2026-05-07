@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { PreparedCharacter } from '@/features/characters/types';
 import { api } from '@/features/characters/api';
-import { formatAncestryLine } from '@/_quarantine/lib/format';
-import { useActorAction } from '@/_quarantine/lib/useActorAction';
+import { formatAncestryLine } from '@/shared/lib/format';
+import { useActorAction } from '@/features/characters/sheet/hooks/useActorAction';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 
 interface Props {

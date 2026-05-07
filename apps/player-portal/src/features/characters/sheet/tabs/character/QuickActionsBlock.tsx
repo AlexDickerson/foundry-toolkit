@@ -3,8 +3,8 @@ import { createPf2eClient } from '@foundry-toolkit/pf2e-rules';
 import { api } from '@/features/characters/api';
 import type { PreparedActorItem, SpellcastingEntryItem, Strike } from '@/features/characters/types';
 import { isCantripSpell, isActionItem, isSpellItem, isSpellcastingEntryItem } from '@/features/characters/types';
-import { useActorAction } from '@/_quarantine/lib/useActorAction';
-import { useQuickActions } from '@/_quarantine/lib/useQuickActions';
+import { useActorAction } from '@/features/characters/sheet/hooks/useActorAction';
+import { useQuickActions } from '@/features/characters/sheet/hooks/useQuickActions';
 import {
   QuickActionPicker,
   type QuickActionOption,

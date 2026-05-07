@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
-import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
+import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import { FeatSlot } from '../FeatSlot';
 import { PickerCard } from '../PickerCard';
 

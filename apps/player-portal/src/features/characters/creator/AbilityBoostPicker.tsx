@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { AbilityKey } from '@/features/characters/types';
 import { ABILITY_KEYS } from '@/features/characters/types';
-import { formatSignedInt } from '@/_quarantine/lib/format';
+import { formatSignedInt } from '@/shared/lib/format';
 import { PickerDialog } from '@/shared/ui/PickerDialog';
 import type { CharacterContext } from '@/features/characters/internal/prereqs';
 

@@ -4,7 +4,7 @@
 
 import { useMemo } from 'react';
 import { ConnectionIndicator } from '@/shared/ui/ConnectionIndicator';
-import { useLiveStream } from '@/_quarantine/lib/live';
+import { useLiveStream } from '@/features/characters/lib/live';
 import type { AurusTeam } from '@foundry-toolkit/shared/types';
 
 interface AurusSnapshot {

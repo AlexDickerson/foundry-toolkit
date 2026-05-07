@@ -5,7 +5,7 @@
 // resolves it the server broadcasts a `removed` event and the hook pops the
 // next item automatically — no consumer state management needed.
 
-import { usePromptStream } from '@/_quarantine/lib/usePromptStream';
+import { usePromptStream } from '@/features/characters/sheet/hooks/usePromptStream';
 import { PromptDialog } from './PromptDialog';
 
 export function PromptQueue(): React.ReactElement | null {

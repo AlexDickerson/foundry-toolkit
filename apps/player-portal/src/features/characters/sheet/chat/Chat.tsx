@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLiveChat } from '@/_quarantine/lib/useLiveChat';
+import { useLiveChat } from '@/features/characters/sheet/hooks/useLiveChat';
 import { MessageBubble } from '@/features/characters/sheet/chat/MessageBubble';
 
 type SortOrder = 'desc' | 'asc';

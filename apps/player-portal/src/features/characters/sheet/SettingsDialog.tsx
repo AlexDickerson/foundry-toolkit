@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { COLOR_SCHEMES, type ColorScheme } from '@/_quarantine/lib/usePreferences';
+import { COLOR_SCHEMES, type ColorScheme } from '@/features/characters/sheet/hooks/usePreferences';
 import { api, ApiRequestError } from '@/features/characters/api';
 
 interface Props {

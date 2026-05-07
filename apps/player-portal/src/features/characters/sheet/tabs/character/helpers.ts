@@ -1,4 +1,4 @@
-import type { ActorActionState } from '@/_quarantine/lib/useActorAction';
+import type { ActorActionState } from '@/features/characters/sheet/hooks/useActorAction';
 import type { CharacterSystem } from '@/features/characters/types';
 
 export function firstError(...states: ActorActionState[]): string | null {

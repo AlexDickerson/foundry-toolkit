@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
 import { PromptDialog } from './PromptDialog';
-import type { PendingPrompt } from '@/_quarantine/lib/usePromptStream';
+import type { PendingPrompt } from '@/features/characters/sheet/hooks/usePromptStream';
 import type { DialogSpec } from '@foundry-toolkit/shared/rpc';
 
 // ─── Mock api.resolvePrompt ────────────────────────────────────────────────

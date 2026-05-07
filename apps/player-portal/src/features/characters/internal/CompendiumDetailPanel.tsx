@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { api, ApiRequestError } from '@/features/characters/api';
 import type { CompendiumDocument, CompendiumMatch } from '@/features/characters/types';
-import { useUuidHover } from '@/_quarantine/lib/useUuidHover';
+import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import type { Evaluation } from '@/features/characters/internal/prereqs';
 
 type Resolution =

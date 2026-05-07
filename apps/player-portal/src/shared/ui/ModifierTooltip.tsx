@@ -1,6 +1,6 @@
 import type { Modifier } from '@/features/characters/types';
 import { t } from '@/shared/i18n/t';
-import { formatSignedInt } from '@/_quarantine/lib/format';
+import { formatSignedInt } from '@/shared/lib/format';
 
 interface Props {
   title: string;
