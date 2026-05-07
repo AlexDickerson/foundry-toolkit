@@ -14,7 +14,7 @@ import { Crafting } from '@/features/characters/sheet/tabs/inventory/Crafting';
 import { Feats } from '@/features/characters/sheet/tabs/Feats';
 import { Inventory } from '@/features/characters/sheet/tabs/inventory/Inventory';
 import { Proficiencies } from '@/features/characters/sheet/tabs/details/Proficiencies';
-import { Progression } from '@/features/characters/sheet/tabs/Progression';
+import { Progression } from '@/features/characters/sheet/tabs/progression/Progression';
 
 import { Chat } from '@/features/characters/sheet/chat/Chat';
 import { Spells } from '@/features/characters/sheet/tabs/Spells';
