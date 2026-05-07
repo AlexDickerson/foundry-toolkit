@@ -21,7 +21,16 @@
     "*.ts": "${capture}.test.ts, ${capture}.spec.ts",
     "*.tsx": "${capture}.test.tsx, ${capture}.spec.tsx, ${capture}.test.ts",
     "*.js": "${capture}.test.js, ${capture}.spec.js",
-    "*.jsx": "${capture}.test.jsx, ${capture}.spec.jsx"
+    "*.jsx": "${capture}.test.jsx, ${capture}.spec.jsx",
+
+    "package.json": "package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lockb, .npmrc, .nvmrc, .node-version",
+    "tsconfig.json": "tsconfig.*.json",
+    "vite.config.ts": "vite.config.*.ts, vitest.config.ts, vitest.config.*.ts",
+    "vitest.config.ts": "vitest.config.*.ts",
+    "eslint.config.js": ".eslintrc*, .eslintignore, .prettierrc*, .prettierignore, prettier.config.*",
+    ".gitignore": ".gitattributes, .editorconfig, .gitmodules",
+    "Dockerfile": "Dockerfile.*, .dockerignore, docker-compose*.yml, docker-compose*.yaml",
+    "README.md": "README*, CHANGELOG*, CONTRIBUTING*, LICENSE*, NOTICE*, AUTHORS*, CODE_OF_CONDUCT*"
   },
   "search.exclude": {
     "**/node_modules": true,
