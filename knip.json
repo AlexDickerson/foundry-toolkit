@@ -35,7 +35,7 @@
     },
     "apps/player-portal": {
       "ignoreDependencies": ["@eslint/js"],
-      "ignore": ["src/api/types/**", "src/components/tabs/Proficiencies.tsx", "src/components/picker/**"]
+      "ignore": ["src/features/characters/sheet/tabs/details/Proficiencies.tsx"]
     },
     "packages/ai": {
       "entry": [
