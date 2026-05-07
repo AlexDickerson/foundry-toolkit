@@ -5,7 +5,7 @@ import type { PreparedCharacter } from '@/features/characters/types';
 import { api } from '@/features/characters/api';
 import { formatAncestryLine } from '@/_quarantine/lib/format';
 import { useActorAction } from '@/_quarantine/lib/useActorAction';
-import { ConfirmDialog } from '@/_quarantine/dialog/ConfirmDialog';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 
 interface Props {
   character: PreparedCharacter;

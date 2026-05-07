@@ -23,7 +23,7 @@ import { useParty } from '@/_quarantine/lib/useParty';
 import { fromPreparedCharacter } from '@/features/characters/internal/prereqs';
 import { usePreferences } from '@/_quarantine/lib/usePreferences';
 import { prefetchIcons } from '@/_quarantine/lib/prefetchIcons';
-import { PromptQueue } from '@/_quarantine/dialog/PromptQueue';
+import { PromptQueue } from '@/features/characters/sheet/dialog/PromptQueue';
 import type { TabId } from '@/_quarantine/lib/tabUtils';
 import { useShopMode } from '@/_quarantine/lib/useShopMode';
 import { PartyRail } from '@/features/characters/sheet/party/PartyRail';
