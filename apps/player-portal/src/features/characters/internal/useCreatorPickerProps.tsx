@@ -10,8 +10,8 @@ import { type RemoteDataState, useRemoteData } from '@/shared/hooks/useRemoteDat
 import type { CharacterContext, Evaluation } from '@/features/characters/internal/prereqs';
 import { evaluateDocument } from '@/features/characters/internal/prereqs';
 import type { CompendiumPickerProps } from '@/features/characters/internal/CompendiumPicker';
-import { prefetchDocuments } from './feat-prefetch';
-import { type SortMode, type SortState, FilterSummary, SourcePicker, SortToggle, UnmetToggle } from './FeatFilters';
+import { prefetchDocuments } from './compendium-prefetch';
+import { type SortMode, type SortState, FilterSummary, SourcePicker, SortToggle, UnmetToggle } from './CompendiumFilters';
 
 type CreatorFilters = Pick<
   CompendiumSearchOptions,
@@ -89,24 +89,24 @@ export function useCreatorPickerProps(
   const onPage = useCallback(
     (newMatches: CompendiumMatch[], isCancelled: () => boolean): void => {
       const ctx = characterContext;
-      void prefetchDocuments(
-        newMatches,
-        docCacheRef.current,
-        prereqCacheRef.current,
-        ctx
-          ? (uuid, doc) => {
-              if (isCancelled()) return;
-              const evaluation = evaluateDocument(doc, ctx);
-              setEvaluations((prev) => {
-                if (prev.get(uuid) === evaluation) return prev;
-                const next = new Map(prev);
-                next.set(uuid, evaluation);
-                return next;
-              });
-            }
-          : undefined,
+      void prefetchDocuments(newMatches, docCacheRef.current, {
         isCancelled,
-      );
+        prereqCache: prereqCacheRef.current,
+        ...(ctx
+          ? {
+              onDocHydrated: (uuid, doc): void => {
+                if (isCancelled()) return;
+                const evaluation = evaluateDocument(doc, ctx);
+                setEvaluations((prev) => {
+                  if (prev.get(uuid) === evaluation) return prev;
+                  const next = new Map(prev);
+                  next.set(uuid, evaluation);
+                  return next;
+                });
+              },
+            }
+          : {}),
+      });
     },
     [characterContext],
   );

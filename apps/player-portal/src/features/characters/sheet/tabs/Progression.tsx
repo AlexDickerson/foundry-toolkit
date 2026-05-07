@@ -16,10 +16,12 @@ import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import type { CharacterContext } from '@/features/characters/internal/prereqs';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
-import { AbilityBoostPicker } from '@/features/characters/creator/AbilityBoostPicker';
-import { useCreatorPickerProps } from '@/features/characters/creator/useCreatorPickerProps';
-import { SkillIncreasePicker } from '@/features/characters/creator/SkillIncreasePicker';
+import { AbilityBoostPicker } from '@/features/characters/internal/AbilityBoostPicker';
+import { useCreatorPickerProps } from '@/features/characters/internal/useCreatorPickerProps';
+import { SkillIncreasePicker } from '@/features/characters/internal/SkillIncreasePicker';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
+import { prefetchDocuments } from '@/features/characters/internal/compendium-prefetch';
+import { extractDetailBio } from '@/features/characters/internal/compendium-doc-fields';
 
 // All picks share the same map keyed by `${level}:${slot}`. The value
 // is a discriminated union so each slot kind can store the shape it
@@ -188,33 +190,22 @@ export function Progression({ actorId, characterLevel, items, characterContext, 
     let cancelled = false;
     const cache = featureDocCacheRef.current;
     const errors = featureDocErrorsRef.current;
-    const queue = all.filter((f) => !cache.has(f.uuid));
-    const CONCURRENCY = 4;
-    const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
-      while (queue.length > 0 && !cancelled) {
-        const entry = queue.shift();
-        if (!entry) break;
-        if (cache.has(entry.uuid)) continue;
-        try {
-          const result = await api.getCompendiumDocument(entry.uuid);
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- cancelled toggles asynchronously in cleanup
-          if (cancelled) return;
-          cache.set(entry.uuid, result.document);
-          errors.delete(entry.uuid);
-          setDocsVersion((v) => v + 1);
-        } catch (err) {
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- cancelled toggles asynchronously in cleanup
-          if (cancelled) return;
-          // Record the miss so the popover can show "couldn't load"
-          // instead of a forever-spinning "Loading…".
-          errors.add(entry.uuid);
-          setDocsVersion((v) => v + 1);
-
-          console.warn('Failed to prefetch class feature', entry.uuid, err);
-        }
-      }
+    void prefetchDocuments(all, cache, {
+      isCancelled: () => cancelled,
+      onDocHydrated: (uuid) => {
+        // Successful (re-)fetch clears any prior failure marker so the
+        // popover swaps from "couldn't load" back to the description.
+        errors.delete(uuid);
+        setDocsVersion((v) => v + 1);
+      },
+      onError: (uuid, err) => {
+        // Record the miss so the popover can show "couldn't load"
+        // instead of a forever-spinning "Loading…".
+        errors.add(uuid);
+        setDocsVersion((v) => v + 1);
+        console.warn('Failed to prefetch class feature', uuid, err);
+      },
     });
-    void Promise.all(workers);
     return (): void => {
       cancelled = true;
     };
@@ -780,7 +771,7 @@ function FeatureChip({
     [],
   );
 
-  const description = doc ? extractDescription(doc) : undefined;
+  const description = doc ? extractDetailBio(doc).description : undefined;
   return (
     <li
       ref={chipRef}
@@ -836,12 +827,6 @@ function FeatureChip({
       {uuidHover.popover}
     </li>
   );
-}
-
-function extractDescription(doc: CompendiumDocument): string {
-  const sys = doc.system as { description?: { value?: unknown } };
-  const raw = sys.description?.value;
-  return typeof raw === 'string' ? raw : '';
 }
 
 // Choose below vs above the anchor based on available viewport space,

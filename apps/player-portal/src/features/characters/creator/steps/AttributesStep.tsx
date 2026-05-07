@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/features/characters/api';
 import type { AbilityKey, CompendiumMatch } from '@/features/characters/types';
 import { ABILITY_KEYS } from '@/features/characters/types';
-import { BoostedMod } from '@/features/characters/creator/AbilityBoostPicker';
+import { BoostedMod } from '@/features/characters/internal/AbilityBoostPicker';
 import { ABILITY_LABEL, BOOSTS_REQUIRED } from '../constants';
 import type { Draft } from '../types';
 

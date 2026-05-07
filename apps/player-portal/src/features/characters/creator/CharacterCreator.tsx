@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
-import { useCreatorPickerProps } from '@/features/characters/creator/useCreatorPickerProps';
+import { useCreatorPickerProps } from '@/features/characters/internal/useCreatorPickerProps';
 import { PromptModal } from '@/features/characters/creator/PromptModal';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 import { usePendingPrompts } from '@/features/characters/sheet/hooks/usePendingPrompts';
