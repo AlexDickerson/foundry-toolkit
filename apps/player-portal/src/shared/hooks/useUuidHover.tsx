@@ -3,6 +3,15 @@ import { createPortal } from 'react-dom';
 import { api, ApiRequestError } from '@/features/characters/api';
 import type { CompendiumDocument } from '@/features/characters/types';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
+import {
+  POPOVER_WIDTH,
+  POPOVER_GAP,
+  POPOVER_VIEWPORT_EDGE_MARGIN,
+  POPOVER_HOVER_OPEN_DELAY_MS,
+  POPOVER_HOVER_CLOSE_DELAY_MS,
+  pickVerticalSlot,
+  clampPopoverLeft,
+} from '@/shared/lib/popover-positioning';
 
 // Hover previews for `@UUID[...]` enricher links inside a rendered
 // description. The caller keeps their own `dangerouslySetInnerHTML`
@@ -24,17 +33,6 @@ interface HoverLevel {
 }
 
 type DocState = { kind: 'loading' } | { kind: 'ready'; doc: CompendiumDocument } | { kind: 'error'; message: string };
-
-const POPOVER_WIDTH = 420;
-const POPOVER_GAP = 6;
-// Preferred height used for the "is there room below?" check. The
-// actual popover is capped via `maxHeight` on the outer element so
-// whatever the final content measures to, it can scroll internally
-// without escaping the viewport.
-const POPOVER_PREFERRED_HEIGHT = 520;
-const VIEWPORT_EDGE_MARGIN = 12;
-const HOVER_CLOSE_DELAY_MS = 140;
-const HOVER_OPEN_DELAY_MS = 300;
 
 interface UseUuidHoverOptions {
   // Synchronously resolve a uuid to a CompendiumDocument *without*
@@ -87,7 +85,7 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
     closeTimerRef.current = window.setTimeout(() => {
       setStack((s) => (s.length > targetLength ? s.slice(0, targetLength) : s));
       closeTimerRef.current = null;
-    }, HOVER_CLOSE_DELAY_MS);
+    }, POPOVER_HOVER_CLOSE_DELAY_MS);
   };
   const cancelOpen = (): void => {
     if (openTimerRef.current !== null) {
@@ -143,7 +141,7 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
     openTimerRef.current = window.setTimeout(() => {
       setStack((curr) => [...curr.slice(0, newLevel), { uuid, anchorRect }]);
       openTimerRef.current = null;
-    }, HOVER_OPEN_DELAY_MS);
+    }, POPOVER_HOVER_OPEN_DELAY_MS);
   };
 
   const handleMouseOut = (target: Element | null, related: Element | null): void => {
@@ -207,23 +205,23 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
 
   const positions = stack.reduce<Array<{ top: number; transform?: string; left: number; maxHeight: number }>>(
     (acc, level, idx) => {
-      const maxLeft = window.innerWidth - POPOVER_WIDTH - VIEWPORT_EDGE_MARGIN;
+      const maxLeft = window.innerWidth - POPOVER_WIDTH - POPOVER_VIEWPORT_EDGE_MARGIN;
       if (idx === 0) {
         const v = pickVerticalSlot(level.anchorRect);
-        acc.push({ ...v, left: Math.max(VIEWPORT_EDGE_MARGIN, Math.min(level.anchorRect.left, maxLeft)) });
+        acc.push({ ...v, left: clampPopoverLeft(level.anchorRect.left) });
         return acc;
       }
       const parent = acc[idx - 1];
       if (parent === undefined) {
         const v = pickVerticalSlot(level.anchorRect);
-        acc.push({ ...v, left: Math.max(VIEWPORT_EDGE_MARGIN, Math.min(level.anchorRect.left, maxLeft)) });
+        acc.push({ ...v, left: clampPopoverLeft(level.anchorRect.left) });
         return acc;
       }
       // Prefer right of the parent; if that overflows the viewport,
       // fall back to the left side so the preview stays reachable.
       const rightOfParent = parent.left + POPOVER_WIDTH + POPOVER_GAP;
       const leftOfParent = parent.left - POPOVER_WIDTH - POPOVER_GAP;
-      const left = rightOfParent <= maxLeft ? rightOfParent : Math.max(VIEWPORT_EDGE_MARGIN, leftOfParent);
+      const left = rightOfParent <= maxLeft ? rightOfParent : Math.max(POPOVER_VIEWPORT_EDGE_MARGIN, leftOfParent);
       // For above-flipped parents the CSS `top` is the trigger's top edge
       // (before the translateY shift). Subtract maxHeight to approximate
       // where the parent's visual top is so nested popovers align with it.
@@ -288,38 +286,6 @@ export function useUuidHover(opts?: UseUuidHoverOptions): {
     delegationHandlers: { onMouseOver, onMouseOut },
     popover,
   };
-}
-
-// Decide whether to open below the anchor (default) or flip above it
-// when there isn't enough room, and how tall the popover can be before
-// it should scroll internally. Falls back to the side with the most
-// room when neither fits the preferred height.
-//
-// Above cases set `top` to the anchor's top edge minus the gap and pair
-// it with `transform: translateY(-100%)` — this shifts the element up by
-// its own actual rendered height, so the popover bottom always kisses the
-// trigger with exactly POPOVER_GAP separation regardless of content length.
-// Using CSS `bottom` alone fails when a short popover is inside a subtree
-// whose ancestor has a transform/filter (which overrides fixed positioning).
-export function pickVerticalSlot(anchor: DOMRect): { top: number; transform?: string; maxHeight: number } {
-  const viewportH = window.innerHeight;
-  const spaceBelow = viewportH - anchor.bottom - POPOVER_GAP - VIEWPORT_EDGE_MARGIN;
-  const spaceAbove = anchor.top - POPOVER_GAP - VIEWPORT_EDGE_MARGIN;
-
-  if (spaceBelow >= POPOVER_PREFERRED_HEIGHT) {
-    return { top: anchor.bottom + POPOVER_GAP, maxHeight: POPOVER_PREFERRED_HEIGHT };
-  }
-  if (spaceAbove >= POPOVER_PREFERRED_HEIGHT) {
-    return { top: anchor.top - POPOVER_GAP, transform: 'translateY(-100%)', maxHeight: POPOVER_PREFERRED_HEIGHT };
-  }
-  // Neither side has preferred height — open on whichever side has
-  // more space and cap the popover to that space so the content
-  // becomes scrollable inside the viewport instead of getting clipped.
-  if (spaceBelow >= spaceAbove) {
-    return { top: anchor.bottom + POPOVER_GAP, maxHeight: Math.max(120, spaceBelow) };
-  }
-  const h = Math.max(120, spaceAbove);
-  return { top: anchor.top - POPOVER_GAP, transform: 'translateY(-100%)', maxHeight: h };
 }
 
 function PopoverBody({ state }: { state: DocState | undefined }): React.ReactElement {

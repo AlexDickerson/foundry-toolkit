@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { pickVerticalSlot } from './useUuidHover';
+import {
+  pickVerticalSlot,
+  POPOVER_GAP,
+  POPOVER_PREFERRED_HEIGHT as PREFERRED_HEIGHT,
+  POPOVER_VIEWPORT_EDGE_MARGIN as VIEWPORT_EDGE_MARGIN,
+} from './popover-positioning';
 
 const makeRect = (top: number, bottom: number): DOMRect =>
   ({ top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
-
-const POPOVER_GAP = 6;
-const PREFERRED_HEIGHT = 520;
-const VIEWPORT_EDGE_MARGIN = 12;
 
 describe('pickVerticalSlot', () => {
   it('renders below when there is preferred height below', () => {

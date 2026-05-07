@@ -22,6 +22,13 @@ import { SkillIncreasePicker } from '@/features/characters/internal/SkillIncreas
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 import { prefetchDocuments } from '@/features/characters/internal/compendium-prefetch';
 import { extractDetailBio } from '@/features/characters/internal/compendium-doc-fields';
+import {
+  POPOVER_WIDTH,
+  POPOVER_HOVER_OPEN_DELAY_MS,
+  POPOVER_HOVER_CLOSE_DELAY_MS,
+  pickVerticalSlot,
+  clampPopoverLeft,
+} from '@/shared/lib/popover-positioning';
 
 // All picks share the same map keyed by `${level}:${slot}`. The value
 // is a discriminated union so each slot kind can store the shape it
@@ -693,22 +700,6 @@ function FeatureList({
   );
 }
 
-// Popover width is load-bearing for viewport clamping, so it's a
-// constant the CSS (`w-[...]px`) and the JS positioning both read.
-const FEATURE_POPOVER_WIDTH = 420;
-const FEATURE_POPOVER_GAP = 6;
-// Preferred height of the popover; used by the flip-above check.
-// Actual height is capped by `maxHeight` so content scrolls internally
-// rather than overflowing the viewport.
-const FEATURE_POPOVER_PREFERRED_HEIGHT = 520;
-const FEATURE_POPOVER_VIEWPORT_MARGIN = 12;
-// Tiny delay before closing on mouseleave gives the cursor time to
-// bridge from chip → popover without the popover winking out.
-const HOVER_CLOSE_DELAY_MS = 120;
-// Open delay filters out incidental mouseovers while the cursor
-// passes across the chip row.
-const HOVER_OPEN_DELAY_MS = 300;
-
 function FeatureChip({
   feature,
   doc,
@@ -743,7 +734,7 @@ function FeatureChip({
     closeTimerRef.current = window.setTimeout(() => {
       setOpen(false);
       closeTimerRef.current = null;
-    }, HOVER_CLOSE_DELAY_MS);
+    }, POPOVER_HOVER_CLOSE_DELAY_MS);
   };
   const scheduleOpen = (): void => {
     cancelClose();
@@ -753,14 +744,11 @@ function FeatureChip({
       openTimerRef.current = null;
       if (!chipRef.current) return;
       const rect = chipRef.current.getBoundingClientRect();
-      // Keep the popover inside the viewport — shift left if it'd overflow
-      // the right edge, and snap a minimum margin on the left.
-      const maxLeft = window.innerWidth - FEATURE_POPOVER_WIDTH - FEATURE_POPOVER_VIEWPORT_MARGIN;
-      const left = Math.max(FEATURE_POPOVER_VIEWPORT_MARGIN, Math.min(rect.left, maxLeft));
-      const vertical = pickFeaturePopoverVerticalSlot(rect);
+      const left = clampPopoverLeft(rect.left);
+      const vertical = pickVerticalSlot(rect);
       setPos({ ...vertical, left });
       setOpen(true);
-    }, HOVER_OPEN_DELAY_MS);
+    }, POPOVER_HOVER_OPEN_DELAY_MS);
   };
 
   useEffect(
@@ -794,7 +782,7 @@ function FeatureChip({
               position: 'fixed',
               top: pos.top,
               left: pos.left,
-              width: FEATURE_POPOVER_WIDTH,
+              width: POPOVER_WIDTH,
               maxHeight: pos.maxHeight,
               overflowY: 'auto',
               transform: pos.transform,
@@ -827,33 +815,6 @@ function FeatureChip({
       {uuidHover.popover}
     </li>
   );
-}
-
-// Choose below vs above the anchor based on available viewport space,
-// and return a `maxHeight` so the popover caps itself to the space it
-// has and scrolls inside rather than overflowing the viewport.
-// Above cases pair `top: anchor.top - GAP` with `transform: translateY(-100%)`
-// so the popover bottom always kisses the trigger with exactly GAP separation.
-function pickFeaturePopoverVerticalSlot(anchor: DOMRect): { top: number; transform?: string; maxHeight: number } {
-  const viewportH = window.innerHeight;
-  const spaceBelow = viewportH - anchor.bottom - FEATURE_POPOVER_GAP - FEATURE_POPOVER_VIEWPORT_MARGIN;
-  const spaceAbove = anchor.top - FEATURE_POPOVER_GAP - FEATURE_POPOVER_VIEWPORT_MARGIN;
-
-  if (spaceBelow >= FEATURE_POPOVER_PREFERRED_HEIGHT) {
-    return { top: anchor.bottom + FEATURE_POPOVER_GAP, maxHeight: FEATURE_POPOVER_PREFERRED_HEIGHT };
-  }
-  if (spaceAbove >= FEATURE_POPOVER_PREFERRED_HEIGHT) {
-    return {
-      top: anchor.top - FEATURE_POPOVER_GAP,
-      transform: 'translateY(-100%)',
-      maxHeight: FEATURE_POPOVER_PREFERRED_HEIGHT,
-    };
-  }
-  if (spaceBelow >= spaceAbove) {
-    return { top: anchor.bottom + FEATURE_POPOVER_GAP, maxHeight: Math.max(120, spaceBelow) };
-  }
-  const h = Math.max(120, spaceAbove);
-  return { top: anchor.top - FEATURE_POPOVER_GAP, transform: 'translateY(-100%)', maxHeight: h };
 }
 
 // ─── Slot chips ────────────────────────────────────────────────────────
