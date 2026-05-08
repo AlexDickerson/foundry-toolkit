@@ -26,6 +26,12 @@ export const SHARED_SECRET = process.env.SHARED_SECRET;
 // only enable on trusted networks.
 export const ALLOW_EVAL = process.env.ALLOW_EVAL === '1';
 
+// Root directory from which /item-art/<filename> is served. If unset,
+// the route returns 404 and the rest of the system works normally.
+// Set this to the directory containing purchased PF2e item-card PNGs.
+// Example: FOUNDRY_MCP_ITEM_ART_DIR=/data/item-art
+export const FOUNDRY_MCP_ITEM_ART_DIR = process.env.FOUNDRY_MCP_ITEM_ART_DIR;
+
 // Comma-separated list of compendium pack ids to pre-fetch on module
 // connection. Serves subsequent search/document requests for these
 // packs from an in-memory cache, sidestepping the per-item WS
