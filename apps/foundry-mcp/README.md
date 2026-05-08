@@ -29,6 +29,39 @@ MCP client ──HTTP──> foundry-mcp server ──WebSocket──> foundry-a
 
 (And more — see `src/tools/` for the full surface.)
 
+## Item art overrides
+
+The player-portal character sheet can show purchased PF2e item-card art instead of the default Foundry compendium icons. The system has three parts:
+
+- **`item_art_overrides` table** in `foundry-mcp.db` (`LIVE_DB_PATH`): maps `item_slug → art_filename` (the on-disk filename in URL-encoded form).
+- **`GET /item-art/<filename>`**: serves PNGs from the configured art directory.
+- **Override injection**: `GET /api/actors/:id/items` and `/api/actors/:id/party-stash` replace each item's `img` field with `/item-art/<filename>` when a slug match exists.
+
+### Configuration
+
+```env
+# Directory containing purchased PF2e item-card PNGs (flat, no subdirs expected).
+# If unset, /item-art/* returns 404 and the rest of the server works normally.
+FOUNDRY_MCP_ITEM_ART_DIR=/data/item-art
+```
+
+### Seeding the database
+
+1. Start foundry-mcp with `COMPENDIUM_CACHE_PACK_IDS=pf2e.equipment-srd` and Foundry connected so the compendium cache is warm.
+2. Run the seed CLI:
+
+```bash
+# From the monorepo root:
+npm run seed-item-art -w apps/foundry-mcp -- --dir "/path/to/art"
+
+# Options:
+#   --dir <path>   Art directory (required)
+#   --db  <path>   foundry-mcp.db path (default: ./data/foundry-mcp.db)
+#   --url <url>    foundry-mcp base URL (default: http://localhost:8765)
+```
+
+The CLI decodes URL-encoded filenames (`+` → space, `%26` → `&`, `+-+` → variant in parens), normalises Armour → Armor, searches the compendium by name, and upserts matching rows. Unmatched filenames are printed as a **needs-review** list so you can handle typos or non-SRD items manually.
+
 ## Setup
 
 Copy `.env.example` to `.env` and fill in `OPENAI_API_KEY`.

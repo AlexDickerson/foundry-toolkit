@@ -9,7 +9,8 @@
     "start": "node --env-file-if-exists=.env dist/index.js",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "seed-item-art": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/cli/seed-item-art.ts"
   },
   "dependencies": {
     "@foundry-toolkit/shared": "*",
