@@ -1,13 +1,18 @@
 # foundry-toolkit compose stack
 
-Three containers. One env file. Everything the GM needs to run a Foundry VTT
+Four containers. One env file. Everything the GM needs to run a Foundry VTT
 session with the full foundry-toolkit feature set available to players.
 
-| Service       | Image                           | Port  | Audience      |
-| ------------- | ------------------------------- | ----- | ------------- |
-| foundry       | `foundry-toolkit-foundry:<tag>` | 30000 | GM            |
-| foundry-mcp   | `foundry-toolkit-mcp:<tag>`     | 8765  | internal only |
-| player-portal | `foundry-toolkit-portal:<tag>`  | 3000  | players       |
+| Service       | Image                           | Port      | Audience                     |
+| ------------- | ------------------------------- | --------- | ---------------------------- |
+| caddy         | `caddy:2.8`                     | 80, 443   | public internet (TLS)        |
+| foundry       | `foundry-toolkit-foundry:<tag>` | 30000\*   | GM (via Caddy or direct)     |
+| foundry-mcp   | `foundry-toolkit-mcp:<tag>`     | 8765      | internal only                |
+| player-portal | `foundry-toolkit-portal:<tag>`  | 3000      | players (via Caddy)          |
+
+\* Port 30000 is bound to `127.0.0.1` only — the GM can reach Foundry directly
+at `http://localhost:30000` without going through Caddy. Port 3000 is not
+mapped to the host; Caddy routes player traffic internally.
 
 The `foundry-api-bridge` Foundry module is baked into the `foundry` image and
 seeded into the data volume on first boot. Once a world is created and the
@@ -34,7 +39,7 @@ $EDITOR deploy/.env
 docker compose -f deploy/compose.yaml up -d
 ```
 
-Players reach the portal at **http://localhost:3000**.
+Players reach the portal at **https://addnd.net/** (via Caddy) or **http://localhost:3000** if port 3000 is temporarily mapped for local testing.
 
 First boot downloads a fresh Foundry install using your Paizo credentials — this
 takes a few minutes. Subsequent starts are instant.
@@ -135,17 +140,17 @@ simplest.
 
 ## Environment variables
 
-| Variable                | Service(s)                 | Required | Purpose                                     |
-| ----------------------- | -------------------------- | -------- | ------------------------------------------- |
-| `FOUNDRY_USERNAME`      | foundry                    | yes      | Paizo account username for Foundry download |
-| `FOUNDRY_PASSWORD`      | foundry                    | yes      | Paizo account password                      |
-| `FOUNDRY_ADMIN_KEY`     | foundry                    | rec.     | Foundry admin console password              |
-| `OPENAI_API_KEY`        | foundry-mcp                | no       | GPT-image-1 map editing (`edit_image` tool) |
-| `ALLOW_EVAL`            | foundry-mcp                | no       | `1` enables `/api/eval` debug endpoint      |
-| `SHARED_SECRET`         | foundry-mcp, player-portal | yes      | Bearer token for `/api/live/*` POST writes  |
-| `SECURE_SESSION_SECRET` | player-portal              | no\*     | Cookie signing for portal user auth         |
-| `PLAYER_PORTAL_PORT`    | —                          | no       | Host port for player-portal (default: 3000) |
-| `IMAGE_TAG`             | —                          | no       | Image tag to pull (default: `latest`)       |
+| Variable                  | Service(s)                 | Required | Purpose                                                      |
+| ------------------------- | -------------------------- | -------- | ------------------------------------------------------------ |
+| `FOUNDRY_USERNAME`        | foundry                    | yes      | Paizo account username for Foundry download                  |
+| `FOUNDRY_PASSWORD`        | foundry                    | yes      | Paizo account password                                       |
+| `FOUNDRY_ADMIN_KEY`       | foundry                    | rec.     | Foundry admin console password                               |
+| `FOUNDRY_ROUTE_PREFIX`    | foundry                    | no       | URL path prefix for Foundry (`foundry` → served at `/foundry/`); empty = no prefix |
+| `OPENAI_API_KEY`          | foundry-mcp                | no       | GPT-image-1 map editing (`edit_image` tool)                  |
+| `ALLOW_EVAL`              | foundry-mcp                | no       | `1` enables `/api/eval` debug endpoint                       |
+| `SHARED_SECRET`           | foundry-mcp, player-portal | yes      | Bearer token for `/api/live/*` POST writes                   |
+| `SECURE_SESSION_SECRET`   | player-portal              | no\*     | Cookie signing for portal user auth                          |
+| `IMAGE_TAG`               | —                          | no       | Image tag to pull (default: `latest`)                        |
 
 \*Required once the portal user auth feature ships.
 
@@ -160,6 +165,8 @@ names and should not be overridden in `.env`.
 | -------------- | --------------------------------- | ---------------------------------------- |
 | `foundry-data` | foundry (`/data`, rw)             | Worlds, systems, modules, Foundry config |
 |                | foundry-mcp (`/foundry-data`, ro) | Read-only compendium pack access         |
+| `caddy_data`   | caddy (`/data`)                   | Let's Encrypt certificates and ACME state — **do not delete carelessly** |
+| `caddy_config` | caddy (`/config`)                 | Caddy runtime config cache               |
 
 `foundry-mcp` and `player-portal` are stateless — no persistent volumes.
 foundry-mcp's SQLite live-state snapshots are ephemeral and refill within
@@ -185,24 +192,52 @@ services:
 
 ---
 
-## How to expose publicly
+## TLS via Caddy
 
-Put a reverse proxy (nginx, Caddy, Cloudflare Tunnel) in front of ports 3000
-and optionally 30000. A minimal Caddy example:
+Caddy is included in the compose stack and provisions a Let's Encrypt
+certificate for `addnd.net` automatically on first start.
 
+### Prerequisites
+
+1. **DNS** — add an A record at your registrar pointing `addnd.net` to your
+   server's public IP. Propagation can take up to an hour; Caddy will retry
+   the ACME challenge until it succeeds.
+
+2. **Firewall** — ports **80** and **443** must be reachable from the public
+   internet. Caddy uses the HTTP-01 ACME challenge, which requires port 80
+   for certificate issuance. Port 443 serves HTTPS traffic.
+
+### Path layout
+
+| URL path        | Routed to              | Notes                                       |
+| --------------- | ---------------------- | ------------------------------------------- |
+| `https://addnd.net/`            | player-portal:3000 | SPA root, player-facing surface        |
+| `https://addnd.net/foundry/...` | foundry:30000      | Foundry VTT; prefix forwarded intact   |
+
+`foundry-mcp` is **not** publicly exposed. The `foundry-api-bridge` module
+running in the GM's browser reaches `foundry-mcp` over the compose internal
+network (see **Port 8765 and the api-bridge module** below).
+
+### Certificate persistence
+
+Caddy stores ACME state in the `caddy_data` Docker volume. This volume must
+survive container restarts — the compose file treats it as a named volume so
+Docker preserves it across `up`/`down` cycles.
+
+**Do not delete `caddy_data` casually.** Let's Encrypt has rate limits
+(5 duplicate certificates per week). To intentionally re-issue:
+
+```sh
+docker compose -f deploy/compose.yaml down
+docker volume rm foundry-toolkit_caddy_data
+docker compose -f deploy/compose.yaml up -d
 ```
-players.example.com {
-    reverse_proxy localhost:3000
-}
 
-foundry.example.com {
-    reverse_proxy localhost:30000
-}
-```
+### Disabling Caddy
 
-TLS termination, authentication, and access control are out of scope — handle
-them at the proxy layer. If you also need to expose the `foundry-mcp`
-WebSocket for the api-bridge module, proxy port 8765 through the same host.
+If you want to run without TLS (local-only or using an external proxy), remove
+the `caddy` service block from `compose.yaml`, add a host port mapping back to
+`player-portal`, and set `FOUNDRY_ROUTE_PREFIX=` (empty) in `.env`.
 
 ---
 

@@ -1,0 +1,13 @@
+addnd.net {
+  # /foundry/* → Foundry VTT (port 30000)
+  # The /foundry prefix is forwarded intact so Foundry's routePrefix config
+  # keeps all generated asset/socket URLs self-consistent.
+  handle /foundry* {
+    reverse_proxy foundry:30000
+  }
+
+  # Everything else → player-portal (Fastify SPA, port 3000)
+  handle {
+    reverse_proxy player-portal:3000
+  }
+}
