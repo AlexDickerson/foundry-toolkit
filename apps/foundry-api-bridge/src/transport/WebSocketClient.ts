@@ -249,7 +249,17 @@ export class WebSocketClient {
 }
 
 function generateBridgeId(): string {
-  // Foundry runs in the browser where crypto.randomUUID is always
-  // available (https context), so keep this dep-free.
-  return crypto.randomUUID();
+  // crypto.randomUUID requires a secure context (HTTPS or localhost). When
+  // Foundry is served over plain HTTP from a non-localhost host (e.g.
+  // http://server.ad:30000) the Web Crypto API is unavailable and the call
+  // throws. Fall back to a UUID v4 generated from Math.random — collision
+  // probability is irrelevant for short-lived bridge correlation IDs.
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
