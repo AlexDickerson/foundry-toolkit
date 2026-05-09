@@ -33,14 +33,14 @@ export function CharacterArtGallery({ art, subjectName }: Props): React.ReactEle
 
   return (
     <>
-      <figure className="space-y-1.5" data-testid="character-art-gallery">
-        <div className="relative">
+      <figure className="flex h-full flex-col space-y-1.5" data-testid="character-art-gallery">
+        <div className="relative min-h-0 flex-1">
           <img
             src={current}
             alt={`${subjectName} reference art`}
             loading="lazy"
             onClick={() => setLightboxOpen(true)}
-            className="w-full cursor-zoom-in rounded border border-pf-border bg-pf-bg-dark"
+            className="h-full w-full cursor-zoom-in rounded border border-pf-border bg-pf-bg-dark object-contain"
           />
           {hasMultiple && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-between p-1">
