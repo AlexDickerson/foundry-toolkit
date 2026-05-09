@@ -359,20 +359,20 @@ export function CompendiumPicker({
       animateMaxWidth
       testId={testId}
     >
-      <div className="border-b border-pf-border px-4 py-2">
-          <input
-            ref={inputRef}
-            type="search"
-            value={query}
-            onChange={(e): void => {
-              setQuery(e.target.value);
-            }}
-            placeholder="Type to filter…"
-            className="w-full rounded border border-pf-border bg-pf-bg px-2 py-1 text-sm text-pf-text placeholder:text-pf-alt focus:border-pf-primary focus:outline-none"
-            data-testid={`${testId}-input`}
-          />
-          {filterControls != null && <div className="mt-1">{filterControls}</div>}
-        </div>
+      <div className="flex items-center gap-2 border-b border-pf-border px-4 py-2">
+        <input
+          ref={inputRef}
+          type="search"
+          value={query}
+          onChange={(e): void => {
+            setQuery(e.target.value);
+          }}
+          placeholder="Type to filter…"
+          className="min-w-0 flex-1 rounded border border-pf-border bg-pf-bg px-2 py-1 text-sm text-pf-text placeholder:text-pf-alt focus:border-pf-primary focus:outline-none"
+          data-testid={`${testId}-input`}
+        />
+        {filterControls}
+      </div>
         <PickerResultList
           isLoading={state.kind === 'loading'}
           error={state.kind === 'error' ? state.message : null}
