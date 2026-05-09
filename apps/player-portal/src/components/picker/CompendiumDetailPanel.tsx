@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import { api, ApiRequestError } from '../../api/client';
 import type { CompendiumDocument, CompendiumMatch } from '../../api/types';
+import { getAncestryArt, getClassArt } from '../../data/character-art';
 import { useUuidHover } from '../../lib/useUuidHover';
 import type { Evaluation } from '../../prereqs';
+import { CharacterArtGallery } from './CharacterArtGallery';
 
 type Resolution =
   | { kind: 'loading' }
@@ -89,6 +91,15 @@ export function CompendiumDetailPanel({
   const area = doc ? readArea(doc) : null;
   const enriched = description.length > 0 ? enrichDescription(description) : '';
 
+  // Decorative AoN reference art for ancestry / class detail panels.
+  // Picks up images bundled in src/data/pf2e-art.json. No-op for other types.
+  const characterArt =
+    target.type === 'ancestry'
+      ? getAncestryArt(target.name)
+      : target.type === 'class'
+        ? getClassArt(target.name)
+        : null;
+
   const failed = evaluation === 'fails';
 
   return (
@@ -143,6 +154,7 @@ export function CompendiumDetailPanel({
         )}
         {state.kind === 'ok' && (
           <div className="space-y-3 text-sm text-pf-text">
+            {characterArt && <CharacterArtGallery art={characterArt} subjectName={target.name} />}
             {prerequisites && prerequisites.length > 0 && (
               <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
             )}
