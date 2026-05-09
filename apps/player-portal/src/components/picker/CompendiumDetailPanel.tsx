@@ -108,35 +108,8 @@ export function CompendiumDetailPanel({
       data-testid={testIdPrefix !== undefined ? `${testIdPrefix}-detail` : undefined}
       data-detail-uuid={target.uuid}
     >
-      <header className="flex items-start gap-3 border-b border-pf-border px-4 py-3">
-        {target.img && (
-          <img
-            src={target.img}
-            alt=""
-            className="h-12 w-12 shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-          />
-        )}
-        <div className="min-w-0 flex-1">
-          <h3 className="font-serif text-base font-semibold text-pf-text">{target.name}</h3>
-          <p className="mt-0.5 text-[10px] uppercase tracking-widest text-pf-alt">
-            {target.packLabel}
-            {target.level !== undefined && ` · L${target.level.toString()}`}
-            {rarity != null && rarity !== 'common' && ` · ${rarity}`}
-            {castCost !== null && ` · Cast ${castCost}`}
-          </p>
-          {traits.length > 0 && (
-            <ul className="mt-1 flex flex-wrap gap-1">
-              {traits.map((t) => (
-                <li
-                  key={t}
-                  className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
-                >
-                  {humanizeSlug(t)}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      {/* Minimal header strip — just the close button. Name/traits move into the left column below. */}
+      <header className="flex items-center justify-end border-b border-pf-border px-4 py-2">
         <button
           type="button"
           onClick={onClose}
@@ -147,34 +120,78 @@ export function CompendiumDetailPanel({
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        {state.kind === 'loading' && <p className="text-sm italic text-pf-alt">Loading…</p>}
+      <div className="flex-1 overflow-y-auto">
+        {state.kind === 'loading' && <p className="px-4 py-3 text-sm italic text-pf-alt">Loading…</p>}
         {state.kind === 'error' && (
-          <p className="text-sm text-pf-primary">Failed to load: {state.message}</p>
+          <p className="px-4 py-3 text-sm text-pf-primary">Failed to load: {state.message}</p>
         )}
         {state.kind === 'ok' && (
-          <div className="space-y-3 text-sm text-pf-text">
-            {prerequisites && prerequisites.length > 0 && (
-              <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
+          <div className="text-sm text-pf-text">
+            {/* Two-column layout: metadata left, lore right */}
+            <div className="flex gap-0 divide-x divide-pf-border">
+              {/* Left: icon + name + traits + detail rows */}
+              <div className="w-48 shrink-0 space-y-3 px-4 py-3">
+                {target.img && (
+                  <img
+                    src={target.img}
+                    alt=""
+                    className="h-12 w-12 rounded border border-pf-border bg-pf-bg-dark"
+                  />
+                )}
+                <div className="space-y-1">
+                  <h3 className="font-serif text-base font-semibold text-pf-text">{target.name}</h3>
+                  <p className="text-[10px] uppercase tracking-widest text-pf-alt">
+                    {target.packLabel}
+                    {target.level !== undefined && ` · L${target.level.toString()}`}
+                    {rarity != null && rarity !== 'common' && ` · ${rarity}`}
+                    {castCost !== null && ` · Cast ${castCost}`}
+                  </p>
+                </div>
+                {traits.length > 0 && (
+                  <ul className="flex flex-wrap gap-1">
+                    {traits.map((t) => (
+                      <li
+                        key={t}
+                        className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
+                      >
+                        {humanizeSlug(t)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {prerequisites && prerequisites.length > 0 && (
+                  <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
+                )}
+                {actions != null && <DetailRow label="Actions" value={actions} />}
+                {trigger != null && <DetailRow label="Trigger" value={trigger} />}
+                {frequency != null && <DetailRow label="Frequency" value={frequency} />}
+                {requirements != null && <DetailRow label="Requirements" value={requirements} />}
+                {price != null && <DetailRow label="Price" value={price} />}
+                {range != null && <DetailRow label="Range" value={range} />}
+                {area != null && <DetailRow label="Area" value={area} />}
+                {targetField != null && <DetailRow label="Targets" value={targetField} />}
+              </div>
+
+              {/* Right: lore description */}
+              <div className="min-w-0 flex-1 px-4 py-3">
+                {enriched.length > 0 ? (
+                  <div
+                    {...uuidHover.delegationHandlers}
+                    className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+                    dangerouslySetInnerHTML={{ __html: enriched }}
+                  />
+                ) : (
+                  <p className="italic text-pf-alt">No description.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Art gallery: full width below the two-column section */}
+            {characterArt && (
+              <div className="border-t border-pf-border px-4 py-3">
+                <CharacterArtGallery art={characterArt} subjectName={target.name} />
+              </div>
             )}
-            {actions != null && <DetailRow label="Actions" value={actions} />}
-            {trigger != null && <DetailRow label="Trigger" value={trigger} />}
-            {frequency != null && <DetailRow label="Frequency" value={frequency} />}
-            {requirements != null && <DetailRow label="Requirements" value={requirements} />}
-            {price != null && <DetailRow label="Price" value={price} />}
-            {range != null && <DetailRow label="Range" value={range} />}
-            {area != null && <DetailRow label="Area" value={area} />}
-            {targetField != null && <DetailRow label="Targets" value={targetField} />}
-            {enriched.length > 0 ? (
-              <div
-                {...uuidHover.delegationHandlers}
-                className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-                dangerouslySetInnerHTML={{ __html: enriched }}
-              />
-            ) : (
-              <p className="italic text-pf-alt">No description.</p>
-            )}
-            {characterArt && <CharacterArtGallery art={characterArt} subjectName={target.name} />}
             {uuidHover.popover}
           </div>
         )}
