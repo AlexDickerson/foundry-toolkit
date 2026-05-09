@@ -355,7 +355,7 @@ export function CompendiumPicker({
     <PickerDialog
       title={title}
       onClose={onClose}
-      maxWidthClass={detailOpen ? 'max-w-4xl' : 'max-w-xl'}
+      maxWidthClass={detailOpen ? 'max-w-6xl' : 'max-w-xl'}
       animateMaxWidth
       testId={testId}
     >
