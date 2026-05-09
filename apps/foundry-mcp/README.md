@@ -40,6 +40,10 @@ The player-portal character sheet can show purchased PF2e item-card art instead 
 ### Configuration
 
 ```env
+# Path to the shared pf2e.db SQLite file (dm-tool's database).
+# The item_art_overrides table lives here. If unset, overrides are disabled.
+PF2E_DB_PATH=/data/dm-tool.db
+
 # Directory containing purchased PF2e item-card PNGs (flat, no subdirs expected).
 # If unset, /item-art/* returns 404 and the rest of the server works normally.
 FOUNDRY_MCP_ITEM_ART_DIR=/data/item-art
@@ -52,11 +56,11 @@ FOUNDRY_MCP_ITEM_ART_DIR=/data/item-art
 
 ```bash
 # From the monorepo root:
-npm run seed-item-art -w apps/foundry-mcp -- --dir "/path/to/art"
+npm run seed-item-art -w apps/foundry-mcp -- --dir "/path/to/art" --db "/path/to/dm-tool.db"
 
 # Options:
 #   --dir <path>   Art directory (required)
-#   --db  <path>   foundry-mcp.db path (default: ./data/foundry-mcp.db)
+#   --db  <path>   pf2e.db path (required; PF2E_DB_PATH env var also works)
 #   --url <url>    foundry-mcp base URL (default: http://localhost:8765)
 ```
 

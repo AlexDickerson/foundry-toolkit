@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify';
 import { sendCommand } from '../../bridge.js';
-import type { LiveDb } from '../../db/live-db.js';
 import { applyItemArtOverrides } from '../item-art-helper.js';
 import {
   actorActionParams,
@@ -15,7 +14,7 @@ import {
   updateActorItemBody,
 } from '../schemas.js';
 
-export function registerActorRoutes(app: FastifyInstance, db: LiveDb): void {
+export function registerActorRoutes(app: FastifyInstance): void {
   app.get('/api/actors', async () => sendCommand('get-actors'));
 
   /** Return player characters from the PF2e party actor.
@@ -48,7 +47,7 @@ export function registerActorRoutes(app: FastifyInstance, db: LiveDb): void {
   /** Return all items on a Party actor in ItemSummary shape. Read-only. */
   app.get('/api/actors/:id/party-stash', async (req) => {
     const { id } = actorIdParam.parse(req.params);
-    return applyItemArtOverrides(await sendCommand('get-party-stash', { partyActorId: id }), db);
+    return applyItemArtOverrides(await sendCommand('get-party-stash', { partyActorId: id }));
   });
 
   app.get('/api/actors/:id/trace/:slug', async (req) => {
@@ -58,7 +57,7 @@ export function registerActorRoutes(app: FastifyInstance, db: LiveDb): void {
 
   app.get('/api/actors/:id/items', async (req) => {
     const { id } = actorIdParam.parse(req.params);
-    return applyItemArtOverrides(await sendCommand('get-actor-items', { actorId: id }), db);
+    return applyItemArtOverrides(await sendCommand('get-actor-items', { actorId: id }));
   });
 
   // Character-creator wiring — the wizard creates a blank actor on

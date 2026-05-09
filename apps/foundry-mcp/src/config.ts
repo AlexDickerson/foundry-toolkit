@@ -32,6 +32,14 @@ export const ALLOW_EVAL = process.env.ALLOW_EVAL === '1';
 // Example: FOUNDRY_MCP_ITEM_ART_DIR=/data/item-art
 export const FOUNDRY_MCP_ITEM_ART_DIR = process.env.FOUNDRY_MCP_ITEM_ART_DIR;
 
+// Path to the shared pf2e.db SQLite database that holds item_art_overrides
+// (and dm-tool's other persistent state). If unset, item art overrides are
+// disabled — all items continue to show their default compendium icons.
+// On the Mac this DB lives in dm-tool's Electron userData dir; on the server
+// set this to wherever you've synced / mounted the DB file.
+// Example: PF2E_DB_PATH=/data/dm-tool.db
+export const PF2E_DB_PATH = process.env.PF2E_DB_PATH;
+
 // Comma-separated list of compendium pack ids to pre-fetch on module
 // connection. Serves subsequent search/document requests for these
 // packs from an in-memory cache, sidestepping the per-item WS

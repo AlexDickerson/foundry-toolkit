@@ -7,7 +7,7 @@
 //
 // Options:
 //   --dir <path>     Directory containing art PNGs (required)
-//   --db  <path>     Path to foundry-mcp.db (default: ./data/foundry-mcp.db)
+//   --db  <path>     Path to pf2e.db (required; set PF2E_DB_PATH env var or pass --db)
 //   --url <url>      foundry-mcp base URL for compendium lookup
 //                    (default: http://localhost:8765)
 //
@@ -27,7 +27,7 @@
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LiveDb } from '../db/live-db.js';
+import { openPf2eDb, setItemArtOverride, closePf2eDb } from '@foundry-toolkit/db/pf2e';
 
 // ─── Filename parser ────────────────────────────────────────────────────────
 
@@ -111,7 +111,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
   let artDir: string | undefined;
-  let dbPath = resolve(process.cwd(), 'data', 'foundry-mcp.db');
+  let dbPath = process.env['PF2E_DB_PATH'];
   let baseUrl = 'http://localhost:8765';
 
   for (let i = 0; i < args.length; i++) {
@@ -124,8 +124,11 @@ async function main(): Promise<void> {
     }
   }
 
-  if (!artDir) {
-    process.stderr.write('Usage: seed-item-art --dir <art-directory> [--db <db-path>] [--url <foundry-mcp-url>]\n');
+  if (!artDir || !dbPath) {
+    process.stderr.write(
+      'Usage: seed-item-art --dir <art-directory> --db <pf2e-db-path> [--url <foundry-mcp-url>]\n' +
+        '       PF2E_DB_PATH env var can substitute for --db\n',
+    );
     process.exit(1);
   }
 
@@ -149,7 +152,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const db = new LiveDb(dbPath);
+  openPf2eDb(dbPath);
 
   let matched = 0;
   let skipped = 0;
@@ -157,7 +160,7 @@ async function main(): Promise<void> {
 
   process.stdout.write(`Seeding ${files.length.toString()} PNG files from ${artDir}\n`);
   process.stdout.write(`  foundry-mcp: ${baseUrl}\n`);
-  process.stdout.write(`  database:    ${dbPath}\n\n`);
+  process.stdout.write(`  pf2e.db:     ${dbPath}\n\n`);
 
   for (const filename of files) {
     const parsed = parseArtFilename(filename);
@@ -170,7 +173,7 @@ async function main(): Promise<void> {
     const slug = await lookupSlug(itemName, baseUrl);
 
     if (slug) {
-      db.setItemArtOverride(slug, filename);
+      setItemArtOverride(slug, filename);
       matched++;
       process.stdout.write(`  ✓ ${filename} → ${slug}\n`);
     } else {
@@ -179,7 +182,7 @@ async function main(): Promise<void> {
     }
   }
 
-  db.close();
+  closePf2eDb();
 
   process.stdout.write(`\n─── Summary ─────────────────────────────────────────────────────\n`);
   process.stdout.write(`  Matched:      ${matched.toString()}\n`);

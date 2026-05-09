@@ -2,7 +2,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod/v4';
 import { log } from '../logger.js';
 import { LiveDb } from '../db/live-db.js';
-import { LIVE_DB_PATH, SHARED_SECRET } from '../config.js';
+import { LIVE_DB_PATH, PF2E_DB_PATH, SHARED_SECRET } from '../config.js';
+import { openPf2eDb } from '@foundry-toolkit/db/pf2e';
 import { registerActorRoutes } from './routes/actors.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerCompendiumRoutes } from './routes/compendium.js';
@@ -75,8 +76,12 @@ export async function buildHttpApp(): Promise<FastifyInstance> {
     reply.code(500).send({ error: msg });
   });
 
+  if (PF2E_DB_PATH) {
+    openPf2eDb(PF2E_DB_PATH);
+  }
+
   const liveDb = new LiveDb(LIVE_DB_PATH);
-  registerActorRoutes(app, liveDb);
+  registerActorRoutes(app);
   registerAssetRoutes(app);
   registerDispatchRoute(app);
   registerCompendiumRoutes(app);
