@@ -154,7 +154,6 @@ export function CompendiumDetailPanel({
         )}
         {state.kind === 'ok' && (
           <div className="space-y-3 text-sm text-pf-text">
-            {characterArt && <CharacterArtGallery art={characterArt} subjectName={target.name} />}
             {prerequisites && prerequisites.length > 0 && (
               <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
             )}
@@ -175,6 +174,7 @@ export function CompendiumDetailPanel({
             ) : (
               <p className="italic text-pf-alt">No description.</p>
             )}
+            {characterArt && <CharacterArtGallery art={characterArt} subjectName={target.name} />}
             {uuidHover.popover}
           </div>
         )}
