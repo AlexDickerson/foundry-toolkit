@@ -181,7 +181,7 @@ export function CompendiumDetailPanel({
                     <p className="italic text-pf-alt">No description.</p>
                   )}
                 </div>
-                <div className="w-56 shrink-0">
+                <div className="w-80 shrink-0">
                   <CharacterArtGallery art={characterArt} subjectName={target.name} />
                 </div>
               </div>
