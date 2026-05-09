@@ -63,8 +63,8 @@ function hasAnyBackgroundContent(details: CharacterDetails, traits: string[]): b
     bio.enemies,
     bio.organizations,
   ];
-  if (demographicValues.some((v) => v.trim() !== '')) return true;
-  if (textValues.some((v) => v.trim() !== '')) return true;
+  if (demographicValues.some((v) => (v ?? '').trim() !== '')) return true;
+  if (textValues.some((v) => (v ?? '').trim() !== '')) return true;
   if (bio.edicts.length > 0 || bio.anathema.length > 0) return true;
   return false;
 }
@@ -125,7 +125,7 @@ function DemographicsBlock({ details }: { details: CharacterDetails }): React.Re
     ['Birthplace', details.biography.birthPlace],
     ['Deity', details.deity?.value ?? ''],
   ];
-  const populated = fields.filter(([, v]) => v.trim() !== '');
+  const populated = fields.filter(([, v]) => (v ?? '').trim() !== '');
   if (populated.length === 0) return null;
   return (
     <div data-section="demographics">
@@ -150,7 +150,7 @@ function PersonalityBlock({ bio }: { bio: CharacterBiography }): React.ReactElem
     ['Dislikes', bio.dislikes],
     ['Catchphrases', bio.catchphrases],
   ];
-  const populated = fields.filter(([, v]) => v.trim() !== '');
+  const populated = fields.filter(([, v]) => (v ?? '').trim() !== '');
   if (populated.length === 0) return null;
   return (
     <div data-section="personality">
@@ -202,7 +202,7 @@ function SocialBlock({ bio }: { bio: CharacterBiography }): React.ReactElement |
     ['Enemies', bio.enemies],
     ['Organizations', bio.organizations],
   ];
-  const populated = fields.filter(([, v]) => v.trim() !== '');
+  const populated = fields.filter(([, v]) => (v ?? '').trim() !== '');
   if (populated.length === 0) return null;
   return (
     <div data-section="social">
@@ -230,7 +230,7 @@ function TextBlock({
   html: string;
   dataSection?: string;
 }): React.ReactElement | null {
-  if (html.trim() === '') return null;
+  if ((html ?? '').trim() === '') return null;
   return (
     <div data-section={dataSection ?? title.toLowerCase()}>
       <SectionHeader band>{title}</SectionHeader>
