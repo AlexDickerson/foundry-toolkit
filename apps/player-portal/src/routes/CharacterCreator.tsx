@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { CompendiumMatch } from '../api/types';
 import { useCreatorPickerProps } from '../components/creator/useCreatorPickerProps';
-import { PromptModal } from '../components/creator/PromptModal';
+import { PromptQueue } from '../components/dialog/PromptQueue';
 import { CompendiumPicker } from '../components/picker';
-import { usePendingPrompts } from '../lib/usePendingPrompts';
 
 import { CreatorSection } from './CharacterCreator/CreatorSection';
 import { EMPTY_DRAFT, PICKER_LABEL, STEPS, STEP_LABEL } from './CharacterCreator/constants';
@@ -45,8 +44,7 @@ export function CharacterCreator(): React.ReactElement {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [openPicker, setOpenPicker] = useState<PickerTarget | null>(null);
   const [creator, setCreator] = useState<CreatorState>({ kind: 'creating' });
-  const pendingPrompts = usePendingPrompts();
-  const activePrompt = pendingPrompts[0] ?? null;
+
 
   useEffect(() => {
     let cancelled = false;
@@ -375,7 +373,7 @@ export function CharacterCreator(): React.ReactElement {
 
       {/* Module-driven prompts (pf2e ChoiceSets) render on top of
           everything else so the wizard pauses until the user picks. */}
-      {activePrompt !== null && <PromptModal prompt={activePrompt} />}
+      <PromptQueue />
     </main>
   );
 }
