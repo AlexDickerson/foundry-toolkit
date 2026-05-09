@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
 # Foundry container entrypoint.
 #
-# Seeds the foundry-api-bridge module into /data/Data/modules/ on first boot
-# (idempotent — skips on subsequent boots so volume overrides are preserved),
-# then execs into felddy's own entrypoint which downloads and launches Foundry.
+# Syncs the foundry-api-bridge module from /seed into /data/Data/modules/ on
+# every boot, then execs into felddy's own entrypoint which downloads and
+# launches Foundry.
+#
+# The module is bundled into the image and tracks image version — the
+# previous "first-boot only" behaviour meant `docker pull && restart` left
+# the old module in the volume, so image updates silently failed to propagate.
+# User data for the module lives in Foundry's settings DB (not inside the
+# module dir), so overwriting on every boot is safe.
 
 set -euo pipefail
 
 MODULE_SRC=/seed/modules/foundry-api-bridge
 MODULE_DST=/data/Data/modules/foundry-api-bridge
 
-if [ ! -d "$MODULE_DST" ]; then
-  mkdir -p "$(dirname "$MODULE_DST")"
-  cp -r "$MODULE_SRC" "$MODULE_DST"
-  echo "[foundry-toolkit] foundry-api-bridge installed → $MODULE_DST"
-else
-  echo "[foundry-toolkit] foundry-api-bridge already present at $MODULE_DST"
-fi
+mkdir -p "$(dirname "$MODULE_DST")"
+rm -rf "$MODULE_DST"
+cp -r "$MODULE_SRC" "$MODULE_DST"
+echo "[foundry-toolkit] foundry-api-bridge synced → $MODULE_DST"
 
 # felddy's entrypoint sources logging.sh and backoff.sh from /home/node.
 cd /home/node
