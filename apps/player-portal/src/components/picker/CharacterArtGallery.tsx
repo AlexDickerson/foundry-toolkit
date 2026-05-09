@@ -39,7 +39,7 @@ export function CharacterArtGallery({ art, subjectName }: Props): React.ReactEle
           src={current}
           alt={`${subjectName} reference art`}
           loading="lazy"
-          className="w-full rounded border border-pf-border bg-pf-bg-dark"
+          className="mx-auto max-h-[45vh] w-full object-contain rounded border border-pf-border bg-pf-bg-dark"
         />
         {hasMultiple && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-between p-1">
