@@ -96,8 +96,17 @@ interface JQueryLike {
 }
 
 export function installPromptInterception(wsClients: readonly WebSocketClient[]): void {
+  // renderPickAThingPrompt fires with (app, $html) after PF2e renders the
+  // ChoiceSet dialog into the DOM. When a portal client is connected we
+  // remove the element immediately — before the browser paints — so the
+  // native dialog never appears in Foundry, then handle the choice async
+  // via the bridge. When no client is connected we leave the element alone
+  // so the user can answer the native dialog as a fallback.
   // @ts-expect-error — Foundry's Hooks global is untyped in this module
-  Hooks.on(HOOK_NAME, (app: PickAThingPromptApp) => {
+  Hooks.on(HOOK_NAME, (app: PickAThingPromptApp, $html: JQueryLike) => {
+    const connected = wsClients.filter((c) => c.isConnected());
+    if (connected.length === 0) return; // no portal — let native dialog stand
+    $html.remove(); // suppress native dialog before the browser paints
     void handlePrompt(app, wsClients);
   });
 
@@ -243,8 +252,11 @@ async function handlePrompt(app: PickAThingPromptApp, wsClients: readonly WebSoc
     app.selection = match;
     await app.close();
   } catch (err) {
-    console.warn('Foundry API Bridge | Prompt intercept failed, falling back to native dialog', err);
-    // Leave the dialog alone so the user can pick manually.
+    // All clients rejected or timed out. The native dialog was already
+    // removed from the DOM, so we can't fall back to it — close the app
+    // (no selection) to unblock pf2e's internal promise chain.
+    console.warn('Foundry API Bridge | Prompt intercept failed — closing dialog (DOM already suppressed)', err);
+    await app.close();
   }
 }
 
