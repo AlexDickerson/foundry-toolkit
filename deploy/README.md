@@ -3,12 +3,12 @@
 Four containers. One env file. Everything the GM needs to run a Foundry VTT
 session with the full foundry-toolkit feature set available to players.
 
-| Service       | Image                           | Port      | Audience                     |
-| ------------- | ------------------------------- | --------- | ---------------------------- |
-| caddy         | `caddy:2.8`                     | 80, 443   | public internet (TLS)        |
-| foundry       | `foundry-toolkit-foundry:<tag>` | 30000\*   | GM (via Caddy or direct)     |
-| foundry-mcp   | `foundry-toolkit-mcp:<tag>`     | 8765      | internal only                |
-| player-portal | `foundry-toolkit-portal:<tag>`  | 3000      | players (via Caddy)          |
+| Service       | Image                           | Port    | Audience                 |
+| ------------- | ------------------------------- | ------- | ------------------------ |
+| caddy         | `caddy:2.8`                     | 80, 443 | public internet (TLS)    |
+| foundry       | `foundry-toolkit-foundry:<tag>` | 30000\* | GM (via Caddy or direct) |
+| foundry-mcp   | `foundry-toolkit-mcp:<tag>`     | 8765    | internal only            |
+| player-portal | `foundry-toolkit-portal:<tag>`  | 3000    | players (via Caddy)      |
 
 \* Port 30000 is bound to `127.0.0.1` only — the GM can reach Foundry directly
 at `http://localhost:30000` without going through Caddy. Port 3000 is not
@@ -140,17 +140,17 @@ simplest.
 
 ## Environment variables
 
-| Variable                  | Service(s)                 | Required | Purpose                                                      |
-| ------------------------- | -------------------------- | -------- | ------------------------------------------------------------ |
-| `FOUNDRY_USERNAME`        | foundry                    | yes      | Paizo account username for Foundry download                  |
-| `FOUNDRY_PASSWORD`        | foundry                    | yes      | Paizo account password                                       |
-| `FOUNDRY_ADMIN_KEY`       | foundry                    | rec.     | Foundry admin console password                               |
-| `FOUNDRY_ROUTE_PREFIX`    | foundry                    | no       | URL path prefix for Foundry (`foundry` → served at `/foundry/`); empty = no prefix |
-| `OPENAI_API_KEY`          | foundry-mcp                | no       | GPT-image-1 map editing (`edit_image` tool)                  |
-| `ALLOW_EVAL`              | foundry-mcp                | no       | `1` enables `/api/eval` debug endpoint                       |
-| `SHARED_SECRET`           | foundry-mcp, player-portal | yes      | Bearer token for `/api/live/*` POST writes                   |
-| `SECURE_SESSION_SECRET`   | player-portal              | no\*     | Cookie signing for portal user auth                          |
-| `IMAGE_TAG`               | —                          | no       | Image tag to pull (default: `latest`)                        |
+| Variable                | Service(s)                 | Required | Purpose                                                                            |
+| ----------------------- | -------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `FOUNDRY_USERNAME`      | foundry                    | yes      | Paizo account username for Foundry download                                        |
+| `FOUNDRY_PASSWORD`      | foundry                    | yes      | Paizo account password                                                             |
+| `FOUNDRY_ADMIN_KEY`     | foundry                    | rec.     | Foundry admin console password                                                     |
+| `FOUNDRY_ROUTE_PREFIX`  | foundry                    | no       | URL path prefix for Foundry (`foundry` → served at `/foundry/`); empty = no prefix |
+| `OPENAI_API_KEY`        | foundry-mcp                | no       | GPT-image-1 map editing (`edit_image` tool)                                        |
+| `ALLOW_EVAL`            | foundry-mcp                | no       | `1` enables `/api/eval` debug endpoint                                             |
+| `SHARED_SECRET`         | foundry-mcp, player-portal | yes      | Bearer token for `/api/live/*` POST writes                                         |
+| `SECURE_SESSION_SECRET` | player-portal              | no\*     | Cookie signing for portal user auth                                                |
+| `IMAGE_TAG`             | —                          | no       | Image tag to pull (default: `latest`)                                              |
 
 \*Required once the portal user auth feature ships.
 
@@ -161,12 +161,12 @@ names and should not be overridden in `.env`.
 
 ## Volumes and persistence
 
-| Volume         | Mounted in                        | Contains                                 |
-| -------------- | --------------------------------- | ---------------------------------------- |
-| `foundry-data` | foundry (`/data`, rw)             | Worlds, systems, modules, Foundry config |
-|                | foundry-mcp (`/foundry-data`, ro) | Read-only compendium pack access         |
+| Volume         | Mounted in                        | Contains                                                                 |
+| -------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| `foundry-data` | foundry (`/data`, rw)             | Worlds, systems, modules, Foundry config                                 |
+|                | foundry-mcp (`/foundry-data`, ro) | Read-only compendium pack access                                         |
 | `caddy_data`   | caddy (`/data`)                   | Let's Encrypt certificates and ACME state — **do not delete carelessly** |
-| `caddy_config` | caddy (`/config`)                 | Caddy runtime config cache               |
+| `caddy_config` | caddy (`/config`)                 | Caddy runtime config cache                                               |
 
 `foundry-mcp` and `player-portal` are stateless — no persistent volumes.
 foundry-mcp's SQLite live-state snapshots are ephemeral and refill within
@@ -209,10 +209,10 @@ certificate for `addnd.net` automatically on first start.
 
 ### Path layout
 
-| URL path        | Routed to              | Notes                                       |
-| --------------- | ---------------------- | ------------------------------------------- |
-| `https://addnd.net/`            | player-portal:3000 | SPA root, player-facing surface        |
-| `https://addnd.net/foundry/...` | foundry:30000      | Foundry VTT; prefix forwarded intact   |
+| URL path                        | Routed to          | Notes                                |
+| ------------------------------- | ------------------ | ------------------------------------ |
+| `https://addnd.net/`            | player-portal:3000 | SPA root, player-facing surface      |
+| `https://addnd.net/foundry/...` | foundry:30000      | Foundry VTT; prefix forwarded intact |
 
 `foundry-mcp` is **not** publicly exposed. The `foundry-api-bridge` module
 running in the GM's browser reaches `foundry-mcp` over the compose internal
