@@ -165,16 +165,39 @@ export function CompendiumDetailPanel({
             {range != null && <DetailRow label="Range" value={range} />}
             {area != null && <DetailRow label="Area" value={area} />}
             {targetField != null && <DetailRow label="Targets" value={targetField} />}
-            {enriched.length > 0 ? (
-              <div
-                {...uuidHover.delegationHandlers}
-                className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-                dangerouslySetInnerHTML={{ __html: enriched }}
-              />
+
+            {/* Ancestry / class: description and art side-by-side to reclaim vertical space.
+                All other document types keep the original stacked layout. */}
+            {characterArt ? (
+              <div className="flex gap-4">
+                <div className="min-w-0 flex-1">
+                  {enriched.length > 0 ? (
+                    <div
+                      {...uuidHover.delegationHandlers}
+                      className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+                      dangerouslySetInnerHTML={{ __html: enriched }}
+                    />
+                  ) : (
+                    <p className="italic text-pf-alt">No description.</p>
+                  )}
+                </div>
+                <div className="w-56 shrink-0">
+                  <CharacterArtGallery art={characterArt} subjectName={target.name} />
+                </div>
+              </div>
             ) : (
-              <p className="italic text-pf-alt">No description.</p>
+              <>
+                {enriched.length > 0 ? (
+                  <div
+                    {...uuidHover.delegationHandlers}
+                    className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+                    dangerouslySetInnerHTML={{ __html: enriched }}
+                  />
+                ) : (
+                  <p className="italic text-pf-alt">No description.</p>
+                )}
+              </>
             )}
-            {characterArt && <CharacterArtGallery art={characterArt} subjectName={target.name} />}
             {uuidHover.popover}
           </div>
         )}
