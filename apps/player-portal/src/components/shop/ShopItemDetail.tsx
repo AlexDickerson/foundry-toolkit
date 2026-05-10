@@ -91,6 +91,11 @@ export function ShopItemDetail({
   const traits = activeVariant.traits ?? extractTraitsFromDocument(doc);
   const description = doc ? extractDescriptionFromDocument(doc) : '';
   const enriched = description.length > 0 ? enrichDescription(description) : '';
+  // When the active variant has a purchased art override (img starts with
+  // /item-art/), the body swaps out the rules text for the full item card.
+  // The variant tabs in the header keep working — switching qualities just
+  // swaps the art image since each variant carries its own overridden img.
+  const showArtCard = activeVariant.img.startsWith('/item-art/');
 
   return (
     <div
@@ -169,8 +174,14 @@ export function ShopItemDetail({
             ×
           </button>
         </header>
-        <div className="max-h-96 overflow-y-auto p-3 text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2">
-          {docLoading && !doc ? (
+        <div className="max-h-[80vh] overflow-y-auto p-3 text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2">
+          {showArtCard ? (
+            <img
+              src={activeVariant.img}
+              alt={group.displayName}
+              className="mx-auto block max-h-[70vh] w-auto max-w-full rounded border border-pf-border bg-pf-bg-dark"
+            />
+          ) : docLoading && !doc ? (
             <p className="italic text-pf-alt-dark">Loading…</p>
           ) : docError !== null ? (
             <p className="italic text-pf-primary">Couldn&apos;t load description: {docError}</p>
