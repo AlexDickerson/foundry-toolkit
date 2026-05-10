@@ -12,8 +12,9 @@ import { PickerDialog } from '@/shared/ui/PickerDialog';
 // Selected-row background. Tints by rarity so the highlight visually
 // echoes the rarity pills in the filter row above — clicking the
 // "Uncommon" pill and then selecting an item makes the row's highlight
-// amber, etc. Items with `rarity = 'common'` (or rarity missing —
-// uncached search results) fall back to the neutral tertiary tint.
+// amber, etc. Common items (and rows without a rarity field — uncached
+// search results) use the same neutral gray the Common rarity pill
+// uses, so the four rarity tiers each read with a distinct colour.
 function activeRowClass(rarity: string | undefined): string {
   switch (rarity?.toLowerCase()) {
     case 'uncommon':
@@ -23,7 +24,7 @@ function activeRowClass(rarity: string | undefined): string {
     case 'unique':
       return 'bg-purple-100/60';
     default:
-      return 'bg-pf-tertiary/50';
+      return 'bg-pf-bg-dark';
   }
 }
 
