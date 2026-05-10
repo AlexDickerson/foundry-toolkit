@@ -71,6 +71,7 @@ export function CompendiumDetailPanel({
 
   const doc = state.kind === 'ok' ? state.document : null;
   const ancestryStats = doc && target.type === 'ancestry' ? readAncestryStats(doc) : null;
+  const backgroundStats = doc && target.type === 'background' ? readBackgroundStats(doc) : null;
   const docTraits = doc ? readTraits(doc) : null;
   const traits = docTraits ?? target.traits ?? [];
   const rarity = doc ? readRarity(doc) : null;
@@ -202,6 +203,7 @@ export function CompendiumDetailPanel({
             // ── All other types (and ancestries without art): stacked layout ──
             <div className="space-y-3">
               {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
+              {backgroundStats !== null && <BackgroundMechanics stats={backgroundStats} />}
               {prerequisites && prerequisites.length > 0 && (
                 <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
               )}
@@ -550,6 +552,84 @@ function AncestryMechanics({ stats }: { stats: AncestryStats }): React.ReactElem
         <details className="mt-2">
           <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
             Ancestry features ({stats.features.length})
+          </summary>
+          <ul className="mt-1 flex flex-wrap gap-1">
+            {stats.features.map((f) => (
+              <li
+                key={f.uuid}
+                className="inline-flex items-center gap-1 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[11px] text-pf-text"
+              >
+                {f.img && <img src={f.img} alt="" className="h-3.5 w-3.5 rounded" />}
+                {f.name}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+// ─── Background mechanical stats ─────────────────────────────────────────────
+
+interface BackgroundStats {
+  boosts: BoostSlot[];
+  trainedSkills: string[];
+  loreSkills: string[];
+  features: { uuid: string; name: string; img: string }[];
+}
+
+function readBackgroundStats(doc: CompendiumDocument): BackgroundStats {
+  const sys = doc.system as {
+    boosts?: unknown;
+    trainedSkills?: { value?: unknown; lore?: unknown };
+    items?: Record<string, unknown>;
+  };
+
+  const boosts = readBoostRecord(sys.boosts);
+
+  const trainedSkills = Array.isArray(sys.trainedSkills?.value)
+    ? sys.trainedSkills.value.filter((v): v is string => typeof v === 'string')
+    : [];
+
+  const loreSkills = Array.isArray(sys.trainedSkills?.lore)
+    ? sys.trainedSkills.lore.filter((v): v is string => typeof v === 'string')
+    : [];
+
+  const features = readAncestryFeatures(sys.items);
+
+  return { boosts, trainedSkills, loreSkills, features };
+}
+
+function BackgroundMechanics({ stats }: { stats: BackgroundStats }): React.ReactElement {
+  const hasBoosts = stats.boosts.length > 0;
+  const hasSkills = stats.trainedSkills.length > 0 || stats.loreSkills.length > 0;
+  const hasFeatures = stats.features.length > 0;
+
+  return (
+    <div className="border-b border-pf-border px-4 py-3 text-xs text-pf-text">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">Mechanical effects</p>
+
+      {hasBoosts && (
+        <div className="mb-1">
+          <span className="text-pf-alt-dark">Boosts: </span>
+          <span className="font-medium">{stats.boosts.map(formatBoostSlot).join(', ')}</span>
+        </div>
+      )}
+
+      {hasSkills && (
+        <div className="mb-1">
+          <span className="text-pf-alt-dark">Trained skills: </span>
+          <span className="font-medium">
+            {[...stats.trainedSkills.map(humanizeSlug), ...stats.loreSkills].join(', ')}
+          </span>
+        </div>
+      )}
+
+      {hasFeatures && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+            Background abilities ({stats.features.length})
           </summary>
           <ul className="mt-1 flex flex-wrap gap-1">
             {stats.features.map((f) => (
