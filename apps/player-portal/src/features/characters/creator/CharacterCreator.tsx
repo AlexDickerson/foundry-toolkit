@@ -445,6 +445,14 @@ const PICKER_OPTIONS_BY_TARGET: Partial<Record<PickerTarget, CreatorPickerOption
     showUnmetToggle: false,
     showSortToggle: false,
   },
+  // Deity picker: no prereqs and no level dimension, so the hide-unmet
+  // toggle and the A-Z / Level sort are noise. Source and (default)
+  // rarity controls stay since pf2e ships hundreds of deities across
+  // many supplements.
+  deity: {
+    showUnmetToggle: false,
+    showSortToggle: false,
+  },
   // Class picker:
   //   - default to common-only rarity (Player Core / Player Core 2
   //     classes); the rarity pill row lets the player opt in to
