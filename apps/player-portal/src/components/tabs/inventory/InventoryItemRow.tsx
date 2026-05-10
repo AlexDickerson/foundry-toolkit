@@ -64,7 +64,7 @@ export function ItemRow({
           <img
             src={item.img}
             alt=""
-            className={`h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark ${hasArtOverride(item.img) ? 'scale-150 object-cover object-[center_15%]' : ''}`}
+            className={`h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark ${hasArtOverride(item.img) ? 'scale-150 object-cover object-[center_5%]' : ''}`}
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
@@ -130,7 +130,7 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
           <img
             src={item.img}
             alt=""
-            className={`h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark ${hasArtOverride(item.img) ? 'scale-150 object-cover object-[center_15%]' : ''}`}
+            className={`h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark ${hasArtOverride(item.img) ? 'scale-150 object-cover object-[center_5%]' : ''}`}
           />
           <div className="min-w-0 flex-1">
             <span className="truncate text-sm text-neutral-800">{item.name}</span>
@@ -223,7 +223,7 @@ export function GridTile({
               <img
                 src={item.img}
                 alt=""
-                className={`h-full w-full ${hasArtOverride(item.img) ? 'scale-150 object-cover object-[center_15%]' : 'object-contain'}`}
+                className={`h-full w-full ${hasArtOverride(item.img) ? 'scale-150 object-cover object-[center_5%]' : 'object-contain'}`}
               />
               <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
                 <span
