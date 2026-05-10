@@ -10,6 +10,7 @@ import { PromptQueue } from '@/features/characters/sheet/dialog/PromptQueue';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 
 import { CreatorSection } from '@/features/characters/creator/CreatorSection';
+import { TipsRail } from '@/features/characters/creator/TipsRail';
 import { EMPTY_DRAFT, PICKER_LABEL, STEPS, STEP_LABEL } from '@/features/characters/creator/constants';
 import {
   applyPickedSlot,
@@ -202,182 +203,194 @@ export function CharacterCreator(): React.ReactElement {
   const pickerFilters = openPicker !== null ? filtersForTarget(openPicker, draft) : undefined;
 
   return (
-    <main className="mx-auto max-w-3xl p-6 font-sans">
-      <div className="mb-4 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={(): void => {
-            // Null the module-scope cache so re-entering the wizard
-            // allocates a fresh draft actor instead of reusing the
-            // one the user is stepping away from.
-            resetPendingActor();
-            onBack();
-          }}
-          className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
-        >
-          ← Actors
-        </button>
-        <h1 className="font-serif text-2xl font-semibold text-pf-text">New Character</h1>
-      </div>
-
-      {creator.kind === 'creating' && (
-        <p className="rounded border border-pf-border bg-pf-bg p-4 text-sm italic text-pf-alt-dark">
-          Creating draft actor…
-        </p>
-      )}
-      {creator.kind === 'error' && (
-        <div className="rounded border border-red-200 bg-red-50 p-4 text-sm">
-          <p className="font-medium text-red-900">Couldn&apos;t create the draft actor</p>
-          <p className="mt-1 text-red-800">{creator.message}</p>
+    // Three-column shell mirroring the sheet layout: tips rail on the left
+    // (where the party rail lives in the sheet), wizard in the centre, and
+    // a phantom column on the right so the wizard stays centred on wide
+    // screens. Both side columns hide on viewports narrower than `lg`.
+    <div className="flex gap-6 py-6 font-sans">
+      <aside className="hidden w-[230px] shrink-0 pl-3 lg:block" aria-label="Player tips">
+        <TipsRail />
+      </aside>
+      <main className="mx-auto min-w-0 max-w-3xl flex-1 px-6">
+        <div className="mb-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={(): void => {
+              // Null the module-scope cache so re-entering the wizard
+              // allocates a fresh draft actor instead of reusing the
+              // one the user is stepping away from.
+              resetPendingActor();
+              onBack();
+            }}
+            className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
+          >
+            ← Actors
+          </button>
+          <h1 className="font-serif text-2xl font-semibold text-pf-text">New Character</h1>
         </div>
-      )}
 
-      {creator.kind === 'ready' && (
-        <>
-          {/* Sticky anchor nav — clicking a pill scrolls the matching
+        {creator.kind === 'creating' && (
+          <p className="rounded border border-pf-border bg-pf-bg p-4 text-sm italic text-pf-alt-dark">
+            Creating draft actor…
+          </p>
+        )}
+        {creator.kind === 'error' && (
+          <div className="rounded border border-red-200 bg-red-50 p-4 text-sm">
+            <p className="font-medium text-red-900">Couldn&apos;t create the draft actor</p>
+            <p className="mt-1 text-red-800">{creator.message}</p>
+          </div>
+        )}
+
+        {creator.kind === 'ready' && (
+          <>
+            {/* Sticky anchor nav — clicking a pill scrolls the matching
               section into view. Filled state still derives from
               `isStepFilled` so users can see what's outstanding. */}
-          <div className="sticky top-0 z-10 -mx-1 mb-4 bg-stage-gradient px-1 pb-2 pt-2">
-            <StepNav steps={STEPS} active={null} onJump={jumpToSection} draft={draft} />
-          </div>
-
-          <CreatorSection id="identity" title="Identity">
-            <IdentityStep
-              draft={draft}
-              onChange={(patch): void => {
-                setDraft((d) => ({ ...d, ...patch }));
-              }}
-              onPickDeity={(): void => {
-                setOpenPicker('deity');
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="ancestry" title="Ancestry & Heritage">
-            <AncestryStep
-              ancestry={draft.ancestry?.match ?? null}
-              heritage={draft.heritage?.match ?? null}
-              ancestryFeat={draft.ancestryFeat?.match ?? null}
-              ancestrySlugResolved={draft.ancestrySlug !== null}
-              onPickAncestry={(): void => {
-                setOpenPicker('ancestry');
-              }}
-              onPickHeritage={(): void => {
-                setOpenPicker('heritage');
-              }}
-              onPickAncestryFeat={(): void => {
-                setOpenPicker('ancestry-feat');
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="class" title="Class">
-            <ClassStep
-              classPick={draft.class?.match ?? null}
-              classFeat={draft.classFeat?.match ?? null}
-              classSlugResolved={draft.classSlug !== null}
-              onPickClass={(): void => {
-                setOpenPicker('class');
-              }}
-              onPickClassFeat={(): void => {
-                setOpenPicker('class-feat');
-              }}
-              onL1FeatAvailability={(grants): void => {
-                setDraft((d) => (d.classGrantsL1Feat === grants ? d : { ...d, classGrantsL1Feat: grants }));
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="background" title="Background">
-            <PickerCard
-              label="Background"
-              selection={draft.background?.match ?? null}
-              onOpen={(): void => {
-                setOpenPicker('background');
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="attributes" title="Attributes">
-            <AttributesStep
-              actorId={actorId}
-              ancestryPick={draft.ancestry?.match ?? null}
-              ancestryItemId={draft.ancestry?.itemId ?? null}
-              backgroundPick={draft.background?.match ?? null}
-              backgroundItemId={draft.background?.itemId ?? null}
-              classPick={draft.class?.match ?? null}
-              classItemId={draft.class?.itemId ?? null}
-              levelOneBoosts={draft.levelOneBoosts}
-              ancestryBoosts={draft.ancestryBoosts}
-              backgroundBoosts={draft.backgroundBoosts}
-              classKeyAbility={draft.classKeyAbility}
-              onDraftPatch={(patch): void => {
-                setDraft((d) => ({ ...d, ...patch }));
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="skills" title="Skills">
-            <SkillsStep
-              actorId={actorId}
-              backgroundPick={draft.background?.match ?? null}
-              classPick={draft.class?.match ?? null}
-              classItemId={draft.class?.itemId ?? null}
-              skillPicks={draft.skillPicks}
-              intMod={computeIntMod(draft)}
-              onDraftPatch={(patch): void => {
-                setDraft((d) => ({ ...d, ...patch }));
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="languages" title="Languages">
-            <LanguagesStep
-              actorId={actorId}
-              ancestryPick={draft.ancestry?.match ?? null}
-              languagePicks={draft.languagePicks}
-              intMod={computeIntMod(draft)}
-              onDraftPatch={(patch): void => {
-                setDraft((d) => ({ ...d, ...patch }));
-              }}
-              onAllowanceResolved={(n): void => {
-                setDraft((d) => (d.languageAllowance === n ? d : { ...d, languageAllowance: n }));
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="review" title="Review">
-            <ReviewStep draft={draft} />
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={handleFinish}
-                disabled={actorId === null}
-                className="rounded border border-pf-primary bg-pf-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-pf-primary-dark disabled:opacity-40"
-              >
-                Open sheet →
-              </button>
+            <div className="sticky top-0 z-10 -mx-1 mb-4 bg-stage-gradient px-1 pb-2 pt-2">
+              <StepNav steps={STEPS} active={null} onJump={jumpToSection} draft={draft} />
             </div>
-          </CreatorSection>
 
-          {openPicker !== null && pickerFilters !== undefined && (
-            <CreatorPicker
-              key={openPicker}
-              target={openPicker}
-              filters={pickerFilters}
-              onPick={applyPick}
-              onClose={(): void => {
-                setOpenPicker(null);
-              }}
-            />
-          )}
-        </>
-      )}
+            <CreatorSection id="identity" title="Identity">
+              <IdentityStep
+                draft={draft}
+                onChange={(patch): void => {
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+                onPickDeity={(): void => {
+                  setOpenPicker('deity');
+                }}
+              />
+            </CreatorSection>
 
-      {/* Module-driven prompts (pf2e ChoiceSets) render on top of
+            <CreatorSection id="ancestry" title="Ancestry & Heritage">
+              <AncestryStep
+                ancestry={draft.ancestry?.match ?? null}
+                heritage={draft.heritage?.match ?? null}
+                ancestryFeat={draft.ancestryFeat?.match ?? null}
+                ancestrySlugResolved={draft.ancestrySlug !== null}
+                onPickAncestry={(): void => {
+                  setOpenPicker('ancestry');
+                }}
+                onPickHeritage={(): void => {
+                  setOpenPicker('heritage');
+                }}
+                onPickAncestryFeat={(): void => {
+                  setOpenPicker('ancestry-feat');
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="class" title="Class">
+              <ClassStep
+                classPick={draft.class?.match ?? null}
+                classFeat={draft.classFeat?.match ?? null}
+                classSlugResolved={draft.classSlug !== null}
+                onPickClass={(): void => {
+                  setOpenPicker('class');
+                }}
+                onPickClassFeat={(): void => {
+                  setOpenPicker('class-feat');
+                }}
+                onL1FeatAvailability={(grants): void => {
+                  setDraft((d) => (d.classGrantsL1Feat === grants ? d : { ...d, classGrantsL1Feat: grants }));
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="background" title="Background">
+              <PickerCard
+                label="Background"
+                selection={draft.background?.match ?? null}
+                onOpen={(): void => {
+                  setOpenPicker('background');
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="attributes" title="Attributes">
+              <AttributesStep
+                actorId={actorId}
+                ancestryPick={draft.ancestry?.match ?? null}
+                ancestryItemId={draft.ancestry?.itemId ?? null}
+                backgroundPick={draft.background?.match ?? null}
+                backgroundItemId={draft.background?.itemId ?? null}
+                classPick={draft.class?.match ?? null}
+                classItemId={draft.class?.itemId ?? null}
+                levelOneBoosts={draft.levelOneBoosts}
+                ancestryBoosts={draft.ancestryBoosts}
+                backgroundBoosts={draft.backgroundBoosts}
+                classKeyAbility={draft.classKeyAbility}
+                onDraftPatch={(patch): void => {
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="skills" title="Skills">
+              <SkillsStep
+                actorId={actorId}
+                backgroundPick={draft.background?.match ?? null}
+                classPick={draft.class?.match ?? null}
+                classItemId={draft.class?.itemId ?? null}
+                skillPicks={draft.skillPicks}
+                intMod={computeIntMod(draft)}
+                onDraftPatch={(patch): void => {
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="languages" title="Languages">
+              <LanguagesStep
+                actorId={actorId}
+                ancestryPick={draft.ancestry?.match ?? null}
+                languagePicks={draft.languagePicks}
+                intMod={computeIntMod(draft)}
+                onDraftPatch={(patch): void => {
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+                onAllowanceResolved={(n): void => {
+                  setDraft((d) => (d.languageAllowance === n ? d : { ...d, languageAllowance: n }));
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="review" title="Review">
+              <ReviewStep draft={draft} />
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleFinish}
+                  disabled={actorId === null}
+                  className="rounded border border-pf-primary bg-pf-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-pf-primary-dark disabled:opacity-40"
+                >
+                  Open sheet →
+                </button>
+              </div>
+            </CreatorSection>
+
+            {openPicker !== null && pickerFilters !== undefined && (
+              <CreatorPicker
+                key={openPicker}
+                target={openPicker}
+                filters={pickerFilters}
+                onPick={applyPick}
+                onClose={(): void => {
+                  setOpenPicker(null);
+                }}
+              />
+            )}
+          </>
+        )}
+
+        {/* Module-driven prompts (pf2e ChoiceSets) render on top of
           everything else so the wizard pauses until the user picks. */}
-      <PromptQueue />
-    </main>
+        <PromptQueue />
+      </main>
+      {/* Phantom column mirrors the rail width so the wizard column
+          stays horizontally centred between them on wide screens. */}
+      <div className="hidden w-[230px] shrink-0 lg:block" aria-hidden="true" />
+    </div>
   );
 }
 
