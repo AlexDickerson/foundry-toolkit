@@ -117,8 +117,18 @@ export function CompendiumDetailPanel({
             {rarity != null && rarity !== 'common' && ` · ${rarity}`}
             {castCost !== null && ` · Cast ${castCost}`}
           </p>
-          {traits.length > 0 && (
+          {(target.type === 'ancestry' && rarity !== null) || traits.length > 0 ? (
             <ul className="mt-1 flex flex-wrap gap-1">
+              {/* Ancestries always show their rarity as the first pill so
+                  players can spot uncommon/rare ancestries at a glance.
+                  Other doc types keep rarity in the meta line only. */}
+              {target.type === 'ancestry' && rarity !== null && (
+                <li
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${rarityPillClasses(rarity)}`}
+                >
+                  {humanizeSlug(rarity)}
+                </li>
+              )}
               {traits.map((t) => (
                 <li
                   key={t}
@@ -128,7 +138,7 @@ export function CompendiumDetailPanel({
                 </li>
               ))}
             </ul>
-          )}
+          ) : null}
         </div>
         <button
           type="button"
@@ -365,6 +375,23 @@ function humanizeSlug(slug: string): string {
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+// PF2e rarity tiers map to standard system colors — amber for uncommon,
+// blue for rare, purple for unique. Common gets a muted grey pill.
+function rarityPillClasses(rarity: string): string {
+  switch (rarity.toLowerCase()) {
+    case 'uncommon':
+      return 'border border-amber-500 bg-amber-100 text-amber-900';
+    case 'rare':
+      return 'border border-blue-500 bg-blue-100 text-blue-900';
+    case 'unique':
+      return 'border border-purple-500 bg-purple-100 text-purple-900';
+    default:
+      // common — neutral chip so the field is always visible without
+      // shouting.
+      return 'border border-pf-border bg-pf-bg-dark text-pf-alt-dark';
+  }
 }
 
 // ─── Ancestry mechanical stats ───────────────────────────────────────────────
