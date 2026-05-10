@@ -5,10 +5,29 @@
 // Foundry's built-in HTTP server. A plain `fetch()` with a root-relative path
 // therefore reaches Foundry's file system without any additional config.
 //
+// When Foundry is started with `FOUNDRY_ROUTE_PREFIX=foundry` (typical in our
+// reverse-proxy setup behind Caddy on `addnd.net`), Foundry serves everything
+// under `/foundry/...`. A bare `fetch('/icons/foo.webp')` from the bridge
+// would resolve against the current origin without the prefix, hit Caddy,
+// and route to the player-portal — which doesn't host the asset and bounces
+// it back through this same handler in an infinite loop. We read the prefix
+// off the `game` global and prepend it before the fetch.
+//
 // foundry-mcp's GET /modules/* (and /systems/*, /icons/*, …) route calls this
 // command and re-serves the response body to consumers (dm-tool renderer,
 // player-portal). The mcp server caches hits indefinitely so each asset is
 // only fetched once per server process lifetime.
+
+interface FoundryGameWithOptions {
+  data?: { options?: { routePrefix?: string } };
+}
+
+function getRoutePrefix(): string {
+  const g = (globalThis as unknown as { game?: FoundryGameWithOptions }).game;
+  const prefix = g?.data?.options?.routePrefix;
+  if (typeof prefix !== 'string' || prefix.length === 0) return '';
+  return prefix.startsWith('/') ? prefix : `/${prefix}`;
+}
 
 interface FetchAssetParams {
   /** Root-relative Foundry asset path, e.g.
@@ -41,9 +60,13 @@ export async function fetchAssetHandler(params: FetchAssetParams): Promise<Fetch
     return { ok: false, status: 400, error: `Invalid asset path: ${rawPath}` };
   }
 
+  // Prepend Foundry's configured route prefix so the fetch lands on Foundry's
+  // file server even when it's mounted under a sub-path (e.g. /foundry/...).
+  const url = `${getRoutePrefix()}${path}`;
+
   let response: Response;
   try {
-    response = await fetch(path);
+    response = await fetch(url);
   } catch (err) {
     return {
       ok: false,
