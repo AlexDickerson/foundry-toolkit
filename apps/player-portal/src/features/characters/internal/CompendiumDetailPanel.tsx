@@ -456,6 +456,13 @@ function readBoostRecord(raw: unknown): BoostSlot[] {
     const value = (slot as { value?: unknown }).value;
     if (!Array.isArray(value)) continue;
     const options = value.filter((v): v is string => typeof v === 'string');
+    // pf2e compendium docs ship a fixed-size boost record where unused
+    // slots are encoded as `{ "value": [] }` — a placeholder, not a real
+    // boost. The actual encodings for a slot the player can fill are
+    // either all six abilities listed (free pick) or a constrained subset
+    // (fixed / choice). Skip the placeholder so a 3-slot Human ancestry
+    // renders the correct "Free, Free" instead of "Free, Free, Free".
+    if (options.length === 0) continue;
     slots.push({ options });
   }
   return slots;
