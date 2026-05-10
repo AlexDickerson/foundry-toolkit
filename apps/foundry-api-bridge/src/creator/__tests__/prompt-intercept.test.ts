@@ -63,6 +63,7 @@ function makeClient(connected = true): FakeClient {
 function makePromptApp(): {
   app: { choices: { value: string; label: string }[]; prompt: string; selection: unknown; close: jest.Mock };
   choices: { value: string; label: string }[];
+  $html: { remove: jest.Mock };
 } {
   const choices = [
     { value: 'a', label: 'A' },
@@ -76,6 +77,7 @@ function makePromptApp(): {
       close: jest.fn().mockResolvedValue(undefined),
     },
     choices,
+    $html: { remove: jest.fn() },
   };
 }
 
@@ -94,9 +96,11 @@ describe('installPromptInterception', () => {
     const fast = makeClient();
     installPromptInterception([slow.stub, fast.stub]);
 
-    const { app, choices } = makePromptApp();
-    hooksMock.fire('renderPickAThingPrompt', app);
+    const { app, choices, $html } = makePromptApp();
+    hooksMock.fire('renderPickAThingPrompt', app, $html);
 
+    // Native dialog is suppressed synchronously when at least one client connects.
+    expect($html.remove).toHaveBeenCalled();
     expect(slow.sendEvent).toHaveBeenCalledTimes(1);
     expect(fast.sendEvent).toHaveBeenCalledTimes(1);
 
@@ -112,8 +116,8 @@ describe('installPromptInterception', () => {
     const winner = makeClient();
     installPromptInterception([failing.stub, winner.stub]);
 
-    const { app, choices } = makePromptApp();
-    hooksMock.fire('renderPickAThingPrompt', app);
+    const { app, choices, $html } = makePromptApp();
+    hooksMock.fire('renderPickAThingPrompt', app, $html);
 
     failing.reject(new Error('disconnected'));
     winner.resolve({ value: 'a' });
@@ -122,33 +126,37 @@ describe('installPromptInterception', () => {
     expect(app.selection).toBe(choices[0]);
   });
 
-  it('falls through to the native dialog when no clients are connected', async () => {
+  it('leaves the native dialog alone when no clients are connected', async () => {
     const offline = makeClient(false);
     installPromptInterception([offline.stub]);
 
-    const { app } = makePromptApp();
-    hooksMock.fire('renderPickAThingPrompt', app);
+    const { app, $html } = makePromptApp();
+    hooksMock.fire('renderPickAThingPrompt', app, $html);
     await flushMicrotasks();
 
+    // No portal — handler returns early before removing DOM or sending the event.
+    expect($html.remove).not.toHaveBeenCalled();
     expect(offline.sendEvent).not.toHaveBeenCalled();
     expect(app.close).not.toHaveBeenCalled();
     expect(app.selection).toBeNull();
   });
 
-  it('leaves the native dialog alone when every client rejects', async () => {
+  it('closes the app when every client rejects (DOM already suppressed)', async () => {
     const a = makeClient();
     const b = makeClient();
     installPromptInterception([a.stub, b.stub]);
 
-    const { app } = makePromptApp();
-    hooksMock.fire('renderPickAThingPrompt', app);
+    const { app, $html } = makePromptApp();
+    hooksMock.fire('renderPickAThingPrompt', app, $html);
 
     a.reject(new Error('gone'));
     b.reject(new Error('gone'));
     await flushMicrotasks();
 
-    // Promise.any → AggregateError → caught → native dialog survives.
-    expect(app.close).not.toHaveBeenCalled();
+    // DOM was removed synchronously, so we can't fall back to the native
+    // dialog. Close the app to unblock pf2e's internal promise chain.
+    expect($html.remove).toHaveBeenCalled();
+    expect(app.close).toHaveBeenCalled();
     expect(app.selection).toBeNull();
   });
 
@@ -156,8 +164,8 @@ describe('installPromptInterception', () => {
     const a = makeClient();
     installPromptInterception([a.stub]);
 
-    const { app } = makePromptApp();
-    hooksMock.fire('renderPickAThingPrompt', app);
+    const { app, $html } = makePromptApp();
+    hooksMock.fire('renderPickAThingPrompt', app, $html);
 
     a.resolve({ value: null });
     await flushMicrotasks();

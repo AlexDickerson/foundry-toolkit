@@ -101,6 +101,7 @@ describe('getActorItemsHandler', () => {
         name: 'Longsword',
         type: 'weapon',
         img: 'icons/weapons/swords/sword.png',
+        slug: null,
         equipped: true,
         quantity: 1,
         hasActivities: true,
