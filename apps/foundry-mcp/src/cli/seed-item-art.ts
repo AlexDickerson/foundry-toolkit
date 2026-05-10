@@ -61,13 +61,15 @@ export function parseArtFilename(rawFilename: string): { itemName: string; origi
   return { itemName, originalFilename: rawFilename };
 }
 
-/** PF2e's slug derivation: lowercase, collapse non-alphanumeric runs to a
- *  single dash, and trim leading/trailing dashes.
+/** PF2e's slug derivation: drop apostrophes (so "Healer's" becomes "healers"
+ *  not "healer-s"), then lowercase, collapse non-alphanumeric runs to a single
+ *  dash, and trim leading/trailing dashes.
  *
  *  Exported for unit tests. */
 export function sluggify(name: string): string {
   return name
     .toLowerCase()
+    .replace(/['‘’]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 }

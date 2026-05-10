@@ -78,4 +78,11 @@ describe('sluggify', () => {
   it('strips leading and trailing dashes', () => {
     assert.equal(sluggify('(test)'), 'test');
   });
+
+  it('drops apostrophes (matches PF2e: "Healer\'s Gloves" → "healers-gloves")', () => {
+    assert.equal(sluggify("Healer's Gloves"), 'healers-gloves');
+    assert.equal(sluggify("Adventurer's Pack"), 'adventurers-pack');
+    // Curly apostrophe variant treated the same way.
+    assert.equal(sluggify('Healer’s Gloves'), 'healers-gloves');
+  });
 });
