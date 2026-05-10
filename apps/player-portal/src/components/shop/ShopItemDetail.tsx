@@ -109,88 +109,160 @@ export function ShopItemDetail({
       className="absolute inset-x-0 top-0 z-20 flex items-start justify-center bg-black/10 p-2"
     >
       <div className="w-full flex-col rounded border border-pf-border bg-pf-bg shadow-lg">
-        <header className="flex items-start gap-3 border-b border-pf-border p-3">
-          <img
-            src={activeVariant.img}
-            alt=""
-            className="h-12 w-12 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <h3 className="font-serif text-base font-semibold text-pf-text">{group.displayName}</h3>
-              {activeVariant.rarity && activeVariant.rarity !== 'common' && (
-                <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize ${rarityChipClass(activeVariant.rarity)}`}>
-                  {activeVariant.rarity}
-                </span>
+        {showArtCard ? (
+          // Art-card mode: meta in a narrow left column so the right column
+          // can give the WebP item card maximum vertical space.
+          <div className="flex">
+            <aside className="w-64 shrink-0 space-y-3 border-r border-pf-border p-3">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <h3 className="font-serif text-base font-semibold text-pf-text">{group.displayName}</h3>
+                    {activeVariant.rarity && activeVariant.rarity !== 'common' && (
+                      <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize ${rarityChipClass(activeVariant.rarity)}`}>
+                        {activeVariant.rarity}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-[10px] uppercase tracking-widest text-pf-alt-dark">
+                    {activeVariant.type}
+                    {typeof activeVariant.level === 'number' && ` · Level ${activeVariant.level.toString()}`}
+                    {priceText !== '—' && ` · ${priceText}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close details"
+                  data-testid="shop-detail-close"
+                  className="shrink-0 rounded border border-pf-border bg-white px-2 py-0.5 text-sm text-pf-alt-dark hover:bg-pf-bg-dark/40"
+                >
+                  ×
+                </button>
+              </div>
+              {multiVariant && (
+                <ul className="flex flex-wrap gap-1" aria-label="Variant">
+                  {group.variants.map((v, i) => (
+                    <li key={v.uuid}>
+                      <button
+                        type="button"
+                        onClick={(): void => {
+                          setSelectedVariantIdx(i);
+                        }}
+                        className={[
+                          'rounded border px-2 py-0.5 text-[10px] font-medium',
+                          i === selectedVariantIdx
+                            ? 'border-pf-primary bg-pf-primary text-white'
+                            : 'border-pf-border bg-pf-bg-dark text-pf-alt-dark hover:bg-pf-bg-dark/60',
+                        ].join(' ')}
+                      >
+                        {qualityLabel(v.name)}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {traits.length > 0 && (
+                <ul className="flex flex-wrap gap-1">
+                  {traits.slice(0, 8).map((t) => (
+                    <li
+                      key={t}
+                      className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
+                    >
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </aside>
+            <div className="flex min-w-0 flex-1 items-center justify-center bg-pf-bg-dark p-3">
+              <img
+                src={activeVariant.img}
+                alt={group.displayName}
+                className="max-h-[80vh] max-w-full rounded shadow-md"
+              />
+            </div>
+          </div>
+        ) : (
+          <>
+            <header className="flex items-start gap-3 border-b border-pf-border p-3">
+              <img
+                src={activeVariant.img}
+                alt=""
+                className="h-12 w-12 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <h3 className="font-serif text-base font-semibold text-pf-text">{group.displayName}</h3>
+                  {activeVariant.rarity && activeVariant.rarity !== 'common' && (
+                    <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize ${rarityChipClass(activeVariant.rarity)}`}>
+                      {activeVariant.rarity}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] uppercase tracking-widest text-pf-alt-dark">
+                  {activeVariant.type}
+                  {typeof activeVariant.level === 'number' && ` · Level ${activeVariant.level.toString()}`}
+                  {priceText !== '—' && ` · ${priceText}`}
+                </p>
+                {multiVariant && (
+                  <ul className="mt-2 flex flex-wrap gap-1" aria-label="Variant">
+                    {group.variants.map((v, i) => (
+                      <li key={v.uuid}>
+                        <button
+                          type="button"
+                          onClick={(): void => {
+                            setSelectedVariantIdx(i);
+                          }}
+                          className={[
+                            'rounded border px-2 py-0.5 text-[10px] font-medium',
+                            i === selectedVariantIdx
+                              ? 'border-pf-primary bg-pf-primary text-white'
+                              : 'border-pf-border bg-pf-bg-dark text-pf-alt-dark hover:bg-pf-bg-dark/60',
+                          ].join(' ')}
+                        >
+                          {qualityLabel(v.name)}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {traits.length > 0 && (
+                  <ul className="mt-1 flex flex-wrap gap-1">
+                    {traits.slice(0, 8).map((t) => (
+                      <li
+                        key={t}
+                        className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
+                      >
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close details"
+                data-testid="shop-detail-close"
+                className="shrink-0 rounded border border-pf-border bg-white px-2 py-0.5 text-sm text-pf-alt-dark hover:bg-pf-bg-dark/40"
+              >
+                ×
+              </button>
+            </header>
+            <div className="max-h-96 overflow-y-auto p-3 text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2">
+              {docLoading && !doc ? (
+                <p className="italic text-pf-alt-dark">Loading…</p>
+              ) : docError !== null ? (
+                <p className="italic text-pf-primary">Couldn&apos;t load description: {docError}</p>
+              ) : enriched.length > 0 ? (
+                <div dangerouslySetInnerHTML={{ __html: enriched }} />
+              ) : (
+                <p className="italic text-pf-alt-dark">No description.</p>
               )}
             </div>
-            <p className="text-[10px] uppercase tracking-widest text-pf-alt-dark">
-              {activeVariant.type}
-              {typeof activeVariant.level === 'number' && ` · Level ${activeVariant.level.toString()}`}
-              {priceText !== '—' && ` · ${priceText}`}
-            </p>
-            {multiVariant && (
-              <ul className="mt-2 flex flex-wrap gap-1" aria-label="Variant">
-                {group.variants.map((v, i) => (
-                  <li key={v.uuid}>
-                    <button
-                      type="button"
-                      onClick={(): void => {
-                        setSelectedVariantIdx(i);
-                      }}
-                      className={[
-                        'rounded border px-2 py-0.5 text-[10px] font-medium',
-                        i === selectedVariantIdx
-                          ? 'border-pf-primary bg-pf-primary text-white'
-                          : 'border-pf-border bg-pf-bg-dark text-pf-alt-dark hover:bg-pf-bg-dark/60',
-                      ].join(' ')}
-                    >
-                      {qualityLabel(v.name)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {traits.length > 0 && (
-              <ul className="mt-1 flex flex-wrap gap-1">
-                {traits.slice(0, 8).map((t) => (
-                  <li
-                    key={t}
-                    className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
-                  >
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close details"
-            data-testid="shop-detail-close"
-            className="shrink-0 rounded border border-pf-border bg-white px-2 py-0.5 text-sm text-pf-alt-dark hover:bg-pf-bg-dark/40"
-          >
-            ×
-          </button>
-        </header>
-        <div className="max-h-[80vh] overflow-y-auto p-3 text-sm leading-relaxed text-pf-text [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2">
-          {showArtCard ? (
-            <img
-              src={activeVariant.img}
-              alt={group.displayName}
-              className="mx-auto block max-h-[70vh] w-auto max-w-full rounded border border-pf-border bg-pf-bg-dark"
-            />
-          ) : docLoading && !doc ? (
-            <p className="italic text-pf-alt-dark">Loading…</p>
-          ) : docError !== null ? (
-            <p className="italic text-pf-primary">Couldn&apos;t load description: {docError}</p>
-          ) : enriched.length > 0 ? (
-            <div dangerouslySetInnerHTML={{ __html: enriched }} />
-          ) : (
-            <p className="italic text-pf-alt-dark">No description.</p>
-          )}
-        </div>
+          </>
+        )}
         <footer className="flex items-center justify-end gap-2 border-t border-pf-border p-3">
           <button
             type="button"
