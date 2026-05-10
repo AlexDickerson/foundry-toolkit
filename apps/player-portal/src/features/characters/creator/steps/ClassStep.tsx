@@ -90,7 +90,20 @@ export function ClassStep({
 
   return (
     <div className="space-y-4">
-      <PickerCard label="Class" selection={classPick} onOpen={onPickClass} />
+      <PickerCard
+        label="Class"
+        selection={classPick}
+        onOpen={onPickClass}
+        helpText={
+          <>
+            Defines how your character plays — usually the most important element in deciding your role in the party.{' '}
+            <em>
+              After picking, you may be prompted for additional selections (subclass, weapon group, focus skill, etc.) —
+              give the wizard a moment to present them.
+            </em>
+          </>
+        }
+      />
       {classPick !== null && (
         <div
           className="space-y-4 border-t border-pf-border pt-4"

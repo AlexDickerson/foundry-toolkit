@@ -311,6 +311,7 @@ export function CharacterCreator(): React.ReactElement {
                 onOpen={(): void => {
                   setOpenPicker('background');
                 }}
+                helpText="The culture, society, or role your character developed in. Grants stat boosts and a small set of features that reflect that history."
               />
             </CreatorSection>
 

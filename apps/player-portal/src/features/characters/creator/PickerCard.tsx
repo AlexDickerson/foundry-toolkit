@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { CompendiumMatch } from '@/features/characters/types';
 
 // Selected-pick card used by Identity (deity), Background, Ancestry,
@@ -9,16 +10,26 @@ export function PickerCard({
   onOpen,
   disabled,
   disabledHint,
+  helpText,
 }: {
   label: string;
   selection: CompendiumMatch | null;
   onOpen: () => void;
   disabled?: boolean;
   disabledHint?: string;
+  /** Short explanation of what this pick is for, shown above the
+   *  "Choose X" CTA in the empty state. Hidden once something is
+   *  selected — by then the player knows what they picked. */
+  helpText?: ReactNode;
 }): React.ReactElement {
   if (selection === null) {
     return (
       <div className="flex flex-col items-start gap-2" data-picker-card={label.toLowerCase()}>
+        {helpText !== undefined && (
+          <p className="text-xs leading-relaxed text-pf-alt-dark" data-role={`${label.toLowerCase()}-help`}>
+            {helpText}
+          </p>
+        )}
         <p className="text-sm text-pf-text">No {label.toLowerCase()} selected yet.</p>
         <button
           type="button"
