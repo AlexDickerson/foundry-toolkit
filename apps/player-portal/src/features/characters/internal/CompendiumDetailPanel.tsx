@@ -917,11 +917,13 @@ function ClassMechanics({ stats }: { stats: ClassStats }): React.ReactElement {
       )}
 
       {hasFeatures && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
-            Class features ({stats.features.length})
-          </summary>
-          <ul className="mt-1 flex flex-wrap gap-1">
+        // Class features are always-visible: there are only a handful at
+        // L1 (Composition Spells, the muse pick, etc. for Bard) and they
+        // matter for the build decision the player is making right now.
+        // Other panels (ancestry / background) keep their <details>
+        // wrapper because their lists can be longer and less central.
+        <ProficiencyRow heading={`Class features (${stats.features.length})`}>
+          <ul className="flex flex-wrap gap-1">
             {stats.features.map((f) => (
               <li
                 key={f.uuid}
@@ -933,7 +935,7 @@ function ClassMechanics({ stats }: { stats: ClassStats }): React.ReactElement {
               </li>
             ))}
           </ul>
-        </details>
+        </ProficiencyRow>
       )}
     </div>
   );
