@@ -29,6 +29,11 @@ export interface PickerResultListProps<TItem> {
   remainingCount?: number;
   loadMoreTestId?: string | undefined;
   splitPane?: SplitPane | undefined;
+  /** Tailwind width class applied to the list column when a detail
+   *  panel is open beside it. Defaults to `w-80` (320px) — feat/spell
+   *  rows benefit from the room, but short-name targets like classes
+   *  can be tightened to `w-56` so the detail column gets the space. */
+  listOpenWidthClass?: string;
 }
 
 export function PickerResultList<TItem>({
@@ -44,6 +49,7 @@ export function PickerResultList<TItem>({
   remainingCount,
   loadMoreTestId,
   splitPane,
+  listOpenWidthClass = 'w-80',
 }: PickerResultListProps<TItem>): React.ReactElement {
   const detailOpen = splitPane?.detailOpen ?? false;
 
@@ -51,7 +57,7 @@ export function PickerResultList<TItem>({
     <div
       className={[
         'overflow-y-auto',
-        splitPane ? (detailOpen ? 'w-80 shrink-0 border-r border-pf-border' : 'flex-1') : 'flex-1',
+        splitPane ? (detailOpen ? `${listOpenWidthClass} shrink-0 border-r border-pf-border` : 'flex-1') : 'flex-1',
       ].join(' ')}
       data-testid={resultsTestId}
     >
@@ -149,6 +155,9 @@ export interface CompendiumPickerProps {
    *  dialog's own title bar. Has no effect when the caller provides
    *  their own `splitPane`. */
   detailHideHeader?: boolean | undefined;
+  /** Tailwind width class for the list column when a detail panel is
+   *  open beside it. See PickerResultListProps for the rationale. */
+  listOpenWidthClass?: string | undefined;
   onPick: (match: CompendiumMatch) => void;
   onClose: () => void;
   testId?: string | undefined;
@@ -178,6 +187,7 @@ export function CompendiumPicker({
   emptyMessage = 'No matches.',
   allFilteredMessage,
   detailHideHeader,
+  listOpenWidthClass,
   onPick,
   onClose,
   testId = 'compendium-picker',
@@ -385,6 +395,7 @@ export function CompendiumPicker({
         {...(state.kind === 'ready' ? { remainingCount: state.total - state.items.length } : {})}
         loadMoreTestId={loadMoreTestId}
         splitPane={effectiveSplitPane}
+        {...(listOpenWidthClass !== undefined ? { listOpenWidthClass } : {})}
       />
     </PickerDialog>
   );

@@ -44,6 +44,7 @@ type CreatorPickerProps = Pick<
   | 'evaluations'
   | 'docCache'
   | 'detailHideHeader'
+  | 'listOpenWidthClass'
 > & {
   onPick: (match: CompendiumMatch) => void;
 };
@@ -74,6 +75,10 @@ export interface CreatorPickerOptions {
    *  already shows the name and the panel body has enough visual
    *  identity on its own (class panels). Defaults to false. */
   hideDetailHeader?: boolean;
+  /** Tailwind width class for the list column when the detail panel is
+   *  open. Tightens the list so the detail panel — usually the more
+   *  information-dense side — gets the room. */
+  listOpenWidthClass?: string;
 }
 
 // Builds the props the character creator's picks need on top of the
@@ -232,5 +237,6 @@ export function useCreatorPickerProps(
   if (searchSources !== undefined) props.sources = searchSources;
   if (searchRarities !== undefined) props.rarities = searchRarities;
   if (options?.hideDetailHeader === true) props.detailHideHeader = true;
+  if (options?.listOpenWidthClass !== undefined) props.listOpenWidthClass = options.listOpenWidthClass;
   return props;
 }

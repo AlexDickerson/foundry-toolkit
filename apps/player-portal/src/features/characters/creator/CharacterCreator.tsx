@@ -445,11 +445,24 @@ const PICKER_OPTIONS_BY_TARGET: Partial<Record<PickerTarget, CreatorPickerOption
     showUnmetToggle: false,
     showSortToggle: false,
   },
-  // Class detail panels carry a lot of body content (lore, initial
-  // proficiencies, L1 features); the header just duplicates the picker
-  // dialog's own title bar and eats vertical space.
+  // Class picker:
+  //   - default to common-only rarity (Player Core / Player Core 2
+  //     classes); the rarity pill row lets the player opt in to
+  //     uncommon supplements with GM approval
+  //   - hide source picker, unmet toggle, sort toggle — only the text
+  //     search and rarity filter add value here, and the row was
+  //     getting cramped
+  //   - tighten the list column so the detail panel (initial-
+  //     proficiencies block + L1 features) gets the room
+  //   - hide the detail panel header — the picker dialog's own title
+  //     bar already names the class
   class: {
+    initialRarities: ['common'],
+    showSourcePicker: false,
+    showUnmetToggle: false,
+    showSortToggle: false,
     hideDetailHeader: true,
+    listOpenWidthClass: 'w-56',
   },
 };
 
