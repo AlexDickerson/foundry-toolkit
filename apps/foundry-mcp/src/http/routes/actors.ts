@@ -32,7 +32,7 @@ export function registerActorRoutes(app: FastifyInstance): void {
 
   app.get('/api/actors/:id/prepared', async (req) => {
     const { id } = actorIdParam.parse(req.params);
-    return sendCommand('get-prepared-actor', { actorId: id });
+    return applyItemArtOverrides(await sendCommand('get-prepared-actor', { actorId: id }));
   });
 
   /** Return the party that contains the given character, plus rich stat data
