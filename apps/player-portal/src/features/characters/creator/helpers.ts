@@ -222,6 +222,20 @@ export function prettySkillLabel(slug: string): string {
     .join(' ');
 }
 
+// Splits a flat heritage list into primary (ancestry-specific) and versatile
+// (any-ancestry) groups. The `isVersatile` flag is set by the server when
+// `system.ancestry === null` on the heritage item — pf2e's signal for
+// versatile heritages (Aiuvarin, Changeling, Beastkin, …).
+export function groupHeritages(items: CompendiumMatch[]): {
+  primary: CompendiumMatch[];
+  versatile: CompendiumMatch[];
+} {
+  return {
+    primary: items.filter((m) => m.isVersatile !== true),
+    versatile: items.filter((m) => m.isVersatile === true),
+  };
+}
+
 // Used by LanguagesStep and ReviewStep. Same shape as
 // `prettySkillLabel` but kept as its own export so the call sites
 // document what's being humanised.

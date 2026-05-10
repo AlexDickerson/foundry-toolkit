@@ -61,12 +61,7 @@ export function CompendiumDetailPanel({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const message =
-          err instanceof ApiRequestError
-            ? err.message
-            : err instanceof Error
-              ? err.message
-              : String(err);
+        const message = err instanceof ApiRequestError ? err.message : err instanceof Error ? err.message : String(err);
         setState({ kind: 'error', message });
       });
     return (): void => {
@@ -75,6 +70,7 @@ export function CompendiumDetailPanel({
   }, [target.uuid, docCache]);
 
   const doc = state.kind === 'ok' ? state.document : null;
+  const ancestryStats = doc && target.type === 'ancestry' ? readAncestryStats(doc) : null;
   const docTraits = doc ? readTraits(doc) : null;
   const traits = docTraits ?? target.traits ?? [];
   const rarity = doc ? readRarity(doc) : null;
@@ -110,11 +106,7 @@ export function CompendiumDetailPanel({
     >
       <header className="flex items-start gap-3 border-b border-pf-border px-4 py-3">
         {target.img && (
-          <img
-            src={target.img}
-            alt=""
-            className="h-12 w-12 shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-          />
+          <img src={target.img} alt="" className="h-12 w-12 shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
         )}
         <div className="min-w-0 flex-1">
           <h3 className="font-serif text-base font-semibold text-pf-text">{target.name}</h3>
@@ -150,17 +142,27 @@ export function CompendiumDetailPanel({
       {/* When art is present we need overflow-hidden here so the flex chain can
           drive the image to fill the exact available height without creating an
           outer scroll. The description column gets its own overflow-y-auto. */}
-      <div className={`flex-1 text-sm text-pf-text ${characterArt ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto px-4 py-3'}`}>
+      <div
+        className={`flex-1 text-sm text-pf-text ${characterArt ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto px-4 py-3'}`}
+      >
         {state.kind === 'loading' && <p className="px-4 py-3 italic text-pf-alt">Loading…</p>}
-        {state.kind === 'error' && (
-          <p className="px-4 py-3 text-pf-primary">Failed to load: {state.message}</p>
-        )}
-        {state.kind === 'ok' && (
-          characterArt ? (
+        {state.kind === 'error' && <p className="px-4 py-3 text-pf-primary">Failed to load: {state.message}</p>}
+        {state.kind === 'ok' &&
+          (characterArt ? (
             // ── Ancestry / class: side-by-side, art fills available height ──
             <div className="flex min-h-0 flex-1 flex-col">
+              {/* Ancestry mechanical stats — HP, size, speed, boosts, languages, vision */}
+              {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
               {/* Detail rows (rare for ancestry/class, but possible) */}
-              {(prerequisites?.length || actions || trigger || frequency || requirements || price || range || area || targetField) && (
+              {(prerequisites?.length ||
+                actions ||
+                trigger ||
+                frequency ||
+                requirements ||
+                price ||
+                range ||
+                area ||
+                targetField) && (
                 <div className="space-y-2 border-b border-pf-border px-4 py-3">
                   {prerequisites && prerequisites.length > 0 && (
                     <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
@@ -197,8 +199,9 @@ export function CompendiumDetailPanel({
               {uuidHover.popover}
             </div>
           ) : (
-            // ── All other types: original stacked layout ──
+            // ── All other types (and ancestries without art): stacked layout ──
             <div className="space-y-3">
+              {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
               {prerequisites && prerequisites.length > 0 && (
                 <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
               )}
@@ -221,8 +224,7 @@ export function CompendiumDetailPanel({
               )}
               {uuidHover.popover}
             </div>
-          )
-        )}
+          ))}
       </div>
 
       <footer className="flex items-center justify-end gap-2 border-t border-pf-border px-4 py-2">
@@ -246,20 +248,10 @@ export function CompendiumDetailPanel({
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  fail,
-}: {
-  label: string;
-  value: string;
-  fail?: boolean;
-}): React.ReactElement {
+function DetailRow({ label, value, fail }: { label: string; value: string; fail?: boolean }): React.ReactElement {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
-      <dt className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
-        {label}
-      </dt>
+      <dt className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">{label}</dt>
       <dd className={fail === true ? 'text-pf-primary' : 'text-pf-text'}>{value}</dd>
     </div>
   );
@@ -356,8 +348,7 @@ function readArea(doc: CompendiumDocument): string | null {
   if (!area) return null;
   const value = area.value;
   if (value === undefined || value === '' || value === 0) return null;
-  const v =
-    typeof value === 'number' ? `${value.toString()}-foot` : typeof value === 'string' ? value : null;
+  const v = typeof value === 'number' ? `${value.toString()}-foot` : typeof value === 'string' ? value : null;
   if (v === null) return null;
   return typeof area.type === 'string' && area.type !== '' ? `${v} ${area.type}` : v;
 }
@@ -367,4 +358,212 @@ function humanizeSlug(slug: string): string {
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+// ─── Ancestry mechanical stats ───────────────────────────────────────────────
+
+interface BoostSlot {
+  options: string[];
+}
+
+interface AncestryStats {
+  hp: number | null;
+  size: string | null;
+  speed: number | null;
+  boosts: BoostSlot[];
+  flaws: BoostSlot[];
+  fixedLanguages: string[];
+  bonusLanguageCount: number;
+  vision: string | null;
+  features: { uuid: string; name: string; img: string }[];
+}
+
+function readAncestryStats(doc: CompendiumDocument): AncestryStats {
+  const sys = doc.system as {
+    hp?: unknown;
+    size?: unknown;
+    speed?: unknown;
+    boosts?: unknown;
+    flaws?: unknown;
+    languages?: { value?: unknown };
+    additionalLanguages?: { count?: unknown };
+    vision?: unknown;
+    items?: Record<string, unknown>;
+  };
+
+  const hp = typeof sys.hp === 'number' ? sys.hp : null;
+  const size = typeof sys.size === 'string' ? sys.size : null;
+  const speed = typeof sys.speed === 'number' ? sys.speed : null;
+  const vision = typeof sys.vision === 'string' && sys.vision !== 'normal' ? sys.vision : null;
+
+  const boosts = readBoostRecord(sys.boosts);
+  const flaws = readBoostRecord(sys.flaws);
+
+  const fixedLanguages = Array.isArray(sys.languages?.value)
+    ? sys.languages.value.filter((v): v is string => typeof v === 'string')
+    : [];
+
+  const bonusLanguageCount = typeof sys.additionalLanguages?.count === 'number' ? sys.additionalLanguages.count : 0;
+
+  const features = readAncestryFeatures(sys.items);
+
+  return { hp, size, speed, boosts, flaws, fixedLanguages, bonusLanguageCount, vision, features };
+}
+
+function readBoostRecord(raw: unknown): BoostSlot[] {
+  if (!raw || typeof raw !== 'object') return [];
+  const slots: BoostSlot[] = [];
+  const keys = Object.keys(raw)
+    .filter((k) => /^\d+$/.test(k))
+    .sort((a, b) => Number(a) - Number(b));
+  for (const k of keys) {
+    const slot = (raw as Record<string, unknown>)[k];
+    if (!slot || typeof slot !== 'object') continue;
+    const value = (slot as { value?: unknown }).value;
+    if (!Array.isArray(value)) continue;
+    const options = value.filter((v): v is string => typeof v === 'string');
+    slots.push({ options });
+  }
+  return slots;
+}
+
+function readAncestryFeatures(
+  items: Record<string, unknown> | undefined,
+): { uuid: string; name: string; img: string }[] {
+  if (!items) return [];
+  const out: { uuid: string; name: string; img: string }[] = [];
+  for (const raw of Object.values(items)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const entry = raw as { uuid?: unknown; name?: unknown; img?: unknown };
+    if (typeof entry.uuid !== 'string' || typeof entry.name !== 'string') continue;
+    out.push({ uuid: entry.uuid, name: entry.name, img: typeof entry.img === 'string' ? entry.img : '' });
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
+const SIZE_LABELS: Record<string, string> = {
+  tiny: 'Tiny',
+  sm: 'Small',
+  med: 'Medium',
+  lg: 'Large',
+  huge: 'Huge',
+  grg: 'Gargantuan',
+};
+
+const ABILITY_LABELS: Record<string, string> = {
+  str: 'STR',
+  dex: 'DEX',
+  con: 'CON',
+  int: 'INT',
+  wis: 'WIS',
+  cha: 'CHA',
+};
+
+function formatBoostSlot(slot: BoostSlot): string {
+  if (slot.options.length === 0) return 'Free';
+  if (slot.options.length === 1) return ABILITY_LABELS[slot.options[0] ?? ''] ?? slot.options[0] ?? 'Free';
+  const labels = slot.options.map((o) => ABILITY_LABELS[o] ?? o.toUpperCase());
+  return `Free (${labels.join('/')})`;
+}
+
+function formatVision(vision: string): string {
+  if (vision === 'darkvision') return 'Darkvision';
+  if (vision === 'lowLightVision') return 'Low-Light Vision';
+  return humanizeSlug(vision);
+}
+
+function AncestryMechanics({ stats }: { stats: AncestryStats }): React.ReactElement {
+  const hasCoreStats = stats.hp !== null || stats.size !== null || stats.speed !== null;
+  const hasBoosts = stats.boosts.length > 0;
+  const hasFlaws = stats.flaws.some((f) => f.options.length > 0);
+  const hasLanguages = stats.fixedLanguages.length > 0 || stats.bonusLanguageCount > 0;
+  const hasVision = stats.vision !== null;
+  const hasFeatures = stats.features.length > 0;
+
+  return (
+    <div className="border-b border-pf-border px-4 py-3 text-xs text-pf-text">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">Mechanical effects</p>
+
+      {hasCoreStats && (
+        <dl className="mb-2 grid grid-cols-3 gap-x-2 gap-y-1">
+          {stats.hp !== null && (
+            <>
+              <dt className="text-pf-alt-dark">HP</dt>
+              <dd className="col-span-2 font-medium">{stats.hp}</dd>
+            </>
+          )}
+          {stats.size !== null && (
+            <>
+              <dt className="text-pf-alt-dark">Size</dt>
+              <dd className="col-span-2 font-medium">{SIZE_LABELS[stats.size] ?? humanizeSlug(stats.size)}</dd>
+            </>
+          )}
+          {stats.speed !== null && (
+            <>
+              <dt className="text-pf-alt-dark">Speed</dt>
+              <dd className="col-span-2 font-medium">{stats.speed} ft.</dd>
+            </>
+          )}
+        </dl>
+      )}
+
+      {hasBoosts && (
+        <div className="mb-1">
+          <span className="text-pf-alt-dark">Boosts: </span>
+          <span className="font-medium">{stats.boosts.map(formatBoostSlot).join(', ')}</span>
+        </div>
+      )}
+
+      {hasFlaws && (
+        <div className="mb-1">
+          <span className="text-pf-alt-dark">Flaws: </span>
+          <span className="font-medium">
+            {stats.flaws
+              .filter((f) => f.options.length > 0)
+              .map(formatBoostSlot)
+              .join(', ')}
+          </span>
+        </div>
+      )}
+
+      {hasLanguages && (
+        <div className="mb-1">
+          <span className="text-pf-alt-dark">Languages: </span>
+          <span className="font-medium">
+            {stats.fixedLanguages.map(humanizeSlug).join(', ')}
+            {stats.bonusLanguageCount > 0 && (
+              <span className="ml-1 text-pf-alt-dark">(+{stats.bonusLanguageCount} bonus)</span>
+            )}
+          </span>
+        </div>
+      )}
+
+      {hasVision && (
+        <div className="mb-1">
+          <span className="text-pf-alt-dark">Senses: </span>
+          <span className="font-medium">{stats.vision !== null ? formatVision(stats.vision) : ''}</span>
+        </div>
+      )}
+
+      {hasFeatures && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+            Ancestry features ({stats.features.length})
+          </summary>
+          <ul className="mt-1 flex flex-wrap gap-1">
+            {stats.features.map((f) => (
+              <li
+                key={f.uuid}
+                className="inline-flex items-center gap-1 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[11px] text-pf-text"
+              >
+                {f.img && <img src={f.img} alt="" className="h-3.5 w-3.5 rounded" />}
+                {f.name}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
 }

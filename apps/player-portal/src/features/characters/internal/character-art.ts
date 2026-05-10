@@ -35,6 +35,13 @@ export function getClassArt(name: string): CharacterArt | null {
   return lookup(artData.classes, name);
 }
 
+// Heritage art is stored alongside ancestry art in pf2e-art.json because
+// versatile heritages (Aiuvarin, Changeling, Beastkin, etc.) are indexed by
+// their own name, not by their parent ancestry.
+export function getHeritageArt(name: string): CharacterArt | null {
+  return lookup(artData.ancestries, name);
+}
+
 function lookup(table: Record<string, CharacterArt>, name: string): CharacterArt | null {
   // Exact match first — covers the vast majority of cases.
   const direct = table[name];

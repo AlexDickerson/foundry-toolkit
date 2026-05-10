@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
 import { useCreatorPickerProps } from '@/features/characters/internal/useCreatorPickerProps';
+import { CompendiumDetailPanel } from '@/features/characters/internal/CompendiumDetailPanel';
+import { getHeritageArt } from '@/features/characters/internal/character-art';
 import { PromptQueue } from '@/features/characters/sheet/dialog/PromptQueue';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 
@@ -12,6 +15,7 @@ import {
   applyPickedSlot,
   beginOrReusePendingActor,
   filtersForTarget,
+  groupHeritages,
   isStepFilled,
   persistPick,
   resetPendingActor,
@@ -44,7 +48,6 @@ export function CharacterCreator(): React.ReactElement {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [openPicker, setOpenPicker] = useState<PickerTarget | null>(null);
   const [creator, setCreator] = useState<CreatorState>({ kind: 'creating' });
-
 
   useEffect(() => {
     let cancelled = false;
@@ -393,8 +396,163 @@ function CreatorPicker({
   onPick: (match: CompendiumMatch) => void;
   onClose: () => void;
 }): React.ReactElement {
+  // Heritage uses a grouped list with its own split-pane detail flow.
+  // Split into a dedicated component so hooks are not called conditionally.
+  if (target === 'heritage') {
+    return <HeritagePicker filters={filters} onPick={onPick} onClose={onClose} />;
+  }
+  return <DefaultCreatorPicker target={target} filters={filters} onPick={onPick} onClose={onClose} />;
+}
+
+function DefaultCreatorPicker({
+  target,
+  filters,
+  onPick,
+  onClose,
+}: {
+  target: PickerTarget;
+  filters: NonNullable<ReturnType<typeof filtersForTarget>>;
+  onPick: (match: CompendiumMatch) => void;
+  onClose: () => void;
+}): React.ReactElement {
   const props = useCreatorPickerProps(filters, undefined, onPick);
   return <CompendiumPicker title={`Choose a ${PICKER_LABEL[target]}`} {...props} onClose={onClose} />;
+}
+
+// Heritage picker: shows a grouped list (Primary / Versatile) with AoN art
+// thumbnails. Manages its own detail-panel state so the user can read a
+// heritage's description before committing. The split-pane is driven from
+// outside CompendiumPicker so we can control when `detailTarget` is set —
+// clicking a row opens the panel; the panel's Pick button calls `onPick`
+// and closes the whole dialog.
+function HeritagePicker({
+  filters,
+  onPick,
+  onClose,
+}: {
+  filters: NonNullable<ReturnType<typeof filtersForTarget>>;
+  onPick: (match: CompendiumMatch) => void;
+  onClose: () => void;
+}): React.ReactElement {
+  const [detailTarget, setDetailTarget] = useState<CompendiumMatch | null>(null);
+  const pickerProps = useCreatorPickerProps(filters, undefined, onPick);
+  const { docCache } = pickerProps;
+
+  const renderList = (items: CompendiumMatch[]): ReactNode => {
+    const { primary, versatile } = groupHeritages(items);
+    return (
+      <>
+        {primary.length > 0 && (
+          <HeritageSection
+            label="Primary Heritages"
+            items={primary}
+            activeUuid={detailTarget?.uuid ?? null}
+            onRowClick={setDetailTarget}
+          />
+        )}
+        {versatile.length > 0 && (
+          <HeritageSection
+            label="Versatile Heritages"
+            items={versatile}
+            activeUuid={detailTarget?.uuid ?? null}
+            onRowClick={setDetailTarget}
+          />
+        )}
+      </>
+    );
+  };
+
+  return (
+    <CompendiumPicker
+      title="Choose a Heritage"
+      {...pickerProps}
+      renderList={renderList}
+      splitPane={{
+        detailOpen: detailTarget !== null,
+        detailSlot:
+          detailTarget !== null ? (
+            <CompendiumDetailPanel
+              target={detailTarget}
+              onPick={(): void => {
+                onPick(detailTarget);
+                onClose();
+              }}
+              onClose={(): void => {
+                setDetailTarget(null);
+              }}
+              {...(docCache !== undefined ? { docCache } : {})}
+            />
+          ) : null,
+      }}
+      onClose={onClose}
+    />
+  );
+}
+
+function HeritageSection({
+  label,
+  items,
+  activeUuid,
+  onRowClick,
+}: {
+  label: string;
+  items: CompendiumMatch[];
+  activeUuid: string | null;
+  onRowClick: (m: CompendiumMatch) => void;
+}): React.ReactElement {
+  return (
+    <div>
+      <p className="border-b border-pf-border bg-pf-bg-dark px-4 py-1 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+        {label}
+      </p>
+      <ul className="divide-y divide-pf-border">
+        {items.map((m) => (
+          <HeritageRow key={m.uuid} match={m} active={activeUuid === m.uuid} onClick={onRowClick} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function HeritageRow({
+  match,
+  active,
+  onClick,
+}: {
+  match: CompendiumMatch;
+  active: boolean;
+  onClick: (m: CompendiumMatch) => void;
+}): React.ReactElement {
+  const art = getHeritageArt(match.name);
+  const artSrc = art?.images[0] ?? null;
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={(): void => {
+          onClick(match);
+        }}
+        aria-pressed={active}
+        className={[
+          'flex w-full items-center gap-3 px-4 py-2 text-left transition-colors',
+          active ? 'bg-pf-tertiary/50' : 'hover:bg-pf-tertiary/20',
+        ].join(' ')}
+        data-pick-uuid={match.uuid}
+        data-match-uuid={match.uuid}
+      >
+        {artSrc !== null ? (
+          <img
+            src={artSrc}
+            alt=""
+            className="h-8 w-8 shrink-0 rounded border border-pf-border object-cover object-top"
+          />
+        ) : match.img ? (
+          <img src={match.img} alt="" className="h-8 w-8 shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
+        ) : null}
+        <span className="text-sm font-medium text-pf-text">{match.name}</span>
+      </button>
+    </li>
+  );
 }
 
 function StepNav({
