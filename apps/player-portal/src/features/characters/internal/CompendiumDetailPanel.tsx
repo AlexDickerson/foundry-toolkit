@@ -152,8 +152,6 @@ export function CompendiumDetailPanel({
           (characterArt ? (
             // ── Ancestry / class: side-by-side, art fills available height ──
             <div className="flex min-h-0 flex-1 flex-col">
-              {/* Ancestry mechanical stats — HP, size, speed, boosts, languages, vision */}
-              {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
               {/* Detail rows (rare for ancestry/class, but possible) */}
               {(prerequisites?.length ||
                 actions ||
@@ -178,7 +176,7 @@ export function CompendiumDetailPanel({
                   {targetField != null && <DetailRow label="Targets" value={targetField} />}
                 </div>
               )}
-              {/* Two-column: description left, art right. flex-1 min-h-0 lets
+              {/* Two-column: description+mechanics left, art right. flex-1 min-h-0 lets
                   this row consume all remaining body height. */}
               <div className="flex min-h-0 flex-1 gap-4 px-4 py-3">
                 <div className="min-w-0 flex-1 overflow-y-auto">
@@ -191,6 +189,8 @@ export function CompendiumDetailPanel({
                   ) : (
                     <p className="italic text-pf-alt">No description.</p>
                   )}
+                  {/* Mechanical effects sit below the lore so the flavor text reads first. */}
+                  {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
                 </div>
                 {/* Art column: flex-col so the gallery can fill h-full */}
                 <div className="flex w-[28rem] shrink-0 flex-col">
@@ -202,8 +202,6 @@ export function CompendiumDetailPanel({
           ) : (
             // ── All other types (and ancestries without art): stacked layout ──
             <div className="space-y-3">
-              {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
-              {backgroundStats !== null && <BackgroundMechanics stats={backgroundStats} />}
               {prerequisites && prerequisites.length > 0 && (
                 <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
               )}
@@ -224,6 +222,9 @@ export function CompendiumDetailPanel({
               ) : (
                 <p className="italic text-pf-alt">No description.</p>
               )}
+              {/* Mechanical effects sit below the lore so the flavor text reads first. */}
+              {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
+              {backgroundStats !== null && <BackgroundMechanics stats={backgroundStats} />}
               {uuidHover.popover}
             </div>
           ))}
@@ -462,8 +463,12 @@ const ABILITY_LABELS: Record<string, string> = {
   cha: 'CHA',
 };
 
+const ABILITY_LABEL_COUNT = Object.keys(ABILITY_LABELS).length;
+
 function formatBoostSlot(slot: BoostSlot): string {
-  if (slot.options.length === 0) return 'Free';
+  // Empty array OR all six abilities listed both encode an unconstrained
+  // free boost — render plainly as "Free" without a redundant ability list.
+  if (slot.options.length === 0 || slot.options.length === ABILITY_LABEL_COUNT) return 'Free';
   if (slot.options.length === 1) return ABILITY_LABELS[slot.options[0] ?? ''] ?? slot.options[0] ?? 'Free';
   const labels = slot.options.map((o) => ABILITY_LABELS[o] ?? o.toUpperCase());
   return `Free (${labels.join('/')})`;
@@ -484,7 +489,7 @@ function AncestryMechanics({ stats }: { stats: AncestryStats }): React.ReactElem
   const hasFeatures = stats.features.length > 0;
 
   return (
-    <div className="border-b border-pf-border px-4 py-3 text-xs text-pf-text">
+    <div className="mt-4 border-t border-pf-border pt-3 text-xs text-pf-text">
       <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">Mechanical effects</p>
 
       {hasCoreStats && (
@@ -607,7 +612,7 @@ function BackgroundMechanics({ stats }: { stats: BackgroundStats }): React.React
   const hasFeatures = stats.features.length > 0;
 
   return (
-    <div className="border-b border-pf-border px-4 py-3 text-xs text-pf-text">
+    <div className="mt-4 border-t border-pf-border pt-3 text-xs text-pf-text">
       <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">Mechanical effects</p>
 
       {hasBoosts && (
