@@ -18,6 +18,34 @@ describe('enrichDescription', () => {
     expect(out).toContain('>Item<');
   });
 
+  it('strips non-hoverable @UUID types (JournalEntryPage, etc.) entirely', () => {
+    // PF2e class descriptions ship a `<p><em>@UUID[...JournalEntryPage...]
+    // {ClassName}</em></p>` marker after the flavor blurb that just
+    // duplicates the class name. We can't load journal pages in the
+    // hover popover, and the label adds nothing, so the reference
+    // disappears entirely along with the paragraph it lived in.
+    const out = enrichDescription(
+      '<p><em>You are a master of artistry.</em></p><p><em>@UUID[Compendium.pf2e.journals.JournalEntry.kzxu2dI7tFxv6Ix6.JournalEntryPage.Tz0NWVqhZyt8EyUV]{Bard}</em></p>',
+    );
+    expect(out).not.toContain('pf-uuid-link');
+    expect(out).not.toContain('data-uuid');
+    expect(out).not.toContain('Bard');
+    // The flavor paragraph above the marker is preserved.
+    expect(out).toContain('You are a master of artistry.');
+  });
+
+  it('strips empty <p><em></em></p> shells left by other transforms', () => {
+    const out = enrichDescription('<p>Real content.</p><p><em></em></p><p>More content.</p>');
+    expect(out).toBe('<p>Real content.</p><p>More content.</p>');
+  });
+
+  it('still renders Actor @UUIDs as hoverable links', () => {
+    const out = enrichDescription('@UUID[Compendium.pf2e.bestiary.Actor.abc123]{Dragon}');
+    expect(out).toContain('class="pf-uuid-link"');
+    expect(out).toContain('data-uuid="Compendium.pf2e.bestiary.Actor.abc123"');
+    expect(out).toContain('Dragon');
+  });
+
   // ─── @Damage ─────────────────────────────────────────────────────────────
 
   it('formats @Damage tokens to plain readable text', () => {
