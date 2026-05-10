@@ -75,6 +75,7 @@
     "@fontsource/crimson-pro": "^5.2.8",
     "@foundry-toolkit/ai": "*",
     "@foundry-toolkit/db": "*",
+    "@foundry-toolkit/pdf-reader": "*",
     "@foundry-toolkit/shared": "*",
     "@iconify-json/game-icons": "^1.2.4",
     "@radix-ui/react-checkbox": "^1.1.2",

@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { pdfjsLib } from '@/lib/pdfjs';
+import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import type { DocSlot } from './types';
 
-// Renders one PDF page into a canvas + text layer. Lazy: only fetches
-// the doc and renders the page when the slot scrolls into view (1-page
-// rootMargin). On scroll-out the canvas + text layer are cleared so
-// memory doesn't grow unbounded as the user pages through a long PDF.
+// Renders one PDF page into a canvas + text layer. Lazy: only fetches the doc
+// and renders the page when the slot scrolls into view (1-page rootMargin).
+// Clears canvas + text layer on scroll-out to keep memory bounded.
 
 export function PageSlot({
   slots,
@@ -36,7 +35,6 @@ export function PageSlot({
 
   const doc = slots[slotIndex]?.doc ?? null;
 
-  // IntersectionObserver with 1-page margin.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -47,14 +45,12 @@ export function PageSlot({
     return () => obs.disconnect();
   }, [height]);
 
-  // Trigger lazy doc loading when this page becomes visible.
   useEffect(() => {
     if (visible && !doc) {
       loadSlotDoc(slotIndex).catch(console.error);
     }
   }, [visible, doc, slotIndex, loadSlotDoc]);
 
-  // Render when visible + doc loaded + scale changed.
   useEffect(() => {
     if (!visible || !doc) return;
     if (renderingRef.current) return;
@@ -88,9 +84,6 @@ export function PageSlot({
         const textDiv = textLayerRef.current;
         if (!textDiv || cancelled) return;
         textDiv.innerHTML = '';
-        // pdfjs TextLayer uses the CSS variable --scale-factor to compute
-        // span transforms. Without it, the text spans drift from the canvas.
-        // See: https://github.com/mozilla/pdf.js/discussions/18068
         textDiv.style.setProperty('--scale-factor', String(scale));
         textDiv.style.width = `${viewport.width}px`;
         textDiv.style.height = `${viewport.height}px`;
@@ -106,7 +99,7 @@ export function PageSlot({
         });
         await textLayer.render();
       } catch (e) {
-        if (!cancelled) console.error(`Page render error:`, e);
+        if (!cancelled) console.error('Page render error:', e);
       } finally {
         renderingRef.current = false;
       }
@@ -117,7 +110,6 @@ export function PageSlot({
     };
   }, [visible, scale, doc, localPageNum]);
 
-  // Cleanup on scroll-out.
   useEffect(() => {
     if (visible) return;
     const canvas = canvasRef.current;

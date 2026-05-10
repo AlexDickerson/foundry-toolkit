@@ -1,11 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '../lib/cn';
 import type { OutlineNode, TaggedOutlineNode } from './types';
-
-// Combined TOC sidebar. Each leaf resolves its destination through a
-// caller-supplied `resolveDest` so cross-doc navigation in merged-AP
-// view picks the right slot's PDF.
 
 export function TocTree({
   nodes,
@@ -63,7 +59,9 @@ function TocNode({
         )}
         <button
           type="button"
-          onClick={handleClick}
+          onClick={() => {
+            void handleClick();
+          }}
           className={cn(
             'flex-1 truncate py-0.5 text-left transition-colors hover:text-foreground',
             depth === 0 && node.items.length > 0 ? 'font-medium text-foreground/80' : 'text-muted-foreground',
@@ -85,24 +83,17 @@ function TocNode({
   );
 }
 
-/** Strip Paizo bookmark noise from TOC titles. Common patterns:
- *    "018-031 PZO90152 Chapter 2" → "Chapter 2"
- *    "032 PZO90152 Appendix" → "Appendix"
- *    "PZO9015-2 Introduction" → "Introduction"
- *  Leading page ranges (\d+-\d+ or \d+), product codes (PZO\w+), and
- *  resulting whitespace are removed. */
+/** Strip Paizo bookmark noise: leading page ranges ("018-031 "), product codes
+ *  ("PZO90152 "). Falls back to the raw title if nothing remains. */
 function cleanTocTitle(raw: string): string {
   return (
     raw
-      .replace(/^\d+(?:-\d+)?\s*/g, '') // leading page range "018-031 " or "032 "
-      .replace(/^PZO[\w-]+\s*/gi, '') // product code "PZO90152 "
+      .replace(/^\d+(?:-\d+)?\s*/g, '')
+      .replace(/^PZO[\w-]+\s*/gi, '')
       .trim() || raw
-  ); // fall back to original if nothing remains
+  );
 }
 
-/** Walk an OutlineNode tree and tag every node with the slot it
- *  belongs to, so the TOC resolver knows which doc to ask for the
- *  destination's page index. */
 export function tagNodes(nodes: OutlineNode[], slotIndex: number): TaggedOutlineNode[] {
   return nodes.map((n) => ({
     ...n,

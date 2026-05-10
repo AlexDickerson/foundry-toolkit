@@ -25,7 +25,7 @@ import { mockApi } from './mock/api-middleware';
 
 loadRootEnv();
 
-const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds', '/item-art'];
+const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds', '/item-art', '/books'];
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.resolve(here, 'src', 'fixtures');
 

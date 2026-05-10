@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@foundry-toolkit/pdf-reader": "*",
     "@foundry-toolkit/pf2e-rules": "*",
     "@foundry-toolkit/shared": "*",
     "@tailwindcss/postcss": "^4.3.0",
