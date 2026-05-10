@@ -98,7 +98,7 @@ interface ChatDamagePart {
 
 export type ChatStructuredData =
   | { kind: 'strike-attack'; flavor: string; targets: ChatTargetResult[]; chips: ChatChip[] }
-  | { kind: 'damage'; flavor: string; parts: ChatDamagePart[]; total: number; chips: ChatChip[] }
+  | { kind: 'damage'; flavor: string; parts: ChatDamagePart[]; total: number; chips: ChatChip[]; outcome?: ChatOutcome }
   | { kind: 'skill-check'; flavor: string; dc?: number; outcome?: ChatOutcome; chips: ChatChip[] }
   | { kind: 'saving-throw'; flavor: string; dc?: number; outcome?: ChatOutcome; chips: ChatChip[] }
   | { kind: 'spell-cast'; flavor: string; description: string; chips: ChatChip[] }
