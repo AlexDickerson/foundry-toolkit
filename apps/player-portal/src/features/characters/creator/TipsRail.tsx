@@ -13,15 +13,24 @@ interface CreatorTip {
   title: string;
   /** Body paragraphs. Plain strings; rendered as <p> blocks. */
   body: string[];
+  /** Optional follow-up link rendered as a footer on the card. Opens in a
+   *  new tab. */
+  link?: { url: string; label: string };
 }
 
 const TIPS: readonly CreatorTip[] = [
+  {
+    title: 'Archives of Nethys',
+    body: ['All rules for PF2e are available for free via the Archives of Nethys.'],
+    link: { url: 'https://2e.aonprd.com/', label: 'Visit Archives of Nethys' },
+  },
   {
     title: 'Rarity',
     body: [
       'Elements in PF2e have a rarity value. It describes how frequently something appears in the world — not how strong it is. Rarity has no impact on a choice’s relative power.',
       'If you’re picking something that is not Common, please check with your GM first so they can ensure it fits in the game.',
     ],
+    link: { url: 'https://2e.aonprd.com/Rules.aspx?ID=2530&Redirected=1', label: 'Read the Rarity rules' },
   },
 ];
 
@@ -49,6 +58,16 @@ function TipCard({ tip }: { tip: CreatorTip }): React.ReactElement {
           {para}
         </p>
       ))}
+      {tip.link && (
+        <a
+          href={tip.link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-block text-pf-primary underline decoration-pf-primary/40 underline-offset-2 hover:decoration-pf-primary"
+        >
+          {tip.link.label} ↗
+        </a>
+      )}
     </article>
   );
 }
