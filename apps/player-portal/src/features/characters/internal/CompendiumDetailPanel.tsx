@@ -72,6 +72,7 @@ export function CompendiumDetailPanel({
   const doc = state.kind === 'ok' ? state.document : null;
   const ancestryStats = doc && target.type === 'ancestry' ? readAncestryStats(doc) : null;
   const backgroundStats = doc && target.type === 'background' ? readBackgroundStats(doc) : null;
+  const classStats = doc && target.type === 'class' ? readClassStats(doc) : null;
   const docTraits = doc ? readTraits(doc) : null;
   const traits = docTraits ?? target.traits ?? [];
   const rarity = doc ? readRarity(doc) : null;
@@ -203,6 +204,7 @@ export function CompendiumDetailPanel({
                   )}
                   {/* Mechanical effects sit below the lore so the flavor text reads first. */}
                   {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
+                  {classStats !== null && <ClassMechanics stats={classStats} />}
                 </div>
                 {/* Art column: flex-col so the gallery can fill h-full */}
                 <div className="flex w-[28rem] shrink-0 flex-col">
@@ -239,6 +241,7 @@ export function CompendiumDetailPanel({
               {/* Mechanical effects sit below the lore so the flavor text reads first. */}
               {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
               {backgroundStats !== null && <BackgroundMechanics stats={backgroundStats} />}
+              {classStats !== null && <ClassMechanics stats={classStats} />}
               {uuidHover.popover}
             </div>
           ))}
@@ -689,6 +692,224 @@ function BackgroundMechanics({ stats }: { stats: BackgroundStats }): React.React
           </ul>
         </details>
       )}
+    </div>
+  );
+}
+
+// ─── Class mechanical stats ──────────────────────────────────────────────────
+
+interface ClassStats {
+  perception: number;
+  savingThrows: { fortitude: number; reflex: number; will: number };
+  trainedSkills: string[];
+  additionalSkills: number;
+  attacks: {
+    simple: number;
+    martial: number;
+    advanced: number;
+    unarmed: number;
+    other: { name: string; rank: number } | null;
+  };
+  defenses: { unarmored: number; light: number; medium: number; heavy: number };
+  classDC: number | null;
+  spellcasting: number | null;
+  features: { uuid: string; name: string; img: string }[];
+}
+
+function readClassStats(doc: CompendiumDocument): ClassStats {
+  const sys = doc.system as {
+    perception?: unknown;
+    savingThrows?: { fortitude?: unknown; reflex?: unknown; will?: unknown };
+    trainedSkills?: { value?: unknown; additional?: unknown };
+    attacks?: { simple?: unknown; martial?: unknown; advanced?: unknown; unarmed?: unknown; other?: unknown };
+    defenses?: { unarmored?: unknown; light?: unknown; medium?: unknown; heavy?: unknown };
+    classDC?: unknown;
+    spellcasting?: unknown;
+    items?: Record<string, unknown>;
+  };
+
+  const num = (raw: unknown): number => (typeof raw === 'number' ? raw : 0);
+
+  const perception = num(sys.perception);
+  const savingThrows = {
+    fortitude: num(sys.savingThrows?.fortitude),
+    reflex: num(sys.savingThrows?.reflex),
+    will: num(sys.savingThrows?.will),
+  };
+  const trainedSkills = Array.isArray(sys.trainedSkills?.value)
+    ? sys.trainedSkills.value.filter((v): v is string => typeof v === 'string')
+    : [];
+  const additionalSkills = num(sys.trainedSkills?.additional);
+  const attacks = {
+    simple: num(sys.attacks?.simple),
+    martial: num(sys.attacks?.martial),
+    advanced: num(sys.attacks?.advanced),
+    unarmed: num(sys.attacks?.unarmed),
+    other: readOtherAttack(sys.attacks?.other),
+  };
+  const defenses = {
+    unarmored: num(sys.defenses?.unarmored),
+    light: num(sys.defenses?.light),
+    medium: num(sys.defenses?.medium),
+    heavy: num(sys.defenses?.heavy),
+  };
+  // pf2e omits `classDC` on classes without one (e.g. Bard). Treat any
+  // non-number — including missing — as null so the section is hidden.
+  const classDC = typeof sys.classDC === 'number' ? sys.classDC : null;
+  // Single rank covers both spell attack and spell DC; null for
+  // non-spellcasters.
+  const spellcasting = typeof sys.spellcasting === 'number' && sys.spellcasting > 0 ? sys.spellcasting : null;
+
+  const features = readAncestryFeatures(sys.items);
+
+  return {
+    perception,
+    savingThrows,
+    trainedSkills,
+    additionalSkills,
+    attacks,
+    defenses,
+    classDC,
+    spellcasting,
+    features,
+  };
+}
+
+function readOtherAttack(raw: unknown): { name: string; rank: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as { name?: unknown; rank?: unknown };
+  if (typeof o.name !== 'string' || o.name.length === 0) return null;
+  if (typeof o.rank !== 'number' || o.rank <= 0) return null;
+  return { name: o.name, rank: o.rank };
+}
+
+// PF2e proficiency ladder: 0 untrained, 1 trained, 2 expert, 3 master,
+// 4 legendary. Used only to format display strings.
+const RANK_LABELS = ['Untrained', 'Trained', 'Expert', 'Master', 'Legendary'] as const;
+function rankLabel(rank: number): string {
+  return RANK_LABELS[rank] ?? 'Untrained';
+}
+
+// Group entries by rank tier so we can render a single line per tier
+// like "Trained in simple weapons · martial weapons · unarmed attacks".
+// Drops anything at rank 0 — the Player Core's class block omits
+// untrained categories and we mirror that to keep the panel scannable.
+function groupByRank(entries: { rank: number; label: string }[]): { rank: number; labels: string[] }[] {
+  const byRank = new Map<number, string[]>();
+  for (const e of entries) {
+    if (e.rank <= 0) continue;
+    const list = byRank.get(e.rank) ?? [];
+    list.push(e.label);
+    byRank.set(e.rank, list);
+  }
+  // Sort descending so higher proficiencies surface first.
+  return [...byRank.entries()].sort((a, b) => b[0] - a[0]).map(([rank, labels]) => ({ rank, labels }));
+}
+
+function ClassMechanics({ stats }: { stats: ClassStats }): React.ReactElement {
+  const attackEntries = [
+    { rank: stats.attacks.simple, label: 'simple weapons' },
+    { rank: stats.attacks.martial, label: 'martial weapons' },
+    { rank: stats.attacks.advanced, label: 'advanced weapons' },
+    { rank: stats.attacks.unarmed, label: 'unarmed attacks' },
+    ...(stats.attacks.other ? [{ rank: stats.attacks.other.rank, label: stats.attacks.other.name }] : []),
+  ];
+  const defenseEntries = [
+    { rank: stats.defenses.light, label: 'light armor' },
+    { rank: stats.defenses.medium, label: 'medium armor' },
+    { rank: stats.defenses.heavy, label: 'heavy armor' },
+    { rank: stats.defenses.unarmored, label: 'unarmored defense' },
+  ];
+  const saveEntries = [
+    { rank: stats.savingThrows.fortitude, label: 'Fortitude' },
+    { rank: stats.savingThrows.reflex, label: 'Reflex' },
+    { rank: stats.savingThrows.will, label: 'Will' },
+  ];
+
+  const hasFeatures = stats.features.length > 0;
+
+  return (
+    <div className="mt-4 border-t border-pf-border pt-3 text-xs text-pf-text">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">Initial proficiencies</p>
+
+      <ProficiencyRow heading="Perception">
+        <p>{rankLabel(stats.perception)} in Perception</p>
+      </ProficiencyRow>
+
+      <ProficiencyRow heading="Saving throws">
+        {groupByRank(saveEntries).map(({ rank, labels }) => (
+          <p key={rank}>
+            {rankLabel(rank)} in {labels.join(' · ')}
+          </p>
+        ))}
+      </ProficiencyRow>
+
+      <ProficiencyRow heading="Skills">
+        {stats.trainedSkills.length > 0 && <p>Trained in {stats.trainedSkills.map(humanizeSlug).join(', ')}</p>}
+        {stats.additionalSkills > 0 && (
+          <p>
+            Trained in {stats.additionalSkills} additional skill{stats.additionalSkills === 1 ? '' : 's'} plus your
+            Intelligence modifier
+          </p>
+        )}
+      </ProficiencyRow>
+
+      <ProficiencyRow heading="Attacks">
+        {groupByRank(attackEntries).map(({ rank, labels }) => (
+          <p key={rank}>
+            {rankLabel(rank)} in {labels.join(' · ')}
+          </p>
+        ))}
+      </ProficiencyRow>
+
+      <ProficiencyRow heading="Defenses">
+        {groupByRank(defenseEntries).map(({ rank, labels }) => (
+          <p key={rank}>
+            {rankLabel(rank)} in {labels.join(' · ')}
+          </p>
+        ))}
+      </ProficiencyRow>
+
+      {stats.classDC !== null && stats.classDC > 0 && (
+        <ProficiencyRow heading="Class DC">
+          <p>{rankLabel(stats.classDC)} in class DC</p>
+        </ProficiencyRow>
+      )}
+
+      {stats.spellcasting !== null && (
+        <ProficiencyRow heading="Spells">
+          <p>{rankLabel(stats.spellcasting)} in spell attack modifier and spell DC</p>
+        </ProficiencyRow>
+      )}
+
+      {hasFeatures && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+            Class features ({stats.features.length})
+          </summary>
+          <ul className="mt-1 flex flex-wrap gap-1">
+            {stats.features.map((f) => (
+              <li
+                key={f.uuid}
+                data-uuid={f.uuid}
+                className="inline-flex cursor-default items-center gap-1 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[11px] text-pf-text transition-colors hover:border-pf-primary/60 hover:bg-pf-tertiary/20"
+              >
+                {f.img && <img src={f.img} alt="" className="h-3.5 w-3.5 rounded" />}
+                {f.name}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function ProficiencyRow({ heading, children }: { heading: string; children: React.ReactNode }): React.ReactElement {
+  return (
+    <div className="mb-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-pf-alt-dark">{heading}</p>
+      <div className="ml-1 [&_p]:leading-tight">{children}</div>
     </div>
   );
 }
