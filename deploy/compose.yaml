@@ -22,8 +22,10 @@ services:
     ports:
       - '80:80'
       - '443:443'
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:
@@ -100,6 +102,20 @@ volumes:
   foundry-data:
   caddy_data:
   caddy_config:
+
+# Inline Caddyfile — no host file needed, works with Portainer and plain compose.
+# Edit the content block below to change routing rules.
+configs:
+  caddyfile:
+    content: |
+      addnd.net {
+        handle /foundry* {
+          reverse_proxy foundry:30000
+        }
+        handle {
+          reverse_proxy player-portal:3000
+        }
+      }
 
 networks:
   internal:
