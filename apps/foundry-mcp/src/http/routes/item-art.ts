@@ -51,10 +51,41 @@ export function registerItemArtRoute(app: FastifyInstance): void {
 
     try {
       const data = await readFile(filePath);
-      reply.type('image/png').send(data);
+      // Sniff the actual format from magic bytes — many "PNG" filenames in
+      // the user's collection are actually WebP bytes saved with a .png
+      // extension. Trusting the extension would set Content-Type: image/png
+      // and many browsers refuse to render the WebP payload, leaving a blank
+      // image element.
+      reply.type(detectImageType(data)).send(data);
     } catch (err) {
       log.error(`item-art: failed to read ${filePath}: ${String(err)}`);
       reply.code(500).send({ error: 'Failed to read art file' });
     }
   });
+}
+
+function detectImageType(buf: Buffer): string {
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return 'image/png';
+  }
+  // WebP: "RIFF????WEBP" (bytes 0-3 = "RIFF", bytes 8-11 = "WEBP")
+  if (
+    buf.length >= 12 &&
+    buf[0] === 0x52 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x46 &&
+    buf[8] === 0x57 &&
+    buf[9] === 0x45 &&
+    buf[10] === 0x42 &&
+    buf[11] === 0x50
+  ) {
+    return 'image/webp';
+  }
+  // JPEG: FF D8 FF
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  return 'application/octet-stream';
 }
