@@ -48,6 +48,11 @@ type CreatorPickerProps = Pick<
 };
 
 export interface CreatorPickerOptions {
+  /** Default source-book filter on first mount. Pass e.g.
+   *  `['Pathfinder Player Core', 'Pathfinder Player Core 2']` to scope
+   *  the initial list to Player Core options; the player can broaden it
+   *  via the source picker. Defaults to undefined (no source filter). */
+  initialSources?: string[];
   /** Default rarities filter on first mount. Pass `['common']` to hide
    *  uncommon/rare/unique by default (the player can still toggle them
    *  on via the rarity pills). Defaults to undefined (no rarity filter). */
@@ -78,7 +83,7 @@ export function useCreatorPickerProps(
   options?: CreatorPickerOptions,
 ): CreatorPickerProps {
   const [sort, setSort] = useState<SortState>({ mode: 'alpha', dir: 'asc' });
-  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [selectedSources, setSelectedSources] = useState<string[]>(() => options?.initialSources ?? []);
   const [selectedRarities, setSelectedRarities] = useState<string[]>(() => options?.initialRarities ?? []);
   const [evaluations, setEvaluations] = useState<Map<string, Evaluation>>(new Map());
   const [hideUnmet, setHideUnmet] = useState(true);

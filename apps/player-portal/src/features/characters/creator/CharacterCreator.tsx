@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
-import { useCreatorPickerProps } from '@/features/characters/internal/useCreatorPickerProps';
+import { useCreatorPickerProps, type CreatorPickerOptions } from '@/features/characters/internal/useCreatorPickerProps';
 import { CompendiumDetailPanel } from '@/features/characters/internal/CompendiumDetailPanel';
 import { getHeritageArt } from '@/features/characters/internal/character-art';
 import { PromptQueue } from '@/features/characters/sheet/dialog/PromptQueue';
@@ -418,14 +418,29 @@ function CreatorPicker({
   return <DefaultCreatorPicker target={target} filters={filters} onPick={onPick} onClose={onClose} />;
 }
 
-// Targets where the picker should:
+// Per-target picker options. Each entry:
 //   - default to common-only rarity (new players default to the Player
 //     Core options; uncommon/rare picks typically need GM approval,
 //     surfaced as a Tips Rail card)
 //   - hide the unmet-prereq toggle (these picks have no prereqs)
 //   - hide the alpha/level sort (these picks aren't levelled; alpha
 //     order is fine without an explicit toggle)
-const RARITY_GATED_TARGETS = new Set<PickerTarget>(['ancestry', 'background']);
+//   - may scope source defaults (backgrounds default to the two Player
+//     Core books; ancestries leave sources unconstrained since Howl-
+//     of-the-Wild and others are common-rarity too).
+const PICKER_OPTIONS_BY_TARGET: Partial<Record<PickerTarget, CreatorPickerOptions>> = {
+  ancestry: {
+    initialRarities: ['common'],
+    showUnmetToggle: false,
+    showSortToggle: false,
+  },
+  background: {
+    initialSources: ['Pathfinder Player Core', 'Pathfinder Player Core 2'],
+    initialRarities: ['common'],
+    showUnmetToggle: false,
+    showSortToggle: false,
+  },
+};
 
 function DefaultCreatorPicker({
   target,
@@ -438,14 +453,7 @@ function DefaultCreatorPicker({
   onPick: (match: CompendiumMatch) => void;
   onClose: () => void;
 }): React.ReactElement {
-  const props = useCreatorPickerProps(
-    filters,
-    undefined,
-    onPick,
-    RARITY_GATED_TARGETS.has(target)
-      ? { initialRarities: ['common'], showUnmetToggle: false, showSortToggle: false }
-      : undefined,
-  );
+  const props = useCreatorPickerProps(filters, undefined, onPick, PICKER_OPTIONS_BY_TARGET[target]);
   return <CompendiumPicker title={`Choose a ${PICKER_LABEL[target]}`} {...props} onClose={onClose} />;
 }
 
