@@ -47,7 +47,7 @@ const STATIC_DIR = process.env['STATIC_DIR'] ?? join(__dirname, '..', 'dist');
 // Foundry asset prefixes — all proxied to foundry-mcp so the WS bridge
 // serves them. `/assets` is deliberately excluded because Vite's built SPA
 // uses it for bundled chunks — proxying it would break client JS loading.
-const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds'];
+const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds', '/item-art'];
 
 /** Proxy a long-lived SSE GET from foundry-mcp through to the client.
  *  Using raw http/https instead of @fastify/http-proxy because the proxy
