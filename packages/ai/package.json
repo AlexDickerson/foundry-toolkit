@@ -19,7 +19,7 @@
     "@ai-sdk/anthropic": "^3.0.72",
     "@foundry-toolkit/pf2e-rules": "*",
     "@foundry-toolkit/shared": "*",
-    "ai": "^6.0.169",
+    "ai": "^6.0.175",
     "zod": "^4.3.6"
   },
   "devDependencies": {
