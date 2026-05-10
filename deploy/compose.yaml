@@ -119,10 +119,32 @@ services:
     networks:
       - internal
 
+  # ── quartz (Obsidian notes) ──────────────────────────────────────────────────
+  # Quartz v4 static site generator.  Watches the vault directory (mounted
+  # read-only from the host) and rebuilds on change.  The generated site is
+  # served at :8080/notes/* on the internal network only — player-portal
+  # reverse-proxies /notes/* here so notes are gated by the portal's auth.
+  #
+  # Populate the vault by rsyncing your Obsidian vault to the host path set in
+  # QUARTZ_VAULT_DIR.  Only notes with `publish: true` in their frontmatter
+  # appear in the built site (configured via ExplicitPublish in quartz.config.ts).
+  quartz:
+    image: ghcr.io/alexdickerson/foundry-toolkit-quartz:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    volumes:
+      # QUARTZ_VAULT_DIR: host path to the directory you rsync your Obsidian
+      # vault to.  Docker creates the path if it does not exist, giving Quartz
+      # an empty vault that renders an empty site until notes are rsynced in.
+      - ${QUARTZ_VAULT_DIR:-/var/quartz-vault}:/vault:ro
+    networks:
+      - internal
+    mem_limit: 512m
+
   # ── player-portal ────────────────────────────────────────────────────────────
   # Fastify server that serves the Vite SPA and reverse-proxies:
   #   /api/mcp/*              → foundry-mcp (MCP REST surface)
   #   /icons /systems /worlds → foundry (asset resolution for prepared actors)
+  #   /notes/*                → quartz (Obsidian notes, auth-gated)
   # Port 3000 is not mapped to the host — Caddy routes traffic here via the
   # compose internal network.  No direct external access needed.
   player-portal:
@@ -133,10 +155,12 @@ services:
       SECURE_SESSION_SECRET: ${SECURE_SESSION_SECRET:-}
       MCP_URL: http://foundry-mcp:8765
       FOUNDRY_URL: http://foundry:30000
+      QUARTZ_URL: http://quartz:8080
       PORT: '3000'
       HOST: 0.0.0.0
     depends_on:
       - foundry-mcp
+      - quartz
     networks:
       - internal
 

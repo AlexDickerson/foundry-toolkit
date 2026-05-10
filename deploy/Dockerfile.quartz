@@ -1,0 +1,47 @@
+###############################################################################
+# foundry-toolkit — quartz notes container
+#
+# Clones Quartz v4.5.2, installs deps, overlays the custom config, then
+# runs Quartz's built-in watch+serve mode pointed at the vault bind-mount.
+#
+# Build context: monorepo root
+#   docker build -f deploy/Dockerfile.quartz -t foundry-toolkit-quartz:dev .
+#
+# The container serves the static site at :8080/notes/*.  It is not mapped
+# to the host — player-portal reverse-proxies /notes/* to it.
+###############################################################################
+
+FROM node:22-alpine
+
+# git needed only at build time to clone Quartz; kept because apk cache is
+# cheap and removing it saves negligible space vs. the node_modules layer.
+RUN apk add --no-cache git
+
+WORKDIR /quartz
+
+# Pin to v4.5.2 — the latest stable v4 release as of 2026-05.
+# Using --depth 1 to avoid fetching full history.
+RUN git clone --depth 1 --branch v4.5.2 https://github.com/jackyzha0/quartz.git . && \
+    npm ci --ignore-scripts
+
+# Overlay the custom config:
+#   - ExplicitPublish filter (only publish: true notes appear)
+#   - baseUrl pointing to /notes path
+#   - pageTitle and minor cleanup (no analytics, no OG images)
+COPY deploy/quartz.config.ts ./quartz.config.ts
+
+# /vault is mounted read-only from the host at runtime via QUARTZ_VAULT_DIR.
+# The volume declaration is documentation; compose.yaml provides the mount.
+VOLUME ["/vault"]
+
+EXPOSE 8080
+
+# --baseDir /notes  makes the serve handler expect paths as /notes/...
+#                   and matches how player-portal proxies the prefix through
+#                   unchanged.  Generated HTML links also use /notes/ paths
+#                   because baseUrl in quartz.config.ts encodes the subpath.
+# --watch           is implied by --serve (Quartz sets it automatically).
+CMD ["node", "node_modules/.bin/quartz", "build", \
+     "--serve", "--port", "8080", \
+     "--directory", "/vault", \
+     "--baseDir", "/notes"]

@@ -38,6 +38,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
 const HOST = process.env['HOST'] ?? '0.0.0.0';
 const MCP_URL = process.env['MCP_URL'] ?? 'http://localhost:8765';
+const QUARTZ_URL = process.env['QUARTZ_URL'] ?? 'http://quartz:8080';
 // In prod the compiled server sits at server-dist/index.js and the SPA
 // build is at dist/. In dev Vite serves static from memory on :5173 and
 // proxies /api, /map, and the Foundry asset prefixes here, so dist/ may
@@ -131,6 +132,16 @@ export async function buildServer(): Promise<FastifyInstance> {
     upstream: MCP_URL,
     prefix: '/api/mcp',
     rewritePrefix: '/api',
+    http2: false,
+  });
+
+  // Proxy /notes/* → quartz (Obsidian notes static site, auth-gated).
+  // Quartz runs with --baseDir /notes so it expects the path prefix intact.
+  // rewritePrefix matches prefix so /notes/foo passes through as /notes/foo.
+  await app.register(fastifyHttpProxy, {
+    upstream: QUARTZ_URL,
+    prefix: '/notes',
+    rewritePrefix: '/notes',
     http2: false,
   });
 

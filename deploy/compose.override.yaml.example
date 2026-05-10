@@ -28,3 +28,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.headless-bridge
+
+  quartz:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.quartz
