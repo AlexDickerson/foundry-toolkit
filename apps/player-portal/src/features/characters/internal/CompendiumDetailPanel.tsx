@@ -179,10 +179,12 @@ export function CompendiumDetailPanel({
               {/* Two-column: description+mechanics left, art right. flex-1 min-h-0 lets
                   this row consume all remaining body height. */}
               <div className="flex min-h-0 flex-1 gap-4 px-4 py-3">
-                <div className="min-w-0 flex-1 overflow-y-auto">
+                {/* Delegation handlers live on this scroller so they catch
+                    [data-uuid] hovers in BOTH the enriched description and
+                    the mechanical-feature chips below it. */}
+                <div {...uuidHover.delegationHandlers} className="min-w-0 flex-1 overflow-y-auto">
                   {enriched.length > 0 ? (
                     <div
-                      {...uuidHover.delegationHandlers}
                       className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
                       dangerouslySetInnerHTML={{ __html: enriched }}
                     />
@@ -201,7 +203,10 @@ export function CompendiumDetailPanel({
             </div>
           ) : (
             // ── All other types (and ancestries without art): stacked layout ──
-            <div className="space-y-3">
+            // Delegation handlers on the outer wrapper so [data-uuid] hovers
+            // fire for both the enriched description and the mechanical-feature
+            // chips below it.
+            <div {...uuidHover.delegationHandlers} className="space-y-3">
               {prerequisites && prerequisites.length > 0 && (
                 <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
               )}
@@ -215,7 +220,6 @@ export function CompendiumDetailPanel({
               {targetField != null && <DetailRow label="Targets" value={targetField} />}
               {enriched.length > 0 ? (
                 <div
-                  {...uuidHover.delegationHandlers}
                   className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
                   dangerouslySetInnerHTML={{ __html: enriched }}
                 />
@@ -562,7 +566,8 @@ function AncestryMechanics({ stats }: { stats: AncestryStats }): React.ReactElem
             {stats.features.map((f) => (
               <li
                 key={f.uuid}
-                className="inline-flex items-center gap-1 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[11px] text-pf-text"
+                data-uuid={f.uuid}
+                className="inline-flex cursor-default items-center gap-1 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[11px] text-pf-text transition-colors hover:border-pf-primary/60 hover:bg-pf-tertiary/20"
               >
                 {f.img && <img src={f.img} alt="" className="h-3.5 w-3.5 rounded" />}
                 {f.name}
@@ -640,7 +645,8 @@ function BackgroundMechanics({ stats }: { stats: BackgroundStats }): React.React
             {stats.features.map((f) => (
               <li
                 key={f.uuid}
-                className="inline-flex items-center gap-1 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[11px] text-pf-text"
+                data-uuid={f.uuid}
+                className="inline-flex cursor-default items-center gap-1 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[11px] text-pf-text transition-colors hover:border-pf-primary/60 hover:bg-pf-tertiary/20"
               >
                 {f.img && <img src={f.img} alt="" className="h-3.5 w-3.5 rounded" />}
                 {f.name}
