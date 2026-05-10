@@ -86,4 +86,52 @@ describe('enrichDescription', () => {
     const out = enrichDescription('<p><em>Flavour intro paragraph.</em></p>');
     expect(out).toBe('<p>Flavour intro paragraph.</p>');
   });
+
+  // ─── @actor.* formula humanizer ──────────────────────────────────────────
+  // pf2e level-scaling formulas can't be evaluated client-side without an
+  // actor context (compendium previews, picker hovers); rewrite them to
+  // compact symbolic forms instead of leaking the raw `@actor.level` syntax.
+
+  it('humanizes (max(1, (ceil(@actor.level/N))))dM formulas', () => {
+    const out = enrichDescription('they recover (max(1, (ceil(@actor.level/2))))d8 healing Hit Points');
+    expect(out).toContain('⌈L/2⌉d8');
+    expect(out).not.toContain('@actor.level');
+  });
+
+  it('humanizes the no-inner-paren variant max(1, ceil(...))', () => {
+    const out = enrichDescription('damage equal to (max(1, ceil(@actor.level/4)))d6');
+    expect(out).toContain('⌈L/4⌉d6');
+  });
+
+  it('humanizes (ceil(@actor.level/N))dM without the max wrapper', () => {
+    const out = enrichDescription('deals (ceil(@actor.level/3))d10 damage');
+    expect(out).toContain('⌈L/3⌉d10');
+  });
+
+  it('humanizes (floor(@actor.level/N))dM with floor brackets', () => {
+    const out = enrichDescription('regains (floor(@actor.level/2))d6 HP');
+    expect(out).toContain('⌊L/2⌋d6');
+  });
+
+  it('humanizes (@actor.level)dM as LdM', () => {
+    const out = enrichDescription('takes (@actor.level)d4 damage');
+    expect(out).toContain('Ld4');
+  });
+
+  it('replaces standalone @actor.level with L', () => {
+    const out = enrichDescription('your hit points equal @actor.level × 5');
+    expect(out).toContain('L × 5');
+    expect(out).not.toContain('@actor.level');
+  });
+
+  it('humanizes formulas inside an inline-roll label', () => {
+    // pf2e wraps these formulas in [[/r ...]]{label} where the label is
+    // often the raw expression. Our inline-roll handler outputs the label
+    // inside a pf-damage span; the final humanizer pass cleans it up.
+    const out = enrichDescription(
+      '[[/r {max(1,ceil(@actor.level/2))}d8 #healing]]{(max(1, (ceil(@actor.level/2))))d8}',
+    );
+    expect(out).toContain('⌈L/2⌉d8');
+    expect(out).not.toContain('@actor.level');
+  });
 });
