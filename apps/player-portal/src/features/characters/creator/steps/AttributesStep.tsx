@@ -234,6 +234,15 @@ export function AttributesStep({
 
   return (
     <div className="space-y-5">
+      <p
+        className="rounded border border-pf-border bg-pf-bg-dark/40 px-3 py-2 text-xs text-pf-alt-dark"
+        data-role="attributes-cap-note"
+      >
+        <span className="font-semibold text-pf-alt-dark">Level 1 cap:</span> no attribute can be raised above{' '}
+        <span className="font-semibold text-pf-text">18 (+4)</span>. Each source (ancestry, background, class key, free
+        boosts) contributes one boost per attribute, and no ability can take more than 4 boosts total. An ancestry flaw
+        raises the cap by 1 boost for that attribute. Options at the cap are disabled.
+      </p>
       <BoostSourceBlock
         label={ancestryPick !== null ? `Ancestry · ${ancestryPick.name}` : 'Ancestry'}
         state={ancestryDoc}
