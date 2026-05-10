@@ -5,7 +5,6 @@ import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
 import { useCreatorPickerProps, type CreatorPickerOptions } from '@/features/characters/internal/useCreatorPickerProps';
 import { CompendiumDetailPanel } from '@/features/characters/internal/CompendiumDetailPanel';
-import { getHeritageArt } from '@/features/characters/internal/character-art';
 import { PromptQueue } from '@/features/characters/sheet/dialog/PromptQueue';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 
@@ -594,8 +593,6 @@ function HeritageRow({
   active: boolean;
   onClick: (m: CompendiumMatch) => void;
 }): React.ReactElement {
-  const art = getHeritageArt(match.name);
-  const artSrc = art?.images[0] ?? null;
   return (
     <li>
       <button
@@ -611,13 +608,7 @@ function HeritageRow({
         data-pick-uuid={match.uuid}
         data-match-uuid={match.uuid}
       >
-        {artSrc !== null ? (
-          <img
-            src={artSrc}
-            alt=""
-            className="h-8 w-8 shrink-0 rounded border border-pf-border object-cover object-top"
-          />
-        ) : match.img ? (
+        {match.img ? (
           <img src={match.img} alt="" className="h-8 w-8 shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
         ) : null}
         <span className="text-sm font-medium text-pf-text">{match.name}</span>

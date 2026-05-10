@@ -4,7 +4,7 @@ import { api, ApiRequestError } from '@/features/characters/api';
 import type { CompendiumDocument, CompendiumMatch } from '@/features/characters/types';
 import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import type { Evaluation } from '@/features/characters/internal/prereqs';
-import { getAncestryArt, getClassArt } from './character-art';
+import { getAncestryArt, getClassArt, getHeritageArt } from './character-art';
 import { CharacterArtGallery } from './CharacterArtGallery';
 
 type Resolution =
@@ -97,14 +97,18 @@ export function CompendiumDetailPanel({
   const area = doc ? readArea(doc) : null;
   const enriched = description.length > 0 ? enrichDescription(description) : '';
 
-  // Decorative AoN reference art for ancestry / class detail panels.
-  // Picks up images bundled in src/data/pf2e-art.json. No-op for other types.
+  // Decorative AoN reference art for ancestry / heritage / class detail
+  // panels. Heritage art is stored alongside ancestry art in
+  // pf2e-art.json — versatile heritages (Aiuvarin, Changeling, etc.)
+  // get their own entries. No-op for other types.
   const characterArt =
     target.type === 'ancestry'
       ? getAncestryArt(target.name)
-      : target.type === 'class'
-        ? getClassArt(target.name)
-        : null;
+      : target.type === 'heritage'
+        ? getHeritageArt(target.name)
+        : target.type === 'class'
+          ? getClassArt(target.name)
+          : null;
 
   const failed = evaluation === 'fails';
 
