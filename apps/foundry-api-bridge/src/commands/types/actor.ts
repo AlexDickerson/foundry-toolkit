@@ -89,6 +89,16 @@ export interface ActorDetailResult {
   items: ItemSummary[];
 }
 
+export interface StatusEffectEntry {
+  id: string;
+  name: string;
+  slug: string;
+  img: string;
+  badge?: { type: 'value' | 'counter'; value: number };
+  description?: string;
+  fromSpell: boolean;
+}
+
 export interface PreparedActorResult {
   id: string;
   uuid: string;
@@ -97,6 +107,7 @@ export interface PreparedActorResult {
   img: string;
   system: Record<string, unknown>;
   items: ItemSummary[];
+  statusEffects: StatusEffectEntry[];
   flags?: Record<string, Record<string, unknown>>;
 }
 

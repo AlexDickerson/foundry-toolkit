@@ -26,7 +26,7 @@ describe('Character tab', () => {
   });
 
   it('renders the six ability modifiers with correct signs', () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     const expected: Record<string, string> = {
       str: '+4', dex: '+2', con: '+2', int: '+0', wis: '+0', cha: '+1',
     };
@@ -38,7 +38,7 @@ describe('Character tab', () => {
   });
 
   it("marks the character's key ability", () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     const strRow = container.querySelector('[data-attribute="str"]');
     expect(strRow?.textContent).toContain('KEY');
     const dexRow = container.querySelector('[data-attribute="dex"]');
@@ -46,7 +46,7 @@ describe('Character tab', () => {
   });
 
   it('renders the headline stats (AC, HP, Perception)', () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     expect(container.querySelector('[data-stat="hp"]')?.textContent).toContain('22');
     expect(container.querySelector('[data-stat="perception"]')?.textContent).toContain('+5');
     const acLabel = Array.from(container.querySelectorAll('span')).find((el) => el.textContent === 'AC');
@@ -54,26 +54,26 @@ describe('Character tab', () => {
   });
 
   it('renders the three saves with correct modifiers', () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     expect(container.querySelector('[data-stat="save-fortitude"]')?.textContent).toContain('+7');
     expect(container.querySelector('[data-stat="save-reflex"]')?.textContent).toContain('+5');
     expect(container.querySelector('[data-stat="save-will"]')?.textContent).toContain('+5');
   });
 
   it('renders the class DC (Barbarian @ 17)', () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     const dc = container.querySelector('[data-stat="class-dc"]');
     expect(dc, 'class DC tile').toBeTruthy();
     expect(dc?.textContent).toContain('17');
   });
 
   it("renders Amiri's land speed", () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     expect(container.textContent).toContain('25 ft');
   });
 
   it('renders the conditions row (Dying/Wounded/Doomed)', () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     const row = container.querySelector('[data-section="conditions"]');
     expect(row, 'conditions row').toBeTruthy();
     for (const stat of ['dying', 'wounded', 'doomed']) {
@@ -83,19 +83,37 @@ describe('Character tab', () => {
     }
   });
 
+  it('renders status effect chips when statusEffects are provided', () => {
+    const effects = [
+      { id: 'e1', name: 'Frightened', slug: 'frightened', img: '', badge: { type: 'value' as const, value: 2 }, fromSpell: false },
+      { id: 'e2', name: 'Bless', slug: 'bless', img: '', fromSpell: true, description: 'Allies gain +1.' },
+    ];
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={effects} characterLevel={1} />);
+    const block = container.querySelector('[data-section="status-effects"]');
+    expect(block, 'status-effects block').toBeTruthy();
+    expect(block?.textContent).toContain('Frightened');
+    expect(block?.textContent).toContain('2');
+    expect(block?.textContent).toContain('Bless');
+  });
+
+  it('omits the status effects block when statusEffects is empty', () => {
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
+    expect(container.querySelector('[data-section="status-effects"]')).toBeNull();
+  });
+
   it('does not render an investiture counter (moved to Inventory tab)', () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     expect(container.querySelector('[data-stat="investiture"]')).toBeNull();
   });
 
   it('omits Focus and Mythic resources when max is zero', () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     expect(container.querySelector('[data-stat="focus"]')).toBeNull();
     expect(container.querySelector('[data-stat="mythic-points"]')).toBeNull();
   });
 
   it('hides the Defenses block when IWR are all empty (Amiri)', () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     expect(container.querySelector('[data-section="iwr"]')).toBeNull();
   });
 
@@ -109,7 +127,7 @@ describe('Character tab', () => {
         resistances: [{ type: 'physical', value: 2, exceptions: ['adamantine'] }],
       },
     } as CharacterSystem;
-    const { container } = render(<Character system={custom} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={custom} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     expect(container.querySelector('[data-section="iwr"]')).toBeTruthy();
     expect(container.querySelector('[data-iwr="immunities"]')?.textContent).toContain('Fire');
     expect(container.querySelector('[data-iwr="weaknesses"]')?.textContent).toContain('Cold 5');
@@ -117,7 +135,7 @@ describe('Character tab', () => {
   });
 
   it('hides Shield tile when no shield is equipped (Amiri)', () => {
-    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     expect(container.querySelector('[data-stat="shield"]')).toBeNull();
   });
 
@@ -140,7 +158,7 @@ describe('Character tab', () => {
         },
       },
     };
-    const { container } = render(<Character system={shielded} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />);
+    const { container } = render(<Character system={shielded} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />);
     const tile = container.querySelector('[data-stat="shield"]');
     expect(tile, 'shield tile').toBeTruthy();
     expect(tile?.textContent).toContain('Steel Shield');
@@ -168,7 +186,7 @@ describe('Character tab — saves wired through dispatcher', () => {
     ['save-will', 'saves.will.roll'],
   ])('clicking the %s tile dispatches method=%s', async (dataStat, expectedMethod) => {
     const { container } = render(
-      <Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />,
+      <Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />,
     );
 
     const tile = container.querySelector(`[data-stat="${dataStat}"]`) as HTMLButtonElement;
@@ -188,7 +206,7 @@ describe('Character tab — saves wired through dispatcher', () => {
 
   it('none of the save tiles call rollActorStatistic', async () => {
     const { container } = render(
-      <Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} characterLevel={1} />,
+      <Character system={system} actorId="test-actor" onActorChanged={() => undefined} items={[]} statusEffects={[]} characterLevel={1} />,
     );
 
     for (const stat of ['save-fortitude', 'save-reflex', 'save-will']) {

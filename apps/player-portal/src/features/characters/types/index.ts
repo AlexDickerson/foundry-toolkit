@@ -18,6 +18,7 @@ export type {
   ItemPrice,
   PreparedActor,
   PreparedActorItem,
+  StatusEffect,
 } from '@foundry-toolkit/shared/foundry-api';
 
 export * from './primitives';
