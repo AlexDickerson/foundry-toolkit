@@ -6,7 +6,7 @@ Part of the foundry-toolkit monorepo at `apps/player-portal` — see the root [C
 
 ## What's in here
 
-- **Home, Globe, Inventory, Aurus leaderboard** — the original portal surfaces.
+- **Home, Globe, Aurus leaderboard** — original portal surfaces.
 - **Character creator + sheet** — ported from the standalone `character-creator` SPA. PF2e visuals (SCSS, fonts, i18n) derived from `foundryvtt/pf2e` (Apache-2.0) are preserved here — see [NOTICE](./NOTICE).
 
 ## Tech stack
@@ -44,26 +44,77 @@ Env:
 
 ## Project structure
 
-- `src/` — React client.
-  - `src/App.tsx` — router: `/login` (public), `/` and children behind `AuthGuard`.
-  - `src/api/` — typed fetch wrappers; `src/api/auth.ts` — login/logout/me helpers.
-  - `src/components/` — Layout + Nav (now shows username + sign-out) + character-side components.
-  - `src/i18n/` — vendored `en.json` from pf2e (Apache-2.0) + `t()` resolver.
-  - `src/lib/` — generic helpers + `live.ts` WS client.
-  - `src/prereqs/` — creator prerequisite evaluator.
-  - `src/routes/` — route-level components; `src/routes/Login.tsx` — the login form.
-  - `src/styles/pf2e/` — ported SCSS from `foundryvtt/pf2e` (Apache-2.0).
-  - `src/fixtures/` — `*-prepared.json` sample actors used by mock mode and tests.
+The client is organised feature-first: each feature owns its routes, components, types, and API wrappers; cross-cutting code lives in `shared/`.
+
+```
+src/
+  main.tsx                    Vite entry
+  test-setup.ts, vite-env.d.ts
+  fixtures/                   `*-prepared.json` sample actors (mock + tests)
+
+  app/                        App shell — routing, auth guard, layout
+    App.tsx, Layout.tsx, Nav.tsx
+
+  shared/                     Cross-cutting (consumed by 2+ features)
+    ui/                       Generic UI primitives (PickerDialog, ConfirmDialog,
+                              TabStrip, RankChip, ModifierTooltip, SectionHeader,
+                              ConnectionIndicator)
+    hooks/                    Generic React hooks (useDebounce, useRemoteData,
+                              usePortalTheme, useUuidHover)
+    lib/                      Generic utils (format, pf2e-maps, tabUtils,
+                              prefetchIcons)
+    i18n/                     Vendored pf2e en.json + t() resolver
+    styles/                   Global CSS + ported pf2e SCSS
+
+  features/                   One folder per feature
+    auth/                     Login route + auth API
+    home/, globe/, aurus/     Single-route portal surfaces
+    characters/               Character namespace
+      api.ts                  REST wrappers for /api/mcp/*
+      types/                  Prepared character / item / strike / spell types
+      lib/                    Character-domain utils (actor-utils, coins,
+                              investment, live SSE client)
+      ActorList.tsx,
+      Characters.tsx,
+      CharactersLayout.tsx    Listing route + parent layout
+
+      creator/                Character creator flow (steps, helpers, pickers)
+      sheet/                  Character sheet
+        CharacterSheet.tsx, SheetHeader.tsx, SettingsDialog.tsx
+        chat/                 Foundry chat event feed (always-on rail)
+        dialog/               Foundry bridge prompt/dialog handlers
+        hooks/                Sheet-only hooks (useLiveChat, useShopMode,
+                              useParty, useEventChannel, etc.)
+        party/                Party rail + member cards
+        shop/                 Buy-gear-from-sheet UI
+        tabs/                 Sheet tab content
+          character/          Character tab + sub-blocks (Ability, Skills,
+                              Stats, Conditions, IWR, QuickActions)
+          details/            Background + Proficiencies tabs
+          inventory/          Inventory + Crafting + party stash
+          Actions.tsx, Spells.tsx, Feats.tsx, Progression.tsx
+                              (flat tabs at this level)
+      internal/               Code shared between creator AND sheet,
+                              not exported elsewhere:
+                              CompendiumPicker, prereqs/, hooks/usePaginatedSearch
+```
+
+Outside `src/`:
+
 - `mock/api-middleware.ts` — Vite mock plugin (dev:mock only).
-- `server/index.ts` — Fastify entry; exports `buildServer()` for tests.
-- `server/auth/users.ts` — user record CRUD, bcrypt helpers, in-memory cache.
-- `server/auth/session.ts` — `@fastify/secure-session` registration.
-- `server/auth/middleware.ts` — `requireAuth` preHandler; gates `/api/*`, `/map/*`, Foundry asset prefixes.
-- `server/routes/auth.ts` — `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`.
+- `server/` — Fastify entry, auth (session/middleware/users), routes.
 - `scripts/` — CLI user-management scripts (run via tsx).
 - `data/users.json` — JSON user database (gitignored; created by `user:add`).
 - `tsconfig.json` — client (Vite). `tsconfig.server.json` — server (`tsc` → `server-dist/`). `tsconfig.scripts.json` — scripts typecheck only.
 - `NOTICE` — attribution for pf2e-derived files.
+
+### Structure rules
+
+- **Feature-first.** Code lives inside the feature that owns it. Promote to `shared/` only when 2+ features actually consume it. Promote to `characters/internal/` only when both creator and sheet consume it.
+- **`@/*` alias.** Imports inside `src/` use `@/...` to point at `src/` regardless of depth. Mirrors the `tsconfig.json` `paths` mapping; `vite.config.ts` and `vitest.config.ts` aliases match.
+- **`internal/` discipline.** Nothing outside `features/characters/` should import from `features/characters/internal/`. If a third consumer ever appears, promote the code to `shared/`.
+- **No barrel re-exports.** Import each component from its file directly. Barrel `index.ts` files were removed because they obscured movement and complicated tree-shaking.
+- **Sheet sub-features (`chat`, `dialog`, `party`, `shop`, `tabs`) are facets of the sheet, not standalone features.** They live under `sheet/`. If chat ever becomes a standalone route, it gets promoted to a feature folder.
 
 ## API namespaces
 

@@ -17,15 +17,14 @@ export default tseslint.config(
       '**/*.test.tsx',
       // Pre-existing portal surfaces ported forward without lint history.
       // The creator-side eslint config was never applied to them; cleaning
-      // them up is a separate follow-up to the consolidation PR.
-      'src/routes/Globe.tsx',
-      'src/routes/Inventory.tsx',
-      'src/routes/Leaderboard.tsx',
-      'src/lib/live.ts',
-      'src/components/Layout.tsx',
-      'src/components/Nav.tsx',
-      'src/components/CharactersLayout.tsx',
-      'src/routes/Home.tsx',
+      // them up is a separate follow-up.
+      'src/features/globe/Globe.tsx',
+      'src/features/aurus/Leaderboard.tsx',
+      'src/features/characters/lib/live.ts',
+      'src/app/Layout.tsx',
+      'src/app/Nav.tsx',
+      'src/features/characters/CharactersLayout.tsx',
+      'src/features/home/Home.tsx',
       'server/**',
       'mock/**',
     ],
