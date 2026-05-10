@@ -203,15 +203,17 @@ export function CharacterCreator(): React.ReactElement {
   const pickerFilters = openPicker !== null ? filtersForTarget(openPicker, draft) : undefined;
 
   return (
-    // Three-column shell mirroring the sheet layout: tips rail on the left
-    // (where the party rail lives in the sheet), wizard in the centre, and
-    // a phantom column on the right so the wizard stays centred on wide
-    // screens. Both side columns hide on viewports narrower than `lg`.
+    // Two-column shell: tips rail on the left (where the party rail lives
+    // in the sheet) and the wizard next to it. Side rail hides on
+    // viewports narrower than `lg`; the wizard then takes the full row.
+    // No auto-centring on the wizard column — it sits flush after the
+    // rail so the visible gap between rail content and wizard content is
+    // just the flex gap + the wizard's internal padding.
     <div className="flex gap-6 py-6 font-sans">
       <aside className="hidden w-[280px] shrink-0 pl-3 lg:block" aria-label="Player tips">
         <TipsRail />
       </aside>
-      <main className="mx-auto min-w-0 max-w-3xl flex-1 px-6">
+      <main className="min-w-0 max-w-3xl flex-1 px-6">
         <div className="mb-4 flex items-center gap-3">
           <button
             type="button"
@@ -388,9 +390,6 @@ export function CharacterCreator(): React.ReactElement {
           everything else so the wizard pauses until the user picks. */}
         <PromptQueue />
       </main>
-      {/* Phantom column mirrors the rail width so the wizard column
-          stays horizontally centred between them on wide screens. */}
-      <div className="hidden w-[280px] shrink-0 lg:block" aria-hidden="true" />
     </div>
   );
 }
