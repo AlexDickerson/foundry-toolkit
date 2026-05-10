@@ -9,6 +9,24 @@ import type { Evaluation } from '@/features/characters/internal/prereqs';
 import { CompendiumDetailPanel } from './CompendiumDetailPanel';
 import { PickerDialog } from '@/shared/ui/PickerDialog';
 
+// Selected-row background. Tints by rarity so the highlight visually
+// echoes the rarity pills in the filter row above — clicking the
+// "Uncommon" pill and then selecting an item makes the row's highlight
+// amber, etc. Items with `rarity = 'common'` (or rarity missing —
+// uncached search results) fall back to the neutral tertiary tint.
+function activeRowClass(rarity: string | undefined): string {
+  switch (rarity?.toLowerCase()) {
+    case 'uncommon':
+      return 'bg-amber-100/60';
+    case 'rare':
+      return 'bg-blue-100/60';
+    case 'unique':
+      return 'bg-purple-100/60';
+    default:
+      return 'bg-pf-tertiary/50';
+  }
+}
+
 // ─── Internal list + states area ──────────────────────────────────────────────
 
 interface SplitPane {
@@ -288,7 +306,7 @@ export function CompendiumPicker({
                 title={rowTitle}
                 className={[
                   'flex w-full items-center gap-3 px-4 py-2 text-left transition-colors',
-                  active ? 'bg-pf-tertiary/50' : 'hover:bg-pf-tertiary/20',
+                  active ? activeRowClass(m.rarity) : 'hover:bg-pf-tertiary/20',
                   fails ? 'opacity-60' : '',
                 ].join(' ')}
                 data-pick-uuid={m.uuid}
