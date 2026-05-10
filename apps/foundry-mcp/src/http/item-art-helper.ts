@@ -28,15 +28,26 @@ export function applyItemArtOverrides(result: unknown): unknown {
   return result;
 }
 
+function readSlug(item: Record<string, unknown>): string | null {
+  // Two response shapes from the bridge:
+  //   ItemSummary (party-stash): { ..., system: { slug, ... } }
+  //   ItemDetailSummary (get-actor-items): { ..., slug, ... }   ← slug hoisted
+  const system = item['system'];
+  if (system && typeof system === 'object') {
+    const s = (system as Record<string, unknown>)['slug'];
+    if (typeof s === 'string' && s) return s;
+  }
+  const top = item['slug'];
+  if (typeof top === 'string' && top) return top;
+  return null;
+}
+
 function applyOverrideToItem(item: unknown): unknown {
   if (!item || typeof item !== 'object') return item;
   const record = item as Record<string, unknown>;
 
-  const system = record['system'];
-  if (!system || typeof system !== 'object') return item;
-
-  const slug = (system as Record<string, unknown>)['slug'];
-  if (typeof slug !== 'string' || !slug) return item;
+  const slug = readSlug(record);
+  if (!slug) return item;
 
   const override = getItemArtOverride(slug);
   if (!override) return item;

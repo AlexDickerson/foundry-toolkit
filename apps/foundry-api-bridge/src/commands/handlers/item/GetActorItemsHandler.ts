@@ -9,6 +9,7 @@ function mapItemToSummary(item: FoundryItem): ItemDetailSummary {
     name: item.name,
     type: item.type,
     img: item.img,
+    slug: typeof item.system.slug === 'string' ? item.system.slug : null,
     equipped: item.system.equipped ?? false,
     quantity: item.system.quantity ?? 1,
     hasActivities: activities.length > 0,

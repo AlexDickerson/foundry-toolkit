@@ -51,6 +51,14 @@ describe('applyItemArtOverrides', () => {
     assert.equal(result[0]!.img, 'original.webp');
   });
 
+  it('reads slug hoisted to the top level (ItemDetailSummary shape)', () => {
+    // get-actor-items returns ItemDetailSummary which puts slug at the top
+    // level (no system field). Make sure overrides still apply.
+    const hoisted = { id: 'x', name: 'Acid Flask', img: 'orig.webp', slug: 'acid-flask-greater' };
+    const result = applyItemArtOverrides([hoisted]) as { img: string }[];
+    assert.equal(result[0]!.img, '/item-art/Acid+Flask+-+Greater.png');
+  });
+
   it('does not mutate the original item object', () => {
     const item = makeItem('acid-flask-greater') as { img: string };
     const originalImg = item.img;
