@@ -243,6 +243,16 @@ export function AttributesStep({
         boosts) contributes one boost per attribute, and no ability can take more than 4 boosts total. An ancestry flaw
         raises the cap by 1 boost for that attribute. Options at the cap are disabled.
       </p>
+      <p
+        className="rounded border border-pf-border bg-pf-bg-dark/40 px-3 py-2 text-xs text-pf-alt-dark"
+        data-role="attributes-key-note"
+      >
+        <span className="font-semibold text-pf-alt-dark">Key attribute tip:</span> PF2e's encounter math is tight —
+        attack rolls, class DC, and trained-skill checks all key off your{' '}
+        <span className="font-semibold text-pf-text">class key attribute</span>. Most characters want to start at{' '}
+        <span className="font-semibold text-pf-text">+4</span> in that attribute (the class boost plus one of your free
+        boosts). Falling short of +4 here usually costs you accuracy at every level.
+      </p>
       <BoostSourceBlock
         label={ancestryPick !== null ? `Ancestry · ${ancestryPick.name}` : 'Ancestry'}
         state={ancestryDoc}
