@@ -20,6 +20,8 @@
 
 import type { CompendiumFacets } from '@foundry-toolkit/shared/foundry-api';
 
+import { WARM_PACK_CONCURRENCY } from '../config.js';
+import type { CompendiumDb } from '../db/compendium-db.js';
 import { log } from '../logger.js';
 import { aggregateFacets, runFilter } from './compendium-search.js';
 import type {
@@ -60,22 +62,55 @@ export class CompendiumCache {
   private warmings = 0;
   private warmFailures = 0;
 
-  constructor(private readonly sendCommand: SendCommand) {}
+  constructor(
+    private readonly sendCommand: SendCommand,
+    private readonly db?: CompendiumDb,
+  ) {}
 
-  // Fire-and-forget: warm multiple packs concurrently. Individual
-  // failures are swallowed (logged) so one missing pack doesn't halt
-  // the others.
+  // Load any packs present in the disk cache into memory without touching
+  // the bridge. Returns the subset of packIds that had no disk entry and
+  // still need a bridge warm.
+  loadCachedPacks(packIds: readonly string[]): string[] {
+    const uncached: string[] = [];
+    for (const packId of packIds) {
+      if (this.packs.has(packId)) continue;
+      if (!this.loadFromDisk(packId)) uncached.push(packId);
+    }
+    return uncached;
+  }
+
+  // Remove pack(s) from both in-memory and disk cache so the next
+  // warmAll/warmPack fetches fresh data from the bridge.
+  invalidate(packIds?: string[]): void {
+    const ids = packIds ?? Array.from(this.packs.keys());
+    for (const id of ids) {
+      this.packs.delete(id);
+      this.warming.delete(id);
+      this.db?.clear(id);
+    }
+  }
+
+  // Warm multiple packs with bounded concurrency. WARM_PACK_CONCURRENCY packs
+  // run simultaneously; the rest queue behind them. Individual failures are
+  // swallowed so one bad pack doesn't block the others.
   warmAll(packIds: readonly string[]): Promise<void[]> {
-    return Promise.all(
-      packIds.map(async (packId) => {
-        try {
-          await this.warmPack(packId);
-        } catch (err) {
-          this.warmFailures++;
-          log.warn(`compendium-cache: warm failed for ${packId}: ${errMsg(err)}`);
+    const queue = [...packIds];
+    const workers = Array.from(
+      { length: Math.min(WARM_PACK_CONCURRENCY, queue.length) },
+      async (): Promise<void> => {
+        while (queue.length > 0) {
+          const packId = queue.shift();
+          if (!packId) break;
+          try {
+            await this.warmPack(packId);
+          } catch (err) {
+            this.warmFailures++;
+            log.warn(`compendium-cache: warm failed for ${packId}: ${errMsg(err)}`);
+          }
         }
-      }),
+      },
     );
+    return Promise.all(workers);
   }
 
   // Warm a single pack. Idempotent: re-warming while a warm is in
@@ -106,8 +141,7 @@ export class CompendiumCache {
     // cheaper than N × fromUuid. Falls back to individual fetches when
     // the bridge is an older build without the command.
     const fetched = await this.fetchPackFast(packId);
-    const documents = fetched.documents;
-    const packLabel = fetched.packLabel;
+    const { documents, packLabel } = fetched;
 
     if (documents.length === 0) {
       log.info(`compendium-cache: ${packId} has no matches — skipping warm`);
@@ -138,9 +172,32 @@ export class CompendiumCache {
       warmedAt: Date.now(),
       bytes,
     });
+    this.db?.set(packId, packLabel, docList);
     log.info(
       `compendium-cache: warmed ${packId} — ${docList.length.toString()} docs, ${(bytes / (1024 * 1024)).toFixed(1)} MiB, ${Date.now() - t0}ms`,
     );
+  }
+
+  // Populate in-memory cache from a disk row. Returns true on success,
+  // false when no row exists for the given packId.
+  private loadFromDisk(packId: string): boolean {
+    const row = this.db?.get(packId);
+    if (!row) return false;
+
+    const { documents, packLabel, warmedAt } = row;
+    const docs = new Map<string, CompendiumDocument>();
+    let bytes = 0;
+    for (const doc of documents) {
+      docs.set(doc.uuid, doc);
+      bytes += estimateBytes(doc);
+    }
+    const docList = [...documents].sort((a, b) => a.name.localeCompare(b.name));
+
+    this.packs.set(packId, { packId, packLabel, docs, docList, warmedAt, bytes });
+    log.info(
+      `compendium-cache: ${packId} loaded from disk — ${docList.length.toString()} docs, ${(bytes / (1024 * 1024)).toFixed(1)} MiB`,
+    );
+    return true;
   }
 
   private async fetchPackFast(packId: string): Promise<{ packLabel: string; documents: CompendiumDocument[] }> {
@@ -285,7 +342,7 @@ export class CompendiumCache {
     };
   }
 
-  /** Test/ops helper — drop everything. */
+  /** Test/ops helper — drop in-memory state only (does not touch disk). */
   clear(): void {
     this.packs.clear();
     this.warming.clear();
