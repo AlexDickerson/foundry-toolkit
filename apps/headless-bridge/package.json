@@ -10,7 +10,7 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
-    "playwright": "1.49.0"
+    "playwright": "1.59.1"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",

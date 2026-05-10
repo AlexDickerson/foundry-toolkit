@@ -33,13 +33,13 @@ RUN npm run build --workspace apps/headless-bridge
 ###############################################################################
 # Stage 2 — Runtime with pre-installed Chromium
 #
-# mcr.microsoft.com/playwright:v1.49.0-jammy bundles Chromium and all
+# mcr.microsoft.com/playwright:v1.59.1-jammy bundles Chromium and all
 # required system libraries (Ubuntu Jammy).  We skip npm browser download
 # because the base image already provides binaries at /ms-playwright.
 #
 # Playwright npm package version must match this image tag's minor version.
 ###############################################################################
-FROM mcr.microsoft.com/playwright:v1.49.0-jammy
+FROM mcr.microsoft.com/playwright:v1.59.1-jammy
 
 WORKDIR /app
 
