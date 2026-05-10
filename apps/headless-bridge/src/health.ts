@@ -3,9 +3,11 @@ export interface HealthResponse {
   foundryConnected: boolean;
 }
 
+const HEALTH_TIMEOUT_MS = 5_000;
+
 export async function checkMcpHealth(mcpUrl: string): Promise<HealthResponse> {
   const response = await fetch(`${mcpUrl}/health`, {
-    signal: AbortSignal.timeout(5_000),
+    signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
   });
   if (!response.ok) {
     throw new Error(`Health endpoint returned ${response.status}`);
