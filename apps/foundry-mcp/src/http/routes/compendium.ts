@@ -9,6 +9,7 @@ import {
 import { sendCommand } from '../../bridge.js';
 import { log } from '../../logger.js';
 import { compendiumCache } from '../compendium-cache-singleton.js';
+import { applyItemArtOverrides } from '../item-art-helper.js';
 import {
   compendiumSearchQuery,
   getCompendiumDocumentQuery,
@@ -86,7 +87,7 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
       ...(limit !== undefined ? { limit } : {}),
       ...(offset !== undefined ? { offset } : {}),
     });
-    if (cached) return cached;
+    if (cached) return applyItemArtOverrides(cached);
 
     // Bridge fallback carries the subset of filters the module's
     // FindInCompendiumHandler already understands. dm-tool-specific
@@ -110,7 +111,7 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
       limit,
     })) as { matches: unknown[] };
     const bridgeMatches = Array.isArray(bridgeResult.matches) ? bridgeResult.matches : [];
-    return { matches: bridgeMatches, total: bridgeMatches.length };
+    return applyItemArtOverrides({ matches: bridgeMatches, total: bridgeMatches.length });
   });
 
   app.get('/api/compendium/packs', async (req) => {

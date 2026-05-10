@@ -25,6 +25,11 @@ export function applyItemArtOverrides(result: unknown): unknown {
     return { ...obj, items: (obj['items'] as unknown[]).map(applyOverrideToItem) };
   }
 
+  // Handle {matches: [...], total} envelope — compendium search response.
+  if (Array.isArray(obj['matches'])) {
+    return { ...obj, matches: (obj['matches'] as unknown[]).map(applyOverrideToItem) };
+  }
+
   return result;
 }
 

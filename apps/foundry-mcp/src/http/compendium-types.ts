@@ -36,6 +36,10 @@ export interface EnrichedMatch {
   name: string;
   type: string;
   img: string;
+  /** PF2e canonical slug (e.g. "dagger", "healers-gloves"). Populated on
+   *  the cache-served path so foundry-mcp can apply item-art overrides to
+   *  search responses. Absent on the bridge fallback path. */
+  slug?: string;
   level?: number;
   traits?: string[];
   isVersatile?: boolean;

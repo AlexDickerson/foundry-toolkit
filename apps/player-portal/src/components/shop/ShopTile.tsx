@@ -1,6 +1,12 @@
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CompendiumMatch } from '../../api/types';
 import { formatCp, priceToCp } from '../../lib/coins';
 import { rarityFooterClass, type ItemGroup, type PriceState } from './shop-utils';
+
+function hasArtOverride(img: string): boolean {
+  return img.startsWith('/item-art/');
+}
 
 // Re-export the type so callers can import it from either place.
 export type { ItemGroup } from './shop-utils';
@@ -27,6 +33,8 @@ export function ShopTile({
   const priceText = priceState.kind === 'loading' ? '…' : price ? formatCp(unitPriceCp) : '—';
   const priceReady = priceState.kind === 'ready';
   const canAfford = !priceReady || unitPriceCp === 0 || purseCp >= unitPriceCp;
+  const overrideOnImg = hasArtOverride(representative.img);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   return (
     <li
@@ -48,7 +56,19 @@ export function ShopTile({
       data-testid="shop-tile"
     >
       <div className="relative aspect-square w-full overflow-hidden bg-pf-bg-dark">
-        <img src={representative.img} alt="" className="h-full w-full object-contain" />
+        <img
+          src={representative.img}
+          alt=""
+          onClick={
+            overrideOnImg
+              ? (e) => {
+                  e.stopPropagation();
+                  setLightboxOpen(true);
+                }
+              : undefined
+          }
+          className={`h-full w-full ${overrideOnImg ? 'scale-150 origin-top cursor-zoom-in object-cover object-[center_2%]' : 'object-contain'}`}
+        />
         <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
           <span
             className="line-clamp-2 block text-[10px] font-medium leading-tight text-white"
@@ -94,6 +114,24 @@ export function ShopTile({
           {buying ? 'Buying…' : multiVariant ? 'Select' : canAfford ? 'Buy' : 'Too rich'}
         </button>
       </div>
+      {lightboxOpen &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${group.displayName} – full art`}
+            className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <img
+              src={representative.img}
+              alt={group.displayName}
+              className="max-h-full max-w-full rounded shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>,
+          document.body,
+        )}
     </li>
   );
 }

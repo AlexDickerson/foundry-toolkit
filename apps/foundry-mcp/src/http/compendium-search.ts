@@ -166,6 +166,8 @@ export function runFilter(packs: readonly CachedPack[], opts: SearchOptions): En
         rank: tokens.length > 0 ? (allTokensInName ? score(lower, tokens.join(' ')) : 4) : 0,
       };
 
+      const slug = (doc.system as { slug?: unknown }).slug;
+      if (typeof slug === 'string' && slug.length > 0) match.slug = slug;
       if (level !== undefined) match.level = level;
       if (traits.length > 0) match.traits = traits;
       if (extractAncestrySlug(doc) === null) match.isVersatile = true;
