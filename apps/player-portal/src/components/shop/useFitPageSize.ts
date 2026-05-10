@@ -2,8 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 
 // Grid column count — fixed to match the `repeat(5, ...)` template.
 const GRID_COLS = 5;
-// Approximate tile height (including gap).
-const TILE_HEIGHT_PX = 146;
+// Approximate tile height (including footer + gap). Matches the 160px
+// gridTemplateColumns cap in ItemShopPicker — tiles are aspect-square so
+// height ≈ width when the column hits the cap, plus the price/buy footer
+// (~24px) on top of the square image.
+const TILE_HEIGHT_PX = 184;
 const GRID_GAP_PX = 8;
 const MIN_FIT_PAGE_SIZE = 6;
 // Breathing room between the grid's bottom edge and the viewport bottom
