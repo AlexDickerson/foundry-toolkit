@@ -43,6 +43,7 @@ type CreatorPickerProps = Pick<
   | 'filterControls'
   | 'evaluations'
   | 'docCache'
+  | 'detailHideHeader'
 > & {
   onPick: (match: CompendiumMatch) => void;
 };
@@ -68,6 +69,11 @@ export interface CreatorPickerOptions {
   showRarityPicker?: boolean;
   showUnmetToggle?: boolean;
   showSortToggle?: boolean;
+  /** Hide the CompendiumDetailPanel's top header (image + name + meta +
+   *  traits) for this target. Useful when the picker dialog's title bar
+   *  already shows the name and the panel body has enough visual
+   *  identity on its own (class panels). Defaults to false. */
+  hideDetailHeader?: boolean;
 }
 
 // Builds the props the character creator's picks need on top of the
@@ -225,5 +231,6 @@ export function useCreatorPickerProps(
   if (filters.ancestrySlug !== undefined) props.ancestrySlug = filters.ancestrySlug;
   if (searchSources !== undefined) props.sources = searchSources;
   if (searchRarities !== undefined) props.rarities = searchRarities;
+  if (options?.hideDetailHeader === true) props.detailHideHeader = true;
   return props;
 }

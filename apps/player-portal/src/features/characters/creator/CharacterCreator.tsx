@@ -445,6 +445,12 @@ const PICKER_OPTIONS_BY_TARGET: Partial<Record<PickerTarget, CreatorPickerOption
     showUnmetToggle: false,
     showSortToggle: false,
   },
+  // Class detail panels carry a lot of body content (lore, initial
+  // proficiencies, L1 features); the header just duplicates the picker
+  // dialog's own title bar and eats vertical space.
+  class: {
+    hideDetailHeader: true,
+  },
 };
 
 function DefaultCreatorPicker({

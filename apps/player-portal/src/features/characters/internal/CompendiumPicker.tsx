@@ -143,6 +143,12 @@ export interface CompendiumPickerProps {
   emptyMessage?: string | undefined;
   /** Shown instead of emptyMessage when filterItem removes all server results. */
   allFilteredMessage?: string | undefined;
+  /** Forwarded to the internal CompendiumDetailPanel when the default
+   *  click-row → split-pane flow is in use. Hides the panel's header
+   *  (image + name + meta + traits) so it doesn't duplicate the picker
+   *  dialog's own title bar. Has no effect when the caller provides
+   *  their own `splitPane`. */
+  detailHideHeader?: boolean | undefined;
   onPick: (match: CompendiumMatch) => void;
   onClose: () => void;
   testId?: string | undefined;
@@ -171,6 +177,7 @@ export function CompendiumPicker({
   splitPane,
   emptyMessage = 'No matches.',
   allFilteredMessage,
+  detailHideHeader,
   onPick,
   onClose,
   testId = 'compendium-picker',
@@ -335,6 +342,7 @@ export function CompendiumPicker({
               {...(internalDetailEvaluation !== undefined ? { evaluation: internalDetailEvaluation } : {})}
               {...(docCache !== undefined ? { docCache } : {})}
               {...(testId !== undefined ? { testIdPrefix: testId } : {})}
+              {...(detailHideHeader === true ? { hideHeader: true } : {})}
             />
           ) : null,
       }

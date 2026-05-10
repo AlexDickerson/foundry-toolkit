@@ -23,6 +23,13 @@ interface Props {
   docCache?: Map<string, CompendiumDocument>;
   /** Prefix for the detail panel + Pick button data-testid attributes. */
   testIdPrefix?: string;
+  /** When true, suppress the top header (image + name + meta + traits).
+   *  Useful when the surrounding picker dialog already shows the name
+   *  and the body content carries enough visual identity on its own
+   *  (e.g. class panels, where the lore + initial-proficiencies block
+   *  is long enough that the header just costs vertical space). The
+   *  footer's "Back" button still provides a way to close the panel. */
+  hideHeader?: boolean;
 }
 
 // Generic detail panel for the built-in CompendiumPicker detail flow.
@@ -37,6 +44,7 @@ export function CompendiumDetailPanel({
   evaluation,
   docCache,
   testIdPrefix,
+  hideHeader = false,
 }: Props): React.ReactElement {
   const uuidHover = useUuidHover();
   const [state, setState] = useState<Resolution>(() => {
@@ -106,50 +114,52 @@ export function CompendiumDetailPanel({
       data-testid={testIdPrefix !== undefined ? `${testIdPrefix}-detail` : undefined}
       data-detail-uuid={target.uuid}
     >
-      <header className="flex items-start gap-3 border-b border-pf-border px-4 py-3">
-        {target.img && (
-          <img src={target.img} alt="" className="h-12 w-12 shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
-        )}
-        <div className="min-w-0 flex-1">
-          <h3 className="font-serif text-base font-semibold text-pf-text">{target.name}</h3>
-          <p className="mt-0.5 text-[10px] uppercase tracking-widest text-pf-alt">
-            {target.packLabel}
-            {target.level !== undefined && ` · L${target.level.toString()}`}
-            {rarity != null && rarity !== 'common' && ` · ${rarity}`}
-            {castCost !== null && ` · Cast ${castCost}`}
-          </p>
-          {(target.type === 'ancestry' && rarity !== null) || traits.length > 0 ? (
-            <ul className="mt-1 flex flex-wrap gap-1">
-              {/* Ancestries always show their rarity as the first pill so
+      {!hideHeader && (
+        <header className="flex items-start gap-3 border-b border-pf-border px-4 py-3">
+          {target.img && (
+            <img src={target.img} alt="" className="h-12 w-12 shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
+          )}
+          <div className="min-w-0 flex-1">
+            <h3 className="font-serif text-base font-semibold text-pf-text">{target.name}</h3>
+            <p className="mt-0.5 text-[10px] uppercase tracking-widest text-pf-alt">
+              {target.packLabel}
+              {target.level !== undefined && ` · L${target.level.toString()}`}
+              {rarity != null && rarity !== 'common' && ` · ${rarity}`}
+              {castCost !== null && ` · Cast ${castCost}`}
+            </p>
+            {(target.type === 'ancestry' && rarity !== null) || traits.length > 0 ? (
+              <ul className="mt-1 flex flex-wrap gap-1">
+                {/* Ancestries always show their rarity as the first pill so
                   players can spot uncommon/rare ancestries at a glance.
                   Other doc types keep rarity in the meta line only. */}
-              {target.type === 'ancestry' && rarity !== null && (
-                <li
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${rarityPillClasses(rarity)}`}
-                >
-                  {humanizeSlug(rarity)}
-                </li>
-              )}
-              {traits.map((t) => (
-                <li
-                  key={t}
-                  className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
-                >
-                  {humanizeSlug(t)}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close detail"
-          className="rounded px-2 py-0.5 text-lg text-pf-alt-dark hover:bg-pf-bg-dark hover:text-pf-primary"
-        >
-          ×
-        </button>
-      </header>
+                {target.type === 'ancestry' && rarity !== null && (
+                  <li
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${rarityPillClasses(rarity)}`}
+                  >
+                    {humanizeSlug(rarity)}
+                  </li>
+                )}
+                {traits.map((t) => (
+                  <li
+                    key={t}
+                    className="rounded-full border border-pf-tertiary-dark bg-pf-tertiary/40 px-1.5 py-0.5 text-[10px] text-pf-alt-dark"
+                  >
+                    {humanizeSlug(t)}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close detail"
+            className="rounded px-2 py-0.5 text-lg text-pf-alt-dark hover:bg-pf-bg-dark hover:text-pf-primary"
+          >
+            ×
+          </button>
+        </header>
+      )}
 
       {/* When art is present we need overflow-hidden here so the flex chain can
           drive the image to fill the exact available height without creating an
