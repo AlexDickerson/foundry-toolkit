@@ -1,4 +1,5 @@
 import type { EventPublisher } from '@/transport/Broadcaster';
+import { parseChatMessage } from '@/chat/parse-message';
 
 // Minimal local Foundry type snippets for the documents we read in hook
 // callbacks. Kept here rather than pulled from shared types because
@@ -352,6 +353,14 @@ function serializeChatMessage(m: FoundryChatMessage): Record<string, unknown> {
       })) ?? [],
     flags: m.flags ?? {},
     speakerOwnerIds: computeSpeakerOwnerIds(m.speaker),
+    structured: parseChatMessage({
+      id: m.id,
+      isRoll: m.isRoll,
+      ...(m.content !== undefined && { content: m.content }),
+      ...(m.flavor !== undefined && { flavor: m.flavor }),
+      ...(m.rolls !== undefined && { rolls: m.rolls }),
+      ...(m.flags !== undefined && { flags: m.flags }),
+    }),
   };
 }
 

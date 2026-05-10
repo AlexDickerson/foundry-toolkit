@@ -1,0 +1,31 @@
+{
+  "id": "saveMsg001",
+  "uuid": "ChatMessage.saveMsg001",
+  "isRoll": true,
+  "type": 5,
+  "timestamp": 1698765445000,
+  "flavor": "<h4 class=\"action\"><strong>Reflex Saving Throw</strong></h4>",
+  "content": "8",
+  "speaker": { "alias": "Valeros", "actor": "actor001" },
+  "whisper": [],
+  "author": { "id": "user001", "name": "Player1" },
+  "rolls": [
+    {
+      "formula": "1d20 + 6",
+      "total": 8,
+      "dice": [{ "faces": 20, "results": [{ "result": 2, "active": true }] }]
+    }
+  ],
+  "flags": {
+    "pf2e": {
+      "context": {
+        "type": "saving-throw",
+        "actor": "Actor.actor001",
+        "dc": { "value": 22, "visible": true },
+        "target": { "actor": "Actor.targetActor001", "token": "Scene.scene001.Token.targetToken001" },
+        "outcome": "failure"
+      },
+      "origin": { "actor": "Actor.actor001", "type": "character" }
+    }
+  }
+}

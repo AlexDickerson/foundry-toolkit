@@ -1,0 +1,31 @@
+{
+  "id": "dmgMsg001",
+  "uuid": "ChatMessage.dmgMsg001",
+  "isRoll": true,
+  "type": 5,
+  "timestamp": 1698765435000,
+  "flavor": "<h4 class=\"action\">\n    <strong>Damage Roll: Longsword</strong>\n    </h4>",
+  "content": "9",
+  "speaker": { "alias": "Valeros", "actor": "actor001" },
+  "whisper": [],
+  "author": { "id": "user001", "name": "Player1" },
+  "rolls": [
+    {
+      "formula": "1d8 + 5 slashing",
+      "total": 9,
+      "dice": [{ "faces": 8, "results": [{ "result": 4, "active": true }] }]
+    }
+  ],
+  "flags": {
+    "pf2e": {
+      "context": {
+        "type": "damage-roll",
+        "actor": "Actor.actor001",
+        "item": "Item.weapon001",
+        "target": null,
+        "outcome": "success"
+      },
+      "origin": { "actor": "Actor.actor001", "type": "weapon" }
+    }
+  }
+}

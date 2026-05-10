@@ -264,7 +264,7 @@ describe('getPartyForMemberHandler', () => {
     });
 
     it('returns empty conditions when itemTypes.condition is absent', async () => {
-      const member = makeMember({ id: 'chr-1', itemTypes: undefined });
+      const member = makeMember({ id: 'chr-1' });
       const party = makePartyActor({ members: [member] });
       setGame([], { 'chr-1': { ...member, parties: [party] } });
 
