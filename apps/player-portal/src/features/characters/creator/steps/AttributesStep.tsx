@@ -12,7 +12,7 @@ import type { Draft } from '../types';
 // `value` array is: one entry for fixed, 2+ entries for a
 // constrained choice, all six (or empty) for a free pick.
 type SlotKind = 'fixed' | 'free';
-interface ParsedSlot {
+export interface ParsedSlot {
   kind: SlotKind;
   options: AbilityKey[];
 }
@@ -21,6 +21,77 @@ type SourceDocState =
   | { kind: 'loading'; uuid: string }
   | { kind: 'ready'; uuid: string; slots: ParsedSlot[] }
   | { kind: 'error'; uuid: string; message: string };
+
+// ─── 18-cap enforcement ──────────────────────────────────────────────────────
+// PF2e level-1 rule: ability scores can't exceed 18. Starting at 10,
+// each boost adds +2, so no ability can be boosted more than 4 times
+// across all sources. An ancestry flaw lowers the floor by 2, allowing
+// one extra boost (5 total) before hitting 18.
+
+export const BOOST_CAP = 4;
+
+export function tallyBoosts(picks: (AbilityKey | null)[]): Partial<Record<AbilityKey, number>> {
+  const out: Partial<Record<AbilityKey, number>> = {};
+  for (const k of picks) {
+    if (k !== null) out[k] = (out[k] ?? 0) + 1;
+  }
+  return out;
+}
+
+export function mergeBoostTallies(...tallies: Partial<Record<AbilityKey, number>>[]): Record<AbilityKey, number> {
+  const out = Object.fromEntries(ABILITY_KEYS.map((k) => [k, 0])) as Record<AbilityKey, number>;
+  for (const tally of tallies) {
+    for (const [k, n] of Object.entries(tally) as [AbilityKey, number][]) {
+      out[k] += n;
+    }
+  }
+  return out;
+}
+
+export function flawCountsFromSlots(slots: ParsedSlot[]): Partial<Record<AbilityKey, number>> {
+  const out: Partial<Record<AbilityKey, number>> = {};
+  for (const slot of slots) {
+    if (slot.kind === 'fixed') {
+      for (const k of slot.options) {
+        out[k] = (out[k] ?? 0) + 1;
+      }
+    }
+  }
+  return out;
+}
+
+// Returns keys that are disabled for slot `slotIdx` in a source.
+// A key is disabled when either:
+//   (a) it would push the ability past the 18-cap across all sources, or
+//   (b) it is already picked by a different slot within the same source
+//       (each source can only boost a given ability once).
+export function disabledKeysForSlot(
+  slotIdx: number,
+  sourcePicks: (AbilityKey | null)[],
+  allBoosts: Record<AbilityKey, number>,
+  flawCounts: Partial<Record<AbilityKey, number>>,
+): Set<AbilityKey> {
+  const currentPick = sourcePicks[slotIdx] ?? null;
+  const disabled = new Set<AbilityKey>();
+  for (const key of ABILITY_KEYS) {
+    // (a) Cap: strip this slot's own contribution, then test if adding it
+    //     would hit the ceiling.
+    const cap = BOOST_CAP + (flawCounts[key] ?? 0);
+    const boostedExcludingThisSlot = allBoosts[key] - (currentPick === key ? 1 : 0);
+    if (boostedExcludingThisSlot >= cap) {
+      disabled.add(key);
+      continue;
+    }
+    // (b) Same-source duplicate: another slot in this source already holds key.
+    for (let i = 0; i < sourcePicks.length; i++) {
+      if (i !== slotIdx && sourcePicks[i] === key) {
+        disabled.add(key);
+        break;
+      }
+    }
+  }
+  return disabled;
+}
 
 export function AttributesStep({
   actorId,
@@ -113,14 +184,18 @@ export function AttributesStep({
   };
 
   const toggleFreeBoost = (key: AbilityKey): void => {
-    let next: AbilityKey[];
+    // Deselecting is always allowed.
     if (levelOneBoosts.includes(key)) {
-      next = levelOneBoosts.filter((k) => k !== key);
-    } else if (levelOneBoosts.length >= BOOSTS_REQUIRED) {
+      const next = levelOneBoosts.filter((k) => k !== key);
+      onDraftPatch({ levelOneBoosts: next });
+      patchFreeBoosts(next);
       return;
-    } else {
-      next = [...levelOneBoosts, key];
     }
+    if (levelOneBoosts.length >= BOOSTS_REQUIRED) return;
+    // Enforce 18-cap: don't add a free boost to an ability already at the ceiling.
+    const cap = BOOST_CAP + (flawCounts[key] ?? 0);
+    if (allBoosts[key] >= cap) return;
+    const next = [...levelOneBoosts, key];
     onDraftPatch({ levelOneBoosts: next });
     patchFreeBoosts(next);
   };
@@ -144,6 +219,19 @@ export function AttributesStep({
     patchItem(classItemId, 'keyAbility.selected', key);
   };
 
+  // Compute all committed boosts across every source so child pickers
+  // can enforce the 18-cap. Flaws from ancestry raise the cap by 1 per
+  // flaw (e.g. a Dwarf's CHA flaw lets CHA reach 18 with 5 boosts).
+  const flawCounts = flawCountsFromSlots(ancestryFlaws.kind === 'ready' ? ancestryFlaws.slots : []);
+  const allBoosts = mergeBoostTallies(
+    tallyBoosts(ancestryBoosts),
+    tallyBoosts(backgroundBoosts),
+    tallyBoosts(classKeyAbility !== null ? [classKeyAbility] : []),
+    tallyBoosts(levelOneBoosts),
+  );
+
+  const classPicks: (AbilityKey | null)[] = classKeyAbility !== null ? [classKeyAbility] : [null];
+
   return (
     <div className="space-y-5">
       <BoostSourceBlock
@@ -153,6 +241,8 @@ export function AttributesStep({
         picks={ancestryBoosts}
         onPick={setAncestrySlot}
         flaws={ancestryFlaws}
+        allBoosts={allBoosts}
+        flawCounts={flawCounts}
       />
       <BoostSourceBlock
         label={backgroundPick !== null ? `Background · ${backgroundPick.name}` : 'Background'}
@@ -160,17 +250,26 @@ export function AttributesStep({
         placeholderText="Pick a background on the previous step to see its boosts."
         picks={backgroundBoosts}
         onPick={setBackgroundSlot}
+        allBoosts={allBoosts}
+        flawCounts={flawCounts}
       />
       <BoostSourceBlock
         label={classPick !== null ? `Class · ${classPick.name} key attribute` : 'Class key attribute'}
         state={classDoc}
         placeholderText="Pick a class on the previous step to choose its key attribute."
-        picks={classKeyAbility !== null ? [classKeyAbility] : [null]}
+        picks={classPicks}
         onPick={(_slot, key): void => {
           setClassKeyAbility(key);
         }}
+        allBoosts={allBoosts}
+        flawCounts={flawCounts}
       />
-      <FreeBoostBlock selected={levelOneBoosts} onToggle={toggleFreeBoost} />
+      <FreeBoostBlock
+        selected={levelOneBoosts}
+        allBoosts={allBoosts}
+        flawCounts={flawCounts}
+        onToggle={toggleFreeBoost}
+      />
     </div>
   );
 }
@@ -217,6 +316,8 @@ function BoostSourceBlock({
   picks,
   onPick,
   flaws,
+  allBoosts,
+  flawCounts,
 }: {
   label: string;
   state: SourceDocState;
@@ -227,6 +328,8 @@ function BoostSourceBlock({
    *  picks aren't ours — pf2e applies them automatically — so we
    *  just display them as context. */
   flaws?: SourceDocState;
+  allBoosts: Record<AbilityKey, number>;
+  flawCounts: Partial<Record<AbilityKey, number>>;
 }): React.ReactElement {
   const flawSlots = flaws?.kind === 'ready' ? flaws.slots : [];
   return (
@@ -246,6 +349,7 @@ function BoostSourceBlock({
               <BoostSlotPicker
                 slot={slot}
                 selected={picks[idx] ?? null}
+                disabledKeys={disabledKeysForSlot(idx, picks, allBoosts, flawCounts)}
                 onPick={(key): void => {
                   onPick(idx, key);
                 }}
@@ -310,10 +414,14 @@ function parseAncestryFlaws(system: unknown): ParsedSlot[] {
 function BoostSlotPicker({
   slot,
   selected,
+  disabledKeys,
   onPick,
 }: {
   slot: ParsedSlot;
   selected: AbilityKey | null;
+  /** Abilities that cannot be picked: at the 18-cap or already used by
+   *  another slot in this source. */
+  disabledKeys: Set<AbilityKey>;
   onPick: (key: AbilityKey) => void;
 }): React.ReactElement {
   if (slot.kind === 'fixed') {
@@ -331,20 +439,25 @@ function BoostSlotPicker({
     <div className="flex flex-wrap gap-1">
       {slot.options.map((key) => {
         const isActive = selected === key;
+        const isDisabled = !isActive && disabledKeys.has(key);
         return (
           <button
             key={key}
             type="button"
             aria-pressed={isActive}
+            disabled={isDisabled}
             onClick={(): void => {
               onPick(key);
             }}
             data-boost-option={key}
+            title={isDisabled ? 'Already at 18 — cannot boost further' : undefined}
             className={[
               'rounded border px-2 py-1 text-xs font-semibold uppercase tracking-widest transition-colors',
               isActive
                 ? 'border-pf-primary bg-pf-tertiary/40 text-pf-primary'
-                : 'border-pf-border bg-pf-bg text-pf-alt-dark hover:bg-pf-tertiary/20',
+                : isDisabled
+                  ? 'cursor-not-allowed border-pf-border bg-pf-bg text-pf-alt-dark opacity-40'
+                  : 'border-pf-border bg-pf-bg text-pf-alt-dark hover:bg-pf-tertiary/20',
             ].join(' ')}
           >
             {key.toUpperCase()}
@@ -357,9 +470,14 @@ function BoostSlotPicker({
 
 function FreeBoostBlock({
   selected,
+  allBoosts,
+  flawCounts,
   onToggle,
 }: {
   selected: AbilityKey[];
+  /** Total boosts per ability across all sources (including free picks). */
+  allBoosts: Record<AbilityKey, number>;
+  flawCounts: Partial<Record<AbilityKey, number>>;
   onToggle: (key: AbilityKey) => void;
 }): React.ReactElement {
   const remaining = BOOSTS_REQUIRED - selected.length;
@@ -375,7 +493,10 @@ function FreeBoostBlock({
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {ABILITY_KEYS.map((key) => {
           const picked = selected.includes(key);
-          const locked = !picked && selected.length >= BOOSTS_REQUIRED;
+          // `allBoosts[key]` does NOT include key as a free pick when `!picked`,
+          // so checking against cap tells us whether a new free boost is allowed.
+          const atCap = !picked && allBoosts[key] >= BOOST_CAP + (flawCounts[key] ?? 0);
+          const locked = !picked && (selected.length >= BOOSTS_REQUIRED || atCap);
           return (
             <button
               key={key}
@@ -386,6 +507,7 @@ function FreeBoostBlock({
               onClick={(): void => {
                 onToggle(key);
               }}
+              title={atCap ? 'Already at 18 — cannot boost further' : undefined}
               className={[
                 'flex flex-col items-center rounded border px-2 py-3 transition-colors',
                 picked
