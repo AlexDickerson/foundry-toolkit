@@ -7,6 +7,15 @@ import { cpToDenominations, priceToCp } from '../../../lib/coins';
 import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import type { SellContext, InvestContext, PartyContext } from './inventory-shop';
 
+// Items whose img field is a /item-art/* URL have a purchased art override.
+// We use this to switch thumbnails from letterboxed (object-contain, suited
+// to default square Foundry icons) to cropped (object-cover, suited to
+// portrait-oriented item-card art) and to swap the description-text panel
+// for a full-art view.
+function hasArtOverride(img: string): boolean {
+  return img.startsWith('/item-art/');
+}
+
 // Each tile that opens claims the next value, ensuring the most recently
 // opened tile always renders above all other open tiles.
 let tileOpenCounter = 30;
@@ -52,7 +61,11 @@ export function ItemRow({
             card.toggle();
           }}
         >
-          <img src={item.img} alt="" className="h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
+          <img
+            src={item.img}
+            alt=""
+            className={`h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark ${hasArtOverride(item.img) ? 'object-cover' : ''}`}
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
               <span className="truncate text-sm text-pf-text">{item.name}</span>
@@ -82,7 +95,7 @@ export function ItemRow({
               <StashButton item={item} context={partyContext} />
             </div>
           )}
-          <ItemDescription item={item} />
+          <ItemDetailBody item={item} />
         </div>
       </details>
       {isContainerRow && contents.length > 0 && (
@@ -114,7 +127,11 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
             card.toggle();
           }}
         >
-          <img src={item.img} alt="" className="h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
+          <img
+            src={item.img}
+            alt=""
+            className={`h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark ${hasArtOverride(item.img) ? 'object-cover' : ''}`}
+          />
           <div className="min-w-0 flex-1">
             <span className="truncate text-sm text-neutral-800">{item.name}</span>
             {item.system.quantity > 1 && <span className="ml-2 text-xs text-pf-text-muted">×{item.system.quantity}</span>}
@@ -124,7 +141,7 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
           <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
         <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
-          <ItemDescription item={item} />
+          <ItemDetailBody item={item} />
         </div>
       </details>
     </li>
@@ -203,7 +220,11 @@ export function GridTile({
         >
           <div className="relative w-full">
             <div className="relative aspect-square w-full overflow-hidden rounded border border-pf-border bg-pf-bg-dark">
-              <img src={item.img} alt="" className="h-full w-full object-contain" />
+              <img
+                src={item.img}
+                alt=""
+                className={`h-full w-full ${hasArtOverride(item.img) ? 'object-cover' : 'object-contain'}`}
+              />
               <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
                 <span
                   className="line-clamp-2 block text-[10px] font-medium leading-tight text-white"
@@ -235,11 +256,27 @@ export function GridTile({
               <StashButton item={item} context={partyContext} />
             </div>
           )}
-          <ItemDescription item={item} />
+          <ItemDetailBody item={item} />
         </div>
       </details>
     </li>
   );
+}
+
+// When the item has a purchased art override, show the full art (no crop)
+// in place of the description text — players already have the rules card
+// in front of them, the art is what's worth seeing here.
+function ItemDetailBody({ item }: { item: PhysicalItem }): React.ReactElement {
+  if (hasArtOverride(item.img)) {
+    return (
+      <img
+        src={item.img}
+        alt={item.name}
+        className="mx-auto block max-h-[32rem] w-auto max-w-full rounded border border-pf-border bg-pf-bg-dark"
+      />
+    );
+  }
+  return <ItemDescription item={item} />;
 }
 
 // Bare description block — used inside the list-mode absolute panel
