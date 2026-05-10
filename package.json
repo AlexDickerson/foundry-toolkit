@@ -32,7 +32,7 @@
     "@eslint/js": "^10.0.1",
     "@secretlint/secretlint-rule-anthropic": "^12.3.1",
     "@secretlint/secretlint-rule-aws": "^12.3.1",
-    "@secretlint/secretlint-rule-github": "^12.3.1",
+    "@secretlint/secretlint-rule-github": "^13.0.0",
     "@secretlint/secretlint-rule-openai": "^12.3.1",
     "@secretlint/secretlint-rule-pattern": "^12.3.1",
     "eslint": "^10.2.1",
