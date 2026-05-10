@@ -760,7 +760,10 @@ function readClassStats(doc: CompendiumDocument): ClassStats {
   // non-spellcasters.
   const spellcasting = typeof sys.spellcasting === 'number' && sys.spellcasting > 0 ? sys.spellcasting : null;
 
-  const features = readAncestryFeatures(sys.items);
+  // Classes pack their full per-level feature progression into
+  // `system.items`. The detail panel is a level-1 preview, so only
+  // surface the features granted at L1.
+  const features = readClassL1Features(sys.items);
 
   return {
     perception,
@@ -781,6 +784,27 @@ function readOtherAttack(raw: unknown): { name: string; rank: number } | null {
   if (typeof o.name !== 'string' || o.name.length === 0) return null;
   if (typeof o.rank !== 'number' || o.rank <= 0) return null;
   return { name: o.name, rank: o.rank };
+}
+
+// pf2e class items embed every level's class feature in `system.items`,
+// each tagged with the level it's granted at. The detail panel is a
+// level-1 preview, so only surface entries with `level === 1` — the
+// rest (subclass picks, level-3 ability boosts, level-5 features, etc.)
+// don't apply yet and would otherwise crowd the chip list.
+function readClassL1Features(
+  items: Record<string, unknown> | undefined,
+): { uuid: string; name: string; img: string }[] {
+  if (!items) return [];
+  const out: { uuid: string; name: string; img: string }[] = [];
+  for (const raw of Object.values(items)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const entry = raw as { uuid?: unknown; name?: unknown; img?: unknown; level?: unknown };
+    if (typeof entry.uuid !== 'string' || typeof entry.name !== 'string') continue;
+    if (typeof entry.level !== 'number' || entry.level !== 1) continue;
+    out.push({ uuid: entry.uuid, name: entry.name, img: typeof entry.img === 'string' ? entry.img : '' });
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
 }
 
 // PF2e proficiency ladder: 0 untrained, 1 trained, 2 expert, 3 master,
