@@ -25,6 +25,13 @@ const TIPS: readonly CreatorTip[] = [
     link: { url: 'https://2e.aonprd.com/', label: 'Visit Archives of Nethys' },
   },
   {
+    title: 'PF2e Remaster',
+    body: [
+      'Paizo transitioned to a “Remastered” version of PF2e beginning in November 2023. Books published under the Remaster are titled with “Core”.',
+      'The vast majority of the changes were made to accommodate legal licensing requirements (for example, renaming Aasimar to Nephilim). Rule changes are very minimal — non-remastered content can reliably be used with remastered content.',
+    ],
+  },
+  {
     title: 'Rarity',
     body: [
       'Elements in PF2e have a rarity value. It describes how frequently something appears in the world — not how strong it is. Rarity has no impact on a choice’s relative power.',
