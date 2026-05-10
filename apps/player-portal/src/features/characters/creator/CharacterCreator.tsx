@@ -208,7 +208,7 @@ export function CharacterCreator(): React.ReactElement {
     // a phantom column on the right so the wizard stays centred on wide
     // screens. Both side columns hide on viewports narrower than `lg`.
     <div className="flex gap-6 py-6 font-sans">
-      <aside className="hidden w-[230px] shrink-0 pl-3 lg:block" aria-label="Player tips">
+      <aside className="hidden w-[280px] shrink-0 pl-3 lg:block" aria-label="Player tips">
         <TipsRail />
       </aside>
       <main className="mx-auto min-w-0 max-w-3xl flex-1 px-6">
@@ -389,7 +389,7 @@ export function CharacterCreator(): React.ReactElement {
       </main>
       {/* Phantom column mirrors the rail width so the wizard column
           stays horizontally centred between them on wide screens. */}
-      <div className="hidden w-[230px] shrink-0 lg:block" aria-hidden="true" />
+      <div className="hidden w-[280px] shrink-0 lg:block" aria-hidden="true" />
     </div>
   );
 }
