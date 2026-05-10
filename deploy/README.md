@@ -3,13 +3,13 @@
 Five containers. One env file. Everything the GM needs to run a Foundry VTT
 session with the full foundry-toolkit feature set available to players.
 
-| Service          | Image                                    | Port            | Audience                 |
-| ---------------- | ---------------------------------------- | --------------- | ------------------------ |
-| caddy            | `caddy:2.8`                              | 80, 443         | public internet (TLS)    |
-| foundry          | `foundry-toolkit-foundry:<tag>`          | 30000\*         | GM (via Caddy or direct) |
-| foundry-mcp      | `foundry-toolkit-mcp:<tag>`             | 8765            | internal only            |
-| player-portal    | `foundry-toolkit-portal:<tag>`           | 3000            | players (via Caddy)      |
-| headless-bridge  | `foundry-toolkit-headless-bridge:<tag>`  | none (internal) | automation               |
+| Service         | Image                                   | Port            | Audience                 |
+| --------------- | --------------------------------------- | --------------- | ------------------------ |
+| caddy           | `caddy:2.8`                             | 80, 443         | public internet (TLS)    |
+| foundry         | `foundry-toolkit-foundry:<tag>`         | 30000\*         | GM (via Caddy or direct) |
+| foundry-mcp     | `foundry-toolkit-mcp:<tag>`             | 8765            | internal only            |
+| player-portal   | `foundry-toolkit-portal:<tag>`          | 3000            | players (via Caddy)      |
+| headless-bridge | `foundry-toolkit-headless-bridge:<tag>` | none (internal) | automation               |
 
 \* Port 30000 is bound to `127.0.0.1` only — the GM can reach Foundry directly
 at `http://localhost:30000` without going through Caddy. Port 3000 is not
@@ -145,20 +145,20 @@ simplest.
 
 ## Environment variables
 
-| Variable                | Service(s)                        | Required | Purpose                                                                             |
-| ----------------------- | --------------------------------- | -------- | ----------------------------------------------------------------------------------- |
-| `FOUNDRY_USERNAME`      | foundry                           | yes      | Paizo account username for Foundry download                                         |
-| `FOUNDRY_PASSWORD`      | foundry                           | yes      | Paizo account password                                                              |
-| `FOUNDRY_ADMIN_KEY`     | foundry, headless-bridge          | rec.     | Foundry admin console password                                                      |
-| `FOUNDRY_ROUTE_PREFIX`  | foundry                           | no       | URL path prefix for Foundry (`foundry` → served at `/foundry/`); empty = no prefix  |
-| `OPENAI_API_KEY`        | foundry-mcp                       | no       | GPT-image-1 map editing (`edit_image` tool)                                         |
-| `ALLOW_EVAL`            | foundry-mcp                       | no       | `1` enables `/api/eval` debug endpoint                                              |
-| `SHARED_SECRET`         | foundry-mcp, player-portal        | yes      | Bearer token for `/api/live/*` POST writes                                          |
-| `SECURE_SESSION_SECRET` | player-portal                     | no\*     | Cookie signing for portal user auth                                                 |
-| `BRIDGE_GM_USER`        | headless-bridge                   | yes†     | Foundry username for the headless GM                                                |
-| `BRIDGE_GM_PASS`        | headless-bridge                   | no       | Password for `BRIDGE_GM_USER`                                                       |
-| `BRIDGE_WORLD_ID`       | headless-bridge                   | yes†     | World directory slug to join                                                        |
-| `IMAGE_TAG`             | —                                 | no       | Image tag to pull (default: `latest`)                                               |
+| Variable                | Service(s)                 | Required | Purpose                                                                            |
+| ----------------------- | -------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `FOUNDRY_USERNAME`      | foundry                    | yes      | Paizo account username for Foundry download                                        |
+| `FOUNDRY_PASSWORD`      | foundry                    | yes      | Paizo account password                                                             |
+| `FOUNDRY_ADMIN_KEY`     | foundry, headless-bridge   | rec.     | Foundry admin console password                                                     |
+| `FOUNDRY_ROUTE_PREFIX`  | foundry                    | no       | URL path prefix for Foundry (`foundry` → served at `/foundry/`); empty = no prefix |
+| `OPENAI_API_KEY`        | foundry-mcp                | no       | GPT-image-1 map editing (`edit_image` tool)                                        |
+| `ALLOW_EVAL`            | foundry-mcp                | no       | `1` enables `/api/eval` debug endpoint                                             |
+| `SHARED_SECRET`         | foundry-mcp, player-portal | yes      | Bearer token for `/api/live/*` POST writes                                         |
+| `SECURE_SESSION_SECRET` | player-portal              | no\*     | Cookie signing for portal user auth                                                |
+| `BRIDGE_GM_USER`        | headless-bridge            | yes†     | Foundry username for the headless GM                                               |
+| `BRIDGE_GM_PASS`        | headless-bridge            | no       | Password for `BRIDGE_GM_USER`                                                      |
+| `BRIDGE_WORLD_ID`       | headless-bridge            | yes†     | World directory slug to join                                                       |
+| `IMAGE_TAG`             | —                          | no       | Image tag to pull (default: `latest`)                                              |
 
 \*Required once the portal user auth feature ships.
 †Required only when running the `headless-bridge` service.
