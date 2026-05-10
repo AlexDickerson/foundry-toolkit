@@ -2,7 +2,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod/v4';
 import { log } from '../logger.js';
 import { LiveDb } from '../db/live-db.js';
-import { LIVE_DB_PATH, SHARED_SECRET } from '../config.js';
+import { LIVE_DB_PATH, PF2E_DB_PATH, SHARED_SECRET } from '../config.js';
+import { openPf2eDb } from '@foundry-toolkit/db/pf2e';
 import { registerActorRoutes } from './routes/actors.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerCompendiumRoutes } from './routes/compendium.js';
@@ -13,6 +14,7 @@ import { registerLiveChatRoutes } from './routes/live-chat.js';
 import { registerLiveRoutes } from './routes/live.js';
 import { registerPromptRoutes } from './routes/prompts.js';
 import { registerUploadRoutes } from './routes/uploads.js';
+import { registerItemArtRoute } from './routes/item-art.js';
 import { chatRingBuffer } from '../chat/chat-ring-buffer.js';
 
 export async function buildHttpApp(): Promise<FastifyInstance> {
@@ -74,14 +76,20 @@ export async function buildHttpApp(): Promise<FastifyInstance> {
     reply.code(500).send({ error: msg });
   });
 
+  if (PF2E_DB_PATH) {
+    openPf2eDb(PF2E_DB_PATH);
+  }
+
+  const liveDb = new LiveDb(LIVE_DB_PATH);
   registerActorRoutes(app);
   registerAssetRoutes(app);
   registerDispatchRoute(app);
   registerCompendiumRoutes(app);
   registerEvalRoutes(app);
   registerEventRoutes(app);
+  registerItemArtRoute(app);
   registerLiveChatRoutes(app, chatRingBuffer);
-  registerLiveRoutes(app, new LiveDb(LIVE_DB_PATH), SHARED_SECRET);
+  registerLiveRoutes(app, liveDb, SHARED_SECRET);
   registerPromptRoutes(app);
   registerUploadRoutes(app);
 

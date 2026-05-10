@@ -20,6 +20,7 @@ COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/foundry-mcp/package.json apps/foundry-mcp/
 COPY apps/dm-tool/package.json     apps/dm-tool/
 COPY packages/shared/package.json  packages/shared/
+COPY packages/db/package.json      packages/db/
 
 # Includes devDeps so tsx is hoisted to root node_modules.
 # --ignore-scripts skips husky and any electron-rebuild hooks.
@@ -27,6 +28,7 @@ RUN npm install --ignore-scripts
 
 # Source — only what foundry-mcp imports at runtime.
 COPY packages/shared  packages/shared
+COPY packages/db      packages/db
 COPY apps/foundry-mcp apps/foundry-mcp
 
 # tsx resolves the workspace symlink node_modules/@foundry-toolkit/shared →

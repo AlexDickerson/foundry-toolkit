@@ -13,6 +13,7 @@
 // packages/shared/src/rpc/dialog.ts and are kept in sync by convention.
 
 import type { WebSocketClient } from '@/transport';
+import { generateRandomId } from '@/transport/random-id';
 
 // ─── Local wire types ────────────────────────────────────────────────────
 // Mirror of packages/shared/src/rpc/dialog.ts — keep in sync.
@@ -486,6 +487,5 @@ function findLabelText(html: HtmlElement, name: string, id: string): string | nu
 }
 
 function generateDialogId(): string {
-  // Foundry runs in HTTPS context where crypto.randomUUID is always available.
-  return crypto.randomUUID();
+  return generateRandomId();
 }

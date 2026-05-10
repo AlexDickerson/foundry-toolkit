@@ -47,7 +47,7 @@ const STATIC_DIR = process.env['STATIC_DIR'] ?? join(__dirname, '..', 'dist');
 // Foundry asset prefixes — all proxied to foundry-mcp so the WS bridge
 // serves them. `/assets` is deliberately excluded because Vite's built SPA
 // uses it for bundled chunks — proxying it would break client JS loading.
-const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds'];
+const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds', '/item-art'];
 
 /** Proxy a long-lived SSE GET from foundry-mcp through to the client.
  *  Using raw http/https instead of @fastify/http-proxy because the proxy
@@ -145,12 +145,25 @@ export async function buildServer(): Promise<FastifyInstance> {
     });
   }
 
-  // --- Live-state SSE streams (proxy to foundry-mcp) ----------------------
-  // These must use makeSseProxy rather than the general @fastify/http-proxy
-  // because the plugin's request timeout closes long-lived SSE connections.
+  // --- SSE streams (proxy to foundry-mcp) -----------------------------------
+  // All long-lived SSE endpoints must use makeSseProxy rather than the
+  // general @fastify/http-proxy because the plugin's request timeout closes
+  // SSE connections prematurely. Register these BEFORE the /api/mcp/* proxy
+  // so Fastify routes them here instead of through the buffering proxy.
 
+  // Live-state streams (aurus, globe snapshots from dm-tool)
   app.get('/api/live/aurus/stream', makeSseProxy(MCP_URL, '/api/live/aurus/stream'));
   app.get('/api/live/globe/stream', makeSseProxy(MCP_URL, '/api/live/globe/stream'));
+
+  // Bridge prompt stream — ChoiceSet / Dialog prompts from Foundry that the
+  // player portal renders instead of showing the native Foundry dialog.
+  app.get('/api/mcp/prompts/stream', makeSseProxy(MCP_URL, '/api/prompts/stream'));
+
+  // Foundry event channels (rolls, chat, combat, actors …)
+  app.get('/api/mcp/events/:channel/stream', (req, reply) => {
+    const channel = (req.params as { channel: string }).channel;
+    makeSseProxy(MCP_URL, `/api/events/${channel}/stream`)(req, reply);
+  });
 
   // --- Static SPA --------------------------------------------------------
   // Only register if dist/ exists — in dev, Vite serves static itself and

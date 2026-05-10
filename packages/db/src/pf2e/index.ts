@@ -35,3 +35,5 @@ export {
   invalidateAllCachedDocuments,
 } from './compendium-cache.js';
 export type { CachedDocument } from './compendium-cache.js';
+export { getItemArtOverride, setItemArtOverride, listItemArtOverrides } from './item-art.js';
+export type { ItemArtOverride } from './item-art.js';

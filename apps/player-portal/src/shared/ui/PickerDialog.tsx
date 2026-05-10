@@ -68,7 +68,7 @@ export function PickerDialog({
     >
       <div
         className={[
-          'flex max-h-[80vh] w-full flex-col rounded border border-pf-border bg-pf-bg shadow-xl',
+          'flex max-h-[85vh] w-full flex-col rounded border border-pf-border bg-pf-bg shadow-xl',
           animateMaxWidth ? 'transition-[max-width] duration-200 ease-out' : '',
           maxWidthClass,
         ]

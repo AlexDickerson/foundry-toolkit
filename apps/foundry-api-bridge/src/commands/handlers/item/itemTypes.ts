@@ -58,6 +58,9 @@ interface FoundryItemSystem {
   description?: { value?: string };
   damage?: Record<string, unknown>;
   range?: Record<string, unknown>;
+  /** PF2e canonical slug for the item (e.g. "dagger", "acid-flask-greater").
+   *  Hoisted into ItemDetailSummary by GetActorItemsHandler. */
+  slug?: string;
 }
 
 interface FoundryChatMessage {

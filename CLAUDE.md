@@ -138,6 +138,22 @@ Lint in this monorepo is slow — TypeScript-aware rules type-check across works
 - A minimal lint/typecheck/test/knip pipeline runs in `.github/workflows/ci.yml` plus a dependency-review check. No deployment workflows — this is a personal local-use project with no deployment story. `apps/foundry-api-bridge` has a local Docker workflow (`./local.sh`) for running Foundry VTT in a container.
 - The old SPA → MCP rebuild cascade is gone: the character creator now lives inside `player-portal`'s own Fastify server, which proxies `/api/mcp/*` → `foundry-mcp`. `foundry-mcp` no longer bundles an SPA.
 
+## Patching the live server (server.ad) without waiting for CI
+
+CI rebuilds the `:pr-<num>` images on every push, but the user has to re-pull via Portainer to pick them up. For tight iteration during a debug session — once the source change is committed and pushed — patch the running container directly so you can verify the fix immediately. Re-pull happens later as a self-healing step.
+
+The technique differs by service because of how each is built:
+
+- **`pathfinder-foundry-mcp-1`** — runs `tsx` against the raw `.ts` source under `/app/apps/foundry-mcp/`. `scp` the changed `.ts` file to the host, `docker cp` it into the container at the same path, then `docker restart pathfinder-foundry-mcp-1`. tsx recompiles on next request.
+- **`pathfinder-player-portal-1`** — same pattern as foundry-mcp. Source lives at `/app/apps/player-portal/server/index.ts`. Restart picks up the new file.
+- **`pathfinder-foundry-1`** — bundles `foundry-api-bridge` as a Vite-built `module.js`. Build locally with `npx vite build` from `apps/foundry-api-bridge` (skip `npm run build` if pre-existing tsc errors block it; the Dockerfile uses `npx vite build` directly for the same reason). Then `docker cp dist/module.js` into BOTH `/data/Data/modules/foundry-api-bridge/module.js` (the live copy) AND `/seed/modules/foundry-api-bridge/module.js` (so the entrypoint's reseed-on-boot doesn't roll it back). The Foundry GM browser tab caches the old bundle aggressively — Cmd-Shift-R is required after the patch to load the new one.
+
+Key gotchas:
+
+- The `pf2e.db` migration runs only when foundry-mcp opens the file at startup. If you add a table or migration, restart foundry-mcp before exercising the schema.
+- The `foundry-api-bridge` module DOM is set up at Foundry page load; restarting `pathfinder-foundry-mcp-1` doesn't reload the bridge's JS in the GM browser — only a hard refresh does.
+- The earlier "first-boot only" entrypoint behaviour (`if [ ! -d "$MODULE_DST" ]` in `deploy/docker-entrypoint.sh`) is gone — the entrypoint now syncs the bridge module on every boot. So `docker cp` to `/seed/...` survives an `up -d` redeploy with a stale-tagged image, but a fresh image pull does override it (which is what you want).
+
 ## How to start a task
 
 1. Confirm you're in a worktree under `.claude/worktrees/<branch>/` (create one if not).

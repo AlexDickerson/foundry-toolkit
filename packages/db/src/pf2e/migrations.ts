@@ -89,4 +89,15 @@ export function migratePf2eDb(db: DatabaseSync): void {
       body_json  TEXT NOT NULL
     )
   `);
+
+  // Purchased PF2e item-card art overrides. Populated by the foundry-mcp
+  // seed-item-art CLI. foundry-mcp reads this table to substitute the `img`
+  // field on items returned to player-portal.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS item_art_overrides (
+      item_slug    TEXT    PRIMARY KEY,
+      art_filename TEXT    NOT NULL,
+      created_at   INTEGER NOT NULL
+    )
+  `);
 }

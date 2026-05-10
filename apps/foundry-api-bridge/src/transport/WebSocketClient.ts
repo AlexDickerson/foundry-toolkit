@@ -1,4 +1,5 @@
 import type { Command, CommandResponse } from '@/commands';
+import { generateRandomId } from './random-id';
 
 export interface WebSocketClientConfig {
   url: string;
@@ -249,7 +250,5 @@ export class WebSocketClient {
 }
 
 function generateBridgeId(): string {
-  // Foundry runs in the browser where crypto.randomUUID is always
-  // available (https context), so keep this dep-free.
-  return crypto.randomUUID();
+  return generateRandomId();
 }

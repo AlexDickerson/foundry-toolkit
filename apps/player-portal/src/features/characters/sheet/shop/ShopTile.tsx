@@ -2,6 +2,10 @@ import type { CompendiumMatch } from '@/features/characters/types';
 import { formatCp, priceToCp } from '@/features/characters/lib/coins';
 import { rarityFooterClass, type ItemGroup, type PriceState } from './shop-utils';
 
+function hasArtOverride(img: string): boolean {
+  return img.startsWith('/item-art/');
+}
+
 // Re-export the type so callers can import it from either place.
 export type { ItemGroup } from './shop-utils';
 
@@ -27,6 +31,7 @@ export function ShopTile({
   const priceText = priceState.kind === 'loading' ? '…' : price ? formatCp(unitPriceCp) : '—';
   const priceReady = priceState.kind === 'ready';
   const canAfford = !priceReady || unitPriceCp === 0 || purseCp >= unitPriceCp;
+  const overrideOnImg = hasArtOverride(representative.img);
 
   return (
     <li
@@ -48,7 +53,11 @@ export function ShopTile({
       data-testid="shop-tile"
     >
       <div className="relative aspect-square w-full overflow-hidden bg-pf-bg-dark">
-        <img src={representative.img} alt="" className="h-full w-full object-contain" />
+        <img
+          src={representative.img}
+          alt=""
+          className={`h-full w-full ${overrideOnImg ? 'scale-150 origin-top object-cover object-[center_2%]' : 'object-contain'}`}
+        />
         <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
           <span
             className="line-clamp-2 block text-[10px] font-medium leading-tight text-white"

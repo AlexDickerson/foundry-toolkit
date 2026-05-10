@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
 import { useCreatorPickerProps } from '@/features/characters/internal/useCreatorPickerProps';
-import { PromptModal } from '@/features/characters/creator/PromptModal';
+import { PromptQueue } from '@/features/characters/sheet/dialog/PromptQueue';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
-import { usePendingPrompts } from '@/features/characters/sheet/hooks/usePendingPrompts';
 
 import { CreatorSection } from '@/features/characters/creator/CreatorSection';
 import { EMPTY_DRAFT, PICKER_LABEL, STEPS, STEP_LABEL } from '@/features/characters/creator/constants';
@@ -45,8 +44,7 @@ export function CharacterCreator(): React.ReactElement {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [openPicker, setOpenPicker] = useState<PickerTarget | null>(null);
   const [creator, setCreator] = useState<CreatorState>({ kind: 'creating' });
-  const pendingPrompts = usePendingPrompts();
-  const activePrompt = pendingPrompts[0] ?? null;
+
 
   useEffect(() => {
     let cancelled = false;
@@ -375,7 +373,7 @@ export function CharacterCreator(): React.ReactElement {
 
       {/* Module-driven prompts (pf2e ChoiceSets) render on top of
           everything else so the wizard pauses until the user picks. */}
-      {activePrompt !== null && <PromptModal prompt={activePrompt} />}
+      <PromptQueue />
     </main>
   );
 }

@@ -326,7 +326,12 @@ export function ItemShopPicker({ items, onBuy, pending, disabledRarities }: Prop
                 ref={gridRef}
                 className="grid gap-2 overflow-hidden"
                 style={{
-                  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                  // Cap each column at 160px so tiles don't balloon on wide
+                  // sheet layouts. Without the upper bound, aspect-square
+                  // tiles grew with the container width and only ~2.5 rows
+                  // fit on screen — TILE_HEIGHT_PX in useFitPageSize.ts
+                  // assumes ~146px tiles, which the wider variants weren't.
+                  gridTemplateColumns: 'repeat(5, minmax(0, 160px))',
                   maxHeight: maxHeight !== null ? `${maxHeight.toString()}px` : 'calc(100dvh - 20rem)',
                 }}
                 data-testid="shop-grid"

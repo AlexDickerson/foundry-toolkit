@@ -79,6 +79,11 @@ export interface ItemDetailSummary {
   name: string;
   type: string;
   img: string;
+  /** Hoisted from item.system.slug so consumers (e.g. foundry-mcp's
+   *  item-art override lookup) don't have to round-trip the full system
+   *  object. Null when the PF2e item has no slug — common for world-level
+   *  items that haven't been linked to a compendium entry. */
+  slug: string | null;
   equipped: boolean;
   quantity: number;
   hasActivities: boolean;

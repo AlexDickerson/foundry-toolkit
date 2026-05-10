@@ -3,7 +3,11 @@ import { homedir } from 'node:os';
 
 export const PORT = parseInt(process.env.PORT ?? '8765', 10);
 export const HOST = process.env.HOST ?? '0.0.0.0';
-export const COMMAND_TIMEOUT_MS = 30_000;
+// Bumped from 30s to 60s after observing dump-compendium-pack timing out
+// for the heaviest packs (equipment-srd at 5.6k docs, feats-srd at 6k)
+// when Foundry is under load. Steady-state these dumps complete in
+// ~12-15s, but a busy GM session can push them past 30s.
+export const COMMAND_TIMEOUT_MS = 60_000;
 // FOUNDRY_DATA_DIR: explicit path to Foundry's Data directory (e.g. /data/Data).
 // FOUNDRY_DATA: path to the Foundry data root (e.g. /data); Data/ is appended.
 // Falls back to ~/foundrydata/Data if neither is set.
@@ -25,6 +29,20 @@ export const SHARED_SECRET = process.env.SHARED_SECRET;
 // an unknown endpoint. When on, arbitrary JS runs in the Foundry page;
 // only enable on trusted networks.
 export const ALLOW_EVAL = process.env.ALLOW_EVAL === '1';
+
+// Root directory from which /item-art/<filename> is served. If unset,
+// the route returns 404 and the rest of the system works normally.
+// Set this to the directory containing purchased PF2e item-card PNGs.
+// Example: FOUNDRY_MCP_ITEM_ART_DIR=/data/item-art
+export const FOUNDRY_MCP_ITEM_ART_DIR = process.env.FOUNDRY_MCP_ITEM_ART_DIR;
+
+// Path to the shared pf2e.db SQLite database that holds item_art_overrides
+// (and dm-tool's other persistent state). If unset, item art overrides are
+// disabled — all items continue to show their default compendium icons.
+// On the Mac this DB lives in dm-tool's Electron userData dir; on the server
+// set this to wherever you've synced / mounted the DB file.
+// Example: PF2E_DB_PATH=/data/dm-tool.db
+export const PF2E_DB_PATH = process.env.PF2E_DB_PATH;
 
 // Comma-separated list of compendium pack ids to pre-fetch on module
 // connection. Serves subsequent search/document requests for these

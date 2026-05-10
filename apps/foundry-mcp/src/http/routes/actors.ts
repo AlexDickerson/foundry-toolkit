@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { sendCommand } from '../../bridge.js';
+import { applyItemArtOverrides } from '../item-art-helper.js';
 import {
   actorActionParams,
   actorIdParam,
@@ -31,7 +32,7 @@ export function registerActorRoutes(app: FastifyInstance): void {
 
   app.get('/api/actors/:id/prepared', async (req) => {
     const { id } = actorIdParam.parse(req.params);
-    return sendCommand('get-prepared-actor', { actorId: id });
+    return applyItemArtOverrides(await sendCommand('get-prepared-actor', { actorId: id }));
   });
 
   /** Return the party that contains the given character, plus rich stat data
@@ -46,7 +47,7 @@ export function registerActorRoutes(app: FastifyInstance): void {
   /** Return all items on a Party actor in ItemSummary shape. Read-only. */
   app.get('/api/actors/:id/party-stash', async (req) => {
     const { id } = actorIdParam.parse(req.params);
-    return sendCommand('get-party-stash', { partyActorId: id });
+    return applyItemArtOverrides(await sendCommand('get-party-stash', { partyActorId: id }));
   });
 
   app.get('/api/actors/:id/trace/:slug', async (req) => {
@@ -56,7 +57,7 @@ export function registerActorRoutes(app: FastifyInstance): void {
 
   app.get('/api/actors/:id/items', async (req) => {
     const { id } = actorIdParam.parse(req.params);
-    return sendCommand('get-actor-items', { actorId: id });
+    return applyItemArtOverrides(await sendCommand('get-actor-items', { actorId: id }));
   });
 
   // Character-creator wiring — the wizard creates a blank actor on

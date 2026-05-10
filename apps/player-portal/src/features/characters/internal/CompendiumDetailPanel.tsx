@@ -4,6 +4,8 @@ import { api, ApiRequestError } from '@/features/characters/api';
 import type { CompendiumDocument, CompendiumMatch } from '@/features/characters/types';
 import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import type { Evaluation } from '@/features/characters/internal/prereqs';
+import { getAncestryArt, getClassArt } from './character-art';
+import { CharacterArtGallery } from './CharacterArtGallery';
 
 type Resolution =
   | { kind: 'loading' }
@@ -89,6 +91,15 @@ export function CompendiumDetailPanel({
   const area = doc ? readArea(doc) : null;
   const enriched = description.length > 0 ? enrichDescription(description) : '';
 
+  // Decorative AoN reference art for ancestry / class detail panels.
+  // Picks up images bundled in src/data/pf2e-art.json. No-op for other types.
+  const characterArt =
+    target.type === 'ancestry'
+      ? getAncestryArt(target.name)
+      : target.type === 'class'
+        ? getClassArt(target.name)
+        : null;
+
   const failed = evaluation === 'fails';
 
   return (
@@ -136,35 +147,81 @@ export function CompendiumDetailPanel({
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        {state.kind === 'loading' && <p className="text-sm italic text-pf-alt">Loading…</p>}
+      {/* When art is present we need overflow-hidden here so the flex chain can
+          drive the image to fill the exact available height without creating an
+          outer scroll. The description column gets its own overflow-y-auto. */}
+      <div className={`flex-1 text-sm text-pf-text ${characterArt ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto px-4 py-3'}`}>
+        {state.kind === 'loading' && <p className="px-4 py-3 italic text-pf-alt">Loading…</p>}
         {state.kind === 'error' && (
-          <p className="text-sm text-pf-primary">Failed to load: {state.message}</p>
+          <p className="px-4 py-3 text-pf-primary">Failed to load: {state.message}</p>
         )}
         {state.kind === 'ok' && (
-          <div className="space-y-3 text-sm text-pf-text">
-            {prerequisites && prerequisites.length > 0 && (
-              <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
-            )}
-            {actions != null && <DetailRow label="Actions" value={actions} />}
-            {trigger != null && <DetailRow label="Trigger" value={trigger} />}
-            {frequency != null && <DetailRow label="Frequency" value={frequency} />}
-            {requirements != null && <DetailRow label="Requirements" value={requirements} />}
-            {price != null && <DetailRow label="Price" value={price} />}
-            {range != null && <DetailRow label="Range" value={range} />}
-            {area != null && <DetailRow label="Area" value={area} />}
-            {targetField != null && <DetailRow label="Targets" value={targetField} />}
-            {enriched.length > 0 ? (
-              <div
-                {...uuidHover.delegationHandlers}
-                className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
-                dangerouslySetInnerHTML={{ __html: enriched }}
-              />
-            ) : (
-              <p className="italic text-pf-alt">No description.</p>
-            )}
-            {uuidHover.popover}
-          </div>
+          characterArt ? (
+            // ── Ancestry / class: side-by-side, art fills available height ──
+            <div className="flex min-h-0 flex-1 flex-col">
+              {/* Detail rows (rare for ancestry/class, but possible) */}
+              {(prerequisites?.length || actions || trigger || frequency || requirements || price || range || area || targetField) && (
+                <div className="space-y-2 border-b border-pf-border px-4 py-3">
+                  {prerequisites && prerequisites.length > 0 && (
+                    <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
+                  )}
+                  {actions != null && <DetailRow label="Actions" value={actions} />}
+                  {trigger != null && <DetailRow label="Trigger" value={trigger} />}
+                  {frequency != null && <DetailRow label="Frequency" value={frequency} />}
+                  {requirements != null && <DetailRow label="Requirements" value={requirements} />}
+                  {price != null && <DetailRow label="Price" value={price} />}
+                  {range != null && <DetailRow label="Range" value={range} />}
+                  {area != null && <DetailRow label="Area" value={area} />}
+                  {targetField != null && <DetailRow label="Targets" value={targetField} />}
+                </div>
+              )}
+              {/* Two-column: description left, art right. flex-1 min-h-0 lets
+                  this row consume all remaining body height. */}
+              <div className="flex min-h-0 flex-1 gap-4 px-4 py-3">
+                <div className="min-w-0 flex-1 overflow-y-auto">
+                  {enriched.length > 0 ? (
+                    <div
+                      {...uuidHover.delegationHandlers}
+                      className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+                      dangerouslySetInnerHTML={{ __html: enriched }}
+                    />
+                  ) : (
+                    <p className="italic text-pf-alt">No description.</p>
+                  )}
+                </div>
+                {/* Art column: flex-col so the gallery can fill h-full */}
+                <div className="flex w-[28rem] shrink-0 flex-col">
+                  <CharacterArtGallery art={characterArt} subjectName={target.name} />
+                </div>
+              </div>
+              {uuidHover.popover}
+            </div>
+          ) : (
+            // ── All other types: original stacked layout ──
+            <div className="space-y-3">
+              {prerequisites && prerequisites.length > 0 && (
+                <DetailRow label="Prerequisites" value={prerequisites.join('; ')} fail={failed} />
+              )}
+              {actions != null && <DetailRow label="Actions" value={actions} />}
+              {trigger != null && <DetailRow label="Trigger" value={trigger} />}
+              {frequency != null && <DetailRow label="Frequency" value={frequency} />}
+              {requirements != null && <DetailRow label="Requirements" value={requirements} />}
+              {price != null && <DetailRow label="Price" value={price} />}
+              {range != null && <DetailRow label="Range" value={range} />}
+              {area != null && <DetailRow label="Area" value={area} />}
+              {targetField != null && <DetailRow label="Targets" value={targetField} />}
+              {enriched.length > 0 ? (
+                <div
+                  {...uuidHover.delegationHandlers}
+                  className="leading-relaxed [&_.pf-damage]:font-semibold [&_.pf-damage]:text-pf-primary [&_.pf-damage-heightened]:text-pf-prof-master [&_.pf-template]:italic [&_.pf-template]:text-pf-secondary [&_a]:cursor-pointer [&_a]:text-pf-primary [&_a]:underline [&_p]:my-2"
+                  dangerouslySetInnerHTML={{ __html: enriched }}
+                />
+              ) : (
+                <p className="italic text-pf-alt">No description.</p>
+              )}
+              {uuidHover.popover}
+            </div>
+          )
         )}
       </div>
 
