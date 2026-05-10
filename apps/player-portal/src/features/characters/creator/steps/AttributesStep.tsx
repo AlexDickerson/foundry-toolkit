@@ -93,6 +93,11 @@ export function disabledKeysForSlot(
   return disabled;
 }
 
+// PF2e "Alternative Ancestry Boosts" optional rule (Player Core p. 27):
+// a character may forgo their ancestry's listed boosts/flaws and instead
+// take exactly two free ability boosts.
+const ALTERNATE_BOOST_COUNT = 2;
+
 export function AttributesStep({
   actorId,
   ancestryPick,
@@ -105,6 +110,7 @@ export function AttributesStep({
   ancestryBoosts,
   backgroundBoosts,
   classKeyAbility,
+  alternateAncestryBoosts,
   onDraftPatch,
 }: {
   actorId: string | null;
@@ -118,8 +124,12 @@ export function AttributesStep({
   ancestryBoosts: (AbilityKey | null)[];
   backgroundBoosts: (AbilityKey | null)[];
   classKeyAbility: AbilityKey | null;
+  /** Null when the optional rule is off; an array — possibly empty —
+   *  when on, with the two picks. */
+  alternateAncestryBoosts: AbilityKey[] | null;
   onDraftPatch: (patch: Partial<Draft>) => void;
 }): React.ReactElement {
+  const useAlternateBoosts = alternateAncestryBoosts !== null;
   const ancestryDoc = useSourceSlots(ancestryPick, parseAncestryOrBackgroundSlots);
   // Flaws are parsed separately from the same ancestry doc — pf2e
   // applies them automatically when the item attaches, so we surface
@@ -219,12 +229,51 @@ export function AttributesStep({
     patchItem(classItemId, 'keyAbility.selected', key);
   };
 
+  // PF2e "Alternative Ancestry Boosts" toggle. Truthy presence of
+  // `ancestry.system.alternateAncestryBoosts` (any array, even empty)
+  // makes pf2e's ancestry-prep skip the listed boosts AND flaws and
+  // instead grant the picks recorded in the array. `null` disables the
+  // rule. We send `null` for off so the system's `if (...alternateAncestryBoosts)`
+  // check evaluates false; the field then sits as null in the embedded
+  // item — pf2e treats null and absent identically.
+  const toggleAlternateBoosts = (enabled: boolean): void => {
+    const next: AbilityKey[] | null = enabled ? [] : null;
+    onDraftPatch({ alternateAncestryBoosts: next });
+    patchItem(ancestryItemId, 'alternateAncestryBoosts', next);
+  };
+  // Tile-toggle picker for the alternate boosts: click an ability to
+  // add/remove it. Order doesn't matter to pf2e (the array is just
+  // pushed into `build.attributes.boosts.ancestry` verbatim), and a
+  // grid avoids the positional-hole problem a two-slot row would have
+  // if the user clicked slot 2 first.
+  const toggleAlternateBoost = (key: AbilityKey): void => {
+    if (alternateAncestryBoosts === null) return;
+    let next: AbilityKey[];
+    if (alternateAncestryBoosts.includes(key)) {
+      next = alternateAncestryBoosts.filter((k) => k !== key);
+    } else {
+      if (alternateAncestryBoosts.length >= ALTERNATE_BOOST_COUNT) return;
+      // 18-cap still applies here — these picks count toward the
+      // per-ability cap like any other boost.
+      const cap = BOOST_CAP + (flawCounts[key] ?? 0);
+      if (allBoosts[key] >= cap) return;
+      next = [...alternateAncestryBoosts, key];
+    }
+    onDraftPatch({ alternateAncestryBoosts: next });
+    patchItem(ancestryItemId, 'alternateAncestryBoosts', next);
+  };
+
   // Compute all committed boosts across every source so child pickers
-  // can enforce the 18-cap. Flaws from ancestry raise the cap by 1 per
-  // flaw (e.g. a Dwarf's CHA flaw lets CHA reach 18 with 5 boosts).
-  const flawCounts = flawCountsFromSlots(ancestryFlaws.kind === 'ready' ? ancestryFlaws.slots : []);
+  // can enforce the 18-cap. When the alternative-ancestry-boosts rule
+  // is on we tally the two alternate picks instead of the ancestry's
+  // normal slots, and we zero out flaw counts (flaws don't apply under
+  // the alternate rule).
+  const flawCounts = useAlternateBoosts
+    ? {}
+    : flawCountsFromSlots(ancestryFlaws.kind === 'ready' ? ancestryFlaws.slots : []);
+  const ancestryTally = useAlternateBoosts ? tallyBoosts(alternateAncestryBoosts ?? []) : tallyBoosts(ancestryBoosts);
   const allBoosts = mergeBoostTallies(
-    tallyBoosts(ancestryBoosts),
+    ancestryTally,
     tallyBoosts(backgroundBoosts),
     tallyBoosts(classKeyAbility !== null ? [classKeyAbility] : []),
     tallyBoosts(levelOneBoosts),
@@ -253,13 +302,16 @@ export function AttributesStep({
         <span className="font-semibold text-pf-text">+4</span> in that attribute (the class boost plus one of your free
         boosts). Falling short of +4 here usually costs you accuracy at every level.
       </p>
-      <BoostSourceBlock
-        label={ancestryPick !== null ? `Ancestry · ${ancestryPick.name}` : 'Ancestry'}
-        state={ancestryDoc}
-        placeholderText="Pick an ancestry on the previous step to see its boosts."
-        picks={ancestryBoosts}
-        onPick={setAncestrySlot}
-        flaws={ancestryFlaws}
+      <AncestryBoostSection
+        ancestryPick={ancestryPick}
+        ancestryDoc={ancestryDoc}
+        ancestryFlaws={ancestryFlaws}
+        ancestryBoosts={ancestryBoosts}
+        alternateAncestryBoosts={alternateAncestryBoosts}
+        useAlternateBoosts={useAlternateBoosts}
+        onPickSlot={setAncestrySlot}
+        onToggleAlternateBoost={toggleAlternateBoost}
+        onToggleAlternate={toggleAlternateBoosts}
         allBoosts={allBoosts}
         flawCounts={flawCounts}
       />
@@ -328,6 +380,152 @@ function useSourceSlots(pick: CompendiumMatch | null, parse: (system: unknown) =
   return state;
 }
 
+// Ancestry section composes the standard BoostSourceBlock with the
+// "Alternative Ancestry Boosts" toggle. When the rule is on, the
+// ancestry's listed boosts/flaws are replaced by a two-slot free-boost
+// picker — same wire format pf2e uses internally
+// (`system.alternateAncestryBoosts: AbilityKey[]`).
+function AncestryBoostSection({
+  ancestryPick,
+  ancestryDoc,
+  ancestryFlaws,
+  ancestryBoosts,
+  alternateAncestryBoosts,
+  useAlternateBoosts,
+  onPickSlot,
+  onToggleAlternateBoost,
+  onToggleAlternate,
+  allBoosts,
+  flawCounts,
+}: {
+  ancestryPick: CompendiumMatch | null;
+  ancestryDoc: SourceDocState;
+  ancestryFlaws: SourceDocState;
+  ancestryBoosts: (AbilityKey | null)[];
+  alternateAncestryBoosts: AbilityKey[] | null;
+  useAlternateBoosts: boolean;
+  onPickSlot: (slotIdx: number, key: AbilityKey) => void;
+  onToggleAlternateBoost: (key: AbilityKey) => void;
+  onToggleAlternate: (enabled: boolean) => void;
+  allBoosts: Record<AbilityKey, number>;
+  flawCounts: Partial<Record<AbilityKey, number>>;
+}): React.ReactElement {
+  return (
+    <section>
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <h3 className="font-serif text-xs font-semibold uppercase tracking-widest text-pf-alt-dark">
+          {ancestryPick !== null ? `Ancestry · ${ancestryPick.name}` : 'Ancestry'}
+        </h3>
+        {ancestryPick !== null && (
+          <label
+            className="flex cursor-pointer items-center gap-1.5 text-[10px] uppercase tracking-widest text-pf-alt-dark"
+            data-role="alternate-ancestry-boosts-toggle"
+            title="Forgo the ancestry's listed boosts and flaws; take two free ability boosts instead."
+          >
+            <input
+              type="checkbox"
+              checked={useAlternateBoosts}
+              onChange={(e): void => {
+                onToggleAlternate(e.target.checked);
+              }}
+              className="h-3.5 w-3.5 rounded border-pf-border"
+            />
+            Use 2 free boosts
+          </label>
+        )}
+      </div>
+      {useAlternateBoosts ? (
+        <AlternateAncestryBoostPicker
+          picks={alternateAncestryBoosts ?? []}
+          onToggle={onToggleAlternateBoost}
+          allBoosts={allBoosts}
+          flawCounts={flawCounts}
+        />
+      ) : (
+        <BoostSourceBlock
+          label=""
+          state={ancestryDoc}
+          placeholderText="Pick an ancestry on the previous step to see its boosts."
+          picks={ancestryBoosts}
+          onPick={onPickSlot}
+          flaws={ancestryFlaws}
+          allBoosts={allBoosts}
+          flawCounts={flawCounts}
+          hideHeading
+        />
+      )}
+    </section>
+  );
+}
+
+// Tile-grid picker for the two alternate ancestry boosts. Mirrors the
+// L1 free-boost tiles below so the visual language is identical — the
+// only differences are the cap (2 vs 4) and the source the picks land on
+// (the ancestry item's `alternateAncestryBoosts` field, not the actor's
+// `build.attributes.boosts.1`).
+function AlternateAncestryBoostPicker({
+  picks,
+  onToggle,
+  allBoosts,
+  flawCounts,
+}: {
+  picks: AbilityKey[];
+  onToggle: (key: AbilityKey) => void;
+  allBoosts: Record<AbilityKey, number>;
+  flawCounts: Partial<Record<AbilityKey, number>>;
+}): React.ReactElement {
+  const remaining = ALTERNATE_BOOST_COUNT - picks.length;
+  return (
+    <>
+      <p className="mb-2 text-xs text-pf-alt-dark">
+        Pick {ALTERNATE_BOOST_COUNT} attributes — these replace your ancestry’s listed boosts and flaws.{' '}
+        <span className="tabular-nums">{picks.length}</span>/{ALTERNATE_BOOST_COUNT} selected.
+      </p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {ABILITY_KEYS.map((key) => {
+          const picked = picks.includes(key);
+          // 18-cap: `allBoosts` already includes this picker's contribution
+          // when `picked`, so the cap test only blocks adding a new boost.
+          const atCap = !picked && allBoosts[key] >= BOOST_CAP + (flawCounts[key] ?? 0);
+          const locked = !picked && (picks.length >= ALTERNATE_BOOST_COUNT || atCap);
+          return (
+            <button
+              key={key}
+              type="button"
+              disabled={locked}
+              data-alt-ancestry-tile={key}
+              aria-pressed={picked}
+              onClick={(): void => {
+                onToggle(key);
+              }}
+              title={atCap ? 'Already at 18 — cannot boost further' : undefined}
+              className={[
+                'flex flex-col items-center rounded border px-2 py-3 transition-colors',
+                picked
+                  ? 'border-pf-primary bg-pf-tertiary/40'
+                  : locked
+                    ? 'cursor-not-allowed border-pf-border bg-pf-bg opacity-40'
+                    : 'border-pf-border bg-pf-bg hover:bg-pf-tertiary/20',
+              ].join(' ')}
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+                {key.toUpperCase()}
+              </span>
+              <BoostedMod mod={0} boosted={picked} />
+              <span className="text-[10px] text-pf-alt">{ABILITY_LABEL[key]}</span>
+            </button>
+          );
+        })}
+      </div>
+      {remaining > 0 && (
+        <p className="mt-1 text-xs italic text-pf-alt-dark">
+          {remaining} more pick{remaining === 1 ? '' : 's'} remaining.
+        </p>
+      )}
+    </>
+  );
+}
+
 function BoostSourceBlock({
   label,
   state,
@@ -337,6 +535,7 @@ function BoostSourceBlock({
   flaws,
   allBoosts,
   flawCounts,
+  hideHeading = false,
 }: {
   label: string;
   state: SourceDocState;
@@ -349,11 +548,16 @@ function BoostSourceBlock({
   flaws?: SourceDocState;
   allBoosts: Record<AbilityKey, number>;
   flawCounts: Partial<Record<AbilityKey, number>>;
+  /** Suppress the block's own heading when the caller is providing one
+   *  (Ancestry section wraps this with its own header + toggle row). */
+  hideHeading?: boolean;
 }): React.ReactElement {
   const flawSlots = flaws?.kind === 'ready' ? flaws.slots : [];
   return (
     <section>
-      <h3 className="mb-2 font-serif text-xs font-semibold uppercase tracking-widest text-pf-alt-dark">{label}</h3>
+      {!hideHeading && (
+        <h3 className="mb-2 font-serif text-xs font-semibold uppercase tracking-widest text-pf-alt-dark">{label}</h3>
+      )}
       {state.kind === 'idle' && <p className="text-xs italic text-pf-alt-dark">{placeholderText}</p>}
       {state.kind === 'loading' && <p className="text-xs italic text-pf-alt-dark">Loading…</p>}
       {state.kind === 'error' && <p className="text-xs text-pf-primary">Couldn&apos;t load: {state.message}</p>}

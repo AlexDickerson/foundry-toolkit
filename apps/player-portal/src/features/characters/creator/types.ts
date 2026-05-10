@@ -82,6 +82,14 @@ export interface Draft {
   ancestryBoosts: (AbilityKey | null)[];
   backgroundBoosts: (AbilityKey | null)[];
   classKeyAbility: AbilityKey | null;
+  // PF2e optional rule "Alternative Ancestry Boosts": the player can
+  // forgo their ancestry's listed boosts and flaws in exchange for two
+  // free ability boosts. `null` means the rule is off (use the ancestry's
+  // normal boosts/flaws); an array — possibly empty — means it's on,
+  // with the array tracking the two picks. Persisted as
+  // `ancestry.system.alternateAncestryBoosts` (presence/absence drives
+  // pf2e's prepare-step branching).
+  alternateAncestryBoosts: AbilityKey[] | null;
 }
 
 // Actor lifecycle: wizard opens → creating → ready (actor exists in

@@ -21,6 +21,7 @@ export const EMPTY_DRAFT: Draft = {
   ancestryBoosts: [],
   backgroundBoosts: [],
   classKeyAbility: null,
+  alternateAncestryBoosts: null,
   skillPicks: [],
   languagePicks: [],
   classGrantsL1Feat: null,

@@ -171,8 +171,8 @@ export function applyPickedSlot(draft: Draft, target: PickerTarget, slot: Slot):
   switch (target) {
     case 'ancestry':
       // A new ancestry wipes the heritage + cached slug + ancestry
-      // feat + ancestry boost picks + language picks (the old
-      // choices may not be valid under the new ancestry).
+      // feat + ancestry boost picks + language picks + alternate-boost
+      // opt-in (the old choices may not be valid under the new ancestry).
       return {
         ...draft,
         ancestry: slot,
@@ -181,6 +181,7 @@ export function applyPickedSlot(draft: Draft, target: PickerTarget, slot: Slot):
         heritageSlug: null,
         ancestryFeat: null,
         ancestryBoosts: [],
+        alternateAncestryBoosts: null,
         languagePicks: [],
         languageAllowance: null,
       };

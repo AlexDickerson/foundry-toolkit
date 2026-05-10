@@ -320,6 +320,7 @@ export function CharacterCreator(): React.ReactElement {
                 ancestryBoosts={draft.ancestryBoosts}
                 backgroundBoosts={draft.backgroundBoosts}
                 classKeyAbility={draft.classKeyAbility}
+                alternateAncestryBoosts={draft.alternateAncestryBoosts}
                 onDraftPatch={(patch): void => {
                   setDraft((d) => ({ ...d, ...patch }));
                 }}
