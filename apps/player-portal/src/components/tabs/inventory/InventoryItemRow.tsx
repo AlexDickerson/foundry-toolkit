@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { PhysicalItem } from '../../../api/types';
 import { isContainer } from '../../../api/types';
 import { useExpandableCard } from '../../../lib/useExpandableCard';
@@ -8,12 +9,73 @@ import { enrichDescription } from '@foundry-toolkit/shared/foundry-enrichers';
 import type { SellContext, InvestContext, PartyContext } from './inventory-shop';
 
 // Items whose img field is a /item-art/* URL have a purchased art override.
-// We use this to switch thumbnails from letterboxed (object-contain, suited
-// to default square Foundry icons) to cropped (object-cover, suited to
-// portrait-oriented item-card art) and to swap the description-text panel
-// for a full-art view.
+// Thumbnails for these get a tighter crop and become click-to-open buttons
+// that show the full uncropped art in a lightbox. The expanded details
+// panel still shows the rules text — players need to read the card.
 function hasArtOverride(img: string): boolean {
   return img.startsWith('/item-art/');
+}
+
+/** Renders the item thumbnail as a clickable button when there's an art
+ *  override (opens a lightbox with the full art); plain <img> otherwise. */
+function ItemThumb({
+  item,
+  sizeClass,
+  containClass,
+}: {
+  item: PhysicalItem;
+  /** Tailwind size + flex utilities for the thumbnail box (e.g. "h-8 w-8 flex-shrink-0"). */
+  sizeClass: string;
+  /** Optional extra classes for the non-override <img> (e.g. "object-contain"
+   *  for the grid tile that uses an aspect-square wrapper). Default empty. */
+  containClass?: string;
+}): React.ReactElement {
+  const [open, setOpen] = useState(false);
+  const baseImgClass = `${sizeClass} rounded border border-pf-border bg-pf-bg-dark`;
+
+  if (!hasArtOverride(item.img)) {
+    return <img src={item.img} alt="" className={`${baseImgClass} ${containClass ?? ''}`} />;
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => {
+          // Stop the surrounding <summary> from toggling the details element.
+          e.stopPropagation();
+          e.preventDefault();
+          setOpen(true);
+        }}
+        aria-label={`View full art for ${item.name}`}
+        className={`${sizeClass} cursor-zoom-in overflow-hidden rounded border border-pf-border bg-pf-bg-dark`}
+      >
+        <img
+          src={item.img}
+          alt=""
+          className="h-full w-full scale-150 origin-top object-cover object-[center_2%]"
+        />
+      </button>
+      {open &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${item.name} – full art`}
+            className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
+            onClick={() => setOpen(false)}
+          >
+            <img
+              src={item.img}
+              alt={item.name}
+              className="max-h-full max-w-full rounded shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>,
+          document.body,
+        )}
+    </>
+  );
 }
 
 // Each tile that opens claims the next value, ensuring the most recently
@@ -61,11 +123,7 @@ export function ItemRow({
             card.toggle();
           }}
         >
-          <img
-            src={item.img}
-            alt=""
-            className={`h-8 w-8 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark ${hasArtOverride(item.img) ? 'scale-150 origin-top object-cover object-[center_2%]' : ''}`}
-          />
+          <ItemThumb item={item} sizeClass="h-8 w-8 flex-shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
               <span className="truncate text-sm text-pf-text">{item.name}</span>
@@ -95,7 +153,7 @@ export function ItemRow({
               <StashButton item={item} context={partyContext} />
             </div>
           )}
-          <ItemDetailBody item={item} />
+          <ItemDescription item={item} />
         </div>
       </details>
       {isContainerRow && contents.length > 0 && (
@@ -127,11 +185,7 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
             card.toggle();
           }}
         >
-          <img
-            src={item.img}
-            alt=""
-            className={`h-6 w-6 flex-shrink-0 rounded border border-pf-border bg-pf-bg-dark ${hasArtOverride(item.img) ? 'scale-150 origin-top object-cover object-[center_2%]' : ''}`}
-          />
+          <ItemThumb item={item} sizeClass="h-6 w-6 flex-shrink-0" />
           <div className="min-w-0 flex-1">
             <span className="truncate text-sm text-neutral-800">{item.name}</span>
             {item.system.quantity > 1 && <span className="ml-2 text-xs text-pf-text-muted">×{item.system.quantity}</span>}
@@ -141,7 +195,7 @@ function ContainerChildRow({ item }: { item: PhysicalItem }): React.ReactElement
           <span className="ml-1 hidden text-[10px] text-pf-alt-dark group-open:inline">▾</span>
         </summary>
         <div className="absolute left-0 right-0 top-full z-20 rounded-b border border-t-0 border-pf-primary/60 bg-pf-bg px-3 py-2 text-sm text-pf-text shadow-lg">
-          <ItemDetailBody item={item} />
+          <ItemDescription item={item} />
         </div>
       </details>
     </li>
@@ -186,7 +240,9 @@ export function GridTile({
 
   const [zIndex, setZIndex] = useState<number | undefined>(undefined);
   const [flipLeft, setFlipLeft] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const overrideOnImg = hasArtOverride(item.img);
 
   useLayoutEffect(() => {
     if (zIndex === undefined) {
@@ -223,7 +279,16 @@ export function GridTile({
               <img
                 src={item.img}
                 alt=""
-                className={`h-full w-full ${hasArtOverride(item.img) ? 'scale-150 origin-top object-cover object-[center_2%]' : 'object-contain'}`}
+                onClick={
+                  overrideOnImg
+                    ? (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setLightboxOpen(true);
+                      }
+                    : undefined
+                }
+                className={`h-full w-full ${overrideOnImg ? 'scale-150 origin-top cursor-zoom-in object-cover object-[center_2%]' : 'object-contain'}`}
               />
               <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
                 <span
@@ -256,27 +321,29 @@ export function GridTile({
               <StashButton item={item} context={partyContext} />
             </div>
           )}
-          <ItemDetailBody item={item} />
+          <ItemDescription item={item} />
         </div>
       </details>
+      {lightboxOpen &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${item.name} – full art`}
+            className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <img
+              src={item.img}
+              alt={item.name}
+              className="max-h-full max-w-full rounded shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>,
+          document.body,
+        )}
     </li>
   );
-}
-
-// When the item has a purchased art override, show the full art (no crop)
-// in place of the description text — players already have the rules card
-// in front of them, the art is what's worth seeing here.
-function ItemDetailBody({ item }: { item: PhysicalItem }): React.ReactElement {
-  if (hasArtOverride(item.img)) {
-    return (
-      <img
-        src={item.img}
-        alt={item.name}
-        className="mx-auto block max-h-[80vh] w-auto max-w-full rounded border border-pf-border bg-pf-bg-dark"
-      />
-    );
-  }
-  return <ItemDescription item={item} />;
 }
 
 // Bare description block — used inside the list-mode absolute panel
