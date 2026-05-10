@@ -79,30 +79,60 @@ interface SearchMatch {
   system?: { slug?: string };
 }
 
+/** Strip everything but a-z0-9 for fuzzy comparison.
+ *  e.g. "Adventurer's Pack" and "Adventurers Pack" both → "adventurerspack" */
+function alphaNumOnly(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** Build a fall-back set of search queries to try when the literal name
+ *  doesn't return any candidates. Common cause: the on-disk filename omits
+ *  apostrophes ("Adventurers Pack") but the PF2e name has them
+ *  ("Adventurer's Pack"), so the substring tokenizer in compendium-search
+ *  yields zero hits. Dropping trailing 's' on each word lets the search
+ *  return apostrophe-bearing variants. */
+function searchQueryVariants(itemName: string): string[] {
+  const variants = new Set<string>();
+  variants.add(itemName);
+  // Replace curly right single quote with ASCII apostrophe.
+  variants.add(itemName.replace(/[‘’]/g, "'"));
+  // Drop trailing 's' on every word (compendium tokenizer is substring-based;
+  // shorter tokens are MORE permissive, so this cast a wider net).
+  variants.add(itemName.replace(/(\w)s\b/g, '$1'));
+  // Strip apostrophes entirely (handles names already containing them).
+  variants.add(itemName.replace(/['‘’]/g, ''));
+  return Array.from(variants);
+}
+
 async function lookupSlug(itemName: string, baseUrl: string): Promise<string | null> {
-  const url = `${baseUrl}/api/compendium/search?q=${encodeURIComponent(itemName)}&documentType=Item&limit=10`;
-  let data: { matches?: SearchMatch[] };
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) return null;
-    data = (await res.json()) as { matches?: SearchMatch[] };
-  } catch {
-    return null;
+  const targetNorm = alphaNumOnly(itemName);
+
+  for (const query of searchQueryVariants(itemName)) {
+    const url = `${baseUrl}/api/compendium/search?q=${encodeURIComponent(query)}&documentType=Item&limit=20`;
+    let data: { matches?: SearchMatch[] };
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) continue;
+      data = (await res.json()) as { matches?: SearchMatch[] };
+    } catch {
+      continue;
+    }
+
+    if (!Array.isArray(data.matches) || data.matches.length === 0) continue;
+
+    // Try exact, case-insensitive, and alphanumeric-only matches in order
+    // of decreasing confidence.
+    const lower = itemName.toLowerCase();
+    const exact = data.matches.find((m) => m.name === itemName);
+    const caseInsensitive = data.matches.find((m) => m.name.toLowerCase() === lower);
+    const alphaNum = data.matches.find((m) => alphaNumOnly(m.name) === targetNorm);
+    const best = exact ?? caseInsensitive ?? alphaNum;
+
+    if (best) {
+      return best.system?.slug ?? sluggify(best.name) ?? null;
+    }
   }
-
-  if (!Array.isArray(data.matches) || data.matches.length === 0) return null;
-
-  // Prefer an exact name match first, then a case-insensitive match.
-  const lower = itemName.toLowerCase();
-  const exact = data.matches.find((m) => m.name === itemName);
-  const caseInsensitive = data.matches.find((m) => m.name.toLowerCase() === lower);
-  const best = exact ?? caseInsensitive;
-
-  if (!best) return null;
-
-  // Use system.slug if present; otherwise derive it from the matched name.
-  const slug = best.system?.slug ?? sluggify(best.name);
-  return slug || null;
+  return null;
 }
 
 // ─── Main ───────────────────────────────────────────────────────────────────
