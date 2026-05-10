@@ -12,6 +12,10 @@
         "lint-staged"
       ]
     },
+    "apps/headless-bridge": {
+      "entry": ["src/main.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "apps/dm-tool": {
       "entry": ["electron.vite.config.ts", "electron/main.ts", "electron/preload.ts", "electron/**/*.test.ts"],
       "project": ["electron/**/*.ts", "src/**/*.{ts,tsx}"],

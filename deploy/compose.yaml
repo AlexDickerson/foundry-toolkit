@@ -80,6 +80,35 @@ services:
     networks:
       - internal
 
+  # ── headless-bridge ─────────────────────────────────────────────────────────
+  # Headless Chromium process that logs into Foundry as a dedicated GM account
+  # and holds the page open 24/7, keeping foundry-api-bridge connected to
+  # foundry-mcp without requiring a browser tab to stay open.
+  #
+  # Requires a dedicated Foundry user with Gamemaster role (e.g. "bridge-gm").
+  # Do NOT reuse your primary GM account — Foundry allows only one active
+  # session per user; logging in as the same GM will kick the other session.
+  #
+  # To build locally (from the monorepo root):
+  #   docker build -f deploy/Dockerfile.headless-bridge \
+  #     -t foundry-toolkit-headless-bridge:dev .
+  headless-bridge:
+    image: ghcr.io/alexdickerson/foundry-toolkit-headless-bridge:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      FOUNDRY_URL: http://foundry:30000
+      FOUNDRY_ADMIN_KEY: ${FOUNDRY_ADMIN_KEY:-}
+      FOUNDRY_MCP_URL: http://foundry-mcp:8765
+      BRIDGE_GM_USER: ${BRIDGE_GM_USER}
+      BRIDGE_GM_PASS: ${BRIDGE_GM_PASS:-}
+      BRIDGE_WORLD_ID: ${BRIDGE_WORLD_ID}
+    mem_limit: 768m
+    depends_on:
+      - foundry
+      - foundry-mcp
+    networks:
+      - internal
+
   # ── player-portal ────────────────────────────────────────────────────────────
   # Fastify server that serves the Vite SPA and reverse-proxies:
   #   /api/mcp/*              → foundry-mcp (MCP REST surface)
