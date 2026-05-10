@@ -418,6 +418,15 @@ function CreatorPicker({
   return <DefaultCreatorPicker target={target} filters={filters} onPick={onPick} onClose={onClose} />;
 }
 
+// Targets where the picker should:
+//   - default to common-only rarity (new players default to the Player
+//     Core options; uncommon/rare picks typically need GM approval,
+//     surfaced as a Tips Rail card)
+//   - hide the unmet-prereq toggle (these picks have no prereqs)
+//   - hide the alpha/level sort (these picks aren't levelled; alpha
+//     order is fine without an explicit toggle)
+const RARITY_GATED_TARGETS = new Set<PickerTarget>(['ancestry', 'background']);
+
 function DefaultCreatorPicker({
   target,
   filters,
@@ -429,7 +438,14 @@ function DefaultCreatorPicker({
   onPick: (match: CompendiumMatch) => void;
   onClose: () => void;
 }): React.ReactElement {
-  const props = useCreatorPickerProps(filters, undefined, onPick);
+  const props = useCreatorPickerProps(
+    filters,
+    undefined,
+    onPick,
+    RARITY_GATED_TARGETS.has(target)
+      ? { initialRarities: ['common'], showUnmetToggle: false, showSortToggle: false }
+      : undefined,
+  );
   return <CompendiumPicker title={`Choose a ${PICKER_LABEL[target]}`} {...props} onClose={onClose} />;
 }
 

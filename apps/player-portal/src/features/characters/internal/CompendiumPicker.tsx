@@ -55,12 +55,8 @@ export function PickerResultList<TItem>({
       ].join(' ')}
       data-testid={resultsTestId}
     >
-      {isLoading && items.length === 0 && (
-        <p className="p-4 text-sm italic text-pf-alt">Searching…</p>
-      )}
-      {error != null && (
-        <p className="p-4 text-sm text-pf-primary">Search failed: {error}</p>
-      )}
+      {isLoading && items.length === 0 && <p className="p-4 text-sm italic text-pf-alt">Searching…</p>}
+      {error != null && <p className="p-4 text-sm text-pf-primary">Search failed: {error}</p>}
       {!isLoading && error == null && items.length === 0 && (
         <p className="p-4 text-sm italic text-pf-alt">{emptyMessage}</p>
       )}
@@ -119,6 +115,8 @@ export interface CompendiumPickerProps {
   maxLevel?: number | undefined;
   /** OR-filter on publication source title (drives the source-book picker). */
   sources?: string[] | undefined;
+  /** OR-filter on `system.traits.rarity` (drives the rarity picker). */
+  rarities?: string[] | undefined;
   ancestrySlug?: string | undefined;
   /** Client-side predicate applied after server results land. */
   filterItem?: ((match: CompendiumMatch) => boolean) | undefined;
@@ -160,6 +158,7 @@ export function CompendiumPicker({
   anyTraits,
   maxLevel,
   sources,
+  rarities,
   ancestrySlug,
   filterItem,
   sortItems,
@@ -193,9 +192,10 @@ export function CompendiumPicker({
         anyTraits: [...(anyTraits ?? [])].sort(),
         maxLevel: maxLevel ?? null,
         sources: [...(sources ?? [])].sort(),
+        rarities: [...(rarities ?? [])].sort(),
         ancestrySlug: ancestrySlug ?? null,
       }),
-    [packIds, documentType, traits, anyTraits, maxLevel, sources, ancestrySlug],  
+    [packIds, documentType, traits, anyTraits, maxLevel, sources, rarities, ancestrySlug],
   );
 
   const { state, hasMore, isLoadingMore, loadMore } = usePaginatedSearch<CompendiumMatch>(
@@ -207,6 +207,7 @@ export function CompendiumPicker({
       if (anyTraits?.length) opts.anyTraits = [...anyTraits];
       if (maxLevel != null) opts.maxLevel = maxLevel;
       if (sources?.length) opts.sources = [...sources];
+      if (rarities?.length) opts.rarities = [...rarities];
       if (ancestrySlug) opts.ancestrySlug = ancestrySlug;
       return api.searchCompendium(opts);
     },
@@ -231,9 +232,7 @@ export function CompendiumPicker({
   }, [allItems, filterItem, sortItems]);
 
   const effectiveEmptyMessage =
-    allFilteredMessage != null && allItems.length > 0 && visible.length === 0
-      ? allFilteredMessage
-      : emptyMessage;
+    allFilteredMessage != null && allItems.length > 0 && visible.length === 0 ? allFilteredMessage : emptyMessage;
 
   // Internal detail flow: when the caller doesn't provide a custom splitPane
   // or renderList, clicking a row opens a built-in CompendiumDetailPanel
@@ -251,8 +250,7 @@ export function CompendiumPicker({
           const evaluation = evaluations?.get(m.uuid);
           const fails = evaluation === 'fails';
           const unknown = evaluation === 'unknown';
-          const traitsSummary =
-            m.traits && m.traits.length > 0 ? m.traits.slice(0, 5).join(', ') : '';
+          const traitsSummary = m.traits && m.traits.length > 0 ? m.traits.slice(0, 5).join(', ') : '';
           const rowTitle = fails
             ? "Character doesn't meet this entry's prerequisites"
             : unknown
@@ -281,11 +279,7 @@ export function CompendiumPicker({
                 data-prereq-state={evaluation ?? 'pending'}
               >
                 {m.img && (
-                  <img
-                    src={m.img}
-                    alt=""
-                    className="h-8 w-8 shrink-0 rounded border border-pf-border bg-pf-bg-dark"
-                  />
+                  <img src={m.img} alt="" className="h-8 w-8 shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
@@ -323,8 +317,7 @@ export function CompendiumPicker({
   // When the caller didn't supply splitPane and we're in internal-detail mode,
   // render a built-in CompendiumDetailPanel beside the list.
   const internalDetailUuid = internalDetailTarget?.uuid;
-  const internalDetailEvaluation =
-    internalDetailUuid !== undefined ? evaluations?.get(internalDetailUuid) : undefined;
+  const internalDetailEvaluation = internalDetailUuid !== undefined ? evaluations?.get(internalDetailUuid) : undefined;
   const effectiveSplitPane: CompendiumPickerSplitPane | undefined = useInternalDetail
     ? {
         detailOpen: internalDetailTarget !== null,
@@ -339,9 +332,7 @@ export function CompendiumPicker({
               onClose={(): void => {
                 setInternalDetailTarget(null);
               }}
-              {...(internalDetailEvaluation !== undefined
-                ? { evaluation: internalDetailEvaluation }
-                : {})}
+              {...(internalDetailEvaluation !== undefined ? { evaluation: internalDetailEvaluation } : {})}
               {...(docCache !== undefined ? { docCache } : {})}
               {...(testId !== undefined ? { testIdPrefix: testId } : {})}
             />
@@ -373,22 +364,20 @@ export function CompendiumPicker({
         />
         {filterControls}
       </div>
-        <PickerResultList
-          isLoading={state.kind === 'loading'}
-          error={state.kind === 'error' ? state.message : null}
-          items={visible}
-          emptyMessage={effectiveEmptyMessage}
-          renderList={renderList ?? defaultRenderList}
-          resultsTestId={resultsTestId}
-          hasMore={hasMore}
-          isLoadingMore={isLoadingMore}
-          onLoadMore={loadMore}
-          {...(state.kind === 'ready'
-            ? { remainingCount: state.total - state.items.length }
-            : {})}
-          loadMoreTestId={loadMoreTestId}
-          splitPane={effectiveSplitPane}
-        />
+      <PickerResultList
+        isLoading={state.kind === 'loading'}
+        error={state.kind === 'error' ? state.message : null}
+        items={visible}
+        emptyMessage={effectiveEmptyMessage}
+        renderList={renderList ?? defaultRenderList}
+        resultsTestId={resultsTestId}
+        hasMore={hasMore}
+        isLoadingMore={isLoadingMore}
+        onLoadMore={loadMore}
+        {...(state.kind === 'ready' ? { remainingCount: state.total - state.items.length } : {})}
+        loadMoreTestId={loadMoreTestId}
+        splitPane={effectiveSplitPane}
+      />
     </PickerDialog>
   );
 }
