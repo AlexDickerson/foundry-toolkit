@@ -30,7 +30,6 @@ export function PickerCard({
             {helpText}
           </p>
         )}
-        <p className="text-sm text-pf-text">No {label.toLowerCase()} selected yet.</p>
         <button
           type="button"
           onClick={onOpen}
