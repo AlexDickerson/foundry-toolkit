@@ -22,12 +22,14 @@ COPY apps/player-portal/package.json  apps/player-portal/
 COPY apps/dm-tool/package.json        apps/dm-tool/
 COPY packages/shared/package.json     packages/shared/
 COPY packages/pf2e-rules/package.json packages/pf2e-rules/
+COPY packages/pdf-reader/package.json packages/pdf-reader/
 
 # --ignore-scripts skips husky and electron-rebuild lifecycle hooks.
 RUN npm install --ignore-scripts
 
 COPY packages/shared     packages/shared
 COPY packages/pf2e-rules packages/pf2e-rules
+COPY packages/pdf-reader packages/pdf-reader
 COPY apps/player-portal  apps/player-portal
 
 # build:client runs tsc --noEmit (type check) then vite build (SPA → dist/).
@@ -50,12 +52,14 @@ COPY apps/player-portal/package.json  apps/player-portal/
 COPY apps/dm-tool/package.json        apps/dm-tool/
 COPY packages/shared/package.json     packages/shared/
 COPY packages/pf2e-rules/package.json packages/pf2e-rules/
+COPY packages/pdf-reader/package.json packages/pdf-reader/
 
 RUN npm install --ignore-scripts
 
 # Workspace dep sources for tsx to compile on demand.
 COPY packages/shared     packages/shared
 COPY packages/pf2e-rules packages/pf2e-rules
+COPY packages/pdf-reader packages/pdf-reader
 
 # Server TypeScript source.
 COPY apps/player-portal/server apps/player-portal/server

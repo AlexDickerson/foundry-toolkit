@@ -105,7 +105,7 @@ export function PdfReader({
       cancelled = true;
       loadingTask?.destroy();
     };
-  }, [bookId, isMulti]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [bookId, isMulti]); // intentionally omits getBookUrl/titleProp — stable across re-renders
 
   // ── Multi-doc mode ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -184,7 +184,7 @@ export function PdfReader({
     return () => {
       cancelled = true;
     };
-  }, [isMulti]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isMulti]); // intentionally omits docSlotsProp/getBookUrl — loaded once on mount
 
   const loadSlotDoc = useCallback(
     async (slotIndex: number) => {
