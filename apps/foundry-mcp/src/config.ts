@@ -3,11 +3,14 @@ import { homedir } from 'node:os';
 
 export const PORT = parseInt(process.env.PORT ?? '8765', 10);
 export const HOST = process.env.HOST ?? '0.0.0.0';
-// Bumped from 30s to 60s after observing dump-compendium-pack timing out
-// for the heaviest packs (equipment-srd at 5.6k docs, feats-srd at 6k)
-// when Foundry is under load. Steady-state these dumps complete in
-// ~12-15s, but a busy GM session can push them past 30s.
-export const COMMAND_TIMEOUT_MS = 60_000;
+// How long to wait for the Foundry bridge to respond to a single command.
+// Large packs (feats-srd ~6k docs, equipment-srd ~5.6k) can take 30-60s to
+// serialize over a WAN WebSocket; 120s gives headroom without hanging forever.
+export const COMMAND_TIMEOUT_MS = parseInt(process.env.COMMAND_TIMEOUT_MS ?? '120000', 10);
+// Max concurrent dump-compendium-pack commands in flight during warmAll.
+// Running all 40+ configured packs simultaneously saturates Foundry's main
+// thread; 4 at a time lets each pack finish well within COMMAND_TIMEOUT_MS.
+export const WARM_PACK_CONCURRENCY = parseInt(process.env.WARM_PACK_CONCURRENCY ?? '4', 10);
 // FOUNDRY_DATA_DIR: explicit path to Foundry's Data directory (e.g. /data/Data).
 // FOUNDRY_DATA: path to the Foundry data root (e.g. /data); Data/ is appended.
 // Falls back to ~/foundrydata/Data if neither is set.
@@ -19,6 +22,13 @@ export const FOUNDRY_DATA_DIR =
 // (inventory, aurus, globe). Defaults to ./data/foundry-mcp.db relative to
 // the process working directory.
 export const LIVE_DB_PATH = process.env.LIVE_DB_PATH ?? resolve(process.cwd(), 'data', 'foundry-mcp.db');
+
+// Path to the SQLite database that persists warmed compendium pack data across
+// restarts. On reconnect, packs already in this cache are loaded instantly
+// from disk — no dump-compendium-pack round-trip. Cleared via
+// POST /api/compendium/warm?invalidate=true or the per-pack variant.
+export const COMPENDIUM_CACHE_DB_PATH =
+  process.env.COMPENDIUM_CACHE_DB_PATH ?? resolve(process.cwd(), 'data', 'compendium-cache.db');
 
 // Shared secret for bearer-auth on live-state POST endpoints. If unset,
 // POSTs are open (acceptable for local-only deployment; log a warning on start).

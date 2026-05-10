@@ -6,6 +6,8 @@ import {
   type CreateCompendiumItemResponse,
   type EnsureCompendiumPackResponse,
 } from '@foundry-toolkit/shared/rpc';
+import { z } from 'zod';
+import { COMPENDIUM_CACHE_PACK_IDS } from '../../config.js';
 import { sendCommand } from '../../bridge.js';
 import { log } from '../../logger.js';
 import { compendiumCache } from '../compendium-cache-singleton.js';
@@ -17,6 +19,12 @@ import {
   listCompendiumPacksQuery,
   listCompendiumSourcesQuery,
 } from '../schemas.js';
+
+const compendiumWarmBody = z
+  .object({
+    packIds: z.array(z.string()).optional(),
+  })
+  .optional();
 
 export function registerCompendiumRoutes(app: FastifyInstance): void {
   app.get('/api/compendium/search', async (req) => {
@@ -192,6 +200,25 @@ export function registerCompendiumRoutes(app: FastifyInstance): void {
       facets = compendiumCache.facets(opts) ?? emptyFacets();
     }
     return facets;
+  });
+
+  // Manually re-warm one or more packs. Invalidates the in-memory and disk
+  // cache for the requested packs then starts a fresh bridge warm. Useful
+  // after a PF2e system update or new module install — the GM triggers this
+  // once and all subsequent requests are served from the newly warmed cache.
+  //
+  // Body (optional): { packIds?: string[] }
+  //   omit packIds → re-warm all configured packs
+  //   supply packIds → re-warm only those specific packs
+  //
+  // Returns immediately; warming happens in the background.
+  app.post('/api/compendium/warm', async (req) => {
+    const body = compendiumWarmBody.parse(req.body);
+    const packIds = body?.packIds ?? COMPENDIUM_CACHE_PACK_IDS;
+    compendiumCache.invalidate([...packIds]);
+    void compendiumCache.warmAll(packIds);
+    log.info(`compendium-cache: manual re-warm triggered for ${packIds.join(', ')}`);
+    return { warming: [...packIds] };
   });
 }
 

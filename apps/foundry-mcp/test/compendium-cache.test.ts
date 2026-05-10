@@ -1,6 +1,7 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { CompendiumCache, type CompendiumDocument, type SendCommand } from '../src/http/compendium-cache.js';
+import type { CompendiumDb } from '../src/db/compendium-db.js';
 
 // Synthetic equipment pack — just enough items to exercise every
 // filter branch (tokens, traits, anyTraits, maxLevel, sources, price,
@@ -736,5 +737,115 @@ describe('CompendiumCache.facets', () => {
     await cache.warmPack('pf2e.pathfinder-bestiary');
     // Equipment pack not yet warmed → cold-call signal.
     assert.equal(cache.facets({ packIds: ['pf2e.equipment-srd'] }), null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Disk persistence helpers
+// ---------------------------------------------------------------------------
+
+// In-memory stand-in for CompendiumDb — avoids real SQLite in unit tests.
+function makeMemDb(): CompendiumDb {
+  const store = new Map<string, { packLabel: string; documents: CompendiumDocument[]; warmedAt: number }>();
+  return {
+    get(packId: string) {
+      const row = store.get(packId);
+      return row ? { packId, ...row } : null;
+    },
+    set(packId: string, packLabel: string, documents: CompendiumDocument[]) {
+      store.set(packId, { packLabel, documents, warmedAt: Date.now() });
+    },
+    clear(packId?: string) {
+      if (packId !== undefined) store.delete(packId);
+      else store.clear();
+    },
+    list() {
+      return [...store.keys()];
+    },
+  } as unknown as CompendiumDb;
+}
+
+describe('CompendiumCache — disk persistence', () => {
+  it('saves warmed pack to db and loads it back without hitting the bridge', async () => {
+    const db = makeMemDb();
+    const sendCommand = makeSendCommand();
+    let callCount = 0;
+    const countingSend: SendCommand = async (type, params) => {
+      if (type === 'dump-compendium-pack') callCount++;
+      return sendCommand(type, params);
+    };
+
+    // First cache: warm from bridge → saved to db.
+    const cache1 = new CompendiumCache(countingSend, db);
+    await cache1.warmPack('pf2e.equipment-srd');
+    assert.equal(callCount, 1);
+
+    // Second cache: loadCachedPacks should restore from db, no bridge call.
+    const cache2 = new CompendiumCache(countingSend, db);
+    const uncached = cache2.loadCachedPacks(['pf2e.equipment-srd']);
+    assert.deepEqual(uncached, [], 'equipment-srd should be in disk cache');
+    assert.equal(callCount, 1, 'bridge should not have been called again');
+
+    // Loaded data should be queryable.
+    const result = cache2.search({ packIds: ['pf2e.equipment-srd'], q: 'Javelin' });
+    assert.ok(result);
+    assert.equal(result.matches.length, 1);
+    assert.equal(result.matches[0]?.name, 'Javelin');
+  });
+
+  it('loadCachedPacks returns uncached pack IDs for packs not in db', () => {
+    const db = makeMemDb();
+    const cache = new CompendiumCache(makeSendCommand(), db);
+    const uncached = cache.loadCachedPacks(['pf2e.equipment-srd', 'pf2e.spells-srd']);
+    assert.deepEqual(uncached, ['pf2e.equipment-srd', 'pf2e.spells-srd']);
+  });
+
+  it('invalidate removes pack from memory and disk', async () => {
+    const db = makeMemDb();
+    const cache = new CompendiumCache(makeSendCommand(), db);
+    await cache.warmPack('pf2e.equipment-srd');
+
+    assert.ok(db.get('pf2e.equipment-srd') !== null, 'should be in db after warm');
+    cache.invalidate(['pf2e.equipment-srd']);
+
+    assert.equal(db.get('pf2e.equipment-srd'), null, 'should be cleared from db');
+    assert.equal(cache.search({ packIds: ['pf2e.equipment-srd'] }), null, 'should be cleared from memory');
+  });
+
+  it('invalidate with no args clears all packs', async () => {
+    const db = makeMemDb();
+    const cache = new CompendiumCache(makeSendCommand(), db);
+    await cache.warmPack('pf2e.equipment-srd');
+    await cache.warmPack('pf2e.pathfinder-bestiary');
+
+    cache.invalidate();
+    assert.equal(db.list().length, 0);
+    assert.equal(cache.stats().packs.length, 0);
+  });
+});
+
+describe('CompendiumCache — warmAll concurrency', () => {
+  it('warms all packs even when WARM_PACK_CONCURRENCY < pack count', async () => {
+    // makeSendCommand supports 3 packs; default WARM_PACK_CONCURRENCY=4 so
+    // they all run in the first batch — verify all are present afterward.
+    const cache = new CompendiumCache(makeSendCommand());
+    await cache.warmAll(['pf2e.equipment-srd', 'pf2e.pathfinder-bestiary', 'pf2e.spells-srd']);
+    assert.ok(cache.hasPack('pf2e.equipment-srd'));
+    assert.ok(cache.hasPack('pf2e.pathfinder-bestiary'));
+    assert.ok(cache.hasPack('pf2e.spells-srd'));
+  });
+
+  it('swallows failures and continues warming remaining packs', async () => {
+    const failingThenOk: SendCommand = async (type, params) => {
+      if (type === 'dump-compendium-pack' && params?.['packId'] === 'pf2e.spells-srd') {
+        throw new Error('simulated timeout');
+      }
+      return makeSendCommand()(type, params);
+    };
+    const cache = new CompendiumCache(failingThenOk);
+    await cache.warmAll(['pf2e.equipment-srd', 'pf2e.spells-srd', 'pf2e.pathfinder-bestiary']);
+    assert.ok(cache.hasPack('pf2e.equipment-srd'), 'equipment should be warmed');
+    assert.ok(cache.hasPack('pf2e.pathfinder-bestiary'), 'bestiary should be warmed');
+    assert.equal(cache.hasPack('pf2e.spells-srd'), false, 'spells should have failed');
   });
 });
