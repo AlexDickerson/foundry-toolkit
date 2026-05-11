@@ -58,7 +58,12 @@ export function IdentityStep({
         ))}
       </div>
       <div className="border-t border-pf-border pt-4" data-creator-subpicker="deity">
-        <PickerCard label="Deity" selection={draft.deity?.match ?? null} onOpen={onPickDeity} />
+        <PickerCard
+          label="Deity"
+          selection={draft.deity?.match ?? null}
+          onOpen={onPickDeity}
+          helpText="The deity your character is most devoted to. Gods in Golarion are very real and most people place faith in at least one. Atheists typically reject the divinity of the Gods rather than their existence."
+        />
       </div>
     </div>
   );

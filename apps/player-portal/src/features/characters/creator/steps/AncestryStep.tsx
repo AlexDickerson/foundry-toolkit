@@ -27,7 +27,12 @@ export function AncestryStep({
       onMouseOver={uuidHover.delegationHandlers.onMouseOver}
       onMouseOut={uuidHover.delegationHandlers.onMouseOut}
     >
-      <PickerCard label="Ancestry" selection={ancestry} onOpen={onPickAncestry} />
+      <PickerCard
+        label="Ancestry"
+        selection={ancestry}
+        onOpen={onPickAncestry}
+        helpText="Your character's species — drives their appearance, baseline stats, and innate abilities."
+      />
       {ancestry !== null && (
         <div className="space-y-3 border-t border-pf-border pt-4">
           <div data-creator-subpicker="heritage">
@@ -36,6 +41,13 @@ export function AncestryStep({
               selection={heritage}
               onOpen={onPickHeritage}
               disabled={!ancestrySlugResolved}
+              helpText={
+                <>
+                  <strong>Standard heritages</strong> are sub-variants of the parent ancestry.{' '}
+                  <strong>Versatile heritages</strong> are lineages that can apply to any ancestry — divine blood, a hag
+                  mother, etc.
+                </>
+              }
               {...(ancestrySlugResolved ? {} : { disabledHint: 'Resolving ancestry…' })}
             />
           </div>

@@ -72,8 +72,74 @@ export function enrichDescription(html: string, opts?: EnrichOptions): string {
   // be re-matched by the earlier passes.
   out = out.replace(UUID_PATTERN, (_match, uuid: string, label?: string) => {
     const displayLabel = label !== undefined && label.trim().length > 0 ? label : extractFallbackLabel(uuid);
+    // Only Item / Actor UUIDs resolve via our compendium-document
+    // fetcher; the hover popover for anything else (JournalEntry pages,
+    // RollTables, Macros) loads forever and shows nothing. PF2e class
+    // descriptions in particular embed `@UUID[...JournalEntryPage...]
+    // {ClassName}` markers after their flavor blurb, which we don't
+    // want to render at all — there's nothing useful behind the link
+    // and the visible label is just the class name duplicated.
+    // Stripping the reference entirely (rather than leaving plain text)
+    // lets the empty-paragraph pass below clean up the leftover
+    // `<p><em></em></p>` wrapper that hosted only this reference.
+    if (!isHoverableUuid(uuid)) {
+      return '';
+    }
     return `<a data-uuid="${escapeAttr(uuid)}" class="pf-uuid-link" title="${escapeAttr(uuid)}">${escapeText(displayLabel)}</a>`;
   });
+  // Final pass: collapse pf2e level-scaling formulas like
+  // `(max(1, (ceil(@actor.level/2))))d8` into compact readable forms.
+  // Runs over the entire output so it catches both prose-literal
+  // formulas and ones that landed inside a pf-damage label.
+  out = humanizeActorFormulas(out);
+  // Empty-paragraph cleanup. The non-hoverable-UUID stripper above can
+  // leave behind `<p></p>` or `<p><em></em></p>` shells when the
+  // paragraph existed solely to host that reference. Drop those so the
+  // class-name marker line doesn't appear as a blank gap.
+  out = stripEmptyParagraphs(out);
+  return out;
+}
+
+// ─── @actor.* formula humanizer ────────────────────────────────────────
+//
+// pf2e descriptions reference `@actor.level` in roll formulas the client
+// can't resolve without a target actor. The compendium-preview path has
+// no actor context, so the raw formulas leak through as ugly text like
+// `(max(1, (ceil(@actor.level/2))))d8`. This pass rewrites the most
+// common shapes into compact symbolic forms ("⌈L/2⌉d8") that read at a
+// glance for a Pathfinder player.
+//
+// Order matters — the most-specific patterns run first so the standalone
+// `@actor.level` fallback only catches what the structural patterns miss.
+
+function humanizeActorFormulas(input: string): string {
+  let out = input;
+  // (max(1, [(]ceil(@actor.level/N)[)]))dM   — outer parens + optional
+  // inner-paren wrapper around the ceil() call.
+  out = out.replace(
+    /\(max\(\s*1\s*,\s*\(?ceil\(@actor\.level\s*\/\s*(\d+)\)\)?\s*\)\)d(\d+)/gi,
+    (_m, n: string, die: string) => `⌈L/${n}⌉d${die}`,
+  );
+  // (max(1, [(]floor(@actor.level/N)[)]))dM
+  out = out.replace(
+    /\(max\(\s*1\s*,\s*\(?floor\(@actor\.level\s*\/\s*(\d+)\)\)?\s*\)\)d(\d+)/gi,
+    (_m, n: string, die: string) => `⌊L/${n}⌋d${die}`,
+  );
+  // (ceil(@actor.level/N))dM
+  out = out.replace(
+    /\(ceil\(@actor\.level\s*\/\s*(\d+)\)\)d(\d+)/gi,
+    (_m, n: string, die: string) => `⌈L/${n}⌉d${die}`,
+  );
+  // (floor(@actor.level/N))dM
+  out = out.replace(
+    /\(floor\(@actor\.level\s*\/\s*(\d+)\)\)d(\d+)/gi,
+    (_m, n: string, die: string) => `⌊L/${n}⌋d${die}`,
+  );
+  // (@actor.level)dM
+  out = out.replace(/\(@actor\.level\)d(\d+)/gi, (_m, die: string) => `Ld${die}`);
+  // Standalone @actor.level — last so the structural patterns above
+  // can capture their level reference inside the formula first.
+  out = out.replace(/@actor\.level/g, 'L');
   return out;
 }
 
@@ -319,6 +385,27 @@ function extractFallbackLabel(uuid: string): string {
   return parts.length >= 2 ? (parts[parts.length - 2] ?? 'link') : 'link';
 }
 
+// Document types the consumer's hover popover can resolve. Compendium
+// UUIDs encode the type as a segment in the path; anything not in this
+// set has no working fetch path and would render a forever-loading
+// hover. Used to skip the anchor wrapping for journal pages, macros,
+// roll tables, etc. — those still display their label as plain text,
+// just without the broken interactive treatment.
+const HOVERABLE_DOC_TYPES = new Set(['Item', 'Actor']);
+
+function isHoverableUuid(uuid: string): boolean {
+  // Compendium UUIDs are `Compendium.{pack}.{Type}.{id}` for top-level
+  // documents, or extended with `.JournalEntryPage.{id}` for journal
+  // pages. World UUIDs are `{Type}.{id}`. Either way, the type segment
+  // is the second-to-last "containing" segment. The simplest robust
+  // check: does *any* segment match a hoverable type?
+  const parts = uuid.split('.');
+  for (const p of parts) {
+    if (HOVERABLE_DOC_TYPES.has(p)) return true;
+  }
+  return false;
+}
+
 // ─── Italic-wrapper normalisation ──────────────────────────────────────
 
 // Match `<p>` optional whitespace, `<em>` opening, content up to the
@@ -331,6 +418,21 @@ const BLOCK_EM_PATTERN = /<p>\s*<em>([\s\S]*?)<\/em>\s*<\/p>/gi;
 
 function stripBlockItalicWrappers(html: string): string {
   return html.replace(BLOCK_EM_PATTERN, (_match, inner: string) => `<p>${inner}</p>`);
+}
+
+// Drop paragraphs whose only content is whitespace and/or an empty
+// `<em>` wrapper. We end up with these after the non-hoverable-UUID
+// stripper above eats the reference that was the paragraph's whole
+// content — `<p><em>@UUID[...]{Bard}</em></p>` becomes `<p><em></em></p>`
+// once the UUID handler runs and we don't want a blank gap left over.
+//
+// Conservative regex: only matches paragraphs with at most one empty
+// `<em>` (possibly with whitespace) inside. Paragraphs holding real
+// content remain untouched.
+const EMPTY_PARAGRAPH_PATTERN = /<p>\s*(?:<em>\s*<\/em>)?\s*<\/p>/gi;
+
+function stripEmptyParagraphs(html: string): string {
+  return html.replace(EMPTY_PARAGRAPH_PATTERN, '');
 }
 
 // ─── HTML escaping ─────────────────────────────────────────────────────

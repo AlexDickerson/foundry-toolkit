@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
-import { useCreatorPickerProps } from '@/features/characters/internal/useCreatorPickerProps';
+import { useCreatorPickerProps, type CreatorPickerOptions } from '@/features/characters/internal/useCreatorPickerProps';
+import { CompendiumDetailPanel } from '@/features/characters/internal/CompendiumDetailPanel';
 import { PromptQueue } from '@/features/characters/sheet/dialog/PromptQueue';
 import { CompendiumPicker } from '@/features/characters/internal/CompendiumPicker';
 
 import { CreatorSection } from '@/features/characters/creator/CreatorSection';
+import { TipsRail } from '@/features/characters/creator/TipsRail';
 import { EMPTY_DRAFT, PICKER_LABEL, STEPS, STEP_LABEL } from '@/features/characters/creator/constants';
 import {
   applyPickedSlot,
   beginOrReusePendingActor,
   filtersForTarget,
+  groupHeritages,
   isStepFilled,
   persistPick,
   resetPendingActor,
@@ -44,7 +48,6 @@ export function CharacterCreator(): React.ReactElement {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [openPicker, setOpenPicker] = useState<PickerTarget | null>(null);
   const [creator, setCreator] = useState<CreatorState>({ kind: 'creating' });
-
 
   useEffect(() => {
     let cancelled = false;
@@ -199,182 +202,201 @@ export function CharacterCreator(): React.ReactElement {
   const pickerFilters = openPicker !== null ? filtersForTarget(openPicker, draft) : undefined;
 
   return (
-    <main className="mx-auto max-w-3xl p-6 font-sans">
-      <div className="mb-4 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={(): void => {
-            // Null the module-scope cache so re-entering the wizard
-            // allocates a fresh draft actor instead of reusing the
-            // one the user is stepping away from.
-            resetPendingActor();
-            onBack();
-          }}
-          className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
-        >
-          ← Actors
-        </button>
-        <h1 className="font-serif text-2xl font-semibold text-pf-text">New Character</h1>
-      </div>
-
-      {creator.kind === 'creating' && (
-        <p className="rounded border border-pf-border bg-pf-bg p-4 text-sm italic text-pf-alt-dark">
-          Creating draft actor…
-        </p>
-      )}
-      {creator.kind === 'error' && (
-        <div className="rounded border border-red-200 bg-red-50 p-4 text-sm">
-          <p className="font-medium text-red-900">Couldn&apos;t create the draft actor</p>
-          <p className="mt-1 text-red-800">{creator.message}</p>
+    // Three-column shell: tips rail on the left, wizard in the middle, a
+    // phantom column of equal width on the right. The whole row is
+    // capped at the natural total width of those three columns + their
+    // gaps and `mx-auto`'d so the layout sits centred on the page — the
+    // rails take equal visual space, and the wizard exactly fills its
+    // slot (no auto-centring inside the slot, which is what created the
+    // earlier heavy margin between rail and wizard).
+    //
+    // 1376px = 280 (rail) + 24 (gap) + 768 (max-w-3xl) + 24 (gap) + 280
+    // (phantom). Below `lg` the rails collapse and the wizard takes the
+    // full row.
+    <div className="mx-auto flex max-w-[1376px] gap-6 py-6 font-sans">
+      <aside className="hidden w-[280px] shrink-0 pl-3 lg:block" aria-label="Player tips">
+        <TipsRail />
+      </aside>
+      <main className="min-w-0 max-w-3xl flex-1 px-6">
+        <div className="mb-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={(): void => {
+              // Null the module-scope cache so re-entering the wizard
+              // allocates a fresh draft actor instead of reusing the
+              // one the user is stepping away from.
+              resetPendingActor();
+              onBack();
+            }}
+            className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
+          >
+            ← Actors
+          </button>
+          <h1 className="font-serif text-2xl font-semibold text-pf-text">New Character</h1>
         </div>
-      )}
 
-      {creator.kind === 'ready' && (
-        <>
-          {/* Sticky anchor nav — clicking a pill scrolls the matching
+        {creator.kind === 'creating' && (
+          <p className="rounded border border-pf-border bg-pf-bg p-4 text-sm italic text-pf-alt-dark">
+            Creating draft actor…
+          </p>
+        )}
+        {creator.kind === 'error' && (
+          <div className="rounded border border-red-200 bg-red-50 p-4 text-sm">
+            <p className="font-medium text-red-900">Couldn&apos;t create the draft actor</p>
+            <p className="mt-1 text-red-800">{creator.message}</p>
+          </div>
+        )}
+
+        {creator.kind === 'ready' && (
+          <>
+            {/* Sticky anchor nav — clicking a pill scrolls the matching
               section into view. Filled state still derives from
               `isStepFilled` so users can see what's outstanding. */}
-          <div className="sticky top-0 z-10 -mx-1 mb-4 bg-stage-gradient px-1 pb-2 pt-2">
-            <StepNav steps={STEPS} active={null} onJump={jumpToSection} draft={draft} />
-          </div>
-
-          <CreatorSection id="identity" title="Identity">
-            <IdentityStep
-              draft={draft}
-              onChange={(patch): void => {
-                setDraft((d) => ({ ...d, ...patch }));
-              }}
-              onPickDeity={(): void => {
-                setOpenPicker('deity');
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="ancestry" title="Ancestry & Heritage">
-            <AncestryStep
-              ancestry={draft.ancestry?.match ?? null}
-              heritage={draft.heritage?.match ?? null}
-              ancestryFeat={draft.ancestryFeat?.match ?? null}
-              ancestrySlugResolved={draft.ancestrySlug !== null}
-              onPickAncestry={(): void => {
-                setOpenPicker('ancestry');
-              }}
-              onPickHeritage={(): void => {
-                setOpenPicker('heritage');
-              }}
-              onPickAncestryFeat={(): void => {
-                setOpenPicker('ancestry-feat');
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="class" title="Class">
-            <ClassStep
-              classPick={draft.class?.match ?? null}
-              classFeat={draft.classFeat?.match ?? null}
-              classSlugResolved={draft.classSlug !== null}
-              onPickClass={(): void => {
-                setOpenPicker('class');
-              }}
-              onPickClassFeat={(): void => {
-                setOpenPicker('class-feat');
-              }}
-              onL1FeatAvailability={(grants): void => {
-                setDraft((d) => (d.classGrantsL1Feat === grants ? d : { ...d, classGrantsL1Feat: grants }));
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="background" title="Background">
-            <PickerCard
-              label="Background"
-              selection={draft.background?.match ?? null}
-              onOpen={(): void => {
-                setOpenPicker('background');
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="attributes" title="Attributes">
-            <AttributesStep
-              actorId={actorId}
-              ancestryPick={draft.ancestry?.match ?? null}
-              ancestryItemId={draft.ancestry?.itemId ?? null}
-              backgroundPick={draft.background?.match ?? null}
-              backgroundItemId={draft.background?.itemId ?? null}
-              classPick={draft.class?.match ?? null}
-              classItemId={draft.class?.itemId ?? null}
-              levelOneBoosts={draft.levelOneBoosts}
-              ancestryBoosts={draft.ancestryBoosts}
-              backgroundBoosts={draft.backgroundBoosts}
-              classKeyAbility={draft.classKeyAbility}
-              onDraftPatch={(patch): void => {
-                setDraft((d) => ({ ...d, ...patch }));
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="skills" title="Skills">
-            <SkillsStep
-              actorId={actorId}
-              backgroundPick={draft.background?.match ?? null}
-              classPick={draft.class?.match ?? null}
-              classItemId={draft.class?.itemId ?? null}
-              skillPicks={draft.skillPicks}
-              intMod={computeIntMod(draft)}
-              onDraftPatch={(patch): void => {
-                setDraft((d) => ({ ...d, ...patch }));
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="languages" title="Languages">
-            <LanguagesStep
-              actorId={actorId}
-              ancestryPick={draft.ancestry?.match ?? null}
-              languagePicks={draft.languagePicks}
-              intMod={computeIntMod(draft)}
-              onDraftPatch={(patch): void => {
-                setDraft((d) => ({ ...d, ...patch }));
-              }}
-              onAllowanceResolved={(n): void => {
-                setDraft((d) => (d.languageAllowance === n ? d : { ...d, languageAllowance: n }));
-              }}
-            />
-          </CreatorSection>
-
-          <CreatorSection id="review" title="Review">
-            <ReviewStep draft={draft} />
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={handleFinish}
-                disabled={actorId === null}
-                className="rounded border border-pf-primary bg-pf-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-pf-primary-dark disabled:opacity-40"
-              >
-                Open sheet →
-              </button>
+            <div className="sticky top-0 z-10 -mx-1 mb-4 bg-stage-gradient px-1 pb-2 pt-2">
+              <StepNav steps={STEPS} active={null} onJump={jumpToSection} draft={draft} />
             </div>
-          </CreatorSection>
 
-          {openPicker !== null && pickerFilters !== undefined && (
-            <CreatorPicker
-              key={openPicker}
-              target={openPicker}
-              filters={pickerFilters}
-              onPick={applyPick}
-              onClose={(): void => {
-                setOpenPicker(null);
-              }}
-            />
-          )}
-        </>
-      )}
+            <CreatorSection id="identity" title="Identity">
+              <IdentityStep
+                draft={draft}
+                onChange={(patch): void => {
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+                onPickDeity={(): void => {
+                  setOpenPicker('deity');
+                }}
+              />
+            </CreatorSection>
 
-      {/* Module-driven prompts (pf2e ChoiceSets) render on top of
+            <CreatorSection id="ancestry" title="Ancestry & Heritage">
+              <AncestryStep
+                ancestry={draft.ancestry?.match ?? null}
+                heritage={draft.heritage?.match ?? null}
+                ancestryFeat={draft.ancestryFeat?.match ?? null}
+                ancestrySlugResolved={draft.ancestrySlug !== null}
+                onPickAncestry={(): void => {
+                  setOpenPicker('ancestry');
+                }}
+                onPickHeritage={(): void => {
+                  setOpenPicker('heritage');
+                }}
+                onPickAncestryFeat={(): void => {
+                  setOpenPicker('ancestry-feat');
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="class" title="Class">
+              <ClassStep
+                classPick={draft.class?.match ?? null}
+                classFeat={draft.classFeat?.match ?? null}
+                classSlugResolved={draft.classSlug !== null}
+                onPickClass={(): void => {
+                  setOpenPicker('class');
+                }}
+                onPickClassFeat={(): void => {
+                  setOpenPicker('class-feat');
+                }}
+                onL1FeatAvailability={(grants): void => {
+                  setDraft((d) => (d.classGrantsL1Feat === grants ? d : { ...d, classGrantsL1Feat: grants }));
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="background" title="Background">
+              <PickerCard
+                label="Background"
+                selection={draft.background?.match ?? null}
+                onOpen={(): void => {
+                  setOpenPicker('background');
+                }}
+                helpText="The culture, society, or role your character developed in. Grants stat boosts and a small set of features that reflect that history."
+              />
+            </CreatorSection>
+
+            <CreatorSection id="attributes" title="Attributes">
+              <AttributesStep
+                actorId={actorId}
+                ancestryPick={draft.ancestry?.match ?? null}
+                ancestryItemId={draft.ancestry?.itemId ?? null}
+                backgroundPick={draft.background?.match ?? null}
+                backgroundItemId={draft.background?.itemId ?? null}
+                classPick={draft.class?.match ?? null}
+                classItemId={draft.class?.itemId ?? null}
+                levelOneBoosts={draft.levelOneBoosts}
+                ancestryBoosts={draft.ancestryBoosts}
+                backgroundBoosts={draft.backgroundBoosts}
+                classKeyAbility={draft.classKeyAbility}
+                alternateAncestryBoosts={draft.alternateAncestryBoosts}
+                onDraftPatch={(patch): void => {
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="skills" title="Skills">
+              <SkillsStep
+                actorId={actorId}
+                backgroundPick={draft.background?.match ?? null}
+                classPick={draft.class?.match ?? null}
+                classItemId={draft.class?.itemId ?? null}
+                skillPicks={draft.skillPicks}
+                intMod={computeIntMod(draft)}
+                onDraftPatch={(patch): void => {
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="languages" title="Languages">
+              <LanguagesStep
+                actorId={actorId}
+                ancestryPick={draft.ancestry?.match ?? null}
+                languagePicks={draft.languagePicks}
+                intMod={computeIntMod(draft)}
+                onDraftPatch={(patch): void => {
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+                onAllowanceResolved={(n): void => {
+                  setDraft((d) => (d.languageAllowance === n ? d : { ...d, languageAllowance: n }));
+                }}
+              />
+            </CreatorSection>
+
+            <CreatorSection id="review" title="Review">
+              <ReviewStep draft={draft} />
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleFinish}
+                  disabled={actorId === null}
+                  className="rounded border border-pf-primary bg-pf-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-pf-primary-dark disabled:opacity-40"
+                >
+                  Open sheet →
+                </button>
+              </div>
+            </CreatorSection>
+
+            {openPicker !== null && pickerFilters !== undefined && (
+              <CreatorPicker
+                key={openPicker}
+                target={openPicker}
+                filters={pickerFilters}
+                onPick={applyPick}
+                onClose={(): void => {
+                  setOpenPicker(null);
+                }}
+              />
+            )}
+          </>
+        )}
+
+        {/* Module-driven prompts (pf2e ChoiceSets) render on top of
           everything else so the wizard pauses until the user picks. */}
-      <PromptQueue />
-    </main>
+        <PromptQueue />
+      </main>
+      <div className="hidden w-[280px] shrink-0 lg:block" aria-hidden="true" />
+    </div>
   );
 }
 
@@ -393,8 +415,206 @@ function CreatorPicker({
   onPick: (match: CompendiumMatch) => void;
   onClose: () => void;
 }): React.ReactElement {
-  const props = useCreatorPickerProps(filters, undefined, onPick);
+  // Heritage uses a grouped list with its own split-pane detail flow.
+  // Split into a dedicated component so hooks are not called conditionally.
+  if (target === 'heritage') {
+    return <HeritagePicker filters={filters} onPick={onPick} onClose={onClose} />;
+  }
+  return <DefaultCreatorPicker target={target} filters={filters} onPick={onPick} onClose={onClose} />;
+}
+
+// Per-target picker options. Each entry:
+//   - default to common-only rarity (new players default to the Player
+//     Core options; uncommon/rare picks typically need GM approval,
+//     surfaced as a Tips Rail card)
+//   - hide the unmet-prereq toggle (these picks have no prereqs)
+//   - hide the alpha/level sort (these picks aren't levelled; alpha
+//     order is fine without an explicit toggle)
+//   - may scope source defaults (backgrounds default to the two Player
+//     Core books; ancestries leave sources unconstrained since Howl-
+//     of-the-Wild and others are common-rarity too).
+const PICKER_OPTIONS_BY_TARGET: Partial<Record<PickerTarget, CreatorPickerOptions>> = {
+  ancestry: {
+    initialRarities: ['common'],
+    showUnmetToggle: false,
+    showSortToggle: false,
+  },
+  background: {
+    initialSources: ['Pathfinder Player Core', 'Pathfinder Player Core 2'],
+    initialRarities: ['common'],
+    showUnmetToggle: false,
+    showSortToggle: false,
+  },
+  // Deity picker: no prereqs and no level dimension, so the hide-unmet
+  // toggle and the A-Z / Level sort are noise. Source and (default)
+  // rarity controls stay since pf2e ships hundreds of deities across
+  // many supplements.
+  deity: {
+    showUnmetToggle: false,
+    showSortToggle: false,
+  },
+  // Class picker:
+  //   - default to common-only rarity (Player Core / Player Core 2
+  //     classes); the rarity pill row lets the player opt in to
+  //     uncommon supplements with GM approval
+  //   - hide source picker, unmet toggle, sort toggle — only the text
+  //     search and rarity filter add value here, and the row was
+  //     getting cramped
+  //   - tighten the list column so the detail panel (initial-
+  //     proficiencies block + L1 features) gets the room
+  //   - hide the detail panel header — the picker dialog's own title
+  //     bar already names the class
+  class: {
+    initialRarities: ['common'],
+    showSourcePicker: false,
+    showUnmetToggle: false,
+    showSortToggle: false,
+    hideDetailHeader: true,
+    listOpenWidthClass: 'w-56',
+  },
+};
+
+function DefaultCreatorPicker({
+  target,
+  filters,
+  onPick,
+  onClose,
+}: {
+  target: PickerTarget;
+  filters: NonNullable<ReturnType<typeof filtersForTarget>>;
+  onPick: (match: CompendiumMatch) => void;
+  onClose: () => void;
+}): React.ReactElement {
+  const props = useCreatorPickerProps(filters, undefined, onPick, PICKER_OPTIONS_BY_TARGET[target]);
   return <CompendiumPicker title={`Choose a ${PICKER_LABEL[target]}`} {...props} onClose={onClose} />;
+}
+
+// Heritage picker: shows a grouped list (Primary / Versatile) with AoN art
+// thumbnails. Manages its own detail-panel state so the user can read a
+// heritage's description before committing. The split-pane is driven from
+// outside CompendiumPicker so we can control when `detailTarget` is set —
+// clicking a row opens the panel; the panel's Pick button calls `onPick`
+// and closes the whole dialog.
+function HeritagePicker({
+  filters,
+  onPick,
+  onClose,
+}: {
+  filters: NonNullable<ReturnType<typeof filtersForTarget>>;
+  onPick: (match: CompendiumMatch) => void;
+  onClose: () => void;
+}): React.ReactElement {
+  const [detailTarget, setDetailTarget] = useState<CompendiumMatch | null>(null);
+  const pickerProps = useCreatorPickerProps(filters, undefined, onPick);
+  const { docCache } = pickerProps;
+
+  const renderList = (items: CompendiumMatch[]): ReactNode => {
+    const { primary, versatile } = groupHeritages(items);
+    return (
+      <>
+        {primary.length > 0 && (
+          <HeritageSection
+            label="Primary Heritages"
+            items={primary}
+            activeUuid={detailTarget?.uuid ?? null}
+            onRowClick={setDetailTarget}
+          />
+        )}
+        {versatile.length > 0 && (
+          <HeritageSection
+            label="Versatile Heritages"
+            items={versatile}
+            activeUuid={detailTarget?.uuid ?? null}
+            onRowClick={setDetailTarget}
+          />
+        )}
+      </>
+    );
+  };
+
+  return (
+    <CompendiumPicker
+      title="Choose a Heritage"
+      {...pickerProps}
+      renderList={renderList}
+      splitPane={{
+        detailOpen: detailTarget !== null,
+        detailSlot:
+          detailTarget !== null ? (
+            <CompendiumDetailPanel
+              target={detailTarget}
+              onPick={(): void => {
+                onPick(detailTarget);
+                onClose();
+              }}
+              onClose={(): void => {
+                setDetailTarget(null);
+              }}
+              {...(docCache !== undefined ? { docCache } : {})}
+            />
+          ) : null,
+      }}
+      onClose={onClose}
+    />
+  );
+}
+
+function HeritageSection({
+  label,
+  items,
+  activeUuid,
+  onRowClick,
+}: {
+  label: string;
+  items: CompendiumMatch[];
+  activeUuid: string | null;
+  onRowClick: (m: CompendiumMatch) => void;
+}): React.ReactElement {
+  return (
+    <div>
+      <p className="border-b border-pf-border bg-pf-bg-dark px-4 py-1 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">
+        {label}
+      </p>
+      <ul className="divide-y divide-pf-border">
+        {items.map((m) => (
+          <HeritageRow key={m.uuid} match={m} active={activeUuid === m.uuid} onClick={onRowClick} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function HeritageRow({
+  match,
+  active,
+  onClick,
+}: {
+  match: CompendiumMatch;
+  active: boolean;
+  onClick: (m: CompendiumMatch) => void;
+}): React.ReactElement {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={(): void => {
+          onClick(match);
+        }}
+        aria-pressed={active}
+        className={[
+          'flex w-full items-center gap-3 px-4 py-2 text-left transition-colors',
+          active ? 'bg-pf-tertiary/50' : 'hover:bg-pf-tertiary/20',
+        ].join(' ')}
+        data-pick-uuid={match.uuid}
+        data-match-uuid={match.uuid}
+      >
+        {match.img ? (
+          <img src={match.img} alt="" className="h-8 w-8 shrink-0 rounded border border-pf-border bg-pf-bg-dark" />
+        ) : null}
+        <span className="text-sm font-medium text-pf-text">{match.name}</span>
+      </button>
+    </li>
+  );
 }
 
 function StepNav({

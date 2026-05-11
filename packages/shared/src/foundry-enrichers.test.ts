@@ -18,6 +18,34 @@ describe('enrichDescription', () => {
     expect(out).toContain('>Item<');
   });
 
+  it('strips non-hoverable @UUID types (JournalEntryPage, etc.) entirely', () => {
+    // PF2e class descriptions ship a `<p><em>@UUID[...JournalEntryPage...]
+    // {ClassName}</em></p>` marker after the flavor blurb that just
+    // duplicates the class name. We can't load journal pages in the
+    // hover popover, and the label adds nothing, so the reference
+    // disappears entirely along with the paragraph it lived in.
+    const out = enrichDescription(
+      '<p><em>You are a master of artistry.</em></p><p><em>@UUID[Compendium.pf2e.journals.JournalEntry.kzxu2dI7tFxv6Ix6.JournalEntryPage.Tz0NWVqhZyt8EyUV]{Bard}</em></p>',
+    );
+    expect(out).not.toContain('pf-uuid-link');
+    expect(out).not.toContain('data-uuid');
+    expect(out).not.toContain('Bard');
+    // The flavor paragraph above the marker is preserved.
+    expect(out).toContain('You are a master of artistry.');
+  });
+
+  it('strips empty <p><em></em></p> shells left by other transforms', () => {
+    const out = enrichDescription('<p>Real content.</p><p><em></em></p><p>More content.</p>');
+    expect(out).toBe('<p>Real content.</p><p>More content.</p>');
+  });
+
+  it('still renders Actor @UUIDs as hoverable links', () => {
+    const out = enrichDescription('@UUID[Compendium.pf2e.bestiary.Actor.abc123]{Dragon}');
+    expect(out).toContain('class="pf-uuid-link"');
+    expect(out).toContain('data-uuid="Compendium.pf2e.bestiary.Actor.abc123"');
+    expect(out).toContain('Dragon');
+  });
+
   // ─── @Damage ─────────────────────────────────────────────────────────────
 
   it('formats @Damage tokens to plain readable text', () => {
@@ -85,5 +113,53 @@ describe('enrichDescription', () => {
   it('strips paragraph-level italic wrappers', () => {
     const out = enrichDescription('<p><em>Flavour intro paragraph.</em></p>');
     expect(out).toBe('<p>Flavour intro paragraph.</p>');
+  });
+
+  // ─── @actor.* formula humanizer ──────────────────────────────────────────
+  // pf2e level-scaling formulas can't be evaluated client-side without an
+  // actor context (compendium previews, picker hovers); rewrite them to
+  // compact symbolic forms instead of leaking the raw `@actor.level` syntax.
+
+  it('humanizes (max(1, (ceil(@actor.level/N))))dM formulas', () => {
+    const out = enrichDescription('they recover (max(1, (ceil(@actor.level/2))))d8 healing Hit Points');
+    expect(out).toContain('⌈L/2⌉d8');
+    expect(out).not.toContain('@actor.level');
+  });
+
+  it('humanizes the no-inner-paren variant max(1, ceil(...))', () => {
+    const out = enrichDescription('damage equal to (max(1, ceil(@actor.level/4)))d6');
+    expect(out).toContain('⌈L/4⌉d6');
+  });
+
+  it('humanizes (ceil(@actor.level/N))dM without the max wrapper', () => {
+    const out = enrichDescription('deals (ceil(@actor.level/3))d10 damage');
+    expect(out).toContain('⌈L/3⌉d10');
+  });
+
+  it('humanizes (floor(@actor.level/N))dM with floor brackets', () => {
+    const out = enrichDescription('regains (floor(@actor.level/2))d6 HP');
+    expect(out).toContain('⌊L/2⌋d6');
+  });
+
+  it('humanizes (@actor.level)dM as LdM', () => {
+    const out = enrichDescription('takes (@actor.level)d4 damage');
+    expect(out).toContain('Ld4');
+  });
+
+  it('replaces standalone @actor.level with L', () => {
+    const out = enrichDescription('your hit points equal @actor.level × 5');
+    expect(out).toContain('L × 5');
+    expect(out).not.toContain('@actor.level');
+  });
+
+  it('humanizes formulas inside an inline-roll label', () => {
+    // pf2e wraps these formulas in [[/r ...]]{label} where the label is
+    // often the raw expression. Our inline-roll handler outputs the label
+    // inside a pf-damage span; the final humanizer pass cleans it up.
+    const out = enrichDescription(
+      '[[/r {max(1,ceil(@actor.level/2))}d8 #healing]]{(max(1, (ceil(@actor.level/2))))d8}',
+    );
+    expect(out).toContain('⌈L/2⌉d8');
+    expect(out).not.toContain('@actor.level');
   });
 });

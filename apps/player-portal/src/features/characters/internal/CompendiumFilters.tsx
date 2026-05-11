@@ -169,6 +169,74 @@ export function SourcePicker({
   );
 }
 
+// ─── Rarity multi-select ────────────────────────────────────────────────
+// Fixed set of four rarities — small enough to render inline as pills.
+// Matches the server-side `rarities` filter on /api/compendium/search.
+
+const RARITY_TIERS = ['common', 'uncommon', 'rare', 'unique'] as const;
+type RarityTier = (typeof RARITY_TIERS)[number];
+
+function rarityPillClasses(tier: RarityTier, active: boolean): string {
+  if (!active) return 'border-pf-border bg-pf-bg text-pf-alt-dark hover:bg-pf-tertiary/40 hover:text-pf-primary';
+  switch (tier) {
+    case 'uncommon':
+      return 'border-amber-500 bg-amber-100 text-amber-900';
+    case 'rare':
+      return 'border-blue-500 bg-blue-100 text-blue-900';
+    case 'unique':
+      return 'border-purple-500 bg-purple-100 text-purple-900';
+    default:
+      return 'border-pf-border bg-pf-bg-dark text-pf-alt-dark';
+  }
+}
+
+export function RarityPicker({
+  selected,
+  onChange,
+}: {
+  selected: string[];
+  onChange: (next: string[]) => void;
+}): React.ReactElement {
+  const lowered = useMemo(() => new Set(selected.map((s) => s.toLowerCase())), [selected]);
+  const toggle = (tier: RarityTier): void => {
+    if (lowered.has(tier)) {
+      onChange(selected.filter((s) => s.toLowerCase() !== tier));
+    } else {
+      onChange([...selected, tier]);
+    }
+  };
+  return (
+    <div
+      role="group"
+      aria-label="Filter by rarity"
+      data-testid="rarity-picker"
+      className="inline-flex items-center gap-1"
+    >
+      <span className="text-[10px] uppercase tracking-widest text-pf-alt-dark">Rarity</span>
+      {RARITY_TIERS.map((tier) => {
+        const active = lowered.has(tier);
+        return (
+          <button
+            key={tier}
+            type="button"
+            aria-pressed={active}
+            data-rarity-option={tier}
+            onClick={(): void => {
+              toggle(tier);
+            }}
+            className={[
+              'rounded-full border px-1.5 py-0.5 text-[10px] uppercase tracking-wide transition-colors',
+              rarityPillClasses(tier, active),
+            ].join(' ')}
+          >
+            {tier.charAt(0).toUpperCase() + tier.slice(1)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Sort toggle ────────────────────────────────────────────────────────
 
 export function SortToggle({

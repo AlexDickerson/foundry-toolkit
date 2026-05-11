@@ -11,7 +11,15 @@ import type { CharacterContext, Evaluation } from '@/features/characters/interna
 import { evaluateDocument } from '@/features/characters/internal/prereqs';
 import type { CompendiumPickerProps } from '@/features/characters/internal/CompendiumPicker';
 import { prefetchDocuments } from './compendium-prefetch';
-import { type SortMode, type SortState, FilterSummary, SourcePicker, SortToggle, UnmetToggle } from './CompendiumFilters';
+import {
+  type SortMode,
+  type SortState,
+  FilterSummary,
+  RarityPicker,
+  SourcePicker,
+  SortToggle,
+  UnmetToggle,
+} from './CompendiumFilters';
 
 type CreatorFilters = Pick<
   CompendiumSearchOptions,
@@ -27,6 +35,7 @@ type CreatorPickerProps = Pick<
   | 'maxLevel'
   | 'ancestrySlug'
   | 'sources'
+  | 'rarities'
   | 'onPage'
   | 'onQueryChange'
   | 'filterItem'
@@ -34,9 +43,43 @@ type CreatorPickerProps = Pick<
   | 'filterControls'
   | 'evaluations'
   | 'docCache'
+  | 'detailHideHeader'
+  | 'listOpenWidthClass'
 > & {
   onPick: (match: CompendiumMatch) => void;
 };
+
+export interface CreatorPickerOptions {
+  /** Default source-book filter on first mount. Pass e.g.
+   *  `['Pathfinder Player Core', 'Pathfinder Player Core 2']` to scope
+   *  the initial list to Player Core options; the player can broaden it
+   *  via the source picker. Defaults to undefined (no source filter). */
+  initialSources?: string[];
+  /** Default rarities filter on first mount. Pass `['common']` to hide
+   *  uncommon/rare/unique by default (the player can still toggle them
+   *  on via the rarity pills). Defaults to undefined (no rarity filter). */
+  initialRarities?: string[];
+  /** Filter-row visibility flags. Each filter is on by default; set to
+   *  `false` to suppress it for a target that doesn't need it (e.g.
+   *  ancestry/background pickers hide the unmet-prereq toggle and the
+   *  alpha/level sort because those targets have no prereqs and are
+   *  all the same level). */
+  showSourcePicker?: boolean;
+  /** Explicit override. When omitted, the rarity picker is shown iff
+   *  `initialRarities` was provided. */
+  showRarityPicker?: boolean;
+  showUnmetToggle?: boolean;
+  showSortToggle?: boolean;
+  /** Hide the CompendiumDetailPanel's top header (image + name + meta +
+   *  traits) for this target. Useful when the picker dialog's title bar
+   *  already shows the name and the panel body has enough visual
+   *  identity on its own (class panels). Defaults to false. */
+  hideDetailHeader?: boolean;
+  /** Tailwind width class for the list column when the detail panel is
+   *  open. Tightens the list so the detail panel — usually the more
+   *  information-dense side — gets the room. */
+  listOpenWidthClass?: string;
+}
 
 // Builds the props the character creator's picks need on top of the
 // shared CompendiumPicker: source-book filter, alpha/level sort, prereq
@@ -48,9 +91,11 @@ export function useCreatorPickerProps(
   filters: CreatorFilters,
   characterContext: CharacterContext | undefined,
   onPickCallback: (match: CompendiumMatch) => void,
+  options?: CreatorPickerOptions,
 ): CreatorPickerProps {
   const [sort, setSort] = useState<SortState>({ mode: 'alpha', dir: 'asc' });
-  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [selectedSources, setSelectedSources] = useState<string[]>(() => options?.initialSources ?? []);
+  const [selectedRarities, setSelectedRarities] = useState<string[]>(() => options?.initialRarities ?? []);
   const [evaluations, setEvaluations] = useState<Map<string, Evaluation>>(new Map());
   const [hideUnmet, setHideUnmet] = useState(true);
   const [currentQuery, setCurrentQuery] = useState('');
@@ -60,30 +105,25 @@ export function useCreatorPickerProps(
   const callerPackIdsKey = (filters.packIds ?? []).join('|');
   const traitsKey = (filters.traits ?? []).join('|');
 
-  const sourcesState: RemoteDataState<CompendiumSource[]> = useRemoteData<CompendiumSource[]>(
-    async () => {
-      const opts: {
-        documentType?: string;
-        packIds?: string[];
-        q?: string;
-        traits?: string[];
-        maxLevel?: number;
-      } = {};
-      if (filters.documentType !== undefined) opts.documentType = filters.documentType;
-      if (filters.packIds !== undefined && filters.packIds.length > 0) opts.packIds = filters.packIds;
-      if (currentQuery.length > 0) opts.q = currentQuery;
-      if (filters.traits !== undefined && filters.traits.length > 0) opts.traits = filters.traits;
-      if (filters.maxLevel !== undefined) opts.maxLevel = filters.maxLevel;
-      const result = await api.listCompendiumSources(opts);
-      return result.sources;
-    },
-    [filters.documentType, callerPackIdsKey, currentQuery, traitsKey, filters.maxLevel],
-  );
+  const sourcesState: RemoteDataState<CompendiumSource[]> = useRemoteData<CompendiumSource[]>(async () => {
+    const opts: {
+      documentType?: string;
+      packIds?: string[];
+      q?: string;
+      traits?: string[];
+      maxLevel?: number;
+    } = {};
+    if (filters.documentType !== undefined) opts.documentType = filters.documentType;
+    if (filters.packIds !== undefined && filters.packIds.length > 0) opts.packIds = filters.packIds;
+    if (currentQuery.length > 0) opts.q = currentQuery;
+    if (filters.traits !== undefined && filters.traits.length > 0) opts.traits = filters.traits;
+    if (filters.maxLevel !== undefined) opts.maxLevel = filters.maxLevel;
+    const result = await api.listCompendiumSources(opts);
+    return result.sources;
+  }, [filters.documentType, callerPackIdsKey, currentQuery, traitsKey, filters.maxLevel]);
 
   const onSortClick = (mode: SortMode): void => {
-    setSort((prev) =>
-      prev.mode === mode ? { mode, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { mode, dir: 'asc' },
-    );
+    setSort((prev) => (prev.mode === mode ? { mode, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { mode, dir: 'asc' }));
   };
 
   const onPage = useCallback(
@@ -145,14 +185,34 @@ export function useCreatorPickerProps(
     [sourcesKey],
   );
 
+  const raritiesKey = selectedRarities.join('|');
+  const searchRarities = useMemo(
+    () => (selectedRarities.length > 0 ? selectedRarities : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [raritiesKey],
+  );
+
+  // Per-control visibility. Each filter defaults to on; callers opt out
+  // for targets where the control doesn't earn its space (ancestry /
+  // background hide the unmet toggle and the sort toggle). The rarity
+  // picker also requires `initialRarities` to be provided so callers
+  // can't accidentally render an unbound rarity control.
+  const showSourcePicker = options?.showSourcePicker ?? true;
+  const showRarityPicker = (options?.showRarityPicker ?? options?.initialRarities !== undefined) === true;
+  const showUnmetToggle = options?.showUnmetToggle ?? true;
+  const showSortToggle = options?.showSortToggle ?? true;
+
   const filterControls = (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
-        <SourcePicker sources={sourcesState} selected={selectedSources} onChange={setSelectedSources} />
-        <UnmetToggle hide={hideUnmet} onChange={setHideUnmet} />
+      <div className="flex flex-wrap items-center gap-2">
+        {showSourcePicker && (
+          <SourcePicker sources={sourcesState} selected={selectedSources} onChange={setSelectedSources} />
+        )}
+        {showRarityPicker && <RarityPicker selected={selectedRarities} onChange={setSelectedRarities} />}
+        {showUnmetToggle && <UnmetToggle hide={hideUnmet} onChange={setHideUnmet} />}
         <FilterSummary filters={filters} />
       </div>
-      <SortToggle sort={sort} onChange={onSortClick} />
+      {showSortToggle && <SortToggle sort={sort} onChange={onSortClick} />}
     </div>
   );
 
@@ -175,5 +235,8 @@ export function useCreatorPickerProps(
   if (filters.maxLevel !== undefined) props.maxLevel = filters.maxLevel;
   if (filters.ancestrySlug !== undefined) props.ancestrySlug = filters.ancestrySlug;
   if (searchSources !== undefined) props.sources = searchSources;
+  if (searchRarities !== undefined) props.rarities = searchRarities;
+  if (options?.hideDetailHeader === true) props.detailHideHeader = true;
+  if (options?.listOpenWidthClass !== undefined) props.listOpenWidthClass = options.listOpenWidthClass;
   return props;
 }

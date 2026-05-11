@@ -171,8 +171,8 @@ export function applyPickedSlot(draft: Draft, target: PickerTarget, slot: Slot):
   switch (target) {
     case 'ancestry':
       // A new ancestry wipes the heritage + cached slug + ancestry
-      // feat + ancestry boost picks + language picks (the old
-      // choices may not be valid under the new ancestry).
+      // feat + ancestry boost picks + language picks + alternate-boost
+      // opt-in (the old choices may not be valid under the new ancestry).
       return {
         ...draft,
         ancestry: slot,
@@ -181,6 +181,7 @@ export function applyPickedSlot(draft: Draft, target: PickerTarget, slot: Slot):
         heritageSlug: null,
         ancestryFeat: null,
         ancestryBoosts: [],
+        alternateAncestryBoosts: null,
         languagePicks: [],
         languageAllowance: null,
       };
@@ -220,6 +221,20 @@ export function prettySkillLabel(slug: string): string {
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+// Splits a flat heritage list into primary (ancestry-specific) and versatile
+// (any-ancestry) groups. The `isVersatile` flag is set by the server when
+// `system.ancestry === null` on the heritage item — pf2e's signal for
+// versatile heritages (Aiuvarin, Changeling, Beastkin, …).
+export function groupHeritages(items: CompendiumMatch[]): {
+  primary: CompendiumMatch[];
+  versatile: CompendiumMatch[];
+} {
+  return {
+    primary: items.filter((m) => m.isVersatile !== true),
+    versatile: items.filter((m) => m.isVersatile === true),
+  };
 }
 
 // Used by LanguagesStep and ReviewStep. Same shape as
