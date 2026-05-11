@@ -45,7 +45,7 @@ const TIPS: readonly CreatorTip[] = [
       'You pick a single class for your full progression. To branch into a second class’s tradecraft, spend a class feat to take that class’s Archetype Dedication — Rogue Archetype, Fighter Archetype, and so on.',
       'Continuing to spend class feats on archetype feats unlocks the rest of that archetype’s features. There’s no second-class picker; everything lives on the class feat line.',
     ],
-    link: { url: 'https://2e.aonprd.com/Rules.aspx?ID=2769', label: 'Multiclass Archetypes' },
+    link: { url: 'https://2e.aonprd.com/Archetypes.aspx', label: 'Multiclass Archetypes' },
   },
   {
     title: 'Edits in Foundry',
