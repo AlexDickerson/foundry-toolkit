@@ -25,7 +25,8 @@ import { mockApi } from './mock/api-middleware';
 
 loadRootEnv();
 
-const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds', '/item-art', '/books'];
+// /books/ (trailing slash) proxies book files without catching the /books SPA route.
+const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds', '/item-art', '/books/'];
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.resolve(here, 'src', 'fixtures');
 
