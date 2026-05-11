@@ -28,6 +28,9 @@ jobs:
           - service: player-portal
             image: ghcr.io/alexdickerson/foundry-toolkit-portal
             dockerfile: deploy/Dockerfile.player-portal
+          - service: headless-bridge
+            image: ghcr.io/alexdickerson/foundry-toolkit-headless-bridge
+            dockerfile: deploy/Dockerfile.headless-bridge
 
     steps:
       - uses: actions/checkout@v6
