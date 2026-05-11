@@ -9,7 +9,8 @@
 //
 // If FOUNDRY_MCP_BOOKS_DIR is unset every route returns 404.
 
-import { open, readdir, readFile, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { readdir, stat } from 'node:fs/promises';
 import { join, resolve, extname, basename } from 'node:path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { FOUNDRY_MCP_BOOKS_DIR } from '../../config.js';
@@ -84,57 +85,50 @@ export function registerBooksRoute(app: FastifyInstance): void {
     const total = fileStats.size;
     const rangeHeader = (req.headers as Record<string, string | undefined>)['range'];
 
+    let start: number;
+    let end: number;
     if (rangeHeader) {
-      // Range request: read the exact byte slice into a Buffer and send via
-      // reply.send(). Avoids streaming/hijack lifecycle issues — pdfjs chunks
-      // are small (tens of KB) so in-memory reads are fine.
       const match = /bytes=(\d*)-(\d*)/.exec(rangeHeader);
       if (!match) {
         reply.code(416).header('Content-Range', `bytes */${total}`).send();
         return;
       }
-      const start = match[1] ? parseInt(match[1], 10) : 0;
-      const end = match[2] ? parseInt(match[2], 10) : total - 1;
+      start = match[1] ? parseInt(match[1], 10) : 0;
+      end = match[2] ? parseInt(match[2], 10) : total - 1;
       if (start > end || end >= total) {
         reply.code(416).header('Content-Range', `bytes */${total}`).send();
         return;
       }
-      const chunkSize = end - start + 1;
-      const fd = await open(filePath, 'r');
-      const buffer = Buffer.allocUnsafe(chunkSize);
-      try {
-        await fd.read(buffer, 0, chunkSize, start);
-      } finally {
-        await fd.close();
-      }
-      reply
-        .code(206)
-        .header('Content-Type', 'application/pdf')
-        .header('Content-Range', `bytes ${start}-${end}/${total}`)
-        .header('Accept-Ranges', 'bytes')
-        .header('Content-Length', String(chunkSize))
-        .send(buffer);
     } else {
       // No Range header: pdfjs probe to discover file size and range support.
-      // Respond with the first chunk as 206 so pdfjs reads Content-Range for
-      // the total, sees Accept-Ranges, and switches to range mode — without
-      // ever streaming the full file through the proxy.
-      const probeSize = Math.min(65536, total);
-      const fd = await open(filePath, 'r');
-      const buffer = Buffer.allocUnsafe(probeSize);
-      try {
-        await fd.read(buffer, 0, probeSize, 0);
-      } finally {
-        await fd.close();
-      }
-      reply
-        .code(206)
-        .header('Content-Type', 'application/pdf')
-        .header('Content-Range', `bytes 0-${probeSize - 1}/${total}`)
-        .header('Accept-Ranges', 'bytes')
-        .header('Content-Length', String(probeSize))
-        .send(buffer);
+      // Respond with the first chunk as 206 — pdfjs reads Content-Range to learn
+      // the total and switches to range mode for subsequent page fetches.
+      start = 0;
+      end = Math.min(65535, total - 1);
     }
+
+    const chunkSize = end - start + 1;
+    const buffer = await readRange(filePath, start, end);
+    reply
+      .code(206)
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Range', `bytes ${start}-${end}/${total}`)
+      .header('Accept-Ranges', 'bytes')
+      .header('Content-Length', String(chunkSize))
+      .send(buffer);
+  });
+}
+
+/** Read bytes [start, end] (inclusive) from a file into a Buffer. Uses
+ *  createReadStream which manages the fd lifecycle internally, avoiding
+ *  FileHandle.close() EBADF issues seen in Node.js v25. */
+function readRange(filePath: string, start: number, end: number): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const stream = createReadStream(filePath, { start, end });
+    stream.on('data', (chunk) => chunks.push(chunk as Buffer));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
   });
 }
 
