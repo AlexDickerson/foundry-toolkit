@@ -23,3 +23,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.player-portal
+
+  headless-bridge:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.headless-bridge

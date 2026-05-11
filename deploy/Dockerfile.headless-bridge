@@ -1,0 +1,60 @@
+###############################################################################
+# foundry-toolkit — headless-bridge container
+#
+# Runs a headless Chromium browser (via Playwright) that logs into Foundry as
+# a dedicated GM account and holds the session open 24/7, keeping the
+# foundry-api-bridge module connected to foundry-mcp without requiring a
+# browser tab to stay open.
+#
+# Build context: monorepo root
+#   docker build -f deploy/Dockerfile.headless-bridge \
+#     -t foundry-toolkit-headless-bridge:dev .
+###############################################################################
+
+###############################################################################
+# Stage 1 — Compile TypeScript
+###############################################################################
+FROM node:22-alpine AS build
+WORKDIR /app
+
+# Workspace manifests — cached independently of source changes.
+COPY package.json package-lock.json ./
+COPY apps/headless-bridge/package.json apps/headless-bridge/
+
+# Skip browser download in the build stage; this stage only compiles TS.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+RUN npm install --ignore-scripts
+
+COPY apps/headless-bridge/src apps/headless-bridge/src
+COPY apps/headless-bridge/tsconfig.json apps/headless-bridge/
+
+RUN npm run build --workspace apps/headless-bridge
+
+###############################################################################
+# Stage 2 — Runtime with pre-installed Chromium
+#
+# mcr.microsoft.com/playwright:v1.59.1-jammy bundles Chromium and all
+# required system libraries (Ubuntu Jammy).  We skip npm browser download
+# because the base image already provides binaries at /ms-playwright.
+#
+# Playwright npm package version must match this image tag's minor version.
+###############################################################################
+FROM mcr.microsoft.com/playwright:v1.59.1-jammy
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY apps/headless-bridge/package.json apps/headless-bridge/
+
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+RUN npm install --ignore-scripts
+
+# Compiled JS from stage 1.
+COPY --from=build /app/apps/headless-bridge/dist apps/headless-bridge/dist
+
+# Drop to a non-root user.
+RUN groupadd -r bridge && useradd -r -g bridge -u 1001 bridge \
+    && chown -R bridge:bridge /app
+USER bridge
+
+CMD ["node", "apps/headless-bridge/dist/main.js"]

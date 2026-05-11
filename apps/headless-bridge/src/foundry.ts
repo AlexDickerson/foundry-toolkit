@@ -1,0 +1,112 @@
+import type { Page } from 'playwright';
+import type { BridgeEnv } from './env.js';
+
+const LOG = '[headless-bridge]';
+
+// Foundry VTT v14 page routes:
+//   /setup  — world management (requires admin auth if FOUNDRY_ADMIN_KEY is set)
+//   /join   — user login for the currently-active world
+//   /game   — in-world view; the api-bridge module activates here
+
+export async function loginToWorld(page: Page, env: BridgeEnv): Promise<void> {
+  const { foundryUrl, foundryAdminKey, bridgeGmUser, bridgeGmPass, bridgeWorldId } = env;
+
+  console.info(`${LOG} Navigating to ${foundryUrl}`);
+  await page.goto(foundryUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+  console.info(`${LOG} Landed on: ${page.url()}`);
+
+  if (page.url().includes('/game')) {
+    console.info(`${LOG} Already in-world — nothing to do`);
+    return;
+  }
+
+  if (!page.url().includes('/join')) {
+    // On the setup page — authenticate as admin and launch the world
+    await handleSetup(page, foundryUrl, foundryAdminKey, bridgeWorldId);
+  }
+
+  await handleJoin(page, foundryUrl, bridgeGmUser, bridgeGmPass);
+}
+
+async function handleSetup(page: Page, foundryUrl: string, adminKey: string, worldId: string): Promise<void> {
+  // Foundry shows an admin password form when the admin key is set and the
+  // client has no valid session cookie. The input name is "adminKey" in v13
+  // and "key" in some v14 builds — try both.
+  const adminInput = page.locator('input[name="adminKey"], input[name="key"]').first();
+  const needsAuth = await adminInput.isVisible({ timeout: 3_000 }).catch(() => false);
+
+  if (needsAuth) {
+    if (!adminKey) {
+      throw new Error(
+        'Foundry setup requires admin authentication but FOUNDRY_ADMIN_KEY is not set. ' +
+          'Set FOUNDRY_ADMIN_KEY to the Foundry admin password, or pre-launch the world manually ' +
+          'so the headless browser can go straight to /join.',
+      );
+    }
+    console.info(`${LOG} Submitting admin key`);
+    await adminInput.fill(adminKey);
+    await page.locator('button[type="submit"]').first().click();
+    await page.waitForLoadState('networkidle', { timeout: 30_000 });
+    console.info(`${LOG} Admin auth done — now on: ${page.url()}`);
+  }
+
+  // Admin auth may have redirected straight to /join if a world was already active.
+  if (page.url().includes('/join')) return;
+
+  // Find the world card by its ID (= directory slug under Data/worlds/).
+  // Foundry v14 renders each world as a list item with a data-id attribute.
+  console.info(`${LOG} Locating world "${worldId}" in setup`);
+  const worldCard = page.locator(`[data-id="${worldId}"]`).first();
+  const cardVisible = await worldCard.isVisible({ timeout: 15_000 }).catch(() => false);
+  if (!cardVisible) {
+    throw new Error(
+      `World "${worldId}" not found on the Foundry setup page. ` +
+        "Check that BRIDGE_WORLD_ID matches the world's directory slug " +
+        '(the name shown under each world card in the setup UI, not the display title). ' +
+        `Worlds live in Data/worlds/<slug>/.`,
+    );
+  }
+
+  // The launch button lives inside the world card. Foundry uses a variety of
+  // button labels ("Launch", "Launch World") across versions — match loosely.
+  const launchBtn = worldCard
+    .locator('button')
+    .filter({ hasText: /launch/i })
+    .first();
+  if (!(await launchBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    throw new Error(
+      `Could not find a Launch button for world "${worldId}". ` +
+        'The world card was found but the launch control is missing — the world may already be launching.',
+    );
+  }
+
+  console.info(`${LOG} Launching world "${worldId}"`);
+  await launchBtn.click();
+
+  // Foundry initializes the world then redirects to /join.
+  await page.waitForURL((url) => url.href.startsWith(`${foundryUrl}/join`), { timeout: 90_000 });
+  console.info(`${LOG} World active`);
+}
+
+async function handleJoin(page: Page, foundryUrl: string, username: string, password: string): Promise<void> {
+  await page.waitForLoadState('networkidle', { timeout: 30_000 });
+  console.info(`${LOG} Selecting user "${username}"`);
+
+  // Foundry renders world users in a <select> whose option text is the
+  // display name and value is the user's UUID.
+  const userSelect = page.locator('select[name="userid"], select#select-character, select').first();
+  await userSelect.waitFor({ state: 'visible', timeout: 15_000 });
+  await userSelect.selectOption({ label: username });
+
+  const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+  if (password && (await passwordInput.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    await passwordInput.fill(password);
+  }
+
+  await page.locator('button[type="submit"]').first().click();
+  console.info(`${LOG} Joining — waiting for world to load (up to 2 min)`);
+
+  // World load populates all actors, scenes, and modules. Allow generous time.
+  await page.waitForURL((url) => url.href.startsWith(`${foundryUrl}/game`), { timeout: 120_000 });
+  console.info(`${LOG} In-world as "${username}" — api-bridge module is initialising`);
+}

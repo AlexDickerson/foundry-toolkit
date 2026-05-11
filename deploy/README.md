@@ -1,14 +1,15 @@
 # foundry-toolkit compose stack
 
-Four containers. One env file. Everything the GM needs to run a Foundry VTT
+Five containers. One env file. Everything the GM needs to run a Foundry VTT
 session with the full foundry-toolkit feature set available to players.
 
-| Service       | Image                           | Port    | Audience                 |
-| ------------- | ------------------------------- | ------- | ------------------------ |
-| caddy         | `caddy:2.8`                     | 80, 443 | public internet (TLS)    |
-| foundry       | `foundry-toolkit-foundry:<tag>` | 30000\* | GM (via Caddy or direct) |
-| foundry-mcp   | `foundry-toolkit-mcp:<tag>`     | 8765    | internal only            |
-| player-portal | `foundry-toolkit-portal:<tag>`  | 3000    | players (via Caddy)      |
+| Service         | Image                                   | Port            | Audience                 |
+| --------------- | --------------------------------------- | --------------- | ------------------------ |
+| caddy           | `caddy:2.8`                             | 80, 443         | public internet (TLS)    |
+| foundry         | `foundry-toolkit-foundry:<tag>`         | 30000\*         | GM (via Caddy or direct) |
+| foundry-mcp     | `foundry-toolkit-mcp:<tag>`             | 8765            | internal only            |
+| player-portal   | `foundry-toolkit-portal:<tag>`          | 3000            | players (via Caddy)      |
+| headless-bridge | `foundry-toolkit-headless-bridge:<tag>` | none (internal) | automation               |
 
 \* Port 30000 is bound to `127.0.0.1` only — the GM can reach Foundry directly
 at `http://localhost:30000` without going through Caddy. Port 3000 is not
@@ -18,6 +19,10 @@ The `foundry-api-bridge` Foundry module is baked into the `foundry` image and
 seeded into the data volume on first boot. Once a world is created and the
 module enabled, it opens a WebSocket connection from the GM's browser tab to
 `foundry-mcp` (port 8765).
+
+The `headless-bridge` service (see [Headless bridge](#headless-bridge) below)
+automates this browser-tab requirement so the connection stays alive 24/7
+without any manual intervention.
 
 ---
 
@@ -144,15 +149,19 @@ simplest.
 | ----------------------- | -------------------------- | -------- | ---------------------------------------------------------------------------------- |
 | `FOUNDRY_USERNAME`      | foundry                    | yes      | Paizo account username for Foundry download                                        |
 | `FOUNDRY_PASSWORD`      | foundry                    | yes      | Paizo account password                                                             |
-| `FOUNDRY_ADMIN_KEY`     | foundry                    | rec.     | Foundry admin console password                                                     |
+| `FOUNDRY_ADMIN_KEY`     | foundry, headless-bridge   | rec.     | Foundry admin console password                                                     |
 | `FOUNDRY_ROUTE_PREFIX`  | foundry                    | no       | URL path prefix for Foundry (`foundry` → served at `/foundry/`); empty = no prefix |
 | `OPENAI_API_KEY`        | foundry-mcp                | no       | GPT-image-1 map editing (`edit_image` tool)                                        |
 | `ALLOW_EVAL`            | foundry-mcp                | no       | `1` enables `/api/eval` debug endpoint                                             |
 | `SHARED_SECRET`         | foundry-mcp, player-portal | yes      | Bearer token for `/api/live/*` POST writes                                         |
 | `SECURE_SESSION_SECRET` | player-portal              | no\*     | Cookie signing for portal user auth                                                |
+| `BRIDGE_GM_USER`        | headless-bridge            | yes†     | Foundry username for the headless GM                                               |
+| `BRIDGE_GM_PASS`        | headless-bridge            | no       | Password for `BRIDGE_GM_USER`                                                      |
+| `BRIDGE_WORLD_ID`       | headless-bridge            | yes†     | World directory slug to join                                                       |
 | `IMAGE_TAG`             | —                          | no       | Image tag to pull (default: `latest`)                                              |
 
 \*Required once the portal user auth feature ships.
+†Required only when running the `headless-bridge` service.
 
 `MCP_URL` and `FOUNDRY_URL` are set by `compose.yaml` to the compose service
 names and should not be overridden in `.env`.
@@ -256,6 +265,96 @@ foundry:
 ```
 
 **Compatibility caveat**: The bundled `foundry-api-bridge` module is built against current Foundry APIs. Running it in v13 may or may not work depending on what APIs it uses. You are responsible for verifying compatibility with your chosen Foundry version. This PR publishes the image; no version-pinned bridge build is included yet.
+
+---
+
+## Headless bridge
+
+### Why it exists
+
+The `foundry-api-bridge` module runs inside the GM's browser and dials out over
+WebSocket to `foundry-mcp`. Without the browser open, there is no bridge — the
+`player-portal` and any MCP clients lose access to live Foundry data.
+
+The `headless-bridge` service eliminates this dependency. It launches a
+headless Chromium browser (via Playwright), logs into Foundry as a dedicated
+GM account, and holds the session open indefinitely. Docker's
+`restart: unless-stopped` policy means the bridge auto-recovers from crashes,
+world reloads, and container restarts.
+
+### Dedicated bridge-gm account (required)
+
+Foundry allows only one active session per user account. If the headless
+process and your real GM browser tab both authenticate as the same account,
+Foundry will boot the older session.
+
+**Create a separate account** for the headless bridge:
+
+1. Open `http://localhost:30000` and log in as admin.
+2. Go to **Game Settings → Server Settings → User Management**.
+3. Click **Create User** and fill in:
+   - **Name**: `bridge-gm` (or any name — record it as `BRIDGE_GM_USER`)
+   - **Role**: Gamemaster
+   - **Password**: any password — record it as `BRIDGE_GM_PASS`
+4. Save.
+
+Your primary GM account is unaffected. During a real game session your GM
+browser logs in as your normal Gamemaster user; the headless container stays
+connected as `bridge-gm`. Both exist on the Foundry instance simultaneously
+without conflict.
+
+### Finding your world ID
+
+`BRIDGE_WORLD_ID` is the world's **directory slug**, not its display title.
+It appears in small text beneath each world card on the Foundry setup page.
+You can also inspect the data volume:
+
+```sh
+docker compose -f deploy/compose.yaml exec foundry \
+  ls /data/Data/worlds/
+```
+
+Each directory name is a valid world ID.
+
+### Operations
+
+```sh
+# Tail logs
+docker compose -f deploy/compose.yaml logs -f headless-bridge
+
+# Stop just the headless bridge (Foundry keeps running)
+docker compose -f deploy/compose.yaml stop headless-bridge
+
+# Restart after credential change
+docker compose -f deploy/compose.yaml restart headless-bridge
+
+# Check whether the bridge module is connected to foundry-mcp
+curl http://localhost:8765/health   # requires port 8765 exposed; see README
+# → {"ok":true,"foundryConnected":true,...}
+```
+
+### Behaviour during real sessions
+
+When your primary GM account is active in a browser:
+
+- The `bridge-gm` headless session remains connected in parallel.
+- Both sessions share the same world state — actions taken by `bridge-gm` (via
+  MCP tools) appear in your GM view in real time.
+- Logging out of your GM browser does not affect the headless session.
+- There is no conflict as long as the two users are different Foundry accounts.
+
+### Caveats
+
+- **World must be enabled for the bridge-gm user.** Foundry worlds can
+  restrict which users can join. Verify in User Management that `bridge-gm`
+  has Gamemaster access to the world specified by `BRIDGE_WORLD_ID`.
+- **Foundry setup page selectors.** The login flow uses CSS selectors derived
+  from Foundry v14's HTML. If Foundry's UI changes in a future version, the
+  selectors in `apps/headless-bridge/src/foundry.ts` may need updating.
+- **First-boot delay.** If the stack starts fresh (Foundry downloading its
+  binaries), `headless-bridge` will fail and restart several times before
+  Foundry is ready. This is expected — Docker's restart policy backs off
+  exponentially and resumes once Foundry is reachable.
 
 ---
 

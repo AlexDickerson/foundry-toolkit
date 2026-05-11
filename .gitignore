@@ -14,6 +14,7 @@ apps/dm-tool/dist/
 apps/player-portal/dist/
 apps/player-portal/server-dist/
 apps/foundry-mcp/dist/
+apps/headless-bridge/dist/
 packages/*/dist/
 
 # foundry-api-bridge: keep checked-in static assets in dist/ but ignore vite output

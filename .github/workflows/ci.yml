@@ -42,6 +42,7 @@ jobs:
           npm run test --workspace apps/player-portal
           npm run test --workspace apps/foundry-api-bridge
           npm run test --workspace apps/foundry-mcp
+          npm run test --workspace apps/headless-bridge
           npm run test --workspace packages/shared
           npm run test --workspace packages/pf2e-rules
 
