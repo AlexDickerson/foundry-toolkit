@@ -6,7 +6,7 @@
 // Auth: the /books/* proxy is inside the cookie-session gate — no extra auth
 // needed here.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BookCatalog, PdfReader, type BookEntry } from '@foundry-toolkit/pdf-reader';
 import { fetchBooksIndex, indexEntryToBookEntry } from './api';
 import type { BookIndexEntry } from './types';
@@ -42,6 +42,22 @@ export function Books() {
 
   const books: BookEntry[] = entries.map(indexEntryToBookEntry);
 
+  // filename → DB id for the cover URL lookup. Books without a DB row (or
+  // without a cover blob) are omitted; the resolver returns a sentinel URL
+  // that 404s so the card shows its placeholder instead.
+  const coverIds = useMemo(
+    () => new Map(entries.filter((e) => e.hasCover && e.dbId != null).map((e) => [e.filename, e.dbId!])),
+    [entries],
+  );
+
+  const getCoverUrl = useCallback(
+    (id: string) => {
+      const dbId = coverIds.get(id);
+      return dbId != null ? `/books/_covers/${dbId}` : '';
+    },
+    [coverIds],
+  );
+
   if (openBook) {
     return (
       <div className="books-reader-root absolute inset-0">
@@ -73,6 +89,8 @@ export function Books() {
             onSelect={setOpenBook}
             loading={loading}
             emptyMessage={loading ? 'Loading…' : 'No PDF books found in the library.'}
+            showCovers
+            getCoverUrl={getCoverUrl}
           />
         </div>
       )}

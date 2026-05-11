@@ -20,29 +20,24 @@ import { getPf2eDb, isPf2eDbOpen } from '@foundry-toolkit/db/pf2e';
 export interface BookIndexEntry {
   id: string;
   filename: string;
-  /** Display title — prefers AI-cleaned title from pf2e.db, falls back to
-   *  the filename stem. */
   title: string;
   sizeBytes: number;
   mtime: number;
-  /** Top-level folder under FOUNDRY_MCP_BOOKS_DIR. Used as a default
-   *  grouping when DB metadata isn't available. */
   category?: string;
-  /** AI-classified system (PF2e, 5e, Generic, …). Populated from pf2e.db. */
   system?: string;
-  /** AI-classified category (Rulebook, Adventure Path, …). When set this
-   *  overrides the filesystem-derived `category`. */
   aiCategory?: string;
-  /** AI-classified subcategory (e.g. AP name "Abomination Vaults"). */
   subcategory?: string;
-  /** AI-classified publisher (Paizo, WotC, etc.). */
   publisher?: string;
-  /** Cached page count from prior ingest, if available. */
   pageCount?: number;
+  /** When the file matched a pf2e.db row, this is that row's integer id —
+   *  use it to fetch the cover blob via GET /books/_covers/<dbId>. */
+  dbId?: number;
+  /** True when pf2e.db has a cover_blob for this book. */
+  hasCover?: boolean;
 }
 
-/** Subset of `books` columns we read for catalog enrichment. */
 interface BookDbRow {
+  id: number;
   path: string;
   title: string | null;
   category: string | null;
@@ -53,9 +48,40 @@ interface BookDbRow {
   ai_subcategory: string | null;
   ai_title: string | null;
   ai_publisher: string | null;
+  has_cover: number; // 0 or 1
 }
 
 export function registerBooksRoute(app: FastifyInstance): void {
+  // Cover endpoint — serves the PNG cover blob from pf2e.db by book id.
+  app.get<{ Params: { id: string } }>('/books/_covers/:id', async (req, reply) => {
+    if (!isPf2eDbOpen()) {
+      reply.code(404).send({ error: 'pf2e.db not configured' });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || !Number.isInteger(id)) {
+      reply.code(400).send({ error: 'Invalid book id' });
+      return;
+    }
+    try {
+      const row = getPf2eDb()
+        .prepare('SELECT cover_blob FROM books WHERE id = ?')
+        .get(id) as { cover_blob: Uint8Array | null } | undefined;
+      if (!row?.cover_blob) {
+        reply.code(404).send({ error: 'No cover for this book' });
+        return;
+      }
+      reply
+        .code(200)
+        .header('Content-Type', 'image/png')
+        .header('Cache-Control', 'public, max-age=86400')
+        .send(Buffer.from(row.cover_blob));
+    } catch (err) {
+      log.error(`books: failed to read cover for id=${id}: ${String(err)}`);
+      reply.code(500).send({ error: 'Failed to read cover' });
+    }
+  });
+
   // Index endpoint — lists all PDFs in the books directory tree.
   app.get('/books/_index.json', async (_req, reply) => {
     if (!FOUNDRY_MCP_BOOKS_DIR) {
@@ -189,8 +215,9 @@ function loadDbMetadata(): Map<string, BookDbRow> {
   try {
     const rows = getPf2eDb()
       .prepare(
-        `SELECT path, title, category, subcategory, page_count,
-                ai_system, ai_category, ai_subcategory, ai_title, ai_publisher
+        `SELECT id, path, title, category, subcategory, page_count,
+                ai_system, ai_category, ai_subcategory, ai_title, ai_publisher,
+                CASE WHEN cover_blob IS NULL THEN 0 ELSE 1 END AS has_cover
          FROM books`,
       )
       .all() as unknown as BookDbRow[];
@@ -253,5 +280,9 @@ function makeEntry(
   else if (meta?.subcategory) entry.subcategory = meta.subcategory;
   if (meta?.ai_publisher) entry.publisher = meta.ai_publisher;
   if (meta?.page_count != null) entry.pageCount = meta.page_count;
+  if (meta) {
+    entry.dbId = meta.id;
+    if (meta.has_cover) entry.hasCover = true;
+  }
   return entry;
 }

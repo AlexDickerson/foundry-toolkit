@@ -13,4 +13,6 @@ export interface BookIndexEntry {
   subcategory?: string;
   publisher?: string;
   pageCount?: number;
+  dbId?: number;
+  hasCover?: boolean;
 }
