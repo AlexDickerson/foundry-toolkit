@@ -15,14 +15,44 @@ import { join, resolve, extname, basename } from 'node:path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { FOUNDRY_MCP_BOOKS_DIR } from '../../config.js';
 import { log } from '../../logger.js';
+import { getPf2eDb, isPf2eDbOpen } from '@foundry-toolkit/db/pf2e';
 
 export interface BookIndexEntry {
   id: string;
   filename: string;
+  /** Display title — prefers AI-cleaned title from pf2e.db, falls back to
+   *  the filename stem. */
   title: string;
   sizeBytes: number;
   mtime: number;
+  /** Top-level folder under FOUNDRY_MCP_BOOKS_DIR. Used as a default
+   *  grouping when DB metadata isn't available. */
   category?: string;
+  /** AI-classified system (PF2e, 5e, Generic, …). Populated from pf2e.db. */
+  system?: string;
+  /** AI-classified category (Rulebook, Adventure Path, …). When set this
+   *  overrides the filesystem-derived `category`. */
+  aiCategory?: string;
+  /** AI-classified subcategory (e.g. AP name "Abomination Vaults"). */
+  subcategory?: string;
+  /** AI-classified publisher (Paizo, WotC, etc.). */
+  publisher?: string;
+  /** Cached page count from prior ingest, if available. */
+  pageCount?: number;
+}
+
+/** Subset of `books` columns we read for catalog enrichment. */
+interface BookDbRow {
+  path: string;
+  title: string | null;
+  category: string | null;
+  subcategory: string | null;
+  page_count: number | null;
+  ai_system: string | null;
+  ai_category: string | null;
+  ai_subcategory: string | null;
+  ai_title: string | null;
+  ai_publisher: string | null;
 }
 
 export function registerBooksRoute(app: FastifyInstance): void {
@@ -137,33 +167,91 @@ function readRange(filePath: string, start: number, end: number): Promise<Buffer
 
 async function buildIndex(booksRoot: string): Promise<BookIndexEntry[]> {
   const entries: BookIndexEntry[] = [];
-  await walkDir(booksRoot, '', entries);
-  entries.sort((a, b) => a.title.localeCompare(b.title));
+  const dbMeta = loadDbMetadata();
+  await walkDir(booksRoot, '', entries, dbMeta);
+  // Sort by (system, category, title) when DB metadata is available;
+  // otherwise fall back to title alphabetical.
+  entries.sort((a, b) => {
+    const sys = (a.system ?? '').localeCompare(b.system ?? '');
+    if (sys !== 0) return sys;
+    const cat = (a.aiCategory ?? a.category ?? '').localeCompare(b.aiCategory ?? b.category ?? '');
+    if (cat !== 0) return cat;
+    return a.title.localeCompare(b.title);
+  });
   return entries;
 }
 
-/** Recursively walk a directory tree collecting .pdf files. The category for
- *  each book is the top-level subdirectory it lives under (e.g. "5e",
- *  "PF2e", "Generic"); books in the root have no category. */
-async function walkDir(absPath: string, relPath: string, out: BookIndexEntry[]): Promise<void> {
+/** Snapshot of pf2e.db's `books` table keyed by filename basename (lowercased).
+ *  We match on basename because dm-tool stores Windows-style absolute paths
+ *  that won't resolve on the server — but filenames are stable across hosts. */
+function loadDbMetadata(): Map<string, BookDbRow> {
+  if (!isPf2eDbOpen()) return new Map();
+  try {
+    const rows = getPf2eDb()
+      .prepare(
+        `SELECT path, title, category, subcategory, page_count,
+                ai_system, ai_category, ai_subcategory, ai_title, ai_publisher
+         FROM books`,
+      )
+      .all() as unknown as BookDbRow[];
+    const map = new Map<string, BookDbRow>();
+    for (const r of rows) {
+      // basename() handles both / and \ separators, so Windows paths work.
+      map.set(basename(r.path).toLowerCase(), r);
+    }
+    return map;
+  } catch (err) {
+    log.warn(`books: could not read pf2e.db books table: ${String(err)}`);
+    return new Map();
+  }
+}
+
+async function walkDir(
+  absPath: string,
+  relPath: string,
+  out: BookIndexEntry[],
+  dbMeta: Map<string, BookDbRow>,
+): Promise<void> {
   const dirEntries = await readdir(absPath, { withFileTypes: true });
   for (const entry of dirEntries) {
-    if (entry.name.startsWith('.')) continue; // skip .DS_Store, .Trashes, etc.
+    if (entry.name.startsWith('.')) continue;
     const childAbs = join(absPath, entry.name);
     const childRel = relPath ? `${relPath}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      await walkDir(childAbs, childRel, out);
+      await walkDir(childAbs, childRel, out, dbMeta);
     } else if (entry.isFile() && extname(entry.name).toLowerCase() === '.pdf') {
       const s = await stat(childAbs);
-      const category = relPath ? (relPath.split('/')[0] ?? undefined) : undefined;
-      out.push(makeEntry(childRel, entry.name, s.size, s.mtimeMs, category));
+      const folderCategory = relPath ? (relPath.split('/')[0] ?? undefined) : undefined;
+      const meta = dbMeta.get(entry.name.toLowerCase());
+      out.push(makeEntry(childRel, entry.name, s.size, s.mtimeMs, folderCategory, meta));
     }
   }
 }
 
-function makeEntry(filename: string, leafName: string, sizeBytes: number, mtime: number, category?: string): BookIndexEntry {
+function makeEntry(
+  filename: string,
+  leafName: string,
+  sizeBytes: number,
+  mtime: number,
+  folderCategory: string | undefined,
+  meta: BookDbRow | undefined,
+): BookIndexEntry {
   const stem = basename(leafName, extname(leafName));
-  // Derive a URL-safe id from the relative filename (category/name or name).
   const id = filename.replace(/[^\w/.-]/g, '_').replace(/\.pdf$/i, '');
-  return { id, filename, title: stem.replace(/_/g, ' '), sizeBytes, mtime: Math.round(mtime), category };
+  const fallbackTitle = stem.replace(/_/g, ' ');
+  const entry: BookIndexEntry = {
+    id,
+    filename,
+    title: meta?.ai_title ?? meta?.title ?? fallbackTitle,
+    sizeBytes,
+    mtime: Math.round(mtime),
+  };
+  if (folderCategory) entry.category = folderCategory;
+  if (meta?.ai_system) entry.system = meta.ai_system;
+  if (meta?.ai_category) entry.aiCategory = meta.ai_category;
+  if (meta?.ai_subcategory) entry.subcategory = meta.ai_subcategory;
+  else if (meta?.subcategory) entry.subcategory = meta.subcategory;
+  if (meta?.ai_publisher) entry.publisher = meta.ai_publisher;
+  if (meta?.page_count != null) entry.pageCount = meta.page_count;
+  return entry;
 }
