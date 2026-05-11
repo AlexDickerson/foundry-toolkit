@@ -56,9 +56,7 @@ async function handleSetup(page: Page, foundryUrl: string, adminKey: string, wor
   // Find the world card by its ID (= directory slug under Data/worlds/).
   // v14 uses data-package-id; older builds used data-id — try both.
   console.info(`${LOG} Locating world "${worldId}" in setup`);
-  const worldCard = page
-    .locator(`[data-package-id="${worldId}"], [data-id="${worldId}"]`)
-    .first();
+  const worldCard = page.locator(`[data-package-id="${worldId}"], [data-id="${worldId}"]`).first();
   const cardVisible = await worldCard.isVisible({ timeout: 15_000 }).catch(() => false);
   if (!cardVisible) {
     throw new Error(
