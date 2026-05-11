@@ -100,11 +100,15 @@ export function registerBooksRoute(app: FastifyInstance): void {
         return;
       }
     } else {
-      // No Range header: pdfjs probe to discover file size and range support.
-      // Respond with the first chunk as 206 — pdfjs reads Content-Range to learn
-      // the total and switches to range mode for subsequent page fetches.
-      start = 0;
-      end = Math.min(65535, total - 1);
+      // No Range header: pdfjs probe. Serve the LAST 64KB so pdfjs gets the
+      // PDF trailer (which is always at the end of the file) and can locate
+      // the xref + Root object. Without the trailer, pdfjs falls back to
+      // scanning whatever bytes it received and fails with "Invalid Root
+      // reference". After this response pdfjs makes range requests for the
+      // remaining pages.
+      const probeSize = Math.min(65536, total);
+      start = total - probeSize;
+      end = total - 1;
     }
 
     const chunkSize = end - start + 1;
