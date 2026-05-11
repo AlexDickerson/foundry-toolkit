@@ -44,7 +44,7 @@ export function Books() {
 
   if (openBook) {
     return (
-      <div className="books-reader-root h-full">
+      <div className="books-reader-root absolute inset-0">
         <PdfReader
           bookId={openBook.id}
           title={openBook.title}
@@ -58,7 +58,7 @@ export function Books() {
   }
 
   return (
-    <div className="books-reader-root flex h-full flex-col">
+    <div className="books-reader-root absolute inset-0 flex flex-col">
       <div className="shrink-0 border-b border-portal-border px-4 py-3">
         <h1 className="text-lg font-semibold text-portal-text">Library</h1>
       </div>
