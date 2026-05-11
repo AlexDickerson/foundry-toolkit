@@ -5,6 +5,7 @@ import type { CompendiumDocument, CompendiumMatch } from '@/features/characters/
 import { useUuidHover } from '@/shared/hooks/useUuidHover';
 import type { Evaluation } from '@/features/characters/internal/prereqs';
 import { getAncestryArt, getClassArt, getHeritageArt } from './character-art';
+import { getClassNote } from './class-notes';
 import { CharacterArtGallery } from './CharacterArtGallery';
 
 type Resolution =
@@ -81,6 +82,7 @@ export function CompendiumDetailPanel({
   const ancestryStats = doc && target.type === 'ancestry' ? readAncestryStats(doc) : null;
   const backgroundStats = doc && target.type === 'background' ? readBackgroundStats(doc) : null;
   const classStats = doc && target.type === 'class' ? readClassStats(doc) : null;
+  const classNote = target.type === 'class' ? getClassNote(target.name) : null;
   const docTraits = doc ? readTraits(doc) : null;
   const traits = docTraits ?? target.traits ?? [];
   const rarity = doc ? readRarity(doc) : null;
@@ -219,6 +221,7 @@ export function CompendiumDetailPanel({
                   {/* Mechanical effects sit below the lore so the flavor text reads first. */}
                   {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
                   {classStats !== null && <ClassMechanics stats={classStats} />}
+                  {classNote !== null && <ClassNotesFromAlex note={classNote} />}
                 </div>
                 {/* Art column: flex-col so the gallery can fill h-full */}
                 <div className="flex w-[28rem] shrink-0 flex-col">
@@ -256,6 +259,7 @@ export function CompendiumDetailPanel({
               {ancestryStats !== null && <AncestryMechanics stats={ancestryStats} />}
               {backgroundStats !== null && <BackgroundMechanics stats={backgroundStats} />}
               {classStats !== null && <ClassMechanics stats={classStats} />}
+              {classNote !== null && <ClassNotesFromAlex note={classNote} />}
               {uuidHover.popover}
             </div>
           ))}
@@ -950,6 +954,19 @@ function ProficiencyRow({ heading, children }: { heading: string; children: Reac
     <div className="mb-2">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-pf-alt-dark">{heading}</p>
       <div className="ml-1 [&_p]:leading-tight">{children}</div>
+    </div>
+  );
+}
+
+// "Notes from Alex" — opinionated, role-flavored take on each class.
+// Sits beneath the mechanical proficiencies block so a player who's
+// scanning a class for "what is this class actually like to play" gets
+// a paragraph of GM commentary right where they're already reading.
+function ClassNotesFromAlex({ note }: { note: string }): React.ReactElement {
+  return (
+    <div className="mt-4 border-t border-pf-border pt-3 text-xs text-pf-text" data-role="class-notes-from-alex">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-pf-alt-dark">Notes from Alex</p>
+      <p className="leading-relaxed">{note}</p>
     </div>
   );
 }
