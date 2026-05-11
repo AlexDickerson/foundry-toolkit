@@ -4,9 +4,9 @@ import type { BridgeEnv } from './env.js';
 const LOG = '[headless-bridge]';
 
 // Foundry VTT v14 page routes:
-//   /setup  — world management (requires admin auth if FOUNDRY_ADMIN_KEY is set)
-//   /join   — user login for the currently-active world
-//   /game   — in-world view; the api-bridge module activates here
+//   /setup  -- world management (requires admin auth if FOUNDRY_ADMIN_KEY is set)
+//   /join   -- user login for the currently-active world
+//   /game   -- in-world view; the api-bridge module activates here
 
 export async function loginToWorld(page: Page, env: BridgeEnv): Promise<void> {
   const { foundryUrl, foundryAdminKey, bridgeGmUser, bridgeGmPass, bridgeWorldId } = env;
@@ -16,12 +16,12 @@ export async function loginToWorld(page: Page, env: BridgeEnv): Promise<void> {
   console.info(`${LOG} Landed on: ${page.url()}`);
 
   if (page.url().includes('/game')) {
-    console.info(`${LOG} Already in-world — nothing to do`);
+    console.info(`${LOG} Already in-world -- nothing to do`);
     return;
   }
 
   if (!page.url().includes('/join')) {
-    // On the setup page — authenticate as admin and launch the world
+    // On the setup page -- authenticate as admin and launch the world
     await handleSetup(page, foundryUrl, foundryAdminKey, bridgeWorldId);
   }
 
@@ -31,7 +31,7 @@ export async function loginToWorld(page: Page, env: BridgeEnv): Promise<void> {
 async function handleSetup(page: Page, foundryUrl: string, adminKey: string, worldId: string): Promise<void> {
   // Foundry shows an admin password form when the admin key is set and the
   // client has no valid session cookie. The input name is "adminKey" in v13
-  // and "key" in some v14 builds — try both.
+  // and "key" in some v14 builds -- try both.
   const adminInput = page.locator('input[name="adminKey"], input[name="key"]').first();
   const needsAuth = await adminInput.isVisible({ timeout: 3_000 }).catch(() => false);
 
@@ -47,18 +47,42 @@ async function handleSetup(page: Page, foundryUrl: string, adminKey: string, wor
     await adminInput.fill(adminKey);
     await page.locator('button[type="submit"]').first().click();
     await page.waitForLoadState('networkidle', { timeout: 30_000 });
-    console.info(`${LOG} Admin auth done — now on: ${page.url()}`);
+    console.info(`${LOG} Admin auth done -- now on: ${page.url()}`);
   }
 
   // Admin auth may have redirected straight to /join if a world was already active.
   if (page.url().includes('/join')) return;
 
+  // networkidle fires before Foundry's JS renders the world list. Wait for any
+  // package element to appear in the DOM before searching for the specific world.
+  console.info(`${LOG} Waiting for world list to render`);
+  await page
+    .locator('[data-package-id], [data-id], li.package, article.package')
+    .first()
+    .waitFor({ state: 'visible', timeout: 20_000 })
+    .catch(() => {
+      console.warn(`${LOG} World list did not appear within 20s -- proceeding anyway`);
+    });
+
   // Find the world card by its ID (= directory slug under Data/worlds/).
-  // v14 uses data-package-id; older builds used data-id — try both.
+  // v14 uses data-package-id; older builds used data-id -- try both.
   console.info(`${LOG} Locating world "${worldId}" in setup`);
   const worldCard = page.locator(`[data-package-id="${worldId}"], [data-id="${worldId}"]`).first();
-  const cardVisible = await worldCard.isVisible({ timeout: 15_000 }).catch(() => false);
+  const cardVisible = await worldCard.isVisible({ timeout: 10_000 }).catch(() => false);
   if (!cardVisible) {
+    // Log what package elements ARE present to diagnose selector mismatches.
+    const found = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll('[data-package-id], [data-id]'))
+          .slice(0, 10)
+          .map((el) => ({
+            tag: el.tagName,
+            packageId: el.getAttribute('data-package-id'),
+            dataId: el.getAttribute('data-id'),
+          })),
+      )
+      .catch(() => []);
+    console.error(`${LOG} Package elements on page: ${JSON.stringify(found)}`);
     throw new Error(
       `World "${worldId}" not found on the Foundry setup page. ` +
         "Check that BRIDGE_WORLD_ID matches the world's directory slug " +
@@ -68,7 +92,7 @@ async function handleSetup(page: Page, foundryUrl: string, adminKey: string, wor
   }
 
   // The launch button lives inside the world card. Foundry uses a variety of
-  // button labels ("Launch", "Launch World") across versions — match loosely.
+  // button labels ("Launch", "Launch World") across versions -- match loosely.
   const launchBtn = worldCard
     .locator('button')
     .filter({ hasText: /launch/i })
@@ -76,7 +100,7 @@ async function handleSetup(page: Page, foundryUrl: string, adminKey: string, wor
   if (!(await launchBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
     throw new Error(
       `Could not find a Launch button for world "${worldId}". ` +
-        'The world card was found but the launch control is missing — the world may already be launching.',
+        'The world card was found but the launch control is missing -- the world may already be launching.',
     );
   }
 
@@ -104,9 +128,9 @@ async function handleJoin(page: Page, foundryUrl: string, username: string, pass
   }
 
   await page.locator('button[type="submit"]').first().click();
-  console.info(`${LOG} Joining — waiting for world to load (up to 2 min)`);
+  console.info(`${LOG} Joining -- waiting for world to load (up to 2 min)`);
 
   // World load populates all actors, scenes, and modules. Allow generous time.
   await page.waitForURL((url) => url.href.startsWith(`${foundryUrl}/game`), { timeout: 120_000 });
-  console.info(`${LOG} In-world as "${username}" — api-bridge module is initialising`);
+  console.info(`${LOG} In-world as "${username}" -- api-bridge module is initialising`);
 }
