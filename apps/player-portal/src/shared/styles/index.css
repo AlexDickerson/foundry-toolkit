@@ -3,6 +3,13 @@
 @import './pf2e/tokens.css';
 @import './color-schemes.css';
 
+/* Tailwind 4 only scans this app's source by default. The shared pdf-reader
+ * package uses utilities (overflow-auto, h-full, etc.) that aren't otherwise
+ * present in player-portal — without an explicit @source they get omitted
+ * from the compiled CSS and the reader's scroll container ends up
+ * overflow: visible, breaking PDF scrolling. */
+@source '../../../../../packages/pdf-reader/src/**/*.{ts,tsx}';
+
 /* Shadcn-compatible color utilities consumed by @foundry-toolkit/pdf-reader.
  * Values reference CSS custom properties scoped to .books-reader-root — they
  * only resolve correctly inside that container, but the Tailwind utilities must
