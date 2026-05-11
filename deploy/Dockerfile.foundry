@@ -9,6 +9,9 @@
 #   docker build -f deploy/Dockerfile.foundry -t foundry-toolkit-foundry:dev .
 ###############################################################################
 
+# Global ARG for Foundry base image tag (before any FROM statements)
+ARG FOUNDRY_BASE_TAG=release
+
 ###############################################################################
 # Stage 1 — Build foundry-api-bridge Foundry module
 ###############################################################################
@@ -36,7 +39,6 @@ COPY apps/foundry-api-bridge/dist/templates   ./dist/templates
 ###############################################################################
 # Stage 2 — Runtime: felddy/foundryvtt (Debian trixie)
 ###############################################################################
-ARG FOUNDRY_BASE_TAG=release
 FROM felddy/foundryvtt:${FOUNDRY_BASE_TAG}
 
 # Bake api-bridge module to /seed so a volume-mounted /data doesn't clobber it.
