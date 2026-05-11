@@ -11,7 +11,7 @@
 
 import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { readdir, stat } from 'node:fs/promises';
+import { open, readdir, stat } from 'node:fs/promises';
 import { join, resolve, extname, basename } from 'node:path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { FOUNDRY_MCP_BOOKS_DIR } from '../../config.js';
@@ -86,40 +86,51 @@ export function registerBooksRoute(app: FastifyInstance): void {
     const total = fileStats.size;
     const rangeHeader = (req.headers as Record<string, string | undefined>)['range'];
 
-    // Hijack the reply so Fastify's async lifecycle doesn't touch the socket
-    // while we're streaming. Without hijack, Fastify may destroy reply.raw
-    // concurrently with pipeline(), closing the connection before bytes arrive.
-    reply.hijack();
-
     if (rangeHeader) {
+      // Range request: read the exact byte slice into a Buffer and send via
+      // reply.send(). Avoids streaming/hijack lifecycle issues — pdfjs chunks
+      // are small (tens of KB) so in-memory reads are fine.
       const match = /bytes=(\d*)-(\d*)/.exec(rangeHeader);
       if (!match) {
-        reply.raw.writeHead(416, { 'Content-Range': `bytes */${total}` });
-        reply.raw.end();
+        reply.code(416).header('Content-Range', `bytes */${total}`).send();
         return;
       }
       const start = match[1] ? parseInt(match[1], 10) : 0;
       const end = match[2] ? parseInt(match[2], 10) : total - 1;
       if (start > end || end >= total) {
-        reply.raw.writeHead(416, { 'Content-Range': `bytes */${total}` });
-        reply.raw.end();
+        reply.code(416).header('Content-Range', `bytes */${total}`).send();
         return;
       }
       const chunkSize = end - start + 1;
-      reply.raw.writeHead(206, {
-        'Content-Type': 'application/pdf',
-        'Content-Range': `bytes ${start}-${end}/${total}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': String(chunkSize),
-      });
-      await pipeline(createReadStream(filePath, { start, end }), reply.raw);
+      const fd = await open(filePath, 'r');
+      const buffer = Buffer.allocUnsafe(chunkSize);
+      try {
+        await fd.read(buffer, 0, chunkSize, start);
+      } finally {
+        await fd.close();
+      }
+      reply
+        .code(206)
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Range', `bytes ${start}-${end}/${total}`)
+        .header('Accept-Ranges', 'bytes')
+        .header('Content-Length', String(chunkSize))
+        .send(buffer);
     } else {
+      // Full-file request: hijack + pipe. pdfjs always uses range requests for
+      // large PDFs so this path is rarely hit, but keep it for completeness.
+      reply.hijack();
       reply.raw.writeHead(200, {
         'Content-Type': 'application/pdf',
         'Accept-Ranges': 'bytes',
         'Content-Length': String(total),
       });
-      await pipeline(createReadStream(filePath), reply.raw);
+      const stream = createReadStream(filePath);
+      stream.on('error', (err) => {
+        log.error(`books: full-file stream error for ${filePath}: ${String(err)}`);
+        if (!reply.raw.writableEnded) reply.raw.end();
+      });
+      stream.pipe(reply.raw);
     }
   });
 }
