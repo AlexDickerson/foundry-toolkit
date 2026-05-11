@@ -241,15 +241,34 @@ the `caddy` service block from `compose.yaml`, add a host port mapping back to
 
 ---
 
+## Foundry version variants
+
+Two Foundry image variants are published:
+
+- **Default (`foundry-toolkit-foundry`)** — pins to `felddy/foundryvtt:release` (latest stable, currently v14). Use this unless you have a specific reason to stay on v13.
+- **v13 (`foundry-toolkit-foundry-v13`)** — pins to `felddy/foundryvtt:13`. Use this if your modules require v13 compatibility.
+
+To use the v13 variant, swap the `image:` line in `compose.yaml`:
+
+```yaml
+foundry:
+  image: ghcr.io/alexdickerson/foundry-toolkit-foundry-v13:${IMAGE_TAG:-latest}
+```
+
+**Compatibility caveat**: The bundled `foundry-api-bridge` module is built against current Foundry APIs. Running it in v13 may or may not work depending on what APIs it uses. You are responsible for verifying compatibility with your chosen Foundry version. This PR publishes the image; no version-pinned bridge build is included yet.
+
+---
+
 ## CI / releases
 
 Pushing a `v*` tag triggers `.github/workflows/release-image.yml`, which
-builds and pushes all three images:
+builds and pushes all four images:
 
 ```
-ghcr.io/alexdickerson/foundry-toolkit-foundry:<tag>   + :latest
-ghcr.io/alexdickerson/foundry-toolkit-mcp:<tag>       + :latest
-ghcr.io/alexdickerson/foundry-toolkit-portal:<tag>    + :latest
+ghcr.io/alexdickerson/foundry-toolkit-foundry:<tag>       + :latest
+ghcr.io/alexdickerson/foundry-toolkit-foundry-v13:<tag>   + :latest
+ghcr.io/alexdickerson/foundry-toolkit-mcp:<tag>           + :latest
+ghcr.io/alexdickerson/foundry-toolkit-portal:<tag>        + :latest
 ```
 
 Tag manually; the workflow does not bump versions automatically.
