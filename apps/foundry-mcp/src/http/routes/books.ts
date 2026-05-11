@@ -137,27 +137,28 @@ function readRange(filePath: string, start: number, end: number): Promise<Buffer
 
 async function buildIndex(booksRoot: string): Promise<BookIndexEntry[]> {
   const entries: BookIndexEntry[] = [];
-  const rootEntries = await readdir(booksRoot, { withFileTypes: true });
-
-  for (const entry of rootEntries) {
-    if (entry.isDirectory()) {
-      const category = entry.name;
-      const subEntries = await readdir(join(booksRoot, category), { withFileTypes: true });
-      for (const sub of subEntries) {
-        if (!sub.isFile() || extname(sub.name).toLowerCase() !== '.pdf') continue;
-        const filePath = join(booksRoot, category, sub.name);
-        const s = await stat(filePath);
-        entries.push(makeEntry(`${category}/${sub.name}`, sub.name, s.size, s.mtimeMs, category));
-      }
-    } else if (entry.isFile() && extname(entry.name).toLowerCase() === '.pdf') {
-      const filePath = join(booksRoot, entry.name);
-      const s = await stat(filePath);
-      entries.push(makeEntry(entry.name, entry.name, s.size, s.mtimeMs));
-    }
-  }
-
+  await walkDir(booksRoot, '', entries);
   entries.sort((a, b) => a.title.localeCompare(b.title));
   return entries;
+}
+
+/** Recursively walk a directory tree collecting .pdf files. The category for
+ *  each book is the top-level subdirectory it lives under (e.g. "5e",
+ *  "PF2e", "Generic"); books in the root have no category. */
+async function walkDir(absPath: string, relPath: string, out: BookIndexEntry[]): Promise<void> {
+  const dirEntries = await readdir(absPath, { withFileTypes: true });
+  for (const entry of dirEntries) {
+    if (entry.name.startsWith('.')) continue; // skip .DS_Store, .Trashes, etc.
+    const childAbs = join(absPath, entry.name);
+    const childRel = relPath ? `${relPath}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      await walkDir(childAbs, childRel, out);
+    } else if (entry.isFile() && extname(entry.name).toLowerCase() === '.pdf') {
+      const s = await stat(childAbs);
+      const category = relPath ? (relPath.split('/')[0] ?? undefined) : undefined;
+      out.push(makeEntry(childRel, entry.name, s.size, s.mtimeMs, category));
+    }
+  }
 }
 
 function makeEntry(filename: string, leafName: string, sizeBytes: number, mtime: number, category?: string): BookIndexEntry {
