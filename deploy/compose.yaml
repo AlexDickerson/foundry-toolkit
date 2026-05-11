@@ -97,6 +97,7 @@ services:
     restart: unless-stopped
     environment:
       FOUNDRY_URL: http://foundry:30000
+      FOUNDRY_ROUTE_PREFIX: ${FOUNDRY_ROUTE_PREFIX:-}
       FOUNDRY_ADMIN_KEY: ${FOUNDRY_ADMIN_KEY:-}
       FOUNDRY_MCP_URL: http://foundry-mcp:8765
       BRIDGE_GM_USER: ${BRIDGE_GM_USER}

@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   const env = parseEnv();
 
   console.info(`${LOG} Starting`);
-  console.info(`${LOG}   Foundry: ${env.foundryUrl}`);
+  console.info(`${LOG}   Foundry: ${env.foundryUrl}${env.foundryRoutePath}`);
   console.info(`${LOG}   World:   ${env.bridgeWorldId}`);
   console.info(`${LOG}   User:    ${env.bridgeGmUser}`);
   console.info(`${LOG}   MCP:     ${env.foundryMcpUrl}`);
