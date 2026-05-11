@@ -84,21 +84,25 @@ export function registerBooksRoute(app: FastifyInstance): void {
     }
 
     const total = fileStats.size;
-    // Use pipeline() so the async handler awaits the stream completion.
-    // reply.send(stream) in an async Fastify handler returns before the
-    // stream finishes, causing the client to receive an empty body.
     const rangeHeader = (req.headers as Record<string, string | undefined>)['range'];
+
+    // Hijack the reply so Fastify's async lifecycle doesn't touch the socket
+    // while we're streaming. Without hijack, Fastify may destroy reply.raw
+    // concurrently with pipeline(), closing the connection before bytes arrive.
+    reply.hijack();
 
     if (rangeHeader) {
       const match = /bytes=(\d*)-(\d*)/.exec(rangeHeader);
       if (!match) {
-        reply.code(416).header('Content-Range', `bytes */${total}`).send();
+        reply.raw.writeHead(416, { 'Content-Range': `bytes */${total}` });
+        reply.raw.end();
         return;
       }
       const start = match[1] ? parseInt(match[1], 10) : 0;
       const end = match[2] ? parseInt(match[2], 10) : total - 1;
       if (start > end || end >= total) {
-        reply.code(416).header('Content-Range', `bytes */${total}`).send();
+        reply.raw.writeHead(416, { 'Content-Range': `bytes */${total}` });
+        reply.raw.end();
         return;
       }
       const chunkSize = end - start + 1;
