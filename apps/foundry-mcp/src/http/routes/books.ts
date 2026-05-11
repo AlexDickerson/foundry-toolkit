@@ -115,17 +115,25 @@ export function registerBooksRoute(app: FastifyInstance): void {
         .header('Content-Length', String(chunkSize))
         .send(buffer);
     } else {
-      // Full-file request: pdfjs sends this first to probe for range support.
-      // Load into a Buffer and send via reply.send() — same reliable pattern
-      // as the range case. After receiving this response pdfjs switches to
-      // range mode for individual pages.
-      const data = await readFile(filePath);
+      // No Range header: pdfjs probe to discover file size and range support.
+      // Respond with the first chunk as 206 so pdfjs reads Content-Range for
+      // the total, sees Accept-Ranges, and switches to range mode — without
+      // ever streaming the full file through the proxy.
+      const probeSize = Math.min(65536, total);
+      const fd = await open(filePath, 'r');
+      const buffer = Buffer.allocUnsafe(probeSize);
+      try {
+        await fd.read(buffer, 0, probeSize, 0);
+      } finally {
+        await fd.close();
+      }
       reply
-        .code(200)
+        .code(206)
         .header('Content-Type', 'application/pdf')
+        .header('Content-Range', `bytes 0-${probeSize - 1}/${total}`)
         .header('Accept-Ranges', 'bytes')
-        .header('Content-Length', String(data.length))
-        .send(data);
+        .header('Content-Length', String(probeSize))
+        .send(buffer);
     }
   });
 }
