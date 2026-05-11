@@ -9,9 +9,7 @@
 //
 // If FOUNDRY_MCP_BOOKS_DIR is unset every route returns 404.
 
-import { createReadStream } from 'node:fs';
-import { pipeline } from 'node:stream/promises';
-import { open, readdir, stat } from 'node:fs/promises';
+import { open, readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve, extname, basename } from 'node:path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { FOUNDRY_MCP_BOOKS_DIR } from '../../config.js';
@@ -117,20 +115,17 @@ export function registerBooksRoute(app: FastifyInstance): void {
         .header('Content-Length', String(chunkSize))
         .send(buffer);
     } else {
-      // Full-file request: hijack + pipe. pdfjs always uses range requests for
-      // large PDFs so this path is rarely hit, but keep it for completeness.
-      reply.hijack();
-      reply.raw.writeHead(200, {
-        'Content-Type': 'application/pdf',
-        'Accept-Ranges': 'bytes',
-        'Content-Length': String(total),
-      });
-      const stream = createReadStream(filePath);
-      stream.on('error', (err) => {
-        log.error(`books: full-file stream error for ${filePath}: ${String(err)}`);
-        if (!reply.raw.writableEnded) reply.raw.end();
-      });
-      stream.pipe(reply.raw);
+      // Full-file request: pdfjs sends this first to probe for range support.
+      // Load into a Buffer and send via reply.send() — same reliable pattern
+      // as the range case. After receiving this response pdfjs switches to
+      // range mode for individual pages.
+      const data = await readFile(filePath);
+      reply
+        .code(200)
+        .header('Content-Type', 'application/pdf')
+        .header('Accept-Ranges', 'bytes')
+        .header('Content-Length', String(data.length))
+        .send(data);
     }
   });
 }
