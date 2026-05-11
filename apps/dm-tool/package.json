@@ -14,9 +14,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "package": "electron-vite build && electron-builder --win",
+    "package:win": "electron-vite build && electron-builder --win",
+    "package:mac": "electron-vite build && electron-builder --mac",
     "package:dir": "electron-vite build && electron-builder --win --dir",
-    "package:ci": "electron-vite build && electron-builder --win --publish never"
+    "package:ci:win": "electron-vite build && electron-builder --win --publish never",
+    "package:ci:mac": "electron-vite build && electron-builder --mac --publish never"
   },
   "build": {
     "appId": "com.alexdickerson.dm-tool",
@@ -33,22 +35,37 @@
       "target": [
         "nsis"
       ],
-      "icon": "../../resources/icon.ico"
+      "icon": "../../resources/icon.ico",
+      "extraResources": [
+        {
+          "from": "../../tagger/dist/map-tagger.exe",
+          "to": "map-tagger.exe"
+        },
+        {
+          "from": "../../auto-wall-bin/Auto-Wall.exe",
+          "to": "Auto-Wall.exe"
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "../../resources/icon.png",
+      "identity": null,
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "../../resources/icon.png",
+      "category": "Utility"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false
     },
-    "extraResources": [
-      {
-        "from": "../../tagger/dist/map-tagger.exe",
-        "to": "map-tagger.exe"
-      },
-      {
-        "from": "../../auto-wall-bin/Auto-Wall.exe",
-        "to": "Auto-Wall.exe"
-      }
-    ],
     "npmRebuild": true,
     "nodeGypRebuild": false,
     "asar": true

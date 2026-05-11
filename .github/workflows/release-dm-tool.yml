@@ -1,0 +1,66 @@
+name: Release DM Tool
+
+on:
+  push:
+    tags: ['dm-tool-v*']
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            eb_flag: --win
+            artifact_name: dm-tool-windows
+            glob: 'dist/*.exe'
+          - os: macos-latest
+            eb_flag: --mac
+            artifact_name: dm-tool-macos
+            glob: 'dist/*.dmg'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build --workspace apps/dm-tool
+
+      - name: Package
+        run: npx --workspace apps/dm-tool electron-builder ${{ matrix.eb_flag }} --publish never
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.blockmap
+            dist/latest*.yml
+          if-no-files-found: error
+
+  release:
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
