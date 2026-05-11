@@ -22,13 +22,15 @@ beforeEach(() => {
 
 // ─── Test builders ────────────────────────────────────────────────────────
 
-function makePromptRequest(overrides: Partial<{
-  bridgeId: string;
-  title: string;
-  prompt: string;
-  choices: Array<{ value: string; label: string; img: string | null; group: string | null }>;
-  allowNoSelection: boolean;
-}>= {}): PendingPrompt {
+function makePromptRequest(
+  overrides: Partial<{
+    bridgeId: string;
+    title: string;
+    prompt: string;
+    choices: Array<{ value: string; label: string; img: string | null; group: string | null }>;
+    allowNoSelection: boolean;
+  }> = {},
+): PendingPrompt {
   return {
     bridgeId: overrides.bridgeId ?? 'test-bridge-id',
     type: 'prompt-request',
@@ -72,16 +74,17 @@ function makeDialogRequest(spec: Partial<DialogSpec> = {}): PendingPrompt {
 describe('PromptDialog — prompt-request (ChoiceSet)', () => {
   it('renders dialog title and prompt text', () => {
     const { container } = render(
-      <PromptDialog prompt={makePromptRequest({ title: 'Damage Type', prompt: 'Pick a type:' })} onResolved={() => undefined} />,
+      <PromptDialog
+        prompt={makePromptRequest({ title: 'Damage Type', prompt: 'Pick a type:' })}
+        onResolved={() => undefined}
+      />,
     );
     expect(container.querySelector('[data-testid="dialog-title"]')?.textContent).toBe('Damage Type');
     expect(container.textContent).toContain('Pick a type:');
   });
 
   it('renders one button per choice', () => {
-    const { container } = render(
-      <PromptDialog prompt={makePromptRequest()} onResolved={() => undefined} />,
-    );
+    const { container } = render(<PromptDialog prompt={makePromptRequest()} onResolved={() => undefined} />);
     const buttons = container.querySelectorAll('[data-testid="choice-button"]');
     expect(buttons).toHaveLength(2);
     expect(buttons[0]?.getAttribute('data-choice-label')).toBe('Fire');
@@ -90,9 +93,7 @@ describe('PromptDialog — prompt-request (ChoiceSet)', () => {
 
   it('calls resolvePrompt with the choice value on click', async () => {
     const onResolved = vi.fn();
-    const { container } = render(
-      <PromptDialog prompt={makePromptRequest()} onResolved={onResolved} />,
-    );
+    const { container } = render(<PromptDialog prompt={makePromptRequest()} onResolved={onResolved} />);
     const fireBtn = Array.from(container.querySelectorAll('[data-testid="choice-button"]')).find(
       (b) => b.getAttribute('data-choice-label') === 'Fire',
     );
@@ -135,6 +136,53 @@ describe('PromptDialog — prompt-request (ChoiceSet)', () => {
     const img = container.querySelector('[data-testid="choice-button"] img');
     expect(img?.getAttribute('src')).toBe('/icons/fire.png');
   });
+
+  // Scalar-valued choices ("1 action / 2 actions / 3 actions" pick, etc.)
+  // stay on the simple button-grid path — there's no compendium document
+  // behind those values for the detail panel to load.
+  it('uses the button-grid path when choice values are scalars', () => {
+    const prompt = makePromptRequest({
+      choices: [
+        { value: '1', label: 'One action', img: null, group: null },
+        { value: '2', label: 'Two actions', img: null, group: null },
+      ],
+    });
+    const { container } = render(<PromptDialog prompt={prompt} onResolved={() => undefined} />);
+    expect(container.querySelector('[data-testid="prompt-detail-list"]')).toBeNull();
+    expect(container.querySelectorAll('[data-testid="choice-button"]').length).toBe(2);
+  });
+
+  // When every choice is a Compendium UUID (heritages, subclass picks,
+  // etc.) the dialog routes to the detail-panel layout instead of the
+  // button grid. The detail-panel path uses PickerDialog which portals
+  // to document.body, so query off there rather than the render
+  // container.
+  it('uses the detail-panel path when every choice value is a Compendium UUID', () => {
+    const prompt = makePromptRequest({
+      title: 'Heritage',
+      choices: [
+        { value: 'Compendium.pf2e.heritages.Item.ancient-elf', label: 'Ancient Elf', img: null, group: null },
+        { value: 'Compendium.pf2e.heritages.Item.arctic-elf', label: 'Arctic Elf', img: null, group: null },
+      ],
+    });
+    render(<PromptDialog prompt={prompt} onResolved={() => undefined} />);
+    expect(document.body.querySelector('[data-testid="prompt-detail-list"]')).not.toBeNull();
+    expect(document.body.querySelectorAll('[data-testid="choice-button"]').length).toBe(2);
+  });
+
+  // Mixed choice shapes (one UUID + one scalar) fall back to the simple
+  // grid — partial routing would lose the scalar option entirely.
+  it('falls back to the button-grid when choice shapes are mixed', () => {
+    const prompt = makePromptRequest({
+      choices: [
+        { value: 'Compendium.pf2e.heritages.Item.ancient-elf', label: 'Ancient Elf', img: null, group: null },
+        { value: 'custom', label: 'Custom', img: null, group: null },
+      ],
+    });
+    const { container } = render(<PromptDialog prompt={prompt} onResolved={() => undefined} />);
+    expect(container.querySelector('[data-testid="prompt-detail-list"]')).toBeNull();
+    expect(container.querySelectorAll('[data-testid="choice-button"]').length).toBe(2);
+  });
 });
 
 // ─── Generic dialog (dialog-request) tests ────────────────────────────────
@@ -142,7 +190,10 @@ describe('PromptDialog — prompt-request (ChoiceSet)', () => {
 describe('PromptDialog — dialog-request (Dialog/V2)', () => {
   it('renders dialog title and text', () => {
     const { container } = render(
-      <PromptDialog prompt={makeDialogRequest({ title: 'Roll Damage', text: 'Roll now?' })} onResolved={() => undefined} />,
+      <PromptDialog
+        prompt={makeDialogRequest({ title: 'Roll Damage', text: 'Roll now?' })}
+        onResolved={() => undefined}
+      />,
     );
     expect(container.querySelector('[data-testid="dialog-title"]')?.textContent).toBe('Roll Damage');
     expect(container.textContent).toContain('Roll now?');
@@ -290,10 +341,7 @@ describe('PromptDialog — dismiss', () => {
   it('calls resolvePrompt with null when Skip is clicked', async () => {
     const onResolved = vi.fn();
     const { container } = render(
-      <PromptDialog
-        prompt={makePromptRequest({ allowNoSelection: true })}
-        onResolved={onResolved}
-      />,
+      <PromptDialog prompt={makePromptRequest({ allowNoSelection: true })} onResolved={onResolved} />,
     );
     const skipBtn = container.querySelector('[data-testid="dismiss-button"]');
     fireEvent.click(skipBtn!);
