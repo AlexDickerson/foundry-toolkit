@@ -207,6 +207,14 @@ async function buildIndex(booksRoot: string): Promise<BookIndexEntry[]> {
   return entries;
 }
 
+/** Cross-platform basename — last path component regardless of separator.
+ *  Needed because pf2e.db rows may contain Windows paths even when the server
+ *  runs on macOS/Linux, and node:path on POSIX won't split on '\'. */
+function basenameAny(p: string): string {
+  const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+  return i >= 0 ? p.slice(i + 1) : p;
+}
+
 /** Snapshot of pf2e.db's `books` table keyed by filename basename (lowercased).
  *  We match on basename because dm-tool stores Windows-style absolute paths
  *  that won't resolve on the server — but filenames are stable across hosts. */
@@ -223,8 +231,9 @@ function loadDbMetadata(): Map<string, BookDbRow> {
       .all() as unknown as BookDbRow[];
     const map = new Map<string, BookDbRow>();
     for (const r of rows) {
-      // basename() handles both / and \ separators, so Windows paths work.
-      map.set(basename(r.path).toLowerCase(), r);
+      // pf2e.db is written by dm-tool which may have run on Windows, so paths
+      // can use either separator. path.basename() on macOS only handles '/'.
+      map.set(basenameAny(r.path).toLowerCase(), r);
     }
     return map;
   } catch (err) {
