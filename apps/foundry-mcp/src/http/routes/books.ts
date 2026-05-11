@@ -10,6 +10,7 @@
 // If FOUNDRY_MCP_BOOKS_DIR is unset every route returns 404.
 
 import { createReadStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import { readdir, stat } from 'node:fs/promises';
 import { join, resolve, extname, basename } from 'node:path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -83,6 +84,9 @@ export function registerBooksRoute(app: FastifyInstance): void {
     }
 
     const total = fileStats.size;
+    // Use pipeline() so the async handler awaits the stream completion.
+    // reply.send(stream) in an async Fastify handler returns before the
+    // stream finishes, causing the client to receive an empty body.
     const rangeHeader = (req.headers as Record<string, string | undefined>)['range'];
 
     if (rangeHeader) {
@@ -98,20 +102,20 @@ export function registerBooksRoute(app: FastifyInstance): void {
         return;
       }
       const chunkSize = end - start + 1;
-      reply
-        .code(206)
-        .type('application/pdf')
-        .header('Content-Range', `bytes ${start}-${end}/${total}`)
-        .header('Accept-Ranges', 'bytes')
-        .header('Content-Length', chunkSize)
-        .send(createReadStream(filePath, { start, end }));
+      reply.raw.writeHead(206, {
+        'Content-Type': 'application/pdf',
+        'Content-Range': `bytes ${start}-${end}/${total}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': String(chunkSize),
+      });
+      await pipeline(createReadStream(filePath, { start, end }), reply.raw);
     } else {
-      reply
-        .code(200)
-        .type('application/pdf')
-        .header('Accept-Ranges', 'bytes')
-        .header('Content-Length', total)
-        .send(createReadStream(filePath));
+      reply.raw.writeHead(200, {
+        'Content-Type': 'application/pdf',
+        'Accept-Ranges': 'bytes',
+        'Content-Length': String(total),
+      });
+      await pipeline(createReadStream(filePath), reply.raw);
     }
   });
 }

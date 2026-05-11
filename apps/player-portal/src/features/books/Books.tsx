@@ -48,7 +48,7 @@ export function Books() {
         <PdfReader
           bookId={openBook.id}
           title={openBook.title}
-          getBookUrl={(id) => `/books/${encodeURIComponent(id)}`}
+          getBookUrl={(id) => `/books/${id.split('/').map(encodeURIComponent).join('/')}`}
           scrollStorageKey={`portal.reader.scroll.${openBook.id}`}
           zoomStorageKey="portal.reader.zoom"
           onClose={() => setOpenBook(null)}
