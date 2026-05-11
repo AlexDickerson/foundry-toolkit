@@ -18,6 +18,10 @@ jobs:
           - service: foundry
             image: ghcr.io/alexdickerson/foundry-toolkit-foundry
             dockerfile: deploy/Dockerfile.foundry
+          - service: foundry-v13
+            image: ghcr.io/alexdickerson/foundry-toolkit-foundry-v13
+            dockerfile: deploy/Dockerfile.foundry
+            build-args: FOUNDRY_BASE_TAG=13
           - service: foundry-mcp
             image: ghcr.io/alexdickerson/foundry-toolkit-mcp
             dockerfile: deploy/Dockerfile.foundry-mcp
@@ -52,5 +56,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+          build-args: ${{ matrix.build-args }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}

@@ -34,6 +34,9 @@ services:
   # ── Foundry VTT ─────────────────────────────────────────────────────────────
   # felddy/foundryvtt base image with the foundry-api-bridge module baked in.
   # The module is seeded into /data/Data/modules/ on first boot.
+  # A v13-pinned image variant is also published at:
+  #   ghcr.io/alexdickerson/foundry-toolkit-foundry-v13:${IMAGE_TAG:-latest}
+  # Swap the image: line below to use the v13 variant for Foundry v13 compatibility.
   foundry:
     image: ghcr.io/alexdickerson/foundry-toolkit-foundry:${IMAGE_TAG:-latest}
     restart: unless-stopped
