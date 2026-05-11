@@ -236,10 +236,7 @@ function registerBookFileProtocol(getBookDb: () => BookDb | null): void {
         if (!existsSync(absPath)) {
           return new Response(`Book file missing: ${absPath}`, { status: 404 });
         }
-        const fileResponse = await net.fetch(pathToFileURL(absPath).toString());
-        const headers = new Headers(fileResponse.headers);
-        headers.set('Access-Control-Allow-Origin', '*');
-        return new Response(fileResponse.body, { status: fileResponse.status, headers });
+        return net.fetch(pathToFileURL(absPath).toString());
       }
 
       if (host === 'covers') {
@@ -498,6 +495,12 @@ async function startup(): Promise<void> {
     // Inject CORS headers for the Golarion map tile host so MapLibre GL
     // can fetch PMTiles, sprites, and font glyphs from the renderer.
     if (details.url.startsWith('https://map.pathfinderwiki.com/')) {
+      headers['Access-Control-Allow-Origin'] = ['*'];
+    }
+
+    // Allow the pdfjs web worker (running cross-origin relative to the dev
+    // server at localhost:517x) to read book-file:// PDF responses.
+    if (details.url.startsWith('book-file://files/')) {
       headers['Access-Control-Allow-Origin'] = ['*'];
     }
 
