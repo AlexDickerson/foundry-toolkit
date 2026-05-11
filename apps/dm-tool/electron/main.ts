@@ -49,6 +49,7 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
+      corsEnabled: true,
       bypassCSP: false,
       stream: true,
     },
@@ -235,7 +236,10 @@ function registerBookFileProtocol(getBookDb: () => BookDb | null): void {
         if (!existsSync(absPath)) {
           return new Response(`Book file missing: ${absPath}`, { status: 404 });
         }
-        return net.fetch(pathToFileURL(absPath).toString());
+        const fileResponse = await net.fetch(pathToFileURL(absPath).toString());
+        const headers = new Headers(fileResponse.headers);
+        headers.set('Access-Control-Allow-Origin', '*');
+        return new Response(fileResponse.body, { status: fileResponse.status, headers });
       }
 
       if (host === 'covers') {
