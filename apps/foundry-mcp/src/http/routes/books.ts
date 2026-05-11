@@ -85,41 +85,40 @@ export function registerBooksRoute(app: FastifyInstance): void {
     const total = fileStats.size;
     const rangeHeader = (req.headers as Record<string, string | undefined>)['range'];
 
-    let start: number;
-    let end: number;
     if (rangeHeader) {
       const match = /bytes=(\d*)-(\d*)/.exec(rangeHeader);
       if (!match) {
         reply.code(416).header('Content-Range', `bytes */${total}`).send();
         return;
       }
-      start = match[1] ? parseInt(match[1], 10) : 0;
-      end = match[2] ? parseInt(match[2], 10) : total - 1;
+      const start = match[1] ? parseInt(match[1], 10) : 0;
+      const end = match[2] ? parseInt(match[2], 10) : total - 1;
       if (start > end || end >= total) {
         reply.code(416).header('Content-Range', `bytes */${total}`).send();
         return;
       }
-    } else {
-      // No Range header: pdfjs probe. Serve the LAST 64KB so pdfjs gets the
-      // PDF trailer (which is always at the end of the file) and can locate
-      // the xref + Root object. Without the trailer, pdfjs falls back to
-      // scanning whatever bytes it received and fails with "Invalid Root
-      // reference". After this response pdfjs makes range requests for the
-      // remaining pages.
-      const probeSize = Math.min(65536, total);
-      start = total - probeSize;
-      end = total - 1;
+      const chunkSize = end - start + 1;
+      const buffer = await readRange(filePath, start, end);
+      reply
+        .code(206)
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Range', `bytes ${start}-${end}/${total}`)
+        .header('Accept-Ranges', 'bytes')
+        .header('Content-Length', String(chunkSize))
+        .send(buffer);
+      return;
     }
 
-    const chunkSize = end - start + 1;
-    const buffer = await readRange(filePath, start, end);
-    reply
-      .code(206)
+    // Full-file request: stream the file as the response body. Returning the
+    // reply tells Fastify to keep the response open until the stream ends.
+    // pdfjs needs the complete file when disableAutoFetch is set — it cannot
+    // navigate to the trailer via on-demand range requests.
+    return reply
+      .code(200)
       .header('Content-Type', 'application/pdf')
-      .header('Content-Range', `bytes ${start}-${end}/${total}`)
       .header('Accept-Ranges', 'bytes')
-      .header('Content-Length', String(chunkSize))
-      .send(buffer);
+      .header('Content-Length', String(total))
+      .send(createReadStream(filePath));
   });
 }
 
