@@ -53,4 +53,8 @@ export interface BookCatalogProps {
   /** Placeholder shown when books is empty and loading is false. */
   emptyMessage?: string;
   loading?: boolean;
+  /** Category to select by default when the catalog first receives books.
+   *  Ignored once the user has interacted with the filter. If the value
+   *  doesn't appear among the categories, no default is applied. */
+  defaultCategory?: string;
 }

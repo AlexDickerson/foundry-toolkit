@@ -91,6 +91,7 @@ export function Books() {
             emptyMessage={loading ? 'Loading…' : 'No PDF books found in the library.'}
             showCovers
             getCoverUrl={getCoverUrl}
+            defaultCategory="PF2e — Rulebook"
           />
         </div>
       )}
