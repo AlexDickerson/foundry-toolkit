@@ -140,9 +140,7 @@ function CategoryPill({
       onClick={onClick}
       className={cn(
         'flex w-full items-center justify-between rounded px-2.5 py-1.5 text-left text-xs transition-colors',
-        active
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+        active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
       )}
     >
       <span className="truncate">{label}</span>
