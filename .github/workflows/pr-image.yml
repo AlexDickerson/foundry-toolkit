@@ -32,12 +32,19 @@ jobs:
           - service: foundry
             image: ghcr.io/alexdickerson/foundry-toolkit-foundry
             dockerfile: deploy/Dockerfile.foundry
+            build-args: ''
+          - service: foundry-v13
+            image: ghcr.io/alexdickerson/foundry-toolkit-foundry-v13
+            dockerfile: deploy/Dockerfile.foundry
+            build-args: FOUNDRY_BASE_TAG=13
           - service: foundry-mcp
             image: ghcr.io/alexdickerson/foundry-toolkit-mcp
             dockerfile: deploy/Dockerfile.foundry-mcp
+            build-args: ''
           - service: player-portal
             image: ghcr.io/alexdickerson/foundry-toolkit-portal
             dockerfile: deploy/Dockerfile.player-portal
+            build-args: ''
 
     steps:
       - uses: actions/checkout@v6
@@ -73,6 +80,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+          build-args: ${{ matrix.build-args }}
           # Shares the GHA cache with release builds — same Dockerfiles, so hits are likely.
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
@@ -100,6 +108,7 @@ jobs:
           set -euo pipefail
           PACKAGES=(
             "foundry-toolkit-foundry"
+            "foundry-toolkit-foundry-v13"
             "foundry-toolkit-mcp"
             "foundry-toolkit-portal"
           )
