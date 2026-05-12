@@ -26,10 +26,30 @@ async function main(): Promise<void> {
   console.info(`${LOG}   User:    ${env.bridgeGmUser}`);
   console.info(`${LOG}   MCP:     ${env.foundryMcpUrl}`);
 
-  const browser = await chromium.launch({ headless: true });
+  // Disable Chromium's "background tab" throttles. Headless tabs are always
+  // treated as backgrounded, which throttles setTimeout/setInterval/rAF and
+  // dramatically slows Foundry's canvas + scheduling work. The first three
+  // flags lift the throttles; the fourth keeps the renderer at full priority.
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-features=CalculateNativeWinOcclusion',
+    ],
+  });
   console.info(`${LOG} Chromium launched`);
 
   const context = await browser.newContext();
+
+  // Some web APIs (rAF in particular) consult document.visibilityState. Pin it
+  // to 'visible' before any page script runs so Foundry never sees 'hidden'.
+  await context.addInitScript(() => {
+    Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true });
+    Object.defineProperty(document, 'hidden', { get: () => false, configurable: true });
+  });
+
   const page = await context.newPage();
 
   page.on('crash', () => {
