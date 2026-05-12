@@ -42,6 +42,17 @@ describe('parseEnv', () => {
     const env = parseEnv(BASE_ENV);
     expect(env.foundryAdminKey).toBe('');
     expect(env.bridgeGmPass).toBe('');
+    expect(env.foundryRoutePath).toBe('');
+  });
+
+  it('converts FOUNDRY_ROUTE_PREFIX to a leading-slash path', () => {
+    const env = parseEnv({ ...BASE_ENV, FOUNDRY_ROUTE_PREFIX: 'foundry' });
+    expect(env.foundryRoutePath).toBe('/foundry');
+  });
+
+  it('strips surrounding slashes from FOUNDRY_ROUTE_PREFIX', () => {
+    const env = parseEnv({ ...BASE_ENV, FOUNDRY_ROUTE_PREFIX: '/foundry/' });
+    expect(env.foundryRoutePath).toBe('/foundry');
   });
 
   it('throws EnvError when FOUNDRY_URL is missing', () => {
