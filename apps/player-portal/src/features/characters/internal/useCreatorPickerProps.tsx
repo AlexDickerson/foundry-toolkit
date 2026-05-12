@@ -198,7 +198,7 @@ export function useCreatorPickerProps(
   // picker also requires `initialRarities` to be provided so callers
   // can't accidentally render an unbound rarity control.
   const showSourcePicker = options?.showSourcePicker ?? true;
-  const showRarityPicker = (options?.showRarityPicker ?? options?.initialRarities !== undefined) === true;
+  const showRarityPicker = options?.showRarityPicker ?? options?.initialRarities !== undefined;
   const showUnmetToggle = options?.showUnmetToggle ?? true;
   const showSortToggle = options?.showSortToggle ?? true;
 

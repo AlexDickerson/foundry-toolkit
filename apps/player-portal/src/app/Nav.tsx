@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { logout, type AuthUser } from '@/features/auth/api';
+import { logout } from '@/features/auth/api';
 
 const tabs = [
   { to: '/', label: 'Home', end: true },
@@ -11,11 +11,10 @@ const tabs = [
 interface Props {
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
-  user: AuthUser | null;
   onSignOut: () => void;
 }
 
-export function Nav({ theme, onToggleTheme, user, onSignOut }: Props) {
+export function Nav({ theme, onToggleTheme, onSignOut }: Props) {
   const navigate = useNavigate();
 
   async function handleSignOut(): Promise<void> {
@@ -51,18 +50,13 @@ export function Nav({ theme, onToggleTheme, user, onSignOut }: Props) {
 
       {/* Right-side controls */}
       <div className="ml-auto flex items-center gap-3 px-3">
-        {user !== null && (
-          <>
-            <span className="text-xs text-portal-text-muted">{user.username}</span>
-            <button
-              type="button"
-              onClick={() => { void handleSignOut(); }}
-              className="rounded border border-portal-border px-2.5 py-1 text-xs font-medium text-portal-text-muted transition-colors hover:border-portal-accent hover:text-portal-text"
-            >
-              Sign out
-            </button>
-          </>
-        )}
+        <button
+          type="button"
+          onClick={() => { void handleSignOut(); }}
+          className="rounded border border-portal-border px-2.5 py-1 text-xs font-medium text-portal-text-muted transition-colors hover:border-portal-accent hover:text-portal-text"
+        >
+          Sign out
+        </button>
 
         {/* Theme toggle */}
         <button

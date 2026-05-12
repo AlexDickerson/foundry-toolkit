@@ -21,15 +21,12 @@ import { Globe } from '@/features/globe/Globe';
 import { Home } from '@/features/home/Home';
 import { Leaderboard } from '@/features/aurus/Leaderboard';
 import { Login } from '@/features/auth/Login';
-import { getMe, type AuthUser } from '@/features/auth/api';
+import { getMe } from '@/features/auth/api';
 
-type AuthState =
-  | { status: 'loading' }
-  | { status: 'authenticated'; user: AuthUser }
-  | { status: 'unauthenticated' };
+type AuthState = { status: 'loading' } | { status: 'authenticated' } | { status: 'unauthenticated' };
 
 /** Wraps all protected routes. Checks /api/auth/me and redirects to /login on 401. */
-function AuthGuard({ children }: { children: (user: AuthUser, onSignOut: () => void) => React.ReactElement }): React.ReactElement {
+function AuthGuard({ children }: { children: (onSignOut: () => void) => React.ReactElement }): React.ReactElement {
   const [auth, setAuth] = useState<AuthState>({ status: 'loading' });
   const location = useLocation();
 
@@ -40,8 +37,8 @@ function AuthGuard({ children }: { children: (user: AuthUser, onSignOut: () => v
   useEffect(() => {
     let cancelled = false;
     getMe()
-      .then((user) => {
-        if (!cancelled) setAuth({ status: 'authenticated', user });
+      .then(() => {
+        if (!cancelled) setAuth({ status: 'authenticated' });
       })
       .catch(() => {
         if (!cancelled) setAuth({ status: 'unauthenticated' });
@@ -62,14 +59,14 @@ function AuthGuard({ children }: { children: (user: AuthUser, onSignOut: () => v
     return <Navigate to={`/login?next=${next}`} replace />;
   }
 
-  return children(auth.user, signOut);
+  return children(signOut);
 }
 
 /** Top-level route component that integrates the auth guard with Layout. */
 function ProtectedLayout(): React.ReactElement {
   return (
     <AuthGuard>
-      {(user, onSignOut) => <Layout user={user} onSignOut={onSignOut} />}
+      {(onSignOut) => <Layout onSignOut={onSignOut} />}
     </AuthGuard>
   );
 }

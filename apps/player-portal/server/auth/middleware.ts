@@ -1,11 +1,4 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { type User, findById } from './users.js';
-
-declare module 'fastify' {
-  interface FastifyRequest {
-    user: User | undefined;
-  }
-}
 
 // Routes that are always public — no session required.
 // Auth routes, health, and Vite-built SPA chunks (/assets/).
@@ -24,47 +17,22 @@ function isGated(url: string): boolean {
   return GATED_PREFIXES.some((p) => url.startsWith(p));
 }
 
-/** Synthetic user injected when PORTAL_AUTH_BYPASS=1. Not stored in users.json. */
-export const DEV_BYPASS_USER: User = {
-  id: '__dev__',
-  username: 'dev',
-  passwordHash: '',
-  actorId: '',
-  createdAt: '',
-};
-
 export function isBypassActive(): boolean {
   return process.env['PORTAL_AUTH_BYPASS'] === '1';
 }
 
 /** Global preHandler hook — must be registered after the session plugin. */
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  request.user = undefined;
-
   const url = request.url.split('?')[0] ?? '';
 
   if (isPublic(url)) return;
   if (!isGated(url)) return; // SPA HTML routes — serve normally, client handles redirect
 
-  // Dev bypass: skip cookie check and inject a synthetic user
-  if (isBypassActive()) {
-    request.user = DEV_BYPASS_USER;
-    return;
-  }
+  // Dev bypass: skip cookie check entirely
+  if (isBypassActive()) return;
 
-  const userId = request.session.get('userId');
-  if (userId === undefined) {
+  const authenticated = request.session.get('authenticated');
+  if (!authenticated) {
     await reply.code(401).send({ error: 'unauthorized' });
-    return;
   }
-
-  const user = findById(userId);
-  if (user === undefined) {
-    // Session refers to a deleted user — clear it
-    request.session.delete();
-    await reply.code(401).send({ error: 'unauthorized' });
-    return;
-  }
-
-  request.user = user;
 }

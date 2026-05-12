@@ -119,6 +119,7 @@ services:
     image: ghcr.io/alexdickerson/foundry-toolkit-portal:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
+      PLAYER_PORTAL_PASSWORD: ${PLAYER_PORTAL_PASSWORD}
       SHARED_SECRET: ${SHARED_SECRET}
       SECURE_SESSION_SECRET: ${SECURE_SESSION_SECRET:-}
       MCP_URL: http://foundry-mcp:8765

@@ -1,28 +1,21 @@
 import { Outlet } from 'react-router-dom';
 import { usePortalTheme } from '@/shared/hooks/usePortalTheme';
 import { Nav } from './Nav';
-import type { AuthUser } from '@/features/auth/api';
-
-interface LayoutContext {
-  user: AuthUser;
-  onSignOut: () => void;
-}
 
 interface Props {
-  user: AuthUser;
   onSignOut: () => void;
 }
 
-export function Layout({ user, onSignOut }: Props) {
+export function Layout({ onSignOut }: Props) {
   const [theme, toggleTheme] = usePortalTheme();
   return (
     <div
       data-portal-theme={theme}
       className="flex h-screen w-screen flex-col bg-portal-bg"
     >
-      <Nav theme={theme} onToggleTheme={toggleTheme} user={user} onSignOut={onSignOut} />
+      <Nav theme={theme} onToggleTheme={toggleTheme} onSignOut={onSignOut} />
       <main className="relative min-h-0 flex-1 overflow-hidden">
-        <Outlet context={{ user, onSignOut } satisfies LayoutContext} />
+        <Outlet />
       </main>
     </div>
   );

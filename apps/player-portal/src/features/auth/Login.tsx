@@ -7,7 +7,6 @@ export function Login(): React.ReactElement {
   const [params] = useSearchParams();
   const next = params.get('next') ?? '/';
 
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -18,10 +17,10 @@ export function Login(): React.ReactElement {
     setPending(true);
 
     try {
-      await login(username, password);
+      await login(password);
       void navigate(next, { replace: true });
     } catch {
-      setError('Invalid username or password.');
+      setError('Incorrect password.');
     } finally {
       setPending(false);
     }
@@ -33,22 +32,6 @@ export function Login(): React.ReactElement {
         <h1 className="mb-6 text-xl font-semibold text-portal-text">Player Portal</h1>
 
         <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-4">
-          <div>
-            <label htmlFor="username" className="mb-1 block text-sm font-medium text-portal-text">
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              autoComplete="username"
-              required
-              value={username}
-              onChange={(e) => { setUsername(e.target.value); }}
-              className="w-full rounded border border-portal-border bg-portal-bg px-3 py-2 text-sm text-portal-text placeholder-portal-text-muted focus:border-portal-accent focus:outline-none"
-              placeholder="alice"
-            />
-          </div>
-
           <div>
             <label htmlFor="password" className="mb-1 block text-sm font-medium text-portal-text">
               Password

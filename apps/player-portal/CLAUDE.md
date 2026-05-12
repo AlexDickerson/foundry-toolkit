@@ -35,12 +35,13 @@ Two processes in dev, one in prod:
 Env:
 
 - `PORT` (default `3000`), `HOST` (default `0.0.0.0`).
+- `PLAYER_PORTAL_PASSWORD` — **required**; the single shared password all players use to log in. Store as a deployment secret (not in the DB). Change the value and redeploy to rotate.
 - `SHARED_SECRET` — bearer-auth for `/api/live/*` POST endpoints (`Authorization: Bearer <secret>`). Used by dm-tool's `sidecar-client.ts` for machine-to-machine writes.
 - `SECURE_SESSION_SECRET` — **required**; 64-char hex string (32 bytes) for `@fastify/secure-session`. Generate with `openssl rand -hex 32`. Rotating this value invalidates all active browser sessions.
 - `MCP_URL` (default `http://localhost:8765`) — upstream for the `/api/mcp/*` proxy.
 - `FOUNDRY_URL` (default `http://localhost:30000`) — upstream for the Foundry asset prefix proxies.
 - `STATIC_DIR` — override the SPA directory (defaults to `<server-dist>/../dist`).
-- `PORTAL_AUTH_BYPASS=1` — **dev only**; skips cookie-session auth entirely and injects a synthetic `dev` user. The login page is never shown. Never set this in production.
+- `PORTAL_AUTH_BYPASS=1` — **dev only**; skips cookie-session auth entirely. The login page is never shown. Never set this in production.
 
 ## Project structure
 
@@ -118,42 +119,27 @@ Outside `src/`:
 
 ## API namespaces
 
-- **`/api/auth/login`** — `POST`; public. Body `{ username, password }`. Sets session cookie on success.
+- **`/api/auth/login`** — `POST`; public. Body `{ password }`. Compares against `PLAYER_PORTAL_PASSWORD` using `timingSafeEqual`. Sets session cookie on success.
 - **`/api/auth/logout`** — `POST`; clears session cookie.
-- **`/api/auth/me`** — `GET`; returns `{ user }` (no hash) or 401.
+- **`/api/auth/me`** — `GET`; returns `{ ok: true }` if session is authenticated, 401 otherwise.
 - **`/api/live/<name>`** — three datasets (`inventory`, `aurus`, `globe`). `GET /api/live/<name>/stream` is an SSE stream (session-gated). POSTs use `SHARED_SECRET` bearer auth (dm-tool only).
 - **`/api/mcp/*`** — transparent proxy to `MCP_URL` (foundry-mcp). Session-gated.
 - **`/map/*`** — reverse-proxy to `https://map.pathfinderwiki.com/`. Session-gated.
 - **`/icons`, `/systems`, `/modules`, `/worlds`** — proxied to foundry-mcp. Session-gated.
 - **`/health`** — `{ ok: true }`. Always public.
 
-## User management
+## Auth model
 
-Users are stored in `data/users.json` (gitignored). Manage them with:
+Single shared password — set `PLAYER_PORTAL_PASSWORD` in the environment. All players use this one password. There are no user accounts, no per-user identity, and no character scoping by player.
 
-```sh
-# Add a user
-npm run user:add -w @foundry-toolkit/player-portal -- --username alice --password "s3cr3t" --actor-id "abc123"
-
-# List users (no hashes)
-npm run user:list -w @foundry-toolkit/player-portal
-
-# Reset password
-npm run user:reset-password -w @foundry-toolkit/player-portal -- --username alice --password "newpass"
-
-# Remove a user
-npm run user:remove -w @foundry-toolkit/player-portal -- --username alice
-```
-
-- **Usernames are case-sensitive.** `alice` and `Alice` are different users.
-- `actorId` is stored for future per-character scoping but not acted on yet.
-- The server loads `data/users.json` once at boot into memory. After CLI mutations, restart the server (or send SIGUSR1 if a reload signal is added later).
+To change the password: update `PLAYER_PORTAL_PASSWORD` and redeploy (or restart the server). All existing sessions remain valid until `SECURE_SESSION_SECRET` is rotated.
 
 ## Key decisions / gotchas
 
-- **Two layered auth mechanisms**: `SECURE_SESSION_SECRET` cookie-session gates all human-facing routes; `SHARED_SECRET` bearer continues to gate `/api/live/*` POSTs from dm-tool. The bearer routes are machine-to-machine — a logged-in human cannot write live snapshots through the browser (the routes intentionally do not use cookie auth).
+- **Two layered auth mechanisms**: `PLAYER_PORTAL_PASSWORD` cookie-session gates all human-facing routes; `SHARED_SECRET` bearer continues to gate `/api/live/*` POSTs from dm-tool. The bearer routes are machine-to-machine — a logged-in human cannot write live snapshots through the browser (the routes intentionally do not use cookie auth).
 - The SPA's `AuthGuard` checks `GET /api/auth/me` on mount. Server-side gating returns 401; the SPA then redirects to `/login?next=<path>`.
 - Cookie sessions survive server restarts (payload is in the cookie). Rotating `SECURE_SESSION_SECRET` invalidates all existing sessions.
+- The login endpoint compares passwords with `timingSafeEqual` (constant-time). No rate limiting — add `@fastify/rate-limit` if needed.
 - The character creator was absorbed into this workspace. Its API client base is `/api/mcp`; the Fastify server reverse-proxies that to foundry-mcp.
 - State for live-sync is in-memory only; a restart loses the cache, and the DM auto-pushes on every edit so it refills in seconds.
 - `/map/*` proxy keeps tile fetches same-origin so the browser's CORS check passes.
