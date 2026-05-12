@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import multipart from '@fastify/multipart';
 import { ZodError } from 'zod/v4';
 import { log } from '../logger.js';
 import { LiveDb } from '../db/live-db.js';
@@ -23,6 +24,9 @@ export async function buildHttpApp(): Promise<FastifyInstance> {
   // Fastify instance via `app.routing(req, res)` — see src/index.ts. The
   // parent has its own logger, so Fastify's is off to avoid double logs.
   const app = Fastify({ logger: false });
+
+  // Multipart support for the /books/upload endpoint.
+  await app.register(multipart);
 
   // Permissive CORS for LAN-direct REST clients (player-portal dev server,
   // `_http/` scratchpads, etc.). In the deployed topology player-portal

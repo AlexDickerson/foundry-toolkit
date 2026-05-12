@@ -9,7 +9,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BookCatalog, PdfReader, type BookEntry } from '@foundry-toolkit/pdf-reader';
 import { fetchBooksIndex, indexEntryToBookEntry } from './api';
+import type { UploadBookResult } from './api';
 import type { BookIndexEntry } from './types';
+import { UploadBookModal } from './UploadBookModal';
 import './books-theme.css';
 
 // One-time pdfjs worker setup for this page. We do it at module load so the
@@ -25,6 +27,7 @@ export function Books() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openBook, setOpenBook] = useState<BookEntry | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -39,6 +42,30 @@ export function Books() {
         setLoading(false);
       });
   }, []);
+
+  const existingCategories = useMemo(
+    () =>
+      [...new Set(entries.map((e) => e.aiCategory ?? e.category).filter((c): c is string => Boolean(c)))].sort(),
+    [entries],
+  );
+
+  const handleUploadSuccess = useCallback(
+    (_result: UploadBookResult) => {
+      setShowUploadModal(false);
+      // Refetch the index so the new book appears immediately.
+      setLoading(true);
+      fetchBooksIndex()
+        .then((data) => {
+          setEntries(data);
+          setLoading(false);
+        })
+        .catch((err: unknown) => {
+          console.error('[Books] failed to reload index after upload:', err);
+          setLoading(false);
+        });
+    },
+    [],
+  );
 
   const books: BookEntry[] = entries.map(indexEntryToBookEntry);
 
@@ -75,8 +102,17 @@ export function Books() {
 
   return (
     <div className="books-reader-root absolute inset-0 flex flex-col">
-      <div className="shrink-0 border-b border-portal-border px-4 py-3">
+      <div className="shrink-0 border-b border-portal-border px-4 py-3 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-portal-text">Library</h1>
+        {!openBook && (
+          <button
+            type="button"
+            onClick={() => setShowUploadModal(true)}
+            className="rounded border border-portal-border px-2 py-1 text-sm text-portal-text-muted hover:text-portal-text"
+          >
+            Upload PDF
+          </button>
+        )}
       </div>
       {error ? (
         <div className="flex flex-1 items-center justify-center text-sm text-portal-text-muted">
@@ -94,6 +130,13 @@ export function Books() {
             defaultCategory="PF2e — Rulebook"
           />
         </div>
+      )}
+      {showUploadModal && (
+        <UploadBookModal
+          existingCategories={existingCategories}
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={handleUploadSuccess}
+        />
       )}
     </div>
   );

@@ -26,6 +26,14 @@ vi.mock('@foundry-toolkit/pdf-reader', () => ({
 // Stub the CSS import.
 vi.mock('./books-theme.css', () => ({}));
 
+vi.mock('./UploadBookModal', () => ({
+  UploadBookModal: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="upload-book-backdrop">
+      <button onClick={onClose}>Close</button>
+    </div>
+  ),
+}));
+
 const FAKE_INDEX = [
   { id: 'rulebooks/Core Rulebook', filename: 'rulebooks/Core Rulebook.pdf', title: 'Core Rulebook', sizeBytes: 1024, mtime: 0, category: 'rulebooks' },
   { id: 'adventures/Lost Mine', filename: 'adventures/Lost Mine.pdf', title: 'Lost Mine', sizeBytes: 512, mtime: 0, category: 'adventures' },
@@ -64,5 +72,28 @@ describe('Books page', () => {
     await waitFor(() => {
       expect(screen.getByText(/Could not load the book catalog/i)).toBeTruthy();
     });
+  });
+
+  it('shows Upload PDF button and opens modal on click', async () => {
+    const { Books } = await import('./Books');
+    const { unmount } = render(React.createElement(Books));
+
+    // Wait for the Upload PDF button to appear (may be multiple across renders
+    // due to module caching across tests; find a button element specifically).
+    let uploadBtn: HTMLElement | null = null;
+    await waitFor(() => {
+      const btns = screen.getAllByRole('button', { name: 'Upload PDF' });
+      expect(btns.length).toBeGreaterThan(0);
+      uploadBtn = btns[0] ?? null;
+    });
+
+    // Click the button to open modal
+    uploadBtn!.click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('upload-book-backdrop')).toBeTruthy();
+    });
+
+    unmount();
   });
 });

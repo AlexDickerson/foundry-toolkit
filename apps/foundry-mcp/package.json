@@ -13,6 +13,7 @@
     "seed-item-art": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/cli/seed-item-art.ts"
   },
   "dependencies": {
+    "@fastify/multipart": "^10.0.0",
     "@foundry-toolkit/db": "*",
     "@foundry-toolkit/shared": "*",
     "@modelcontextprotocol/sdk": "^1.29.0",
