@@ -97,14 +97,25 @@ async function handleSetup(
     );
   }
 
+  // v14 uses <a data-action="worldLaunch"> inside the card; older builds used
+  // a <button>. Match a wide net of possible launch controls.
   const launchBtn = worldCard
-    .locator('button')
-    .filter({ hasText: /launch/i })
+    .locator(
+      [
+        '[data-action="worldLaunch"]',
+        '[data-action="launchWorld"]',
+        '[data-action="launch"]',
+        'button:has-text("Launch")',
+        'a:has-text("Launch")',
+      ].join(', '),
+    )
     .first();
   if (!(await launchBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    const cardHtml = await worldCard.evaluate((el) => el.outerHTML.slice(0, 2000)).catch(() => '');
+    console.error(`${LOG} World card HTML: ${cardHtml}`);
     throw new Error(
       `Could not find a Launch button for world "${worldId}". ` +
-        'The world card was found but the launch control is missing -- the world may already be launching.',
+        'The world card was found but no recognised launch control. See logged card HTML above.',
     );
   }
 
