@@ -7,9 +7,9 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import type { Book } from '@foundry-toolkit/shared/types';
+import { PdfReader } from '@foundry-toolkit/pdf-reader';
 import { useBackgroundIngest, useBookClassify, useBookList, useBookScan } from './useBooks';
-import { BookReader } from './BookReader';
-import { groupAdventurePaths } from './ap-merge';
+import { groupAdventurePaths, partSubtitle } from './ap-merge';
 
 import { BookContextMenu } from './BookBrowser/BookContextMenu';
 import { CatalogGrid } from './BookBrowser/CatalogGrid';
@@ -401,18 +401,28 @@ export function BookBrowser({ keywords = '' }: { keywords?: string }) {
                 style={{ display: activeTabId === tab.id ? undefined : 'none' }}
               >
                 {tab.kind === 'ap' ? (
-                  <BookReader
-                    apGroup={tab.group}
+                  <PdfReader
+                    docSlots={tab.group.parts.map((p) => ({
+                      id: String(p.book.id),
+                      partLabel: `Part ${p.partNumber} — ${partSubtitle(p.book.title)}`,
+                      pageCount: p.book.pageCount ?? undefined,
+                    }))}
+                    title={tab.group.subcategory}
+                    getBookUrl={(id) => api.booksGetFileUrl(Number(id))}
+                    scrollStorageKey={`dmtool.reader.scroll.ap-${tab.group.subcategory}`}
+                    zoomStorageKey="dmtool.reader.zoom"
                     onClose={() => closeTab(tab.id)}
                     onBack={() => setActiveTabId('browser')}
-                    onIngestComplete={refetch}
                   />
                 ) : (
-                  <BookReader
-                    bookId={tab.bookId}
+                  <PdfReader
+                    bookId={String(tab.bookId)}
+                    title={tab.title}
+                    getBookUrl={(id) => api.booksGetFileUrl(Number(id))}
+                    scrollStorageKey={`dmtool.reader.scroll.${tab.bookId}`}
+                    zoomStorageKey="dmtool.reader.zoom"
                     onClose={() => closeTab(tab.id)}
                     onBack={() => setActiveTabId('browser')}
-                    onIngestComplete={refetch}
                   />
                 )}
               </div>

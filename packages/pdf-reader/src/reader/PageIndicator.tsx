@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-// "Page N / M" indicator in the toolbar. Click to switch into a
-// jump-to-page input mode; press Enter to navigate, Esc / blur to
-// cancel.
-
 export function PageIndicator({
   currentPage,
   totalPages,
@@ -27,7 +23,6 @@ export function PageIndicator({
   useEffect(() => {
     if (open) {
       setInputValue(String(currentPage));
-      // Focus after React renders the input.
       requestAnimationFrame(() => inputRef.current?.select());
     }
   }, [open, currentPage]);
@@ -51,7 +46,7 @@ export function PageIndicator({
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleSubmit();
             if (e.key === 'Escape') onOpenChange(false);
-            e.stopPropagation(); // don't trigger reader shortcuts
+            e.stopPropagation();
           }}
           onBlur={handleSubmit}
           className="w-12 rounded border border-border bg-background px-1 py-0.5 text-center text-[10px] text-foreground outline-hidden focus:border-primary"

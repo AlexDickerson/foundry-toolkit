@@ -49,6 +49,7 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
+      corsEnabled: true,
       bypassCSP: false,
       stream: true,
     },
@@ -494,6 +495,12 @@ async function startup(): Promise<void> {
     // Inject CORS headers for the Golarion map tile host so MapLibre GL
     // can fetch PMTiles, sprites, and font glyphs from the renderer.
     if (details.url.startsWith('https://map.pathfinderwiki.com/')) {
+      headers['Access-Control-Allow-Origin'] = ['*'];
+    }
+
+    // Allow the pdfjs web worker (running cross-origin relative to the dev
+    // server at localhost:517x) to read book-file:// PDF responses.
+    if (details.url.startsWith('book-file://files/')) {
       headers['Access-Control-Allow-Origin'] = ['*'];
     }
 

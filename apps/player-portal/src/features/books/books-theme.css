@@ -1,0 +1,66 @@
+/* Theme bridge for the shared @foundry-toolkit/pdf-reader components.
+ * Those components use dm-tool's shadcn CSS variable conventions
+ * (--background, --foreground, --border, etc.) via Tailwind utilities.
+ * We define them scoped to .books-reader-root, mapping to the portal's
+ * own design tokens so the reader looks consistent with the rest of the
+ * portal without importing the full shadcn theme globally. */
+
+.books-reader-root {
+  /* Surface */
+  --background: 0 0% 98%;   /* near-white, works for light theme */
+  --foreground: 0 0% 10%;
+
+  /* Card / panel surfaces */
+  --card: 0 0% 96%;
+  --card-foreground: 0 0% 10%;
+
+  /* Muted backgrounds (page scroll area, etc.) */
+  --muted: 0 0% 92%;
+  --muted-foreground: 0 0% 45%;
+
+  /* Accent hover state */
+  --accent: 0 0% 90%;
+  --accent-foreground: 0 0% 10%;
+
+  /* Border */
+  --border: 0 0% 82%;
+  --input: 0 0% 82%;
+  --ring: 0 0% 60%;
+
+  /* Primary (active tabs, focus rings) */
+  --primary: 0 70% 36%;          /* matches portal accent (heraldic red) */
+  --primary-foreground: 0 0% 100%;
+
+  /* Destructive */
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Popover */
+  --popover: 0 0% 98%;
+  --popover-foreground: 0 0% 10%;
+
+  /* Radius */
+  --radius: 0.375rem;
+}
+
+/* Dark mode — applied when the portal data-portal-theme="dark" attribute is
+ * on a parent element. The portal already handles dark/light via that attribute
+ * so we only need to override the raw HSL values. */
+[data-portal-theme='dark'] .books-reader-root {
+  --background: 225 20% 11%;
+  --foreground: 220 10% 90%;
+  --card: 225 20% 14%;
+  --card-foreground: 220 10% 90%;
+  --muted: 225 20% 18%;
+  --muted-foreground: 220 10% 55%;
+  --accent: 225 20% 20%;
+  --accent-foreground: 220 10% 90%;
+  --border: 225 20% 22%;
+  --input: 225 20% 22%;
+  --ring: 225 20% 40%;
+  --primary: 35 80% 55%;     /* gold accent for dark portal theme */
+  --primary-foreground: 0 0% 10%;
+  --destructive: 0 70% 55%;
+  --popover: 225 20% 14%;
+  --popover-foreground: 220 10% 90%;
+}

@@ -73,6 +73,15 @@ services:
       # foundry-mcp needs read access (compendium packs) and write access
       # (upload_asset writes map images into Data/maps/ when pushing scenes).
       FOUNDRY_DATA: /foundry-data
+      # Optional: directory of PDF files served as /books/* to player-portal.
+      # Mount a host path via compose.override.yaml:
+      #   services:
+      #     foundry-mcp:
+      #       volumes:
+      #         - /your/host/books:/books
+      #       environment:
+      #         FOUNDRY_MCP_BOOKS_DIR: /books
+      FOUNDRY_MCP_BOOKS_DIR: ${FOUNDRY_MCP_BOOKS_DIR:-}
     volumes:
       - foundry-data:/foundry-data
     depends_on:

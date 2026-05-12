@@ -46,6 +46,12 @@ export const ALLOW_EVAL = process.env.ALLOW_EVAL === '1';
 // Example: FOUNDRY_MCP_ITEM_ART_DIR=/data/item-art
 export const FOUNDRY_MCP_ITEM_ART_DIR = process.env.FOUNDRY_MCP_ITEM_ART_DIR;
 
+// Root directory from which /books/<path> is served. If unset, the route
+// returns 404. Set to a directory tree of PDF files; subdirectories are
+// treated as categories. Range requests are supported for large PDFs.
+// Example: FOUNDRY_MCP_BOOKS_DIR=/data/books
+export const FOUNDRY_MCP_BOOKS_DIR = process.env.FOUNDRY_MCP_BOOKS_DIR;
+
 // Path to the shared pf2e.db SQLite database that holds item_art_overrides
 // (and dm-tool's other persistent state). If unset, item art overrides are
 // disabled — all items continue to show their default compendium icons.

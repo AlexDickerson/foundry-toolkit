@@ -4,6 +4,7 @@ import { logout, type AuthUser } from '@/features/auth/api';
 const tabs = [
   { to: '/', label: 'Home', end: true },
   { to: '/globe', label: 'Globe' },
+  { to: '/books', label: 'Books' },
   { to: '/leaderboard', label: 'Aurus' },
   { to: '/characters', label: 'Characters' },
 ];

@@ -4,12 +4,6 @@ import { PAGE_GAP, SEPARATOR_HEIGHT } from './scroll';
 import { PageSlot } from './PageSlot';
 import type { DocSlot } from './types';
 
-// Builds a flat list of renderable items (pages + separators) over
-// every slot, then absolute-positions each one inside a single
-// scrollable container. Pulls the same `slotTopOffsets` the TOC
-// resolver uses, so a TOC click and a scroll-derived current-page
-// always agree on positions.
-
 export function MultiDocPageList({
   slots,
   slotTopOffsets,
@@ -19,16 +13,12 @@ export function MultiDocPageList({
   loadSlotDoc,
 }: {
   slots: DocSlot[];
-  /** Precomputed scroll-top of each slot's first page — shared with the
-   *  TOC resolver so both use identical positions. */
   slotTopOffsets: number[];
   pageHeight: number;
   pageWidth: number;
   scale: number;
   loadSlotDoc: (idx: number) => Promise<PDFDocumentProxy | null>;
 }) {
-  // Build a flat list of renderable items (pages + separators) using the
-  // same slotTopOffsets the TOC resolver uses.
   const items = useMemo(() => {
     const list: Array<
       | { kind: 'page'; slotIndex: number; localPageNum: number; top: number }
@@ -56,7 +46,6 @@ export function MultiDocPageList({
     return list;
   }, [slots, slotTopOffsets, pageHeight]);
 
-  // Total height from the last item's bottom edge.
   const lastItem = items[items.length - 1];
   const totalHeight = lastItem ? lastItem.top + (lastItem.kind === 'page' ? pageHeight : SEPARATOR_HEIGHT) : 0;
 

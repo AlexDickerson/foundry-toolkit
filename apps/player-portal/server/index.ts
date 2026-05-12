@@ -47,6 +47,8 @@ const STATIC_DIR = process.env['STATIC_DIR'] ?? join(__dirname, '..', 'dist');
 // Foundry asset prefixes — all proxied to foundry-mcp so the WS bridge
 // serves them. `/assets` is deliberately excluded because Vite's built SPA
 // uses it for bundled chunks — proxying it would break client JS loading.
+// /books is NOT here — it's a dual-use path: /books is the SPA route and
+// /books/* are proxied to foundry-mcp. See the dedicated registration below.
 const FOUNDRY_ASSET_PREFIXES = ['/icons', '/systems', '/modules', '/worlds', '/item-art'];
 
 /** Proxy a long-lived SSE GET from foundry-mcp through to the client.
@@ -145,6 +147,16 @@ export async function buildServer(): Promise<FastifyInstance> {
     });
   }
 
+  // Books proxy: /books/* → foundry-mcp. Uses a trailing-slash prefix so the
+  // bare /books path (which is the SPA's Books page route) is NOT caught here
+  // and falls through to the index.html SPA fallback instead.
+  await app.register(fastifyHttpProxy, {
+    upstream: MCP_URL,
+    prefix: '/books/',
+    rewritePrefix: '/books/',
+    http2: false,
+  });
+
   // --- SSE streams (proxy to foundry-mcp) -----------------------------------
   // All long-lived SSE endpoints must use makeSseProxy rather than the
   // general @fastify/http-proxy because the plugin's request timeout closes
@@ -178,7 +190,9 @@ export async function buildServer(): Promise<FastifyInstance> {
       // Asset prefix requests that land here were not caught by a proxy
       // route — return a plain 404 rather than serving index.html, which
       // would confuse the browser into parsing HTML as an image.
-      const isAssetPrefix = FOUNDRY_ASSET_PREFIXES.some((p) => req.url.startsWith(p + '/') || req.url === p);
+      const isAssetPrefix =
+        FOUNDRY_ASSET_PREFIXES.some((p) => req.url.startsWith(p + '/') || req.url === p) ||
+        req.url.startsWith('/books/');
       if (isAssetPrefix) {
         console.warn(`asset proxy miss: ${req.url} — not caught by any proxy route`);
         reply.code(404).type('text/plain').send('asset not found');

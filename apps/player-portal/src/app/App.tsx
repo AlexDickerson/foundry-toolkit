@@ -19,6 +19,7 @@ import { CharacterSheet } from '@/features/characters/sheet/CharacterSheet';
 import { Characters } from '@/features/characters/Characters';
 import { Globe } from '@/features/globe/Globe';
 import { Home } from '@/features/home/Home';
+import { Books } from '@/features/books/Books';
 import { Leaderboard } from '@/features/aurus/Leaderboard';
 import { Login } from '@/features/auth/Login';
 import { getMe, type AuthUser } from '@/features/auth/api';
@@ -82,6 +83,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, Component: Home },
       { path: 'globe', Component: Globe },
+      { path: 'books', Component: Books },
       { path: 'leaderboard', Component: Leaderboard },
       {
         path: 'characters',

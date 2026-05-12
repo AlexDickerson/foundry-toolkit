@@ -1,5 +1,4 @@
-import { STORAGE_KEYS } from '@/lib/constants';
-import { readString, writeString } from '@/lib/storage-utils';
+import { readString, writeString } from '../lib/storage';
 
 export type ZoomPreset = 'fit-width' | 'fit-page' | '100' | '150' | '200';
 
@@ -10,6 +9,8 @@ export const ZOOM_PRESETS: Array<{ label: string; value: ZoomPreset }> = [
   { label: '150%', value: '150' },
   { label: '200%', value: '200' },
 ];
+
+const DEFAULT_ZOOM_KEY = 'pdf-reader.zoom';
 
 export function resolveScale(
   preset: ZoomPreset,
@@ -32,17 +33,17 @@ export function resolveScale(
   }
 }
 
-export function loadZoom(): ZoomPreset {
-  const v = readString(STORAGE_KEYS.readerZoom);
+export function loadZoom(storageKey?: string): ZoomPreset {
+  const v = readString(storageKey ?? DEFAULT_ZOOM_KEY);
   if (v && ZOOM_PRESETS.some((p) => p.value === v)) return v as ZoomPreset;
   return 'fit-width';
 }
 
-export function saveZoom(z: ZoomPreset) {
-  writeString(STORAGE_KEYS.readerZoom, z);
+export function saveZoom(z: ZoomPreset, storageKey?: string): void {
+  writeString(storageKey ?? DEFAULT_ZOOM_KEY, z);
 }
 
-export function cycleZoom(dir: 1 | -1, current: ZoomPreset, set: (v: ZoomPreset) => void) {
+export function cycleZoom(dir: 1 | -1, current: ZoomPreset, set: (v: ZoomPreset) => void): void {
   const idx = ZOOM_PRESETS.findIndex((p) => p.value === current);
   const next = idx + dir;
   if (next >= 0 && next < ZOOM_PRESETS.length) {

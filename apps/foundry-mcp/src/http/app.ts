@@ -15,6 +15,7 @@ import { registerLiveRoutes } from './routes/live.js';
 import { registerPromptRoutes } from './routes/prompts.js';
 import { registerUploadRoutes } from './routes/uploads.js';
 import { registerItemArtRoute } from './routes/item-art.js';
+import { registerBooksRoute } from './routes/books.js';
 import { chatRingBuffer } from '../chat/chat-ring-buffer.js';
 
 export async function buildHttpApp(): Promise<FastifyInstance> {
@@ -88,6 +89,7 @@ export async function buildHttpApp(): Promise<FastifyInstance> {
   registerEvalRoutes(app);
   registerEventRoutes(app);
   registerItemArtRoute(app);
+  registerBooksRoute(app);
   registerLiveChatRoutes(app, chatRingBuffer);
   registerLiveRoutes(app, liveDb, SHARED_SECRET);
   registerPromptRoutes(app);

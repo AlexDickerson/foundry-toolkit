@@ -1,0 +1,27 @@
+{
+  "name": "@foundry-toolkit/pdf-reader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared PDF reader UI: catalog grid and full viewer. Consumers provide React via peerDependencies.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.13.24",
+    "lucide-react": "^1.14.0",
+    "pdfjs-dist": "^5.7.284"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  }
+}
