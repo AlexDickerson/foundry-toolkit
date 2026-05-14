@@ -259,6 +259,111 @@ describe('hydrateFromActor', () => {
     expect(result.draft?.alternateAncestryBoosts).toEqual(['str', 'con']);
   });
 
+  it('reconstructs languagePicks by subtracting ancestry fixed languages from actor language list', async () => {
+    const actor = makeActor({
+      system: {
+        details: {
+          // actor has fixed + user-picked languages merged
+          languages: { value: ['common', 'elven', 'draconic', 'sylvan'] },
+        },
+      },
+      items: [
+        {
+          id: 'item-anc',
+          name: 'Elf',
+          type: 'ancestry',
+          img: '',
+          system: {
+            languages: { value: ['common', 'elven'] }, // ancestry's fixed languages
+            boosts: {},
+          },
+          flags: { core: { sourceId: 'Compendium.pf2e.ancestries.Item.elfId' } },
+        },
+      ],
+    });
+    mockFetch(actor);
+
+    const result = await hydrateFromActor('actor-1');
+    // draconic and sylvan were the user's picks; common and elven are fixed
+    expect(result.draft?.languagePicks).toEqual(expect.arrayContaining(['draconic', 'sylvan']));
+    expect(result.draft?.languagePicks).toHaveLength(2);
+  });
+
+  it('reconstructs skillPicks by subtracting original class skills from merged class item skills', async () => {
+    const classDoc = {
+      document: {
+        system: {
+          trainedSkills: { value: ['stealth', 'thievery'] }, // original class skills
+        },
+      },
+    };
+    const actor = makeActor({
+      items: [
+        {
+          id: 'item-cls',
+          name: 'Rogue',
+          type: 'class',
+          img: '',
+          system: {
+            // class item has original + user-added skills merged
+            trainedSkills: { value: ['stealth', 'thievery', 'acrobatics', 'deception'] },
+            keyAbility: { value: ['dex'], selected: 'dex' },
+          },
+          flags: { core: { sourceId: 'Compendium.pf2e.classes.Item.rogueId' } },
+        },
+      ],
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: (): Promise<unknown> => Promise.resolve(actor),
+        } as Response)
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: (): Promise<unknown> => Promise.resolve(classDoc),
+        } as Response),
+    );
+
+    const result = await hydrateFromActor('actor-1');
+    // acrobatics and deception are user picks; stealth and thievery are class grants
+    expect(result.draft?.skillPicks).toEqual(expect.arrayContaining(['acrobatics', 'deception']));
+    expect(result.draft?.skillPicks).toHaveLength(2);
+  });
+
+  it('leaves skillPicks empty when class compendium fetch fails', async () => {
+    const actor = makeActor({
+      items: [
+        {
+          id: 'item-cls',
+          name: 'Fighter',
+          type: 'class',
+          img: '',
+          system: { trainedSkills: { value: ['athletics'] }, keyAbility: { value: ['str'], selected: 'str' } },
+          flags: { core: { sourceId: 'Compendium.pf2e.classes.Item.fighterId' } },
+        },
+      ],
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: (): Promise<unknown> => Promise.resolve(actor),
+        } as Response)
+        .mockResolvedValue({ ok: false, status: 503, json: (): Promise<unknown> => Promise.resolve({}) } as Response),
+    );
+
+    const result = await hydrateFromActor('actor-1');
+    expect(result.draft?.skillPicks).toEqual([]);
+    // Class key ability should still be set
+    expect(result.draft?.classKeyAbility).toBe('str');
+  });
+
   it('falls back to compendium name search when item has no sourceId', async () => {
     const actor = makeActor({
       items: [

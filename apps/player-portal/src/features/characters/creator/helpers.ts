@@ -347,10 +347,14 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
   // for actors created before this PR — fall back to a compendium name search
   // so the user sees their existing picks pre-selected in the creator.
   //
-  // For ancestry/background/class items, also read back the user's boost
-  // selections from the embedded item's system data — choice slots store the
-  // picked ability in `system.boosts[idx].selected`; class stores it in
-  // `system.keyAbility.selected`.
+  // Collect references needed for skill/language reconstruction after the loop:
+  //   ancestryFixedLanguages — from ancestry item's unmodified system.languages.value
+  //   classItemSkills — merged trainedSkills on the class item (class original + user picks)
+  //   classCompendiumUuid — UUID to fetch the class's ORIGINAL trainedSkills for comparison
+  let ancestryFixedLanguages: string[] = [];
+  let classItemSkills: string[] = [];
+  let classCompendiumUuid: string | null = null;
+
   for (const item of actor.items) {
     let match: CompendiumMatch | null = null;
 
@@ -370,11 +374,15 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
     if (item.type === 'ancestry' && draft.ancestry === null) {
       draft.ancestry = { match, itemId: item.id };
       draft.ancestryBoosts = readSelectedBoosts(item.system);
-      // Alternative ancestry boosts optional rule — stored as an array (or null)
       const altRaw = item.system['alternateAncestryBoosts'];
       if (Array.isArray(altRaw)) {
         draft.alternateAncestryBoosts = altRaw.filter(isAbilityKey);
       }
+      // The embedded ancestry item is an unmodified copy from the compendium —
+      // system.languages.value is the ancestry's fixed language list.
+      ancestryFixedLanguages = readStringArray(
+        (item.system['languages'] as { value?: unknown } | undefined)?.['value'],
+      );
     } else if (item.type === 'heritage' && draft.heritage === null) {
       draft.heritage = { match, itemId: item.id };
     } else if (item.type === 'class' && draft.class === null) {
@@ -383,6 +391,12 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
       if (isAbilityKey(keySelected)) {
         draft.classKeyAbility = keySelected;
       }
+      // SkillsStep merges class-original skills + user picks into this field.
+      // Store both for skillPicks reconstruction after the loop.
+      classItemSkills = readStringArray(
+        (item.system['trainedSkills'] as { value?: unknown } | undefined)?.['value'],
+      );
+      classCompendiumUuid = match.uuid;
     } else if (item.type === 'background' && draft.background === null) {
       draft.background = { match, itemId: item.id };
       draft.backgroundBoosts = readSelectedBoosts(item.system);
@@ -398,7 +412,38 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
     }
   }
 
+  // Reconstruct languagePicks: actor.system.details.languages.value is the merged
+  // set (ancestry fixed + user picks). Subtract the ancestry's fixed languages to
+  // isolate what the user actually chose.
+  const actorLangRaw = (details?.['languages'] as { value?: unknown } | undefined)?.['value'];
+  const actorLanguages = readStringArray(actorLangRaw);
+  if (actorLanguages.length > 0) {
+    const ancestryFixedSet = new Set(ancestryFixedLanguages);
+    draft.languagePicks = actorLanguages.filter((l) => !ancestryFixedSet.has(l));
+  }
+
+  // Reconstruct skillPicks: fetch the class's original trainedSkills from the
+  // compendium, then subtract to find the user's free additions. The class item
+  // embedded on the actor has the MERGED value (original + user picks), written
+  // by SkillsStep via updateActorItem.
+  if (classCompendiumUuid !== null && classItemSkills.length > 0) {
+    try {
+      const classDoc = await api.getCompendiumDocument(classCompendiumUuid);
+      const originalSkillsRaw = (
+        classDoc.document.system as { trainedSkills?: { value?: unknown } } | undefined
+      )?.trainedSkills?.value;
+      const originalSkillSet = new Set(readStringArray(originalSkillsRaw));
+      draft.skillPicks = classItemSkills.filter((s) => !originalSkillSet.has(s));
+    } catch {
+      // Leave skillPicks empty — user can re-pick in the editor
+    }
+  }
+
   return { draft, error: null };
+}
+
+function readStringArray(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : [];
 }
 
 // Reads the user's selected boost per slot from an embedded ancestry or
