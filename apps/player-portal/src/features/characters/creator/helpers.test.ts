@@ -160,6 +160,105 @@ describe('hydrateFromActor', () => {
     expect(result.draft?.ancestryFeat?.itemId).toBe('item-af');
   });
 
+  it('reads level-1 free boosts from actor.system.build.attributes.boosts["1"]', async () => {
+    const actor = makeActor({
+      system: {
+        build: { attributes: { boosts: { '1': ['str', 'dex', 'con', 'int'] } } },
+      },
+    });
+    mockFetch(actor);
+
+    const result = await hydrateFromActor('actor-1');
+    expect(result.draft?.levelOneBoosts).toEqual(['str', 'dex', 'con', 'int']);
+  });
+
+  it('reads ancestry boost selections from embedded item system.boosts.*.selected', async () => {
+    const actor = makeActor({
+      items: [
+        {
+          id: 'item-anc',
+          name: 'Elf',
+          type: 'ancestry',
+          img: '',
+          system: {
+            boosts: {
+              '0': { value: ['dex'], selected: 'dex' },     // fixed slot
+              '1': { value: ['int'], selected: 'int' },     // fixed slot
+              '2': { value: ['str', 'dex', 'con', 'int', 'wis', 'cha'], selected: 'wis' }, // choice slot
+            },
+          },
+          flags: { core: { sourceId: 'Compendium.pf2e.ancestries.Item.elfId' } },
+        },
+      ],
+    });
+    mockFetch(actor);
+
+    const result = await hydrateFromActor('actor-1');
+    expect(result.draft?.ancestryBoosts).toEqual(['dex', 'int', 'wis']);
+  });
+
+  it('reads class key ability from embedded class item system.keyAbility.selected', async () => {
+    const actor = makeActor({
+      items: [
+        {
+          id: 'item-cls',
+          name: 'Wizard',
+          type: 'class',
+          img: '',
+          system: { keyAbility: { value: ['int', 'wis'], selected: 'int' } },
+          flags: { core: { sourceId: 'Compendium.pf2e.classes.Item.wizardId' } },
+        },
+      ],
+    });
+    mockFetch(actor);
+
+    const result = await hydrateFromActor('actor-1');
+    expect(result.draft?.classKeyAbility).toBe('int');
+  });
+
+  it('reads background boost selections from embedded background item', async () => {
+    const actor = makeActor({
+      items: [
+        {
+          id: 'item-bg',
+          name: 'Acolyte',
+          type: 'background',
+          img: '',
+          system: {
+            boosts: {
+              '0': { value: ['int', 'wis'], selected: 'wis' },
+              '1': { value: ['str', 'dex', 'con', 'int', 'wis', 'cha'], selected: 'cha' },
+            },
+          },
+          flags: { core: { sourceId: 'Compendium.pf2e.backgrounds.Item.acolyteId' } },
+        },
+      ],
+    });
+    mockFetch(actor);
+
+    const result = await hydrateFromActor('actor-1');
+    expect(result.draft?.backgroundBoosts).toEqual(['wis', 'cha']);
+  });
+
+  it('reads alternateAncestryBoosts from embedded ancestry item', async () => {
+    const actor = makeActor({
+      items: [
+        {
+          id: 'item-anc',
+          name: 'Human',
+          type: 'ancestry',
+          img: '',
+          system: { alternateAncestryBoosts: ['str', 'con'], boosts: {} },
+          flags: { core: { sourceId: 'Compendium.pf2e.ancestries.Item.humanId' } },
+        },
+      ],
+    });
+    mockFetch(actor);
+
+    const result = await hydrateFromActor('actor-1');
+    expect(result.draft?.alternateAncestryBoosts).toEqual(['str', 'con']);
+  });
+
   it('falls back to compendium name search when item has no sourceId', async () => {
     const actor = makeActor({
       items: [

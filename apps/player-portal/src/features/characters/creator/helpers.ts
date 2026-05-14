@@ -1,5 +1,6 @@
 import { api } from '@/features/characters/api';
-import type { CompendiumMatch } from '@/features/characters/types';
+import type { AbilityKey, CompendiumMatch } from '@/features/characters/types';
+import { ABILITY_KEYS } from '@/features/characters/types';
 import { BOOSTS_REQUIRED, EMPTY_DRAFT, STATIC_PICKER_FILTERS } from './constants';
 import type { Draft, PickerFilters, PickerTarget, Slot, Step } from './types';
 
@@ -328,11 +329,28 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
   draft.ethnicity = extractDemographicValue(details?.['ethnicity']);
   draft.nationality = extractDemographicValue(details?.['nationality']);
 
+  // Level-1 free boosts — stored on the actor under build.attributes.boosts['1']
+  // (written by AttributesStep via api.updateActor with system.build.attributes.boosts).
+  const buildBoosts = (
+    (actor.system['build'] as Record<string, unknown> | undefined)?.['attributes'] as
+      | Record<string, unknown>
+      | undefined
+  )?.['boosts'] as Record<string, unknown> | undefined;
+  const lvl1Raw = buildBoosts?.['1'];
+  if (Array.isArray(lvl1Raw)) {
+    draft.levelOneBoosts = lvl1Raw.filter(isAbilityKey);
+  }
+
   // Reconstruct pick slots from embedded items.
   // Try flags.core.sourceId first (fast, no network call). If that's missing
   // — which happens when item.toObject(false) doesn't surface item flags, or
   // for actors created before this PR — fall back to a compendium name search
   // so the user sees their existing picks pre-selected in the creator.
+  //
+  // For ancestry/background/class items, also read back the user's boost
+  // selections from the embedded item's system data — choice slots store the
+  // picked ability in `system.boosts[idx].selected`; class stores it in
+  // `system.keyAbility.selected`.
   for (const item of actor.items) {
     let match: CompendiumMatch | null = null;
 
@@ -351,12 +369,23 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
 
     if (item.type === 'ancestry' && draft.ancestry === null) {
       draft.ancestry = { match, itemId: item.id };
+      draft.ancestryBoosts = readSelectedBoosts(item.system);
+      // Alternative ancestry boosts optional rule — stored as an array (or null)
+      const altRaw = item.system['alternateAncestryBoosts'];
+      if (Array.isArray(altRaw)) {
+        draft.alternateAncestryBoosts = altRaw.filter(isAbilityKey);
+      }
     } else if (item.type === 'heritage' && draft.heritage === null) {
       draft.heritage = { match, itemId: item.id };
     } else if (item.type === 'class' && draft.class === null) {
       draft.class = { match, itemId: item.id };
+      const keySelected = (item.system['keyAbility'] as { selected?: unknown } | undefined)?.['selected'];
+      if (isAbilityKey(keySelected)) {
+        draft.classKeyAbility = keySelected;
+      }
     } else if (item.type === 'background' && draft.background === null) {
       draft.background = { match, itemId: item.id };
+      draft.backgroundBoosts = readSelectedBoosts(item.system);
     } else if (item.type === 'deity' && draft.deity === null) {
       draft.deity = { match, itemId: item.id };
     } else if (item.type === 'feat') {
@@ -370,6 +399,26 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
   }
 
   return { draft, error: null };
+}
+
+// Reads the user's selected boost per slot from an embedded ancestry or
+// background item's system.boosts record. Each slot stores the chosen ability
+// under `boosts[idx].selected`. Returns null for slots without a selection.
+function readSelectedBoosts(system: Record<string, unknown>): (AbilityKey | null)[] {
+  const boosts = system['boosts'];
+  if (!boosts || typeof boosts !== 'object') return [];
+  const keys = Object.keys(boosts as object)
+    .filter((k) => /^\d+$/.test(k))
+    .sort((a, b) => Number(a) - Number(b));
+  return keys.map((k) => {
+    const slot = (boosts as Record<string, unknown>)[k] as { selected?: unknown } | null;
+    const sel = slot?.['selected'];
+    return isAbilityKey(sel) ? sel : null;
+  });
+}
+
+function isAbilityKey(v: unknown): v is AbilityKey {
+  return typeof v === 'string' && (ABILITY_KEYS as readonly string[]).includes(v);
 }
 
 // Canonical packs to search for each item type in the fallback hydration.
