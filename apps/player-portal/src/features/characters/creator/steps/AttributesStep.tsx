@@ -488,6 +488,10 @@ function AlternateAncestryBoostPicker({
           // when `picked`, so the cap test only blocks adding a new boost.
           const atCap = !picked && allBoosts[key] >= BOOST_CAP + (flawCounts[key] ?? 0);
           const locked = !picked && (picks.length >= ALTERNATE_BOOST_COUNT || atCap);
+          // Pre-boost modifier: boosts from other sources minus flaws.
+          // When `picked`, allBoosts[key] already includes this tile's +1,
+          // so subtract it back to get the base.
+          const preBoostMod = allBoosts[key] - (flawCounts[key] ?? 0) - (picked ? 1 : 0);
           return (
             <button
               key={key}
@@ -511,7 +515,7 @@ function AlternateAncestryBoostPicker({
               <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">
                 {key.toUpperCase()}
               </span>
-              <BoostedMod mod={0} boosted={picked} />
+              <BoostedMod mod={preBoostMod} boosted={picked} />
               <span className="text-[10px] text-pf-alt">{ABILITY_LABEL[key]}</span>
             </button>
           );
@@ -720,6 +724,7 @@ function FreeBoostBlock({
           // so checking against cap tells us whether a new free boost is allowed.
           const atCap = !picked && allBoosts[key] >= BOOST_CAP + (flawCounts[key] ?? 0);
           const locked = !picked && (selected.length >= BOOSTS_REQUIRED || atCap);
+          const preBoostMod = allBoosts[key] - (flawCounts[key] ?? 0) - (picked ? 1 : 0);
           return (
             <button
               key={key}
@@ -743,7 +748,7 @@ function FreeBoostBlock({
               <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">
                 {key.toUpperCase()}
               </span>
-              <BoostedMod mod={0} boosted={picked} />
+              <BoostedMod mod={preBoostMod} boosted={picked} />
               <span className="text-[10px] text-pf-alt">{ABILITY_LABEL[key]}</span>
             </button>
           );
