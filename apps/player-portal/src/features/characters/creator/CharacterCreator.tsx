@@ -24,12 +24,16 @@ import {
 } from '@/features/characters/creator/helpers';
 import { PickerCard } from '@/features/characters/creator/PickerCard';
 import { AncestryStep } from '@/features/characters/creator/steps/AncestryStep';
+import { ArchetypeStep } from '@/features/characters/creator/steps/ArchetypeStep';
 import { AttributesStep } from '@/features/characters/creator/steps/AttributesStep';
 import { ClassStep } from '@/features/characters/creator/steps/ClassStep';
 import { IdentityStep } from '@/features/characters/creator/steps/IdentityStep';
 import { LanguagesStep } from '@/features/characters/creator/steps/LanguagesStep';
 import { ReviewStep } from '@/features/characters/creator/steps/ReviewStep';
 import { SkillsStep } from '@/features/characters/creator/steps/SkillsStep';
+import { getVariantRules } from '@/features/variant-rules/api';
+import { DEFAULT_VARIANT_RULES } from '@/features/variant-rules/types';
+import type { VariantRulesConfig } from '@/features/variant-rules/types';
 import type { CreatorState, Draft, PickerTarget, Step } from '@/features/characters/creator/types';
 
 // Character creation wizard — Phase 1: identity + core choices.
@@ -56,6 +60,7 @@ export function CharacterCreator(): React.ReactElement {
   const [openPicker, setOpenPicker] = useState<PickerTarget | null>(null);
   const [creator, setCreator] = useState<CreatorState>({ kind: 'creating' });
   const [isSaving, setIsSaving] = useState(false);
+  const [variantRules, setVariantRules] = useState<VariantRulesConfig>(DEFAULT_VARIANT_RULES);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +101,20 @@ export function CharacterCreator(): React.ReactElement {
     };
   }, [isEditMode, editActorId]);
 
+  // Fetch variant rules once on mount so the creator can show/hide the
+  // Free Archetype step. Failures are silenced — default (all-false) is safe.
+  useEffect(() => {
+    getVariantRules()
+      .then(setVariantRules)
+      .catch(() => {
+        /* default stays all-false */
+      });
+  }, []);
+
   const actorId = creator.kind === 'ready' ? creator.actorId : null;
+  const freeArchetypeEnabled = variantRules.freeArchetype;
+  // Derive the visible step sequence from variant rules.
+  const activeSteps = STEPS.filter((s) => s !== 'archetype' || freeArchetypeEnabled);
 
   // Debounced flush of the identity text fields. Previously this ran
   // on step-advance; the single-page layout has no natural gate, so
@@ -312,7 +330,7 @@ export function CharacterCreator(): React.ReactElement {
               section into view. Filled state still derives from
               `isStepFilled` so users can see what's outstanding. */}
             <div className="sticky top-0 z-10 -mx-1 mb-4 bg-stage-gradient px-1 pb-2 pt-2">
-              <StepNav steps={STEPS} active={null} onJump={jumpToSection} draft={draft} />
+              <StepNav steps={activeSteps} active={null} onJump={jumpToSection} draft={draft} />
             </div>
 
             <CreatorSection id="identity" title="Identity">
@@ -361,6 +379,17 @@ export function CharacterCreator(): React.ReactElement {
                 }}
               />
             </CreatorSection>
+
+            {freeArchetypeEnabled && (
+              <CreatorSection id="archetype" title="Free Archetype">
+                <ArchetypeStep
+                  archetypeFeat={draft.archetypeFeat?.match ?? null}
+                  onPickDedication={(): void => {
+                    setOpenPicker('archetype-dedication');
+                  }}
+                />
+              </CreatorSection>
+            )}
 
             <CreatorSection id="background" title="Background">
               <PickerCard
@@ -423,7 +452,7 @@ export function CharacterCreator(): React.ReactElement {
             </CreatorSection>
 
             <CreatorSection id="review" title="Review">
-              <ReviewStep draft={draft} />
+              <ReviewStep draft={draft} freeArchetypeEnabled={freeArchetypeEnabled} />
               <div className="mt-4 flex items-center justify-between gap-3">
                 <button
                   type="button"
@@ -538,6 +567,13 @@ const PICKER_OPTIONS_BY_TARGET: Partial<Record<PickerTarget, CreatorPickerOption
     showSortToggle: false,
     hideDetailHeader: true,
     listOpenWidthClass: 'w-56',
+  },
+  // Archetype Dedication picker: show all rarities since archetypes span
+  // common to rare; keep the unmet-prereq toggle visible so players can
+  // see which dedications their character currently qualifies for.
+  'archetype-dedication': {
+    initialRarities: ['common'],
+    showSortToggle: true,
   },
 };
 

@@ -6,7 +6,13 @@ import type { Draft } from '../types';
 // L1 class feat, Anadi with Int 0 → no extra languages, etc.).
 const UNAVAILABLE = '__creator_unavailable__';
 
-export function ReviewStep({ draft }: { draft: Draft }): React.ReactElement {
+export function ReviewStep({
+  draft,
+  freeArchetypeEnabled,
+}: {
+  draft: Draft;
+  freeArchetypeEnabled: boolean;
+}): React.ReactElement {
   const textRow = (v: string): string | null => (v.trim().length > 0 ? v : null);
   const rows: Array<[string, string | null]> = [
     ['Name', textRow(draft.name)],
@@ -32,22 +38,40 @@ export function ReviewStep({ draft }: { draft: Draft }): React.ReactElement {
           : null,
     ],
   ];
+
+  // Free Archetype Dedication row: only show when the rule is active.
+  // When the rule is off but the character already has a Dedication
+  // (carried over from a prior session), show a note instead.
+  if (freeArchetypeEnabled) {
+    rows.push(['Free Archetype Dedication', draft.archetypeFeat?.match.name ?? null]);
+  }
+
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm text-pf-text">
-      {rows.map(([label, value]) => (
-        <div key={label} className="contents">
-          <dt className="font-semibold uppercase tracking-widest text-pf-alt-dark">{label}</dt>
-          <dd>
-            {value === null ? (
-              <span className="italic text-neutral-400">Not chosen</span>
-            ) : value === UNAVAILABLE ? (
-              <span className="italic text-pf-alt-dark">Not granted by this character</span>
-            ) : (
-              value
-            )}
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm text-pf-text">
+        {rows.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="font-semibold uppercase tracking-widest text-pf-alt-dark">{label}</dt>
+            <dd>
+              {value === null ? (
+                <span className="italic text-neutral-400">Not chosen</span>
+              ) : value === UNAVAILABLE ? (
+                <span className="italic text-pf-alt-dark">Not granted by this character</span>
+              ) : (
+                value
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      {!freeArchetypeEnabled && draft.archetypeFeat !== null && (
+        <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          This character has a Free Archetype Dedication ({draft.archetypeFeat.match.name}) granted under a
+          previously-active rule. The feat remains on the actor — disable it manually from the character sheet if
+          needed.
+        </p>
+      )}
+    </>
   );
 }

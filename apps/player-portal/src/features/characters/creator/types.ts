@@ -6,13 +6,30 @@
 
 import type { AbilityKey, CompendiumMatch, CompendiumSearchOptions } from '@/features/characters/types';
 
-export type Step = 'identity' | 'ancestry' | 'class' | 'background' | 'attributes' | 'skills' | 'languages' | 'review';
+export type Step =
+  | 'identity'
+  | 'ancestry'
+  | 'class'
+  | 'archetype'
+  | 'background'
+  | 'attributes'
+  | 'skills'
+  | 'languages'
+  | 'review';
 
 // Picker targets are decoupled from wizard steps: heritage selection
 // lives inside the ancestry step rather than owning a step of its own
 // (heritages are always children of an ancestry in pf2e's data), and
 // deity selection lives inside the identity step.
-export type PickerTarget = 'ancestry' | 'heritage' | 'class' | 'background' | 'deity' | 'class-feat' | 'ancestry-feat';
+export type PickerTarget =
+  | 'ancestry'
+  | 'heritage'
+  | 'class'
+  | 'background'
+  | 'deity'
+  | 'class-feat'
+  | 'ancestry-feat'
+  | 'archetype-dedication';
 
 export interface Slot {
   match: CompendiumMatch;
@@ -90,6 +107,11 @@ export interface Draft {
   // `ancestry.system.alternateAncestryBoosts` (presence/absence drives
   // pf2e's prepare-step branching).
   alternateAncestryBoosts: AbilityKey[] | null;
+  // Free Archetype variant rule: the player's chosen Dedication feat.
+  // Null when the rule is off or the player skipped the optional step.
+  // On the actor the feat occupies slot `archetype-2` (pf2e convention
+  // for the first archetype feat granted at even levels).
+  archetypeFeat: Slot | null;
 }
 
 // Actor lifecycle: wizard opens → creating → ready (actor exists in

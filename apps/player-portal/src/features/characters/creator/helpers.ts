@@ -45,6 +45,12 @@ export function filtersForTarget(target: PickerTarget, draft: Draft): PickerFilt
     if (traits) base.traits = traits;
     return base;
   }
+  if (target === 'archetype-dedication') {
+    // Dedication feats are the entry-point for archetypes — tagged with the
+    // 'dedication' trait in pf2e.feats-srd. No level restriction: the Free
+    // Archetype rule grants a slot at even levels, so all dedications qualify.
+    return { packIds: ['pf2e.feats-srd'], documentType: 'Item', traits: ['dedication'] };
+  }
   if (target === 'ancestry-feat') {
     // Pool the ancestry slug + heritage slug (when different) so the
     // picker surfaces versatile-heritage feats (changeling, aiuvarin,
@@ -84,6 +90,8 @@ export function isStepFilled(step: Step, draft: Draft): boolean {
       );
     case 'skills':
       return draft.skillPicks.length > 0;
+    case 'archetype':
+      return draft.archetypeFeat !== null;
     case 'languages':
       return draft.languagePicks.length > 0;
     case 'review':
@@ -92,10 +100,12 @@ export function isStepFilled(step: Step, draft: Draft): boolean {
 }
 
 // Feat-slot location strings mirror pf2e's own convention
-// (`<category>-<level>`). Only L1 feats at creation for now.
+// (`<category>-<level>`). `archetype-2` is the standard location for
+// the first archetype feat slot under the Free Archetype variant rule.
 function featLocationFor(target: PickerTarget): string | null {
   if (target === 'class-feat') return 'class-1';
   if (target === 'ancestry-feat') return 'ancestry-1';
+  if (target === 'archetype-dedication') return 'archetype-2';
   return null;
 }
 
@@ -115,6 +125,8 @@ function previousItemIdFor(draft: Draft, target: PickerTarget): string | null {
       return draft.classFeat?.itemId ?? null;
     case 'ancestry-feat':
       return draft.ancestryFeat?.itemId ?? null;
+    case 'archetype-dedication':
+      return draft.archetypeFeat?.itemId ?? null;
   }
 }
 
@@ -212,6 +224,8 @@ export function applyPickedSlot(draft: Draft, target: PickerTarget, slot: Slot):
       return { ...draft, classFeat: slot };
     case 'ancestry-feat':
       return { ...draft, ancestryFeat: slot };
+    case 'archetype-dedication':
+      return { ...draft, archetypeFeat: slot };
   }
 }
 
@@ -408,6 +422,10 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
         draft.classFeat = { match, itemId: item.id };
       } else if (location === 'ancestry-1' && draft.ancestryFeat === null) {
         draft.ancestryFeat = { match, itemId: item.id };
+      } else if (location === 'archetype-2' && draft.archetypeFeat === null) {
+        // Archetype Dedication feat granted via the Free Archetype variant rule.
+        // pf2e places the first archetype feat in the 'archetype-2' slot.
+        draft.archetypeFeat = { match, itemId: item.id };
       }
     }
   }

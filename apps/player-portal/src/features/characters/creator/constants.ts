@@ -26,12 +26,16 @@ export const EMPTY_DRAFT: Draft = {
   languagePicks: [],
   classGrantsL1Feat: null,
   languageAllowance: null,
+  archetypeFeat: null,
 };
 
+// Full ordered list of every possible step. CharacterCreator filters
+// this based on active variant rules to derive the visible step sequence.
 export const STEPS: readonly Step[] = [
   'identity',
   'ancestry',
   'class',
+  'archetype',
   'background',
   'attributes',
   'skills',
@@ -43,6 +47,7 @@ export const STEP_LABEL: Record<Step, string> = {
   identity: 'Identity',
   ancestry: 'Ancestry',
   class: 'Class',
+  archetype: 'Archetype',
   background: 'Background',
   attributes: 'Attributes',
   skills: 'Skills',
@@ -58,10 +63,11 @@ export const PICKER_LABEL: Record<PickerTarget, string> = {
   deity: 'Deity',
   'class-feat': 'Class Feat',
   'ancestry-feat': 'Ancestry Feat',
+  'archetype-dedication': 'Archetype Dedication',
 };
 
 export const STATIC_PICKER_FILTERS: Record<
-  Exclude<PickerTarget, 'heritage' | 'class-feat' | 'ancestry-feat'>,
+  Exclude<PickerTarget, 'heritage' | 'class-feat' | 'ancestry-feat' | 'archetype-dedication'>,
   PickerFilters
 > = {
   ancestry: { packIds: ['pf2e.ancestries'], documentType: 'Item' },

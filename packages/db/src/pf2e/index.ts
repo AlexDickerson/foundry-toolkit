@@ -37,3 +37,10 @@ export {
 export type { CachedDocument } from './compendium-cache.js';
 export { getItemArtOverride, setItemArtOverride, listItemArtOverrides } from './item-art.js';
 export type { ItemArtOverride } from './item-art.js';
+export {
+  getVariantRules,
+  setVariantRules,
+  KNOWN_VARIANT_RULE_KEYS,
+  DEFAULT_VARIANT_RULES,
+} from './variant-rules.js';
+export type { VariantRulesConfig } from './variant-rules.js';

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { CompendiumMatch, PreparedActor } from '@/features/characters/types';
 import { EMPTY_DRAFT } from './constants';
-import { groupHeritages, hydrateFromActor } from './helpers';
+import { filtersForTarget, isStepFilled, applyPickedSlot, groupHeritages, hydrateFromActor } from './helpers';
+import type { Draft, Slot } from './types';
 
 function makeHeritage(name: string, isVersatile?: boolean): CompendiumMatch {
   return {
@@ -504,5 +505,141 @@ describe('groupHeritages', () => {
     expect(primary[1]?.name).toBe('Strong-Blooded Dwarf');
     expect(versatile[0]?.name).toBe('Nephilim');
     expect(versatile[1]?.name).toBe('Aiuvarin');
+  });
+});
+
+// ─── Archetype (Free Archetype variant rule) ────────────────────────────────
+
+function fakeSlot(name: string): Slot {
+  return {
+    match: {
+      packId: 'pf2e.feats-srd',
+      packLabel: 'Feats SRD',
+      documentId: 'abc123',
+      uuid: 'Compendium.pf2e.feats-srd.Item.abc123',
+      name,
+      type: 'feat',
+      img: '',
+    },
+    itemId: 'item-abc123',
+  };
+}
+
+describe('filtersForTarget – archetype-dedication', () => {
+  it('targets pf2e.feats-srd with the dedication trait', () => {
+    const filters = filtersForTarget('archetype-dedication', EMPTY_DRAFT);
+    expect(filters.packIds).toEqual(['pf2e.feats-srd']);
+    expect(filters.documentType).toBe('Item');
+    expect(filters.traits).toEqual(['dedication']);
+  });
+
+  it('does not apply a maxLevel restriction', () => {
+    const filters = filtersForTarget('archetype-dedication', EMPTY_DRAFT);
+    expect(filters.maxLevel).toBeUndefined();
+  });
+});
+
+describe('isStepFilled – archetype step', () => {
+  it('returns false when archetypeFeat is null', () => {
+    expect(isStepFilled('archetype', EMPTY_DRAFT)).toBe(false);
+  });
+
+  it('returns true when archetypeFeat is set', () => {
+    const draft: Draft = { ...EMPTY_DRAFT, archetypeFeat: fakeSlot('Dragon Disciple Dedication') };
+    expect(isStepFilled('archetype', draft)).toBe(true);
+  });
+});
+
+describe('applyPickedSlot – archetype-dedication', () => {
+  it('sets archetypeFeat on the draft', () => {
+    const slot = fakeSlot('Magus Dedication');
+    const next = applyPickedSlot(EMPTY_DRAFT, 'archetype-dedication', slot);
+    expect(next.archetypeFeat).toBe(slot);
+  });
+
+  it('leaves other draft fields unchanged', () => {
+    const slot = fakeSlot('Magus Dedication');
+    const withClass: Draft = { ...EMPTY_DRAFT, class: fakeSlot('Wizard') };
+    const next = applyPickedSlot(withClass, 'archetype-dedication', slot);
+    expect(next.class).toBe(withClass.class);
+    expect(next.archetypeFeat).toBe(slot);
+  });
+
+  it('replaces an existing archetypeFeat', () => {
+    const first = fakeSlot('Dragon Disciple Dedication');
+    const second = fakeSlot('Magus Dedication');
+    const withFeat: Draft = { ...EMPTY_DRAFT, archetypeFeat: first };
+    const next = applyPickedSlot(withFeat, 'archetype-dedication', second);
+    expect(next.archetypeFeat).toBe(second);
+  });
+});
+
+describe('hydrateFromActor – archetype feat (fallback path)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reconstructs archetypeFeat from archetype-2 location in embedded items', async () => {
+    const actor: PreparedActor = {
+      id: 'actor-2',
+      uuid: 'Actor.actor-2',
+      name: 'Riven',
+      type: 'character',
+      img: '',
+      system: {},
+      items: [
+        {
+          id: 'item-arch',
+          name: 'Magus Dedication',
+          type: 'feat',
+          img: '',
+          system: { location: 'archetype-2' },
+          flags: { core: { sourceId: 'Compendium.pf2e.feats-srd.Item.magusDedId' } },
+        },
+      ],
+      statusEffects: [],
+      flags: {},
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: (): Promise<unknown> => Promise.resolve(actor),
+      } as Response),
+    );
+
+    const result = await hydrateFromActor('actor-2');
+    expect(result.draft?.archetypeFeat).toEqual({
+      match: expect.objectContaining({ name: 'Magus Dedication', packId: 'pf2e.feats-srd' }),
+      itemId: 'item-arch',
+    });
+  });
+
+  it('restores archetypeFeat from stored creatorDraft flag', async () => {
+    const archetypeSlot = fakeSlot('Dragon Disciple Dedication');
+    const draft: Draft = { ...EMPTY_DRAFT, archetypeFeat: archetypeSlot };
+    const actor: PreparedActor = {
+      id: 'actor-3',
+      uuid: 'Actor.actor-3',
+      name: 'Kira',
+      type: 'character',
+      img: '',
+      system: {},
+      items: [],
+      statusEffects: [],
+      flags: { 'foundry-toolkit': { creatorDraft: JSON.stringify(draft) } },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: (): Promise<unknown> => Promise.resolve(actor),
+      } as Response),
+    );
+
+    const result = await hydrateFromActor('actor-3');
+    expect(result.draft?.archetypeFeat?.match.name).toBe('Dragon Disciple Dedication');
   });
 });

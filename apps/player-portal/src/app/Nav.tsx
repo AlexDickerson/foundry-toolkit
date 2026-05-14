@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { logout, type AuthUser } from '@/features/auth/api';
+import { VariantRulesModal } from '@/features/variant-rules/VariantRulesModal';
 
 const tabs = [
   { to: '/', label: 'Home', end: true },
@@ -18,6 +20,7 @@ interface Props {
 
 export function Nav({ theme, onToggleTheme, user, onSignOut }: Props) {
   const navigate = useNavigate();
+  const [houseRulesOpen, setHouseRulesOpen] = useState(false);
 
   async function handleSignOut(): Promise<void> {
     try {
@@ -65,6 +68,17 @@ export function Nav({ theme, onToggleTheme, user, onSignOut }: Props) {
           </>
         )}
 
+        {/* House Rules (variant rules) */}
+        <button
+          type="button"
+          onClick={(): void => setHouseRulesOpen(true)}
+          aria-label="House Rules"
+          title="House Rules"
+          className="flex h-8 w-8 items-center justify-center rounded text-portal-text-muted transition-colors hover:text-portal-text"
+        >
+          <GearIcon />
+        </button>
+
         {/* Theme toggle */}
         <button
           type="button"
@@ -75,7 +89,28 @@ export function Nav({ theme, onToggleTheme, user, onSignOut }: Props) {
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
       </div>
+
+      {houseRulesOpen && <VariantRulesModal onClose={(): void => setHouseRulesOpen(false)} />}
     </nav>
+  );
+}
+
+function GearIcon(): React.ReactElement {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
   );
 }
 
