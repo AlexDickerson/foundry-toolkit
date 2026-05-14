@@ -147,12 +147,19 @@ export function CharacterCreator(): React.ReactElement {
 
   const handleFinish = (): void => {
     if (actorId === null) return;
-    // Write completion flags best-effort — navigate regardless.
-    saveDraftFlags(actorId, draft, 'completed').catch(() => {
-      /* ignore */
-    });
-    resetPendingActor();
-    onFinish(actorId);
+    // Await the flag write before navigating so "Edit" on the next visit
+    // finds creatorDraft and can do a full restore. The isSaving flag
+    // disables the button to prevent double-clicks.
+    setIsSaving(true);
+    saveDraftFlags(actorId, draft, 'completed')
+      .catch(() => {
+        /* best-effort — navigate regardless if the write fails */
+      })
+      .finally(() => {
+        setIsSaving(false);
+        resetPendingActor();
+        onFinish(actorId);
+      });
   };
 
   const applyPick = (match: CompendiumMatch): void => {
@@ -429,10 +436,10 @@ export function CharacterCreator(): React.ReactElement {
                 <button
                   type="button"
                   onClick={handleFinish}
-                  disabled={actorId === null}
+                  disabled={actorId === null || isSaving}
                   className="rounded border border-pf-primary bg-pf-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-pf-primary-dark disabled:opacity-40"
                 >
-                  Open sheet →
+                  {isSaving ? 'Saving…' : 'Open sheet →'}
                 </button>
               </div>
             </CreatorSection>

@@ -160,13 +160,70 @@ describe('hydrateFromActor', () => {
     expect(result.draft?.ancestryFeat?.itemId).toBe('item-af');
   });
 
-  it('ignores items without a sourceId flag', async () => {
+  it('falls back to compendium name search when item has no sourceId', async () => {
     const actor = makeActor({
       items: [
-        { id: 'item-x', name: 'Unknown', type: 'ancestry', img: '', system: {}, flags: {} },
+        { id: 'item-anc', name: 'Dwarf', type: 'ancestry', img: 'dwarf.webp', system: {}, flags: {} },
       ],
     });
-    mockFetch(actor);
+    const searchResult = {
+      matches: [
+        {
+          packId: 'pf2e.ancestries',
+          packLabel: 'Ancestries',
+          documentId: 'dwarfId',
+          uuid: 'Compendium.pf2e.ancestries.Item.dwarfId',
+          name: 'Dwarf',
+          type: 'ancestry',
+          img: 'dwarf.webp',
+        },
+      ],
+      total: 1,
+    };
+    // First call: getPreparedActor; subsequent calls: searchCompendium for each item
+    vi.stubGlobal(
+      'fetch',
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: (): Promise<unknown> => Promise.resolve(actor),
+        } as Response)
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: (): Promise<unknown> => Promise.resolve(searchResult),
+        } as Response),
+    );
+
+    const result = await hydrateFromActor('actor-1');
+    expect(result.draft?.ancestry).toEqual({
+      match: expect.objectContaining({ packId: 'pf2e.ancestries', name: 'Dwarf' }),
+      itemId: 'item-anc',
+    });
+  });
+
+  it('leaves pick null when name search returns no results', async () => {
+    const actor = makeActor({
+      items: [
+        { id: 'item-x', name: 'Homebrew Ancestry', type: 'ancestry', img: '', system: {}, flags: {} },
+      ],
+    });
+    const emptySearch = { matches: [], total: 0 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: (): Promise<unknown> => Promise.resolve(actor),
+        } as Response)
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: (): Promise<unknown> => Promise.resolve(emptySearch),
+        } as Response),
+    );
 
     const result = await hydrateFromActor('actor-1');
     expect(result.draft?.ancestry).toBeNull();

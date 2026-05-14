@@ -287,14 +287,15 @@ export type HydrateResult =
 // Loads an existing actor and reconstructs a wizard Draft from it.
 //
 // Primary path: restore from the `creatorDraft` JSON stored in
-// flags['foundry-toolkit'] — written by "Save & Continue Later".
+// flags['foundry-toolkit'] — written by "Save & Continue Later" and by
+// "Open sheet →". Full fidelity: all picks, boosts, skill/language choices.
 //
-// Fallback (manually-created actor or pre-PR actor with no stored draft):
-// partial hydration from system.details (identity text fields) + embedded
-// items (ancestry/heritage/class/background/feats — needs flags.core.sourceId
-// on each item, which GetPreparedActorHandler now populates). Boost/skill/
-// language picks are left at their empty defaults — impossible to separate
-// "what the user chose" from "what the class granted" without the draft.
+// Fallback (manually-created actor or very old actor without the flag):
+// Identity fields come from system.details. Picks (ancestry, heritage, class,
+// background, deity, feats) are reconstructed from the actor's embedded items
+// by searching the compendium for a matching name — no item sourceId needed.
+// Boost/skill/language picks are left at defaults (impossible to separate the
+// user's free choices from class/ancestry grants without the stored draft).
 export async function hydrateFromActor(actorId: string): Promise<HydrateResult> {
   let actor;
   try {
@@ -304,7 +305,7 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
     return { draft: null, error: msg };
   }
 
-  // Primary path: sidecar draft flag
+  // Primary path: sidecar draft flag (set on finish + save-and-continue)
   const tkFlags = actor.flags?.['foundry-toolkit'] ?? {};
   const storedDraft = tkFlags['creatorDraft'];
   if (typeof storedDraft === 'string') {
@@ -312,11 +313,11 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
       const parsed = JSON.parse(storedDraft) as Partial<Draft>;
       return { draft: { ...EMPTY_DRAFT, ...parsed }, error: null };
     } catch {
-      // Fall through to partial hydration if the JSON is corrupt.
+      // Fall through to partial hydration if the JSON is somehow corrupt.
     }
   }
 
-  // Fallback: reconstruct what we can from actor state
+  // Fallback: reconstruct from actor state
   const draft: Draft = { ...EMPTY_DRAFT };
 
   // Identity fields — pf2e stores these as { value: string } objects
@@ -327,11 +328,25 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
   draft.ethnicity = extractDemographicValue(details?.['ethnicity']);
   draft.nationality = extractDemographicValue(details?.['nationality']);
 
-  // Picks — build CompendiumMatch from embedded item + its sourceId flag
+  // Reconstruct pick slots from embedded items.
+  // Try flags.core.sourceId first (fast, no network call). If that's missing
+  // — which happens when item.toObject(false) doesn't surface item flags, or
+  // for actors created before this PR — fall back to a compendium name search
+  // so the user sees their existing picks pre-selected in the creator.
   for (const item of actor.items) {
+    let match: CompendiumMatch | null = null;
+
+    // Fast path: parse the compendium source UUID off the embedded item flag
     const sourceId = item.flags?.['core']?.['sourceId'];
-    if (typeof sourceId !== 'string') continue;
-    const match = buildMatchFromSourceId(item.name, item.type, item.img, sourceId);
+    if (typeof sourceId === 'string') {
+      match = buildMatchFromSourceId(item.name, item.type, item.img, sourceId);
+    }
+
+    // Slow path: name search against the canonical pack for this item type
+    if (match === null) {
+      match = await searchMatchByName(item.name, item.type);
+    }
+
     if (match === null) continue;
 
     if (item.type === 'ancestry' && draft.ancestry === null) {
@@ -355,6 +370,29 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
   }
 
   return { draft, error: null };
+}
+
+// Canonical packs to search for each item type in the fallback hydration.
+const FALLBACK_PACKS_BY_TYPE: Partial<Record<string, string[]>> = {
+  ancestry: ['pf2e.ancestries'],
+  heritage: ['pf2e.heritages'],
+  class: ['pf2e.classes'],
+  background: ['pf2e.backgrounds'],
+  deity: ['pf2e.deities'],
+  feat: ['pf2e.feats-srd'],
+};
+
+// Searches the appropriate pack for an item by exact name (case-insensitive).
+// Returns null if the type has no known pack, the search fails, or no match found.
+async function searchMatchByName(name: string, type: string): Promise<CompendiumMatch | null> {
+  const packIds = FALLBACK_PACKS_BY_TYPE[type];
+  if (packIds === undefined) return null;
+  try {
+    const { matches } = await api.searchCompendium({ packIds, documentType: 'Item', q: name });
+    return matches.find((m) => m.name.toLowerCase() === name.toLowerCase()) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // Extracts the string value from a pf2e demographic field (stored as
