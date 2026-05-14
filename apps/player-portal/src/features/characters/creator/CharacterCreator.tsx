@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
 import { useCreatorPickerProps, type CreatorPickerOptions } from '@/features/characters/internal/useCreatorPickerProps';
@@ -16,9 +16,11 @@ import {
   beginOrReusePendingActor,
   filtersForTarget,
   groupHeritages,
+  hydrateFromActor,
   isStepFilled,
   persistPick,
   resetPendingActor,
+  saveDraftFlags,
 } from '@/features/characters/creator/helpers';
 import { PickerCard } from '@/features/characters/creator/PickerCard';
 import { AncestryStep } from '@/features/characters/creator/steps/AncestryStep';
@@ -39,6 +41,11 @@ import type { CreatorState, Draft, PickerTarget, Step } from '@/features/charact
 
 export function CharacterCreator(): React.ReactElement {
   const navigate = useNavigate();
+  // When mounted under `/characters/:actorId/edit`, the param is set.
+  // When mounted under `/characters/new`, it is undefined.
+  const { actorId: editActorId } = useParams<{ actorId?: string }>();
+  const isEditMode = editActorId !== undefined;
+
   const onBack = (): void => {
     void navigate('/characters');
   };
@@ -48,23 +55,46 @@ export function CharacterCreator(): React.ReactElement {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [openPicker, setOpenPicker] = useState<PickerTarget | null>(null);
   const [creator, setCreator] = useState<CreatorState>({ kind: 'creating' });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    beginOrReusePendingActor()
-      .then((actorId) => {
-        if (cancelled) return;
-        setCreator({ kind: 'ready', actorId });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : String(err);
-        setCreator({ kind: 'error', message });
-      });
+
+    if (isEditMode && editActorId !== undefined) {
+      // Edit mode — hydrate draft from the existing actor, don't spawn a new one.
+      hydrateFromActor(editActorId)
+        .then(({ draft: loadedDraft, error }) => {
+          if (cancelled) return;
+          if (error !== null) {
+            setCreator({ kind: 'error', message: error });
+            return;
+          }
+          setDraft(loadedDraft);
+          setCreator({ kind: 'ready', actorId: editActorId });
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          const message = err instanceof Error ? err.message : String(err);
+          setCreator({ kind: 'error', message });
+        });
+    } else {
+      // Create mode — spawn a blank draft actor in Foundry.
+      beginOrReusePendingActor()
+        .then((actorId) => {
+          if (cancelled) return;
+          setCreator({ kind: 'ready', actorId });
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          const message = err instanceof Error ? err.message : String(err);
+          setCreator({ kind: 'error', message });
+        });
+    }
+
     return (): void => {
       cancelled = true;
     };
-  }, []);
+  }, [isEditMode, editActorId]);
 
   const actorId = creator.kind === 'ready' ? creator.actorId : null;
 
@@ -101,10 +131,35 @@ export function CharacterCreator(): React.ReactElement {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const handleSaveAndContinue = (): void => {
+    if (actorId === null) return;
+    setIsSaving(true);
+    saveDraftFlags(actorId, draft, 'in-progress')
+      .catch(() => {
+        // Best-effort — navigate away even if the flag write fails.
+        // On next resume the fallback hydration path applies.
+      })
+      .finally(() => {
+        resetPendingActor();
+        void navigate('/characters');
+      });
+  };
+
   const handleFinish = (): void => {
     if (actorId === null) return;
-    resetPendingActor();
-    onFinish(actorId);
+    // Await the flag write before navigating so "Edit" on the next visit
+    // finds creatorDraft and can do a full restore. The isSaving flag
+    // disables the button to prevent double-clicks.
+    setIsSaving(true);
+    saveDraftFlags(actorId, draft, 'completed')
+      .catch(() => {
+        /* best-effort — navigate regardless if the write fails */
+      })
+      .finally(() => {
+        setIsSaving(false);
+        resetPendingActor();
+        onFinish(actorId);
+      });
   };
 
   const applyPick = (match: CompendiumMatch): void => {
@@ -222,22 +277,26 @@ export function CharacterCreator(): React.ReactElement {
           <button
             type="button"
             onClick={(): void => {
-              // Null the module-scope cache so re-entering the wizard
-              // allocates a fresh draft actor instead of reusing the
-              // one the user is stepping away from.
-              resetPendingActor();
+              if (!isEditMode) {
+                // Null the module-scope cache so re-entering the wizard
+                // allocates a fresh draft actor instead of reusing the
+                // one the user is stepping away from.
+                resetPendingActor();
+              }
               onBack();
             }}
             className="rounded border border-pf-border bg-pf-bg px-2 py-1 text-xs text-pf-text hover:bg-pf-bg-dark"
           >
             ← Actors
           </button>
-          <h1 className="font-serif text-2xl font-semibold text-pf-text">New Character</h1>
+          <h1 className="font-serif text-2xl font-semibold text-pf-text">
+            {isEditMode ? 'Edit Character' : 'New Character'}
+          </h1>
         </div>
 
         {creator.kind === 'creating' && (
           <p className="rounded border border-pf-border bg-pf-bg p-4 text-sm italic text-pf-alt-dark">
-            Creating draft actor…
+            {isEditMode ? 'Loading character…' : 'Creating draft actor…'}
           </p>
         )}
         {creator.kind === 'error' && (
@@ -365,14 +424,22 @@ export function CharacterCreator(): React.ReactElement {
 
             <CreatorSection id="review" title="Review">
               <ReviewStep draft={draft} />
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveAndContinue}
+                  disabled={actorId === null || isSaving}
+                  className="rounded border border-pf-border bg-pf-bg px-3 py-1.5 text-sm text-pf-text hover:bg-pf-bg-dark disabled:opacity-40"
+                >
+                  {isSaving ? 'Saving…' : 'Save & continue later'}
+                </button>
                 <button
                   type="button"
                   onClick={handleFinish}
-                  disabled={actorId === null}
+                  disabled={actorId === null || isSaving}
                   className="rounded border border-pf-primary bg-pf-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-pf-primary-dark disabled:opacity-40"
                 >
-                  Open sheet →
+                  {isSaving ? 'Saving…' : 'Open sheet →'}
                 </button>
               </div>
             </CreatorSection>

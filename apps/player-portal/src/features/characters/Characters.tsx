@@ -25,6 +25,9 @@ export function Characters(): React.ReactElement {
         onSelect={(a): void => {
           void navigate(`/characters/${a.id}`);
         }}
+        onEdit={(a): void => {
+          void navigate(`/characters/${a.id}/edit`);
+        }}
       />
     </main>
   );

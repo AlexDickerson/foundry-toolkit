@@ -5,6 +5,7 @@ interface MockActor {
   name: string;
   type: string;
   img: string | undefined;
+  flags?: Record<string, Record<string, unknown>>;
 }
 
 function createMockActor(overrides?: Partial<MockActor>): MockActor {
@@ -101,5 +102,26 @@ describe('getActorsHandler', () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.id).toBe('c1');
     expect(result[0]?.type).toBe('character');
+  });
+
+  it('passes through foundry-toolkit flags when present', async () => {
+    setGame([
+      createMockActor({
+        id: 'a1',
+        flags: { 'foundry-toolkit': { creatorInProgress: true, creatorVersion: 1 } },
+      }),
+    ]);
+
+    const result = await getActorsHandler({} as Record<string, never>);
+
+    expect(result[0]?.flags?.['foundry-toolkit']?.['creatorInProgress']).toBe(true);
+  });
+
+  it('omits flags field when actor has no flags', async () => {
+    setGame([createMockActor({ id: 'a1' })]);
+
+    const result = await getActorsHandler({} as Record<string, never>);
+
+    expect(result[0]?.flags).toBeUndefined();
   });
 });

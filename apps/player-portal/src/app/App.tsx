@@ -91,6 +91,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, Component: Characters },
           { path: 'new', Component: CharacterCreator },
+          { path: ':actorId/edit', Component: CharacterCreator },
           { path: ':actorId', Component: CharacterSheet },
         ],
       },

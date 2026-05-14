@@ -22,6 +22,11 @@ export interface ActorSummary {
   name: string;
   type: string;
   img: string;
+  /** Foundry module flags keyed by scope name. The `foundry-toolkit` scope
+   *  carries creator lifecycle flags (`creatorInProgress`, `creatorCompleted`,
+   *  `creatorDraft`, `creatorVersion`). Absent when the actor has no flags or
+   *  the bridge version pre-dates this field. */
+  flags?: Record<string, Record<string, unknown>>;
 }
 
 /** Narrow result shape returned by create-actor / update-actor — just
@@ -54,6 +59,12 @@ export interface PreparedActorItem {
   type: string;
   img: string;
   system: Record<string, unknown>;
+  /** Foundry document flags. `flags.core.sourceId` carries the compendium
+   *  UUID the item was imported from — used by the creator to reconstruct
+   *  pick slots when resuming an actor without a stored draft. Absent when
+   *  the item wasn't imported from a compendium or the bridge pre-dates
+   *  this field. */
+  flags?: Record<string, Record<string, unknown>>;
 }
 
 /** A single PF2e condition or active effect on an actor, normalized for

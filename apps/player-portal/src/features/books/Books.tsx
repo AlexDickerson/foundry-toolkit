@@ -18,7 +18,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — Vite resolves the ?url suffix at build time
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl as string;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 export function Books() {
   const [entries, setEntries] = useState<BookIndexEntry[]>([]);
@@ -67,7 +67,7 @@ export function Books() {
           getBookUrl={(id) => `/books/${id.split('/').map(encodeURIComponent).join('/')}`}
           scrollStorageKey={`portal.reader.scroll.${openBook.id}`}
           zoomStorageKey="portal.reader.zoom"
-          onClose={() => setOpenBook(null)}
+          onClose={() => { setOpenBook(null); }}
         />
       </div>
     );

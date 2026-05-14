@@ -70,6 +70,7 @@ export interface ActorSummary {
   name: string;
   type: string;
   img: string;
+  flags?: Record<string, Record<string, unknown>>;
 }
 
 export interface ItemSummary {
@@ -78,6 +79,7 @@ export interface ItemSummary {
   type: string;
   img: string;
   system: Record<string, unknown>;
+  flags?: Record<string, Record<string, unknown>>;
 }
 
 export interface ActorDetailResult {
