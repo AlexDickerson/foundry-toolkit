@@ -1,6 +1,6 @@
 import { api } from '@/features/characters/api';
 import type { CompendiumMatch } from '@/features/characters/types';
-import { BOOSTS_REQUIRED, STATIC_PICKER_FILTERS } from './constants';
+import { BOOSTS_REQUIRED, EMPTY_DRAFT, STATIC_PICKER_FILTERS } from './constants';
 import type { Draft, PickerFilters, PickerTarget, Slot, Step } from './types';
 
 // Module-scoped so React 18 StrictMode's dev-only double-mount
@@ -245,4 +245,146 @@ export function prettyLanguageLabel(slug: string): string {
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+// ─── Creator lifecycle flags ────────────────────────────────────────────────
+
+// Persists creator state flags to the actor. Called on "Save & Continue Later"
+// (mode='in-progress') and on "Open sheet →" (mode='completed'). Uses Foundry's
+// merge semantics — only the specified keys are touched; other flags survive.
+export async function saveDraftFlags(
+  actorId: string,
+  draft: Draft,
+  mode: 'in-progress' | 'completed',
+): Promise<void> {
+  const tkFlags: Record<string, unknown> =
+    mode === 'in-progress'
+      ? {
+          creatorInProgress: true,
+          creatorCompleted: false,
+          creatorDraft: JSON.stringify(draft),
+        }
+      : {
+          creatorInProgress: false,
+          creatorCompleted: true,
+          creatorVersion: 1,
+          creatorDraft: null,
+        };
+
+  await api.updateActor(actorId, {
+    flags: { 'foundry-toolkit': tkFlags },
+  });
+}
+
+// ─── Hydration ──────────────────────────────────────────────────────────────
+
+export type HydrateResult =
+  | { draft: Draft; error: null }
+  | { draft: null; error: string };
+
+// Loads an existing actor and reconstructs a wizard Draft from it.
+//
+// Primary path: restore from the `creatorDraft` JSON stored in
+// flags['foundry-toolkit'] — written by "Save & Continue Later".
+//
+// Fallback (manually-created actor or pre-PR actor with no stored draft):
+// partial hydration from system.details (identity text fields) + embedded
+// items (ancestry/heritage/class/background/feats — needs flags.core.sourceId
+// on each item, which GetPreparedActorHandler now populates). Boost/skill/
+// language picks are left at their empty defaults — impossible to separate
+// "what the user chose" from "what the class granted" without the draft.
+export async function hydrateFromActor(actorId: string): Promise<HydrateResult> {
+  let actor;
+  try {
+    actor = await api.getPreparedActor(actorId);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { draft: null, error: msg };
+  }
+
+  // Primary path: sidecar draft flag
+  const tkFlags = actor.flags?.['foundry-toolkit'] ?? {};
+  const storedDraft = tkFlags['creatorDraft'];
+  if (typeof storedDraft === 'string') {
+    try {
+      const parsed = JSON.parse(storedDraft) as Partial<Draft>;
+      return { draft: { ...EMPTY_DRAFT, ...parsed }, error: null };
+    } catch {
+      // Fall through to partial hydration if the JSON is corrupt.
+    }
+  }
+
+  // Fallback: reconstruct what we can from actor state
+  const draft: Draft = { ...EMPTY_DRAFT };
+
+  // Identity fields — pf2e stores these as { value: string } objects
+  const details = actor.system['details'] as Record<string, unknown> | undefined;
+  draft.name = actor.name !== 'New Character' ? actor.name : '';
+  draft.gender = extractDemographicValue(details?.['gender']);
+  draft.age = extractDemographicValue(details?.['age']);
+  draft.ethnicity = extractDemographicValue(details?.['ethnicity']);
+  draft.nationality = extractDemographicValue(details?.['nationality']);
+
+  // Picks — build CompendiumMatch from embedded item + its sourceId flag
+  for (const item of actor.items) {
+    const sourceId = item.flags?.['core']?.['sourceId'];
+    if (typeof sourceId !== 'string') continue;
+    const match = buildMatchFromSourceId(item.name, item.type, item.img, sourceId);
+    if (match === null) continue;
+
+    if (item.type === 'ancestry' && draft.ancestry === null) {
+      draft.ancestry = { match, itemId: item.id };
+    } else if (item.type === 'heritage' && draft.heritage === null) {
+      draft.heritage = { match, itemId: item.id };
+    } else if (item.type === 'class' && draft.class === null) {
+      draft.class = { match, itemId: item.id };
+    } else if (item.type === 'background' && draft.background === null) {
+      draft.background = { match, itemId: item.id };
+    } else if (item.type === 'deity' && draft.deity === null) {
+      draft.deity = { match, itemId: item.id };
+    } else if (item.type === 'feat') {
+      const location = typeof item.system['location'] === 'string' ? item.system['location'] : '';
+      if (location === 'class-1' && draft.classFeat === null) {
+        draft.classFeat = { match, itemId: item.id };
+      } else if (location === 'ancestry-1' && draft.ancestryFeat === null) {
+        draft.ancestryFeat = { match, itemId: item.id };
+      }
+    }
+  }
+
+  return { draft, error: null };
+}
+
+// Extracts the string value from a pf2e demographic field (stored as
+// `{ value: string }` on the actor system object).
+function extractDemographicValue(field: unknown): string {
+  if (field === null || field === undefined) return '';
+  if (typeof field === 'string') return field;
+  if (typeof field === 'object' && 'value' in (field)) {
+    const v = (field).value;
+    return typeof v === 'string' ? v : '';
+  }
+  return '';
+}
+
+// Parses a Foundry compendium UUID (e.g. "Compendium.pf2e.ancestries.Item.abc")
+// into a minimal CompendiumMatch. packLabel is left empty — not available from
+// the embedded item, and not used for functionality (only display in the picker).
+function buildMatchFromSourceId(
+  name: string,
+  type: string,
+  img: string,
+  sourceId: string,
+): CompendiumMatch | null {
+  const m = /^Compendium\.([^.]+\.[^.]+)\.\w+\.(.+)$/.exec(sourceId);
+  if (m === null) return null;
+  return {
+    packId: m[1]!,
+    packLabel: '',
+    documentId: m[2]!,
+    uuid: sourceId,
+    name,
+    type,
+    img,
+  };
 }

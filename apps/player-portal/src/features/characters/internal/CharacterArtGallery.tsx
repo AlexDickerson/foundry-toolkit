@@ -39,14 +39,14 @@ export function CharacterArtGallery({ art, subjectName }: Props): React.ReactEle
             src={current}
             alt={`${subjectName} reference art`}
             loading="lazy"
-            onClick={() => setLightboxOpen(true)}
+            onClick={() => { setLightboxOpen(true); }}
             className="h-full w-full cursor-zoom-in rounded border border-pf-border bg-pf-bg-dark object-contain"
           />
           {hasMultiple && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-between p-1">
               <button
                 type="button"
-                onClick={() => step(-1)}
+                onClick={() => { step(-1); }}
                 aria-label="Previous image"
                 className="pointer-events-auto rounded-full bg-pf-bg/80 px-2 py-1 text-pf-text shadow hover:bg-pf-bg hover:text-pf-primary"
               >
@@ -54,7 +54,7 @@ export function CharacterArtGallery({ art, subjectName }: Props): React.ReactEle
               </button>
               <button
                 type="button"
-                onClick={() => step(1)}
+                onClick={() => { step(1); }}
                 aria-label="Next image"
                 className="pointer-events-auto rounded-full bg-pf-bg/80 px-2 py-1 text-pf-text shadow hover:bg-pf-bg hover:text-pf-primary"
               >
@@ -84,13 +84,13 @@ export function CharacterArtGallery({ art, subjectName }: Props): React.ReactEle
             aria-modal="true"
             aria-label={`${subjectName} reference art – full size`}
             className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
-            onClick={() => setLightboxOpen(false)}
+            onClick={() => { setLightboxOpen(false); }}
           >
             <img
               src={current}
               alt={`${subjectName} reference art`}
               className="max-h-full max-w-full rounded shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); }}
             />
           </div>,
           document.body,

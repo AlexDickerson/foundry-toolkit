@@ -10,9 +10,10 @@ type State =
 
 interface Props {
   onSelect?: (actor: ActorSummary) => void;
+  onEdit?: (actor: ActorSummary) => void;
 }
 
-export function ActorList({ onSelect }: Props = {}): React.ReactElement {
+export function ActorList({ onSelect, onEdit }: Props = {}): React.ReactElement {
   const [state, setState] = useState<State>({ kind: 'loading' });
 
   useEffect(() => {
@@ -58,24 +59,48 @@ export function ActorList({ onSelect }: Props = {}): React.ReactElement {
   return (
     <ul className="divide-y divide-pf-border rounded border border-pf-border">
       {characters.map((actor) => {
+        const isInProgress = actor.flags?.['foundry-toolkit']?.['creatorInProgress'] === true;
         const clickable = onSelect !== undefined;
         return (
           <li
             key={actor.id}
-            className={[
-              'flex items-center gap-3 px-4 py-3',
-              clickable ? 'cursor-pointer hover:bg-pf-bg-dark' : '',
-            ].join(' ')}
-            onClick={
-              clickable
-                ? (): void => {
-                    onSelect(actor);
-                  }
-                : undefined
-            }
+            className="flex items-center gap-3 px-4 py-3"
           >
-            <span className="flex-1 truncate font-medium">{actor.name}</span>
-            {clickable && <span className="text-pf-text-muted">→</span>}
+            <button
+              type="button"
+              disabled={!clickable}
+              onClick={
+                clickable
+                  ? (): void => {
+                      onSelect(actor);
+                    }
+                  : undefined
+              }
+              className={[
+                'flex-1 truncate text-left font-medium',
+                clickable ? 'cursor-pointer hover:text-pf-primary' : '',
+              ].join(' ')}
+            >
+              {actor.name}
+            </button>
+            {onEdit !== undefined && (
+              <button
+                type="button"
+                onClick={(): void => {
+                  onEdit(actor);
+                }}
+                data-testid={isInProgress ? 'continue-button' : 'edit-button'}
+                className={[
+                  'shrink-0 rounded border px-2 py-1 text-xs font-medium transition-colors',
+                  isInProgress
+                    ? 'border-pf-primary bg-pf-primary text-white hover:bg-pf-primary-dark'
+                    : 'border-pf-border bg-pf-bg text-pf-text hover:bg-pf-bg-dark',
+                ].join(' ')}
+              >
+                {isInProgress ? 'Continue' : 'Edit'}
+              </button>
+            )}
+            {clickable && onEdit === undefined && <span className="text-pf-text-muted">→</span>}
           </li>
         );
       })}

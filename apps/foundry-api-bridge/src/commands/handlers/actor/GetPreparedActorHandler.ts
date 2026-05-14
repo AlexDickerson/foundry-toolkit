@@ -101,6 +101,7 @@ export function getPreparedActorHandler(params: GetActorParams): Promise<Prepare
       type: item.type,
       img: item.img ?? '',
       system: obj.system,
+      ...(obj.flags !== undefined ? { flags: obj.flags } : {}),
     });
     const effect = normalizeStatusEffect(item, obj.system);
     if (effect !== null) statusEffects.push(effect);

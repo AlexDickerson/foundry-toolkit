@@ -25,7 +25,7 @@ interface ArtData {
   classes: Record<string, CharacterArt>;
 }
 
-const artData: ArtData = artDataJson as ArtData;
+const artData: ArtData = artDataJson;
 
 export function getAncestryArt(name: string): CharacterArt | null {
   return lookup(artData.ancestries, name);

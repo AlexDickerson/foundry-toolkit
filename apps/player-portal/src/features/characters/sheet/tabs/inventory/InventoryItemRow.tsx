@@ -63,13 +63,13 @@ function ItemThumb({
             aria-modal="true"
             aria-label={`${item.name} – full art`}
             className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
-            onClick={() => setOpen(false)}
+            onClick={() => { setOpen(false); }}
           >
             <img
               src={item.img}
               alt={item.name}
               className="max-h-full max-w-full rounded shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); }}
             />
           </div>,
           document.body,
@@ -304,13 +304,13 @@ export function GridTile({
             aria-modal="true"
             aria-label={`${item.name} – full art`}
             className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
-            onClick={() => setLightboxOpen(false)}
+            onClick={() => { setLightboxOpen(false); }}
           >
             <img
               src={item.img}
               alt={item.name}
               className="max-h-full max-w-full rounded shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); }}
             />
           </div>,
           document.body,

@@ -5,6 +5,7 @@ interface ActorEntry {
   name: string;
   type: string;
   img: string | undefined;
+  flags?: Record<string, Record<string, unknown>>;
 }
 
 interface ActorsCollection {
@@ -33,6 +34,7 @@ export function getActorsHandler(_params: Record<string, never>): Promise<ActorS
       name: actor.name,
       type: actor.type,
       img: actor.img ?? '',
+      ...(actor.flags !== undefined ? { flags: actor.flags } : {}),
     });
   });
 
