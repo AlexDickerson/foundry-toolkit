@@ -268,7 +268,9 @@ export async function saveDraftFlags(
           creatorInProgress: false,
           creatorCompleted: true,
           creatorVersion: 1,
-          creatorDraft: null,
+          // Keep the draft so "Edit" can restore the full wizard state
+          // rather than falling back to the partial item-scan path.
+          creatorDraft: JSON.stringify(draft),
         };
 
   await api.updateActor(actorId, {
