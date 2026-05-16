@@ -107,7 +107,7 @@ export function ItemRow({
             <StashButton item={item} context={partyContext} />
           </div>
         )}
-        <ItemDescription item={item} />
+        {!hasArtOverride(item.img) && <ItemDescription item={item} />}
       </DetailsCard>
       {isContainerRow && contents.length > 0 && (
         <ul
@@ -254,7 +254,7 @@ export function GridTile({
             </div>
           )}
           <FullArtPanel item={item} />
-          <ItemDescription item={item} />
+          {!hasArtOverride(item.img) && <ItemDescription item={item} />}
         </div>
       </details>
     </li>
