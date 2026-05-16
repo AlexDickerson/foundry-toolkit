@@ -80,6 +80,12 @@
 @utility bg-portal-surface-hover {
   background-color: var(--portal-surface-hover);
 }
+@utility bg-portal-accent {
+  background-color: var(--portal-accent);
+}
+@utility bg-portal-border {
+  background-color: var(--portal-border);
+}
 @utility bg-portal-accent-subtle {
   background-color: var(--portal-accent-subtle);
 }

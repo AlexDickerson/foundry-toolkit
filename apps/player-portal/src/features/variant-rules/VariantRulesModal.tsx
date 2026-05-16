@@ -139,18 +139,16 @@ export function VariantRulesModal({ onClose }: { onClose: () => void }): React.R
                           void toggle(rule.key);
                         }}
                         className={[
-                          'relative h-5 w-9 rounded-full transition-colors',
+                          'relative h-5 w-9 appearance-none rounded-full transition-colors',
                           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-portal-accent',
                           'disabled:opacity-50',
-                          config[rule.key]
-                            ? 'bg-portal-accent'
-                            : 'bg-portal-border',
+                          config[rule.key] ? 'bg-portal-accent' : 'bg-portal-border',
                         ].join(' ')}
                       >
                         <span
                           className={[
-                            'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
-                            config[rule.key] ? 'left-[18px]' : 'left-0.5',
+                            'absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
+                            config[rule.key] ? 'translate-x-4' : 'translate-x-0',
                           ].join(' ')}
                         />
                       </button>
