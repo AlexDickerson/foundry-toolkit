@@ -27,6 +27,11 @@ export interface PartyContext {
   onTransfer: (item: PhysicalItem) => Promise<void>;
 }
 
+export interface EquipContext {
+  pending: Set<string>;
+  onToggle: (item: PhysicalItem) => Promise<void>;
+}
+
 // Deduct `totalCp` from the actor's canonical coin items. Pulls from
 // the largest denomination that can cover what's left and breaks it
 // down on the way, mirroring how a player would hand over pocket

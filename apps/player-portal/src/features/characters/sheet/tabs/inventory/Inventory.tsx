@@ -16,7 +16,7 @@ import {
   type ShopView,
   groupByCategory,
 } from './inventory-categories';
-import { spendCoins, grantCoins, type SellContext, type InvestContext, type PartyContext } from './inventory-shop';
+import { spendCoins, grantCoins, type SellContext, type InvestContext, type PartyContext, type EquipContext } from './inventory-shop';
 import { ItemRow, GridTile } from './InventoryItemRow';
 import { CoinStrip, CoinTransferButton, PartyCoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
 import { PartyStash } from './PartyStash';
@@ -54,6 +54,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
   const [pendingSells, setPendingSells] = useState<Set<string>>(new Set());
   const [pendingInvestments, setPendingInvestments] = useState<Set<string>>(new Set());
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
+  const [pendingEquips, setPendingEquips] = useState<Set<string>>(new Set());
   const [stashNonce, setStashNonce] = useState(0);
   const [txError, setTxError] = useState<string | null>(null);
   const shopMode = useShopMode();
@@ -142,6 +143,30 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
       setTxError(err instanceof Error ? err.message : String(err));
     } finally {
       setPendingInvestments((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
+  const handleToggleEquip = async (item: PhysicalItem): Promise<void> => {
+    if (!canTransact) return;
+    setTxError(null);
+    setPendingEquips((prev) => new Set(prev).add(item.id));
+    try {
+      const eq = item.system.equipped;
+      const isArmourSlot = item.type === 'armor' || item.type === 'backpack';
+      const currentlyEquipped = isArmourSlot ? eq.inSlot === true : (eq.handsHeld ?? 0) > 0;
+      const patch: Record<string, unknown> = isArmourSlot
+        ? { 'equipped.inSlot': !currentlyEquipped, 'equipped.carryType': currentlyEquipped ? 'stowed' : 'worn' }
+        : { 'equipped.handsHeld': currentlyEquipped ? 0 : 1, 'equipped.carryType': currentlyEquipped ? 'stowed' : 'held' };
+      await api.updateActorItem(actorId, item.id, { system: patch });
+      onActorChanged();
+    } catch (err) {
+      setTxError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPendingEquips((prev) => {
         const next = new Set(prev);
         next.delete(item.id);
         return next;
@@ -283,6 +308,9 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
                   ? { partyId, pending: pendingTransfers, onTransfer: handleTransferToParty }
                   : undefined
               }
+              equipContext={
+                canTransact ? { pending: pendingEquips, onToggle: handleToggleEquip } : undefined
+              }
             />
           )}
         </>
@@ -306,6 +334,7 @@ function CategorizedInventory({
   sellContext,
   investContext,
   partyContext,
+  equipContext,
 }: {
   view: ViewMode;
   tileColumns: number;
@@ -315,6 +344,7 @@ function CategorizedInventory({
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
   partyContext: PartyContext | undefined;
+  equipContext: EquipContext | undefined;
 }): React.ReactElement {
   const buckets = view === 'list' ? topLevelByCategory : allByCategory;
   const presentCategories = CATEGORY_ORDER.filter((c) => (buckets.get(c)?.length ?? 0) > 0);
@@ -338,6 +368,7 @@ function CategorizedInventory({
                     sellContext={sellContext}
                     investContext={investContext}
                     partyContext={partyContext}
+                    equipContext={equipContext}
                   />
                 ))}
               </ul>
@@ -354,6 +385,7 @@ function CategorizedInventory({
                     sellContext={sellContext}
                     investContext={investContext}
                     partyContext={partyContext}
+                    equipContext={equipContext}
                   />
                 ))}
               </ul>

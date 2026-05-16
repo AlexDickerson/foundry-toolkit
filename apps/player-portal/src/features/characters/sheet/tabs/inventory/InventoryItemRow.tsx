@@ -5,7 +5,7 @@ import { supportsInvestment } from '@/features/characters/lib/investment';
 import { cpToDenominations, priceToCp } from '@/features/characters/lib/coins';
 import { DetailsCard } from '@/shared/ui/DetailsCard';
 import { EnrichedDescription } from '@/shared/ui/EnrichedDescription';
-import type { SellContext, InvestContext, PartyContext } from './inventory-shop';
+import type { SellContext, InvestContext, PartyContext, EquipContext } from './inventory-shop';
 
 // Items whose img field is a /item-art/* URL have a purchased art override.
 function hasArtOverride(img: string): boolean {
@@ -57,12 +57,14 @@ export function ItemRow({
   sellContext,
   investContext,
   partyContext,
+  equipContext,
 }: {
   item: PhysicalItem;
   contents: PhysicalItem[];
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
   partyContext: PartyContext | undefined;
+  equipContext: EquipContext | undefined;
 }): React.ReactElement {
   const isContainerRow = isContainer(item);
   const bulk = item.system.bulk;
@@ -101,8 +103,11 @@ export function ItemRow({
         }
       >
         <FullArtPanel item={item} />
-        {(sellContext !== undefined || partyContext !== undefined) && (
+        {(equipContext !== undefined || sellContext !== undefined || partyContext !== undefined) && (
           <div className="mb-2 flex flex-wrap gap-2">
+            {equipContext !== undefined && supportsEquip(item) && (
+              <EquipButton item={item} context={equipContext} />
+            )}
             {sellContext && <SellButton item={item} context={sellContext} />}
             {partyContext && <StashButton item={item} context={partyContext} />}
           </div>
@@ -153,11 +158,13 @@ export function GridTile({
   sellContext,
   investContext,
   partyContext,
+  equipContext,
 }: {
   item: PhysicalItem;
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
   partyContext: PartyContext | undefined;
+  equipContext: EquipContext | undefined;
 }): React.ReactElement {
   const hasInvestButton = investContext !== undefined && supportsInvestment(item);
   const equipped = isEquippedItem(item);
@@ -242,9 +249,12 @@ export function GridTile({
           ref={panelRef}
           className={`absolute -top-px ${flipLeft ? 'right-full' : 'left-full'} z-20 min-h-[calc(100%+2px)] w-max min-w-[150%] max-w-[300%] overflow-y-auto ${flipLeft ? 'rounded-l' : 'rounded-r'} border border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg`}
         >
-          {(hasInvestButton || sellContext !== undefined || partyContext !== undefined) && (
+          {(hasInvestButton || equipContext !== undefined || sellContext !== undefined || partyContext !== undefined) && (
             <div className="mb-3 flex flex-wrap gap-2">
               {hasInvestButton && <InvestButton item={item} context={investContext} />}
+              {equipContext !== undefined && supportsEquip(item) && (
+                <EquipButton item={item} context={equipContext} />
+              )}
               {sellContext && <SellButton item={item} context={sellContext} />}
               {partyContext && <StashButton item={item} context={partyContext} />}
             </div>
@@ -263,6 +273,54 @@ function ItemDescription({ item }: { item: PhysicalItem }): React.ReactElement {
   const description = (item.system.description as { value?: unknown } | undefined)?.value;
   const raw = typeof description === 'string' ? description : undefined;
   return <EnrichedDescription raw={raw} maxHeightClass="max-h-[24rem]" />;
+}
+
+// Equip toggle applies to wearable/holdable item types only.
+function supportsEquip(item: PhysicalItem): boolean {
+  return item.type === 'weapon' || item.type === 'armor' || item.type === 'shield' || item.type === 'backpack';
+}
+
+function EquipButton({ item, context }: { item: PhysicalItem; context: EquipContext }): React.ReactElement {
+  const busy = context.pending.has(item.id);
+  const eq = item.system.equipped;
+  const equipped =
+    (item.type === 'armor' || item.type === 'backpack') ? eq.inSlot === true : (eq.handsHeld ?? 0) > 0;
+
+  let label: string;
+  if (busy) {
+    label = equipped ? 'Removing…' : 'Equipping…';
+  } else if (item.type === 'weapon' || item.type === 'shield') {
+    label = equipped ? 'Stow' : 'Hold';
+  } else if (item.type === 'backpack') {
+    label = equipped ? 'Remove' : 'Wear';
+  } else {
+    label = equipped ? 'Remove' : 'Equip';
+  }
+
+  return (
+    <button
+      type="button"
+      data-testid="equip-button"
+      disabled={busy}
+      onClick={(e): void => {
+        e.preventDefault();
+        e.stopPropagation();
+        void context.onToggle(item);
+      }}
+      aria-pressed={equipped}
+      aria-label={equipped ? `Unequip ${item.name}` : `Equip ${item.name}`}
+      className={[
+        'shrink-0 rounded border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
+        busy
+          ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
+          : equipped
+            ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+            : 'border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50',
+      ].join(' ')}
+    >
+      {label}
+    </button>
+  );
 }
 
 function StashButton({ item, context }: { item: PhysicalItem; context: PartyContext }): React.ReactElement {
