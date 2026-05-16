@@ -28,9 +28,8 @@ export function CoinStrip({
   onError,
 }: {
   coins: PhysicalItem[];
-  /** When provided alongside items + onActorChanged, the strip renders an
-   *  "Edit coins" button that opens a dialog for batched +/- per-denomination
-   *  edits. */
+  /** When provided alongside items + onActorChanged, denomination chips become
+   *  clickable and open a +/- edit dialog. */
   actorId?: string;
   items?: readonly PreparedActorItem[];
   onActorChanged?: () => void;
@@ -83,7 +82,7 @@ export function CoinStrip({
     <>
       {editing && editable && (
         <CoinEditDialog
-          items={items}
+          currentQty={totals}
           onClose={(): void => {
             setEditing(false);
           }}
@@ -96,30 +95,35 @@ export function CoinStrip({
         data-section="coins"
       >
         <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">Coins</span>
-        {DENOMS.map((denom) => (
-          <span
-            key={denom}
-            className={[
-              'font-mono text-sm tabular-nums',
-              totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
-            ].join(' ')}
-          >
-            <strong>{totals[denom]}</strong>{' '}
-            <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
-          </span>
-        ))}
-        {editable && (
-          <button
-            type="button"
-            aria-label="Edit coins"
-            data-testid="coin-edit-button"
-            onClick={(): void => {
-              setEditing(true);
-            }}
-            className="ml-auto rounded border border-pf-border bg-pf-bg px-2 py-0.5 text-[11px] font-semibold text-pf-text hover:bg-pf-bg-dark"
-          >
-            Edit
-          </button>
+        {DENOMS.map((denom) =>
+          editable ? (
+            <button
+              key={denom}
+              type="button"
+              aria-label={`Edit ${denom}`}
+              onClick={(): void => {
+                setEditing(true);
+              }}
+              className={[
+                'font-mono text-sm tabular-nums underline-offset-2 hover:underline',
+                totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
+              ].join(' ')}
+            >
+              <strong>{totals[denom]}</strong>{' '}
+              <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
+            </button>
+          ) : (
+            <span
+              key={denom}
+              className={[
+                'font-mono text-sm tabular-nums',
+                totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
+              ].join(' ')}
+            >
+              <strong>{totals[denom]}</strong>{' '}
+              <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
+            </span>
+          ),
         )}
       </div>
     </>
@@ -128,9 +132,13 @@ export function CoinStrip({
 
 // ─── Party coin strip ─────────────────────────────────────────────────────────
 
-// Shows party stash coin totals next to the player's own CoinStrip. Always
-// visible regardless of which inventory tab is active so players can glance at
-// party funds without switching tabs.
+interface PartyCoinSlot {
+  id: string;
+  qty: number;
+}
+
+// Shows party stash coin totals next to the player's own CoinStrip. Clicking
+// any denomination opens an edit dialog that adjusts coins on the party actor.
 export function PartyCoinStrip({
   partyId,
   refreshKey,
@@ -138,24 +146,25 @@ export function PartyCoinStrip({
   partyId: string;
   refreshKey?: number;
 }): React.ReactElement {
-  const [totals, setTotals] = useState<Record<Denom, number>>({ pp: 0, gp: 0, sp: 0, cp: 0 });
+  const [slots, setSlots] = useState<Partial<Record<Denom, PartyCoinSlot>>>({});
+  const [editing, setEditing] = useState(false);
 
   const fetchCoins = useCallback((): void => {
     api
       .getPartyStash(partyId)
       .then((data) => {
-        const t: Record<Denom, number> = { pp: 0, gp: 0, sp: 0, cp: 0 };
+        const next: Partial<Record<Denom, PartyCoinSlot>> = {};
         for (const item of data.items) {
           if (item.type !== 'treasure') continue;
           if (item.system['category'] !== 'coin') continue;
           const slug = typeof item.system['slug'] === 'string' ? item.system['slug'] : null;
           if (slug === null) continue;
           const denom = COIN_SLUG_DENOM[slug];
-          if (denom === undefined) continue;
+          if (denom === undefined || next[denom] !== undefined) continue;
           const qty = typeof item.system['quantity'] === 'number' ? item.system['quantity'] : 0;
-          t[denom] += qty;
+          next[denom] = { id: item.id, qty };
         }
-        setTotals(t);
+        setSlots(next);
       })
       .catch(() => {
         // Silently fail — shows zeros until next successful fetch.
@@ -170,37 +179,83 @@ export function PartyCoinStrip({
     if (event.actorId === partyId) fetchCoins();
   });
 
+  const totals: Record<Denom, number> = {
+    pp: slots.pp?.qty ?? 0,
+    gp: slots.gp?.qty ?? 0,
+    sp: slots.sp?.qty ?? 0,
+    cp: slots.cp?.qty ?? 0,
+  };
+
+  const handleApply = async (deltas: Partial<Record<Denom, number>>): Promise<void> => {
+    for (const denom of DENOMS) {
+      const delta = deltas[denom];
+      if (delta === undefined || delta === 0) continue;
+      const slot = slots[denom];
+      const currentQty = slot?.qty ?? 0;
+      const newQty = currentQty + delta;
+      if (newQty < 0) {
+        throw new Error(`Cannot remove ${(-delta).toString()} ${denom} — only ${currentQty.toString()} in stash.`);
+      }
+      if (slot !== undefined) {
+        await api.updateActorItem(partyId, slot.id, { system: { quantity: newQty } });
+      } else if (delta > 0) {
+        await api.addItemFromCompendium(partyId, {
+          packId: 'pf2e.equipment-srd',
+          itemId: coinSlugFor(denom),
+          quantity: delta,
+        });
+      }
+    }
+    fetchCoins();
+  };
+
   return (
-    <div
-      className="flex flex-wrap items-center gap-3 rounded border border-pf-tertiary-dark bg-pf-tertiary/20 px-3 py-2"
-      data-section="party-coins-summary"
-    >
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">Party</span>
-      {DENOMS.map((denom) => (
-        <span
-          key={denom}
-          className={[
-            'font-mono text-sm tabular-nums',
-            totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
-          ].join(' ')}
-        >
-          <strong>{totals[denom]}</strong>{' '}
-          <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
-        </span>
-      ))}
-    </div>
+    <>
+      {editing && (
+        <CoinEditDialog
+          currentQty={totals}
+          onClose={(): void => {
+            setEditing(false);
+          }}
+          onApply={handleApply}
+        />
+      )}
+      <div
+        className="flex flex-wrap items-center gap-3 rounded border border-pf-tertiary-dark bg-pf-tertiary/20 px-3 py-2"
+        data-section="party-coins-summary"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">Party</span>
+        {DENOMS.map((denom) => (
+          <button
+            key={denom}
+            type="button"
+            aria-label={`Edit party ${denom}`}
+            onClick={(): void => {
+              setEditing(true);
+            }}
+            className={[
+              'font-mono text-sm tabular-nums underline-offset-2 hover:underline',
+              totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
+            ].join(' ')}
+          >
+            <strong>{totals[denom]}</strong>{' '}
+            <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 
 // ─── Coin edit dialog ─────────────────────────────────────────────────────────
 
 function CoinEditDialog({
-  items,
+  currentQty,
   onClose,
   onApply,
   onError,
 }: {
-  items: readonly PreparedActorItem[];
+  currentQty: Record<Denom, number>;
   onClose: () => void;
   onApply: (deltas: Partial<Record<Denom, number>>) => Promise<void>;
   onError?: (msg: string | null) => void;
@@ -218,14 +273,6 @@ function CoinEditDialog({
       window.removeEventListener('keydown', handleKey);
     };
   }, [onClose]);
-
-  const coinItems = coinItemsByDenom(items);
-  const currentQty: Record<Denom, number> = {
-    pp: coinItems.pp?.system.quantity ?? 0,
-    gp: coinItems.gp?.system.quantity ?? 0,
-    sp: coinItems.sp?.system.quantity ?? 0,
-    cp: coinItems.cp?.system.quantity ?? 0,
-  };
 
   // Parse non-empty inputs into ints, dropping zeros and unparseable values.
   const parsedDeltas: Partial<Record<Denom, number>> = {};
