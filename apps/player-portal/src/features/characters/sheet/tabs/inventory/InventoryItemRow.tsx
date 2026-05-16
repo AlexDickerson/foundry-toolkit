@@ -101,14 +101,10 @@ export function ItemRow({
         }
       >
         <FullArtPanel item={item} />
-        {sellContext && (
-          <div className="mb-2">
-            <SellButton item={item} context={sellContext} />
-          </div>
-        )}
-        {partyContext && (
-          <div className="mb-2">
-            <StashButton item={item} context={partyContext} />
+        {(sellContext !== undefined || partyContext !== undefined) && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {sellContext && <SellButton item={item} context={sellContext} />}
+            {partyContext && <StashButton item={item} context={partyContext} />}
           </div>
         )}
         {!hasArtOverride(item.img) && <ItemDescription item={item} />}
@@ -246,19 +242,11 @@ export function GridTile({
           ref={panelRef}
           className={`absolute -top-px ${flipLeft ? 'right-full' : 'left-full'} z-20 min-h-[calc(100%+2px)] w-max min-w-[150%] max-w-[300%] overflow-y-auto ${flipLeft ? 'rounded-l' : 'rounded-r'} border border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg`}
         >
-          {hasInvestButton && (
-            <div className="mb-3">
-              <InvestButton item={item} context={investContext} />
-            </div>
-          )}
-          {sellContext && (
-            <div className="mb-3">
-              <SellButton item={item} context={sellContext} />
-            </div>
-          )}
-          {partyContext && (
-            <div className="mb-3">
-              <StashButton item={item} context={partyContext} />
+          {(hasInvestButton || sellContext !== undefined || partyContext !== undefined) && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {hasInvestButton && <InvestButton item={item} context={investContext} />}
+              {sellContext && <SellButton item={item} context={sellContext} />}
+              {partyContext && <StashButton item={item} context={partyContext} />}
             </div>
           )}
           <FullArtPanel item={item} />
