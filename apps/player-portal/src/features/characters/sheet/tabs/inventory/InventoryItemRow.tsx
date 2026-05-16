@@ -97,11 +97,15 @@ export function ItemRow({
             <EquippedBadge item={item} suppressInvested={hasInvestButton} />
             {hasInvestButton && <InvestButton item={item} context={investContext} />}
             <BulkLabel value={bulk.value} />
-            {sellContext && <SellButton item={item} context={sellContext} />}
           </>
         }
       >
         <FullArtPanel item={item} />
+        {sellContext && (
+          <div className="mb-2">
+            <SellButton item={item} context={sellContext} />
+          </div>
+        )}
         {partyContext && (
           <div className="mb-2">
             <StashButton item={item} context={partyContext} />
@@ -237,7 +241,6 @@ export function GridTile({
               </span>
             )}
           </div>
-          {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
         <div
           ref={panelRef}
@@ -246,6 +249,11 @@ export function GridTile({
           {hasInvestButton && (
             <div className="mb-3">
               <InvestButton item={item} context={investContext} />
+            </div>
+          )}
+          {sellContext && (
+            <div className="mb-3">
+              <SellButton item={item} context={sellContext} />
             </div>
           )}
           {partyContext && (
