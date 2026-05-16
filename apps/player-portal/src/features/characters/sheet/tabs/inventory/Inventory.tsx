@@ -18,7 +18,7 @@ import {
 } from './inventory-categories';
 import { spendCoins, grantCoins, type SellContext, type InvestContext, type PartyContext } from './inventory-shop';
 import { ItemRow, GridTile } from './InventoryItemRow';
-import { CoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
+import { CoinStrip, PartyCoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
 import { PartyStash } from './PartyStash';
 
 interface Props {
@@ -211,6 +211,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
                   : {})}
               />
             )}
+            {partyId !== undefined && <PartyCoinStrip partyId={partyId} refreshKey={stashNonce} />}
             {hasSelector && (
               <ShopViewToggle
                 view={effectiveShopView}

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
 import { api } from '@/features/characters/api';
 import type { PhysicalItem, PreparedActorItem } from '@/features/characters/types';
 import { useShopMode } from '@/features/characters/sheet/hooks/useShopMode';
+import { useEventChannel } from '@/features/characters/sheet/hooks/useEventChannel';
 import { coinItemsByDenom, coinSlugFor, type Denom } from '@/features/characters/lib/coins';
 import type { ViewMode, ShopView } from './inventory-categories';
 
@@ -125,7 +126,73 @@ export function CoinStrip({
   );
 }
 
-// ─── Coin edit dialog ────────────────────────────────────────────────────────
+// ─── Party coin strip ─────────────────────────────────────────────────────────
+
+// Shows party stash coin totals next to the player's own CoinStrip. Always
+// visible regardless of which inventory tab is active so players can glance at
+// party funds without switching tabs.
+export function PartyCoinStrip({
+  partyId,
+  refreshKey,
+}: {
+  partyId: string;
+  refreshKey?: number;
+}): React.ReactElement {
+  const [totals, setTotals] = useState<Record<Denom, number>>({ pp: 0, gp: 0, sp: 0, cp: 0 });
+
+  const fetchCoins = useCallback((): void => {
+    api
+      .getPartyStash(partyId)
+      .then((data) => {
+        const t: Record<Denom, number> = { pp: 0, gp: 0, sp: 0, cp: 0 };
+        for (const item of data.items) {
+          if (item.type !== 'treasure') continue;
+          if (item.system['category'] !== 'coin') continue;
+          const slug = typeof item.system['slug'] === 'string' ? item.system['slug'] : null;
+          if (slug === null) continue;
+          const denom = COIN_SLUG_DENOM[slug];
+          if (denom === undefined) continue;
+          const qty = typeof item.system['quantity'] === 'number' ? item.system['quantity'] : 0;
+          t[denom] += qty;
+        }
+        setTotals(t);
+      })
+      .catch(() => {
+        // Silently fail — shows zeros until next successful fetch.
+      });
+  }, [partyId]);
+
+  useEffect(() => {
+    fetchCoins();
+  }, [fetchCoins, refreshKey]);
+
+  useEventChannel<{ actorId: string }>('actors', (event) => {
+    if (event.actorId === partyId) fetchCoins();
+  });
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-3 rounded border border-pf-tertiary-dark bg-pf-tertiary/20 px-3 py-2"
+      data-section="party-coins-summary"
+    >
+      <span className="text-[11px] font-semibold uppercase tracking-widest text-pf-alt-dark">Party</span>
+      {DENOMS.map((denom) => (
+        <span
+          key={denom}
+          className={[
+            'font-mono text-sm tabular-nums',
+            totals[denom] > 0 ? 'text-pf-text' : 'text-pf-text-muted',
+          ].join(' ')}
+        >
+          <strong>{totals[denom]}</strong>{' '}
+          <span className="text-[10px] uppercase tracking-wider text-pf-text-muted">{denom}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ─── Coin edit dialog ─────────────────────────────────────────────────────────
 
 function CoinEditDialog({
   items,
