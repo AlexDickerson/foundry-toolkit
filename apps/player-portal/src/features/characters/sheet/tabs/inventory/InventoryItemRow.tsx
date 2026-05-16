@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import type { PhysicalItem } from '@/features/characters/types';
 import { isContainer } from '@/features/characters/types';
 import { supportsInvestment } from '@/features/characters/lib/investment';
@@ -9,72 +8,42 @@ import { EnrichedDescription } from '@/shared/ui/EnrichedDescription';
 import type { SellContext, InvestContext, PartyContext } from './inventory-shop';
 
 // Items whose img field is a /item-art/* URL have a purchased art override.
-// Thumbnails for these get a tighter crop and become click-to-open buttons
-// that show the full uncropped art in a lightbox. The expanded details
-// panel still shows the rules text — players need to read the card.
 function hasArtOverride(img: string): boolean {
   return img.startsWith('/item-art/');
 }
 
-/** Renders the item thumbnail as a clickable button when there's an art
- *  override (opens a lightbox with the full art); plain <img> otherwise. */
+/** Thumbnail that lets the surrounding <summary> handle all click events.
+ *  Art-override items get a tighter crop so the portrait fills the small box;
+ *  the full art is shown in the expanded details panel instead of a lightbox. */
 function ItemThumb({
   item,
   sizeClass,
   containClass,
 }: {
   item: PhysicalItem;
-  /** Tailwind size + flex utilities for the thumbnail box (e.g. "h-8 w-8 flex-shrink-0"). */
   sizeClass: string;
-  /** Optional extra classes for the non-override <img> (e.g. "object-contain"
-   *  for the grid tile that uses an aspect-square wrapper). Default empty. */
   containClass?: string;
 }): React.ReactElement {
-  const [open, setOpen] = useState(false);
   const baseImgClass = `${sizeClass} rounded border border-pf-border bg-pf-bg-dark`;
-
-  if (!hasArtOverride(item.img)) {
-    return <img src={item.img} alt="" className={`${baseImgClass} ${containClass ?? ''}`} />;
+  if (hasArtOverride(item.img)) {
+    return (
+      <div className={`${sizeClass} overflow-hidden rounded border border-pf-border bg-pf-bg-dark flex-shrink-0`}>
+        <img src={item.img} alt="" className="h-full w-full scale-150 origin-top object-cover object-[center_2%]" />
+      </div>
+    );
   }
+  return <img src={item.img} alt="" className={`${baseImgClass} ${containClass ?? ''}`} />;
+}
 
+/** Shows the full art inside the expanded details panel for art-override items. */
+function FullArtPanel({ item }: { item: PhysicalItem }): React.ReactElement | null {
+  if (!hasArtOverride(item.img)) return null;
   return (
-    <>
-      <button
-        type="button"
-        onClick={(e) => {
-          // Stop the surrounding <summary> from toggling the details element.
-          e.stopPropagation();
-          e.preventDefault();
-          setOpen(true);
-        }}
-        aria-label={`View full art for ${item.name}`}
-        className={`${sizeClass} cursor-zoom-in overflow-hidden rounded border border-pf-border bg-pf-bg-dark`}
-      >
-        <img
-          src={item.img}
-          alt=""
-          className="h-full w-full scale-150 origin-top object-cover object-[center_2%]"
-        />
-      </button>
-      {open &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${item.name} – full art`}
-            className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
-            onClick={() => { setOpen(false); }}
-          >
-            <img
-              src={item.img}
-              alt={item.name}
-              className="max-h-full max-w-full rounded shadow-2xl"
-              onClick={(e) => { e.stopPropagation(); }}
-            />
-          </div>,
-          document.body,
-        )}
-    </>
+    <img
+      src={item.img}
+      alt={item.name}
+      className="mb-3 w-full rounded border border-pf-border object-contain"
+    />
   );
 }
 
@@ -132,6 +101,7 @@ export function ItemRow({
           </>
         }
       >
+        <FullArtPanel item={item} />
         {partyContext && (
           <div className="mb-2">
             <StashButton item={item} context={partyContext} />
@@ -213,9 +183,7 @@ export function GridTile({
 
   const [zIndex, setZIndex] = useState<number | undefined>(undefined);
   const [flipLeft, setFlipLeft] = useState(false);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const overrideOnImg = hasArtOverride(item.img);
 
   useLayoutEffect(() => {
     if (zIndex === undefined) {
@@ -252,16 +220,7 @@ export function GridTile({
               <img
                 src={item.img}
                 alt=""
-                onClick={
-                  overrideOnImg
-                    ? (e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setLightboxOpen(true);
-                      }
-                    : undefined
-                }
-                className={`h-full w-full ${overrideOnImg ? 'scale-150 origin-top cursor-zoom-in object-cover object-[center_2%]' : 'object-contain'}`}
+                className={`h-full w-full ${hasArtOverride(item.img) ? 'scale-150 origin-top object-cover object-[center_2%]' : 'object-contain'}`}
               />
               <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
                 <span
@@ -294,27 +253,10 @@ export function GridTile({
               <StashButton item={item} context={partyContext} />
             </div>
           )}
+          <FullArtPanel item={item} />
           <ItemDescription item={item} />
         </div>
       </details>
-      {lightboxOpen &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${item.name} – full art`}
-            className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
-            onClick={() => { setLightboxOpen(false); }}
-          >
-            <img
-              src={item.img}
-              alt={item.name}
-              className="max-h-full max-w-full rounded shadow-2xl"
-              onClick={(e) => { e.stopPropagation(); }}
-            />
-          </div>,
-          document.body,
-        )}
     </li>
   );
 }
