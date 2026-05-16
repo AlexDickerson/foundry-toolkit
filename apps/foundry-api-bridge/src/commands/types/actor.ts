@@ -111,6 +111,10 @@ export interface PreparedActorResult {
   items: ItemSummary[];
   statusEffects: StatusEffectEntry[];
   flags?: Record<string, Record<string, unknown>>;
+  /** Levels that carry a free-archetype feat slot when the free-archetype
+   *  variant rule is enabled (e.g. [2, 4, 6, 8] for a level-8 character).
+   *  Empty / absent when the variant is off. */
+  archetypeFeatLevels?: number[];
 }
 
 export interface GetStatisticTraceParams {

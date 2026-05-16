@@ -40,6 +40,11 @@ interface Props {
   /** Deserialised from `actor.flags['player-portal']['progression-picks']`.
    *  Hydrates skill-increase and ability-boost picks across page refreshes. */
   persistedPicks?: Record<string, unknown>;
+  /** Levels at which the free-archetype variant rule grants a feat slot,
+   *  e.g. [2, 4, 6, 8] for a level-8 character. Sourced from PF2e's
+   *  computed actor.feats archetype group via the prepared-actor handler;
+   *  empty/absent means the variant rule is off and no chips render. */
+  archetypeFeatLevels?: readonly number[];
 }
 
 // Levels every character can reach (pf2e core: 1-20).
@@ -71,6 +76,7 @@ export function Progression({
   characterContext,
   onActorChanged,
   persistedPicks,
+  archetypeFeatLevels,
 }: Props): React.ReactElement {
   const classItem = items.find(isClassItem);
   const [pickerTarget, setPickerTarget] = useState<{ level: number; slot: SlotType } | null>(null);
@@ -168,7 +174,7 @@ export function Progression({
       ? (((ancestryItem.system as { slug?: unknown }).slug as string | undefined) ?? ancestryItem.name.toLowerCase())
       : undefined;
   const featuresByLevel = groupFeaturesByLevel(sys.items);
-  const levelSlots = buildLevelSlotMap(sys);
+  const levelSlots = buildLevelSlotMap(sys, archetypeFeatLevels);
 
   const openPicker = (level: number, slot: SlotType): void => {
     setPickerTarget({ level, slot });
@@ -273,6 +279,7 @@ const PICKER_TITLE: Partial<Record<SlotType, string>> = {
   'ancestry-feat': 'Ancestry Feat',
   'skill-feat': 'Skill Feat',
   'general-feat': 'General Feat',
+  'archetype-feat': 'Archetype Feat',
 };
 
 function pickerTitleFor(slot: SlotType, level: number): string {
@@ -311,6 +318,8 @@ function buildPickerFilters(
       return { ...base, traits: ['skill'] };
     case 'general-feat':
       return { ...base, traits: ['general'] };
+    case 'archetype-feat':
+      return { ...base, traits: ['archetype'] };
     default:
       return null;
   }
@@ -529,6 +538,7 @@ const SLOT_LABEL: Record<SlotType, string> = {
   'general-feat': 'General Feat',
   'skill-increase': 'Skill Increase',
   'ability-boosts': 'Ability Boosts (4)',
+  'archetype-feat': 'Archetype Feat',
 };
 
 const SLOT_CLASSES: Record<SlotType, string> = {
@@ -538,6 +548,7 @@ const SLOT_CLASSES: Record<SlotType, string> = {
   'general-feat': 'border-pf-tertiary-dark bg-pf-tertiary/40 text-pf-alt-dark',
   'skill-increase': 'border-pf-prof-expert bg-pf-prof-expert/10 text-pf-prof-expert',
   'ability-boosts': 'border-pf-rarity-unique bg-pf-rarity-unique/10 text-pf-rarity-unique',
+  'archetype-feat': 'border-pf-rarity-rare bg-pf-rarity-rare/10 text-pf-rarity-rare',
 };
 
 const CLICKABLE_SLOTS: ReadonlySet<SlotType> = new Set([
@@ -547,6 +558,7 @@ const CLICKABLE_SLOTS: ReadonlySet<SlotType> = new Set([
   'general-feat',
   'skill-increase',
   'ability-boosts',
+  'archetype-feat',
 ]);
 
 function SlotChips({

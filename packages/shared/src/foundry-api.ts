@@ -100,6 +100,10 @@ export interface PreparedActor {
    *  uploaded background image path) under the `character-creator`
    *  scope. Missing when the bridge/mock doesn't surface them. */
   flags?: Record<string, Record<string, unknown>>;
+  /** Levels that carry a free-archetype feat slot, e.g. [2, 4, 6, 8] for a
+   *  level-8 character with the free-archetype variant enabled. Absent when
+   *  the variant rule is off or the bridge hasn't surfaced the data yet. */
+  archetypeFeatLevels?: number[];
 }
 
 /** POST /api/uploads response — the relative path the file was written

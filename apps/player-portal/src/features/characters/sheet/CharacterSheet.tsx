@@ -246,6 +246,9 @@ function CharacterSheetInner({ actorId, onBack, preferences }: InnerProps): Reac
                 {...(state.actor.flags?.['player-portal']?.['progression-picks'] !== undefined
                   ? { persistedPicks: state.actor.flags['player-portal']['progression-picks'] as Record<string, unknown> }
                   : {})}
+                {...(state.actor.archetypeFeatLevels !== undefined
+                  ? { archetypeFeatLevels: state.actor.archetypeFeatLevels }
+                  : {})}
               />
             )}
             {activeTab === 'details' && (
