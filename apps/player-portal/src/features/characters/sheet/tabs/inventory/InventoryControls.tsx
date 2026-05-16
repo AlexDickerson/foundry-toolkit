@@ -443,7 +443,7 @@ function CoinTransferDialog({
               return (
                 <div key={denom} className="flex items-center gap-2 text-xs">
                   <span className="w-6 font-semibold uppercase tracking-wider text-pf-alt-dark">{denom}</span>
-                  <span className="w-16 text-right font-mono tabular-nums text-pf-text-muted">
+                  <span className="shrink-0 whitespace-nowrap text-right font-mono tabular-nums text-pf-text-muted">
                     {avail.toString()} avail
                   </span>
                   <input
