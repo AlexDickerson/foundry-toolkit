@@ -18,7 +18,7 @@ import {
 } from './inventory-categories';
 import { spendCoins, grantCoins, type SellContext, type InvestContext, type PartyContext } from './inventory-shop';
 import { ItemRow, GridTile } from './InventoryItemRow';
-import { CoinStrip, PartyCoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
+import { CoinStrip, CoinTransferButton, PartyCoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
 import { PartyStash } from './PartyStash';
 
 interface Props {
@@ -209,6 +209,17 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
                 {...(canTransact
                   ? { actorId, items, onActorChanged, onError: setTxError }
                   : {})}
+              />
+            )}
+            {partyId !== undefined && canTransact && actorId !== undefined && onActorChanged !== undefined && (
+              <CoinTransferButton
+                actorId={actorId}
+                partyId={partyId}
+                items={items}
+                onActorChanged={onActorChanged}
+                onStashChanged={(): void => {
+                  setStashNonce((n) => n + 1);
+                }}
               />
             )}
             {partyId !== undefined && <PartyCoinStrip partyId={partyId} refreshKey={stashNonce} />}

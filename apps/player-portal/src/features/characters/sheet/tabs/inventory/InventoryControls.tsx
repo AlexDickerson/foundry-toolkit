@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
+import { ArrowLeftRight, LayoutGrid, List, Settings, ShoppingBag, UserRound, UsersRound } from 'lucide-react';
 import { api } from '@/features/characters/api';
 import type { PhysicalItem, PreparedActorItem } from '@/features/characters/types';
 import { useShopMode } from '@/features/characters/sheet/hooks/useShopMode';
@@ -244,6 +244,252 @@ export function PartyCoinStrip({
         ))}
       </div>
     </>
+  );
+}
+
+// ─── Coin transfer button + dialog ───────────────────────────────────────────
+
+// Button rendered between the player and party coin strips. Opens a modal that
+// lets the player move coins in either direction.
+export function CoinTransferButton({
+  actorId,
+  partyId,
+  items,
+  onActorChanged,
+  onStashChanged,
+}: {
+  actorId: string;
+  partyId: string;
+  items: readonly PreparedActorItem[];
+  onActorChanged: () => void;
+  onStashChanged: () => void;
+}): React.ReactElement {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Move coins between player and party"
+        onClick={(): void => {
+          setOpen(true);
+        }}
+        className="rounded border border-pf-border bg-pf-bg p-1.5 text-pf-text-muted hover:bg-pf-bg-dark hover:text-pf-text"
+      >
+        <ArrowLeftRight size={14} />
+      </button>
+      {open && (
+        <CoinTransferDialog
+          actorId={actorId}
+          partyId={partyId}
+          playerItems={items}
+          onClose={(): void => {
+            setOpen(false);
+          }}
+          onSuccess={(): void => {
+            onActorChanged();
+            onStashChanged();
+            setOpen(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function CoinTransferDialog({
+  actorId,
+  partyId,
+  playerItems,
+  onClose,
+  onSuccess,
+}: {
+  actorId: string;
+  partyId: string;
+  playerItems: readonly PreparedActorItem[];
+  onClose: () => void;
+  onSuccess: () => void;
+}): React.ReactElement {
+  const [direction, setDirection] = useState<'to-party' | 'from-party'>('to-party');
+  const [amounts, setAmounts] = useState<Record<Denom, string>>({ pp: '', gp: '', sp: '', cp: '' });
+  const [partySlots, setPartySlots] = useState<Partial<Record<Denom, PartyCoinSlot>>>({});
+  const [applying, setApplying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .getPartyStash(partyId)
+      .then((data) => {
+        const next: Partial<Record<Denom, PartyCoinSlot>> = {};
+        for (const item of data.items) {
+          if (item.type !== 'treasure') continue;
+          if (item.system['category'] !== 'coin') continue;
+          const slug = typeof item.system['slug'] === 'string' ? item.system['slug'] : null;
+          if (slug === null) continue;
+          const denom = COIN_SLUG_DENOM[slug];
+          if (denom === undefined || next[denom] !== undefined) continue;
+          const qty = typeof item.system['quantity'] === 'number' ? item.system['quantity'] : 0;
+          next[denom] = { id: item.id, qty };
+        }
+        setPartySlots(next);
+      })
+      .catch(() => {
+        /* ignore — party shows zero */
+      });
+  }, [partyId]);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return (): void => {
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [onClose]);
+
+  const playerCoinItems = coinItemsByDenom(playerItems);
+  const playerQty = (d: Denom): number => playerCoinItems[d]?.system.quantity ?? 0;
+  const partyQty = (d: Denom): number => partySlots[d]?.qty ?? 0;
+  const sourceQty = (d: Denom): number => (direction === 'to-party' ? playerQty(d) : partyQty(d));
+
+  // Parse non-empty inputs; accumulate first validation error.
+  const parsedAmounts: Partial<Record<Denom, number>> = {};
+  let validationError: string | null = null;
+  for (const denom of DENOMS) {
+    const text = amounts[denom].trim();
+    if (text === '' || text === '0') continue;
+    const n = parseInt(text, 10);
+    if (!Number.isInteger(n) || n <= 0) {
+      validationError = `${denom}: enter a positive whole number.`;
+      break;
+    }
+    if (n > sourceQty(denom)) {
+      const src = direction === 'to-party' ? 'You only have' : 'Party only has';
+      validationError = `${src} ${sourceQty(denom).toString()} ${denom}.`;
+      break;
+    }
+    parsedAmounts[denom] = n;
+  }
+  const hasChanges = Object.keys(parsedAmounts).length > 0;
+  const canApply = hasChanges && validationError === null && !applying;
+
+  const handleApply = async (): Promise<void> => {
+    setError(null);
+    setApplying(true);
+    try {
+      for (const denom of DENOMS) {
+        const n = parsedAmounts[denom];
+        if (n === undefined) continue;
+        if (direction === 'to-party') {
+          const itemId = playerCoinItems[denom]?.id;
+          if (itemId !== undefined) await api.transferItemToParty(actorId, itemId, partyId, n);
+        } else {
+          const slot = partySlots[denom];
+          if (slot !== undefined) await api.takeItemFromParty(partyId, slot.id, actorId, n);
+        }
+      }
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setApplying(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Move coins"
+      onClick={onClose}
+    >
+      <div
+        className="flex w-full max-w-xs flex-col overflow-hidden rounded border border-pf-border bg-pf-bg shadow-2xl"
+        onClick={(e): void => {
+          e.stopPropagation();
+        }}
+      >
+        <div className="px-5 py-4">
+          <h2 className="text-sm font-semibold text-pf-text">Move coins</h2>
+          <div className="mt-3 flex overflow-hidden rounded border border-pf-border text-[11px] font-semibold">
+            <button
+              type="button"
+              onClick={(): void => {
+                setDirection('to-party');
+              }}
+              className={[
+                'flex-1 py-1.5 transition-colors',
+                direction === 'to-party' ? 'bg-pf-primary text-white' : 'bg-pf-bg text-pf-text hover:bg-pf-bg-dark',
+              ].join(' ')}
+            >
+              You → Party
+            </button>
+            <button
+              type="button"
+              onClick={(): void => {
+                setDirection('from-party');
+              }}
+              className={[
+                'flex-1 py-1.5 transition-colors',
+                direction === 'from-party' ? 'bg-pf-primary text-white' : 'bg-pf-bg text-pf-text hover:bg-pf-bg-dark',
+              ].join(' ')}
+            >
+              Party → You
+            </button>
+          </div>
+          <div className="mt-3 space-y-2">
+            {DENOMS.map((denom) => {
+              const avail = sourceQty(denom);
+              return (
+                <div key={denom} className="flex items-center gap-2 text-xs">
+                  <span className="w-6 font-semibold uppercase tracking-wider text-pf-alt-dark">{denom}</span>
+                  <span className="w-16 text-right font-mono tabular-nums text-pf-text-muted">
+                    {avail.toString()} avail
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={avail}
+                    disabled={avail === 0}
+                    placeholder="0"
+                    aria-label={`${denom} amount`}
+                    value={amounts[denom]}
+                    onChange={(e): void => {
+                      setAmounts((prev) => ({ ...prev, [denom]: e.target.value }));
+                    }}
+                    className="w-20 rounded border border-pf-border bg-pf-bg px-2 py-1 text-center font-mono text-pf-text disabled:opacity-40"
+                  />
+                </div>
+              );
+            })}
+          </div>
+          {(error ?? validationError) !== null && (
+            <p className="mt-3 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800">
+              {error ?? validationError}
+            </p>
+          )}
+        </div>
+        <footer className="flex items-center justify-end gap-2 border-t border-pf-border bg-pf-bg-dark/60 px-4 py-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded border border-pf-border bg-pf-bg px-3 py-1.5 text-sm text-pf-text hover:bg-pf-bg-dark"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canApply}
+            onClick={(): void => {
+              void handleApply();
+            }}
+            className="rounded border border-pf-primary bg-pf-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-pf-primary-dark disabled:opacity-50"
+          >
+            {applying ? 'Moving…' : 'Move'}
+          </button>
+        </footer>
+      </div>
+    </div>
   );
 }
 
