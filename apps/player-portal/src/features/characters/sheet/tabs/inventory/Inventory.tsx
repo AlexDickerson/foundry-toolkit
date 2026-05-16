@@ -238,7 +238,6 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
             <PartyStash
               partyId={partyId}
               refreshKey={stashNonce}
-              playerItems={items}
               {...(actorId !== undefined ? { actorId } : {})}
               {...(onActorChanged !== undefined ? { onActorChanged } : {})}
             />
