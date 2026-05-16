@@ -283,18 +283,24 @@ function supportsEquip(item: PhysicalItem): boolean {
 function EquipButton({ item, context }: { item: PhysicalItem; context: EquipContext }): React.ReactElement {
   const busy = context.pending.has(item.id);
   const eq = item.system.equipped;
-  const equipped =
-    (item.type === 'armor' || item.type === 'backpack') ? eq.inSlot === true : (eq.handsHeld ?? 0) > 0;
+  const isSlotItem = item.type === 'armor' || item.type === 'backpack';
+  const handsHeld = eq.handsHeld ?? 0;
+  const equipped = isSlotItem ? eq.inSlot === true : handsHeld > 0;
+  // Weapons with a two-hand-* trait cycle stowed → 1H → 2H → stowed.
+  const hasTwoHand =
+    item.type === 'weapon' && item.system.traits.value.some((t) => t.startsWith('two-hand'));
 
   let label: string;
   if (busy) {
-    label = equipped ? 'Removing…' : 'Equipping…';
-  } else if (item.type === 'weapon' || item.type === 'shield') {
-    label = equipped ? 'Stow' : 'Hold';
-  } else if (item.type === 'backpack') {
-    label = equipped ? 'Remove' : 'Wear';
+    label = 'Updating…';
+  } else if (isSlotItem) {
+    label = equipped ? 'Remove' : item.type === 'backpack' ? 'Wear' : 'Equip';
+  } else if (handsHeld === 0) {
+    label = 'Hold';
+  } else if (handsHeld === 1 && hasTwoHand) {
+    label = '2H';
   } else {
-    label = equipped ? 'Remove' : 'Equip';
+    label = 'Stow';
   }
 
   return (
@@ -308,7 +314,7 @@ function EquipButton({ item, context }: { item: PhysicalItem; context: EquipCont
         void context.onToggle(item);
       }}
       aria-pressed={equipped}
-      aria-label={equipped ? `Unequip ${item.name}` : `Equip ${item.name}`}
+      aria-label={label}
       className={[
         'shrink-0 rounded border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
         busy

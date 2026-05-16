@@ -156,11 +156,17 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
     setPendingEquips((prev) => new Set(prev).add(item.id));
     try {
       const eq = item.system.equipped;
-      const isArmourSlot = item.type === 'armor' || item.type === 'backpack';
-      const currentlyEquipped = isArmourSlot ? eq.inSlot === true : (eq.handsHeld ?? 0) > 0;
-      const patch: Record<string, unknown> = isArmourSlot
-        ? { 'equipped.inSlot': !currentlyEquipped, 'equipped.carryType': currentlyEquipped ? 'stowed' : 'worn' }
-        : { 'equipped.handsHeld': currentlyEquipped ? 0 : 1, 'equipped.carryType': currentlyEquipped ? 'stowed' : 'held' };
+      const isSlotItem = item.type === 'armor' || item.type === 'backpack';
+      let patch: Record<string, unknown>;
+      if (isSlotItem) {
+        const worn = eq.inSlot === true;
+        patch = { 'equipped.inSlot': !worn, 'equipped.carryType': worn ? 'stowed' : 'worn' };
+      } else {
+        const handsHeld = eq.handsHeld ?? 0;
+        const hasTwoHand = item.type === 'weapon' && item.system.traits.value.some((t) => t.startsWith('two-hand'));
+        const nextHands = handsHeld === 0 ? 1 : handsHeld === 1 && hasTwoHand ? 2 : 0;
+        patch = { 'equipped.handsHeld': nextHands, 'equipped.carryType': nextHands > 0 ? 'held' : 'stowed' };
+      }
       await api.updateActorItem(actorId, item.id, { system: patch });
       onActorChanged();
     } catch (err) {
