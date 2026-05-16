@@ -2,6 +2,7 @@ import { api } from '@/features/characters/api';
 import type { AbilityKey, CompendiumMatch } from '@/features/characters/types';
 import { ABILITY_KEYS } from '@/features/characters/types';
 import { BOOSTS_REQUIRED, EMPTY_DRAFT, STATIC_PICKER_FILTERS } from './constants';
+import { spellcastingConfigFor, sorcererBloodlineSlugFromItems } from './spellcastingConfig';
 import type { Draft, PickerFilters, PickerTarget, Slot, Step } from './types';
 
 // Module-scoped so React 18 StrictMode's dev-only double-mount
@@ -159,11 +160,19 @@ export async function persistPick(
       });
     }
   }
-  if (target === 'class' && draft.classFeat !== null) {
+  if (target === 'class') {
     // Same rationale for class feat when the class changes.
-    await api.deleteActorItem(actorId, draft.classFeat.itemId).catch(() => {
-      /* ignore */
-    });
+    if (draft.classFeat !== null) {
+      await api.deleteActorItem(actorId, draft.classFeat.itemId).catch(() => {
+        /* ignore */
+      });
+    }
+    // Delete the stale spellcasting entry so the new class gets a clean slate.
+    if (draft.spellcastingEntryId !== null) {
+      await api.deleteActorItem(actorId, draft.spellcastingEntryId).catch(() => {
+        /* ignore */
+      });
+    }
   }
   return { match, itemId: created.id };
 }
@@ -195,6 +204,7 @@ export function applyPickedSlot(draft: Draft, target: PickerTarget, slot: Slot):
       // New class wipes the cached slug + class feat + key attribute
       // pick for the same reason. Skill picks also reset since the
       // free-skill count (class.additional) is class-specific.
+      // spellcastingEntryId resets so the creation useEffect fires again.
       return {
         ...draft,
         class: slot,
@@ -203,6 +213,7 @@ export function applyPickedSlot(draft: Draft, target: PickerTarget, slot: Slot):
         classKeyAbility: null,
         skillPicks: [],
         classGrantsL1Feat: null,
+        spellcastingEntryId: null,
       };
     case 'background':
       return { ...draft, background: slot, backgroundBoosts: [] };
@@ -213,6 +224,32 @@ export function applyPickedSlot(draft: Draft, target: PickerTarget, slot: Slot):
     case 'ancestry-feat':
       return { ...draft, ancestryFeat: slot };
   }
+}
+
+// Creates the spellcasting entry for Sorcerer (and future variable-tradition
+// classes like Witch) once the user's subclass ChoiceSet has been resolved.
+// Called at handleFinish time so the bloodline item is guaranteed to be on
+// the actor. Skips silently if the entry already exists or the bloodline
+// hasn't been picked yet.
+export async function resolveVariableTraditionEntry(actorId: string, draft: Draft): Promise<void> {
+  if (draft.classSlug !== 'sorcerer') return;
+  if (draft.spellcastingEntryId !== null) return;
+
+  const actor = await api.getPreparedActor(actorId);
+
+  // Guard against duplicate creation (e.g. re-submitting the same character).
+  if (actor.items.some((i) => i.type === 'spellcastingEntry')) return;
+
+  const bloodlineSlug = sorcererBloodlineSlugFromItems(actor.items);
+  if (bloodlineSlug === undefined) return;
+
+  const config = spellcastingConfigFor('sorcerer', bloodlineSlug);
+  if (config === null) return;
+
+  await api.createSpellcastingEntry(actorId, {
+    name: draft.class?.match.name ?? 'Sorcerer',
+    ...config,
+  });
 }
 
 // Used by SkillsStep and ReviewStep. Pretty-prints `acrobatics` →
@@ -409,6 +446,8 @@ export async function hydrateFromActor(actorId: string): Promise<HydrateResult> 
       } else if (location === 'ancestry-1' && draft.ancestryFeat === null) {
         draft.ancestryFeat = { match, itemId: item.id };
       }
+    } else if (item.type === 'spellcastingEntry' && draft.spellcastingEntryId === null) {
+      draft.spellcastingEntryId = item.id;
     }
   }
 

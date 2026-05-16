@@ -7,6 +7,7 @@ export { fetchAssetHandler } from '@/commands/handlers/FetchAssetHandler';
 export {
   createActorHandler,
   createActorFromCompendiumHandler,
+  createSpellcastingEntryHandler,
   updateActorHandler,
   deleteActorHandler,
   invokeActorActionHandler,

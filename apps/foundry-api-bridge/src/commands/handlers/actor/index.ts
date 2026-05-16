@@ -1,4 +1,5 @@
 export { createActorHandler } from './CreateActorHandler';
+export { createSpellcastingEntryHandler } from './CreateSpellcastingEntryHandler';
 export { createActorFromCompendiumHandler } from './CreateActorFromCompendiumHandler';
 export { updateActorHandler } from './UpdateActorHandler';
 export { deleteActorHandler } from './DeleteActorHandler';

@@ -220,3 +220,11 @@ export interface WorldInfoResult {
   counts: WorldCounts;
   compendiumMeta: CompendiumMetaSummary[];
 }
+
+export interface CreateSpellcastingEntryParams {
+  actorId: string;
+  name: string;
+  tradition: string;
+  prepared: string;
+  ability: string;
+}

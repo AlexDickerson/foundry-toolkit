@@ -26,6 +26,7 @@ export const EMPTY_DRAFT: Draft = {
   languagePicks: [],
   classGrantsL1Feat: null,
   languageAllowance: null,
+  spellcastingEntryId: null,
 };
 
 export const STEPS: readonly Step[] = [

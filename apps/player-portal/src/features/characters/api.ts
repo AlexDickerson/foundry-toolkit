@@ -5,6 +5,7 @@ import type {
   AdjustActorConditionResponse,
   AdjustActorResourceResponse,
   CreateActorBody,
+  CreateSpellcastingEntryBody,
   DispatchRequest,
   DispatchResponse,
   PartyForMember,
@@ -83,6 +84,8 @@ export const api = {
     request<ActorRef>(`/actors/${id}`, { method: 'PATCH', body: patch }),
   addItemFromCompendium: (id: string, body: AddItemFromCompendiumBody): Promise<ActorItemRef> =>
     request<ActorItemRef>(`/actors/${id}/items/from-compendium`, { method: 'POST', body }),
+  createSpellcastingEntry: (id: string, body: CreateSpellcastingEntryBody): Promise<ActorItemRef> =>
+    request<ActorItemRef>(`/actors/${id}/spellcasting-entry`, { method: 'POST', body }),
   deleteActorItem: (id: string, itemId: string): Promise<{ success: boolean }> =>
     request<{ success: boolean }>(`/actors/${id}/items/${itemId}`, { method: 'DELETE' }),
   updateActorItem: (id: string, itemId: string, patch: UpdateActorItemBody): Promise<ActorItemRef> =>

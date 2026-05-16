@@ -20,8 +20,10 @@ import {
   isStepFilled,
   persistPick,
   resetPendingActor,
+  resolveVariableTraditionEntry,
   saveDraftFlags,
 } from '@/features/characters/creator/helpers';
+import { spellcastingConfigFor } from '@/features/characters/creator/spellcastingConfig';
 import { PickerCard } from '@/features/characters/creator/PickerCard';
 import { AncestryStep } from '@/features/characters/creator/steps/AncestryStep';
 import { AttributesStep } from '@/features/characters/creator/steps/AttributesStep';
@@ -151,9 +153,14 @@ export function CharacterCreator(): React.ReactElement {
     // finds creatorDraft and can do a full restore. The isSaving flag
     // disables the button to prevent double-clicks.
     setIsSaving(true);
-    saveDraftFlags(actorId, draft, 'completed')
+    // For variable-tradition classes (Sorcerer), create the entry now that
+    // all ChoiceSets should have been resolved and the bloodline is on actor.
+    const ensureVariableEntry = resolveVariableTraditionEntry(actorId, draft).catch(() => {
+      /* best-effort */
+    });
+    Promise.all([saveDraftFlags(actorId, draft, 'completed'), ensureVariableEntry])
       .catch(() => {
-        /* best-effort — navigate regardless if the write fails */
+        /* best-effort — navigate regardless if either write fails */
       })
       .finally(() => {
         setIsSaving(false);
@@ -253,6 +260,35 @@ export function CharacterCreator(): React.ReactElement {
       cancelled = true;
     };
   }, [draft.class, draft.classSlug]);
+
+  // Once the class slug is known, create the spellcastingEntry embedded item
+  // for classes with a fixed tradition. Variable-tradition classes (Sorcerer,
+  // Witch) are handled at handleFinish time after the subclass ChoiceSet
+  // resolves and the bloodline/patron item is on the actor.
+  useEffect(() => {
+    if (actorId === null || draft.classSlug === null || draft.class === null) return;
+    if (draft.spellcastingEntryId !== null) return;
+    const config = spellcastingConfigFor(draft.classSlug);
+    if (config === null) return;
+    const className = draft.class.match.name;
+    const classSlugSnap = draft.classSlug;
+    let cancelled = false;
+    void api
+      .createSpellcastingEntry(actorId, { name: className, ...config })
+      .then(({ id }) => {
+        if (cancelled) return;
+        setDraft((d) =>
+          d.classSlug === classSlugSnap && d.spellcastingEntryId === null ? { ...d, spellcastingEntryId: id } : d,
+        );
+      })
+      .catch(() => {
+        // Best-effort — the sheet is usable without the entry; the player
+        // can initialize spellcasting manually via Foundry's sheet UI.
+      });
+    return (): void => {
+      cancelled = true;
+    };
+  }, [actorId, draft.classSlug, draft.spellcastingEntryId, draft.class]);
 
   const pickerFilters = openPicker !== null ? filtersForTarget(openPicker, draft) : undefined;
 

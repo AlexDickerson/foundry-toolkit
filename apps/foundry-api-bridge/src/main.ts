@@ -19,6 +19,7 @@ import {
   fetchAssetHandler,
   createActorHandler,
   createActorFromCompendiumHandler,
+  createSpellcastingEntryHandler,
   updateActorHandler,
   deleteActorHandler,
   invokeActorActionHandler,
@@ -252,6 +253,7 @@ function initializeWebSocket(
   commandRouter.register('activate-item', activateItemHandler);
   commandRouter.register('add-item-to-actor', addItemToActorHandler);
   commandRouter.register('add-item-from-compendium', addItemFromCompendiumHandler);
+  commandRouter.register('create-spellcasting-entry', createSpellcastingEntryHandler);
   commandRouter.register('update-actor-item', updateActorItemHandler);
   commandRouter.register('delete-actor-item', deleteActorItemHandler);
 
