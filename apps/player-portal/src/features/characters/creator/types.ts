@@ -90,6 +90,13 @@ export interface Draft {
   // `ancestry.system.alternateAncestryBoosts` (presence/absence drives
   // pf2e's prepare-step branching).
   alternateAncestryBoosts: AbilityKey[] | null;
+  // Item ID of the spellcastingEntry embedded on the actor, if one has
+  // been created for the current class pick. Null for non-casters, for
+  // variable-tradition casters (Sorcerer, Witch) before their subclass
+  // choice resolves, and for the legacy "no entry" state. Tracked so
+  // that a class change can delete the stale entry before creating a
+  // new one.
+  spellcastingEntryId: string | null;
 }
 
 // Actor lifecycle: wizard opens → creating → ready (actor exists in

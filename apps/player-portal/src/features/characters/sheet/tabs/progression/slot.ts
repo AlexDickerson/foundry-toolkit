@@ -11,7 +11,8 @@ export type SlotType =
   | 'skill-feat'
   | 'general-feat'
   | 'skill-increase'
-  | 'ability-boosts';
+  | 'ability-boosts'
+  | 'archetype-feat';
 
 /** Composite key encoding both the level and the slot kind. */
 export type SlotKey = string;
@@ -55,6 +56,7 @@ const FEAT_SLOT_LOCATION_PREFIX: Partial<Record<SlotType, string>> = {
   'ancestry-feat': 'ancestry',
   'skill-feat': 'skill',
   'general-feat': 'general',
+  'archetype-feat': 'archetype',
 };
 
 export function featSlotLocationFor(slot: SlotType, level: number): string | null {
@@ -69,22 +71,31 @@ export function featSlotLocationFor(slot: SlotType, level: number): string | nul
  * are deliberately left unhandled because they don't fit the level chassis.
  */
 export function parseFeatLocation(location: string): { slot: SlotType; level: number } | null {
-  const match = /^(ancestry|class|skill|general)-(\d+)$/.exec(location);
+  const match = /^(ancestry|class|skill|general|archetype)-(\d+)$/.exec(location);
   if (!match) return null;
   const level = Number(match[2]);
   if (!Number.isFinite(level) || level < 1) return null;
-  const prefix = match[1] as 'ancestry' | 'class' | 'skill' | 'general';
-  return { slot: `${prefix}-feat`, level };
+  const prefix = match[1] as 'ancestry' | 'class' | 'skill' | 'general' | 'archetype';
+  return { slot: prefix === 'archetype' ? 'archetype-feat' : `${prefix}-feat`, level };
 }
 
 /**
  * For each level 1-20, the ordered list of slot types the character opens
  * at that level. Order is render-order: class feats first (most
  * character-defining), ability boosts last (collapsed into a single chip).
+ *
+ * `archetypeFeatLevels` (optional) injects free-archetype slots at the
+ * levels supplied by PF2e's prepared `actor.feats` archetype group. When
+ * absent or empty, no archetype chips render — matching variant-disabled
+ * worlds.
  */
-export function buildLevelSlotMap(sys: ClassItem['system']): Map<number, readonly SlotType[]> {
+export function buildLevelSlotMap(
+  sys: ClassItem['system'],
+  archetypeFeatLevels: readonly number[] = [],
+): Map<number, readonly SlotType[]> {
   const rules: Array<[SlotType, readonly number[]]> = [
     ['class-feat', sys.classFeatLevels.value],
+    ['archetype-feat', archetypeFeatLevels],
     ['ancestry-feat', sys.ancestryFeatLevels.value],
     ['skill-feat', sys.skillFeatLevels.value],
     ['general-feat', sys.generalFeatLevels.value],

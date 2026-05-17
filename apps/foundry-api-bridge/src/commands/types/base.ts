@@ -28,6 +28,7 @@ import type {
   GetPartyStashResult,
   GetWorldInfoParams,
   WorldInfoResult,
+  CreateSpellcastingEntryParams,
 } from './actor';
 
 import type { SendChatMessageParams, SendChatMessageResult } from './chat';
@@ -236,6 +237,7 @@ export type CommandType =
   | 'use-item'
   | 'add-item-to-actor'
   | 'add-item-from-compendium'
+  | 'create-spellcasting-entry'
   | 'update-actor-item'
   | 'delete-actor-item'
   | 'get-actor-effects'
@@ -334,6 +336,7 @@ export interface CommandParamsMap {
   'use-item': UseItemParams;
   'add-item-to-actor': AddItemToActorParams;
   'add-item-from-compendium': AddItemFromCompendiumParams;
+  'create-spellcasting-entry': CreateSpellcastingEntryParams;
   'update-actor-item': UpdateActorItemParams;
   'delete-actor-item': DeleteActorItemParams;
   'get-actor-effects': GetActorEffectsParams;
@@ -433,6 +436,7 @@ export interface CommandResultMap {
   'use-item': UseItemResult;
   'add-item-to-actor': ItemResult;
   'add-item-from-compendium': ItemResult;
+  'create-spellcasting-entry': ItemResult;
   'update-actor-item': ItemResult;
   'delete-actor-item': DeleteResult;
   'get-actor-effects': ActorEffectsResult;

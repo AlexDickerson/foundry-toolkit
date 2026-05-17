@@ -15,6 +15,17 @@ interface ActorItemsCollection {
   forEach(fn: (item: ActorItem) => void): void;
 }
 
+// Minimal shape of a PF2e feat group entry, typed just enough for the
+// archetype-slot extraction below. `slots` is a Record keyed by slot id
+// (e.g. "archetype-2") when the free-archetype variant rule is active.
+interface FeatGroupSlot {
+  level?: number;
+}
+interface FeatGroup {
+  label?: string;
+  slots?: Record<string, FeatGroupSlot>;
+}
+
 interface FoundryActor extends ToObjectable {
   id: string;
   uuid: string;
@@ -22,6 +33,7 @@ interface FoundryActor extends ToObjectable {
   type: string;
   img: string | undefined;
   items: ActorItemsCollection;
+  feats?: Iterable<FeatGroup>;
 }
 
 interface ActorsCollection {
@@ -109,6 +121,23 @@ export function getPreparedActorHandler(params: GetActorParams): Promise<Prepare
 
   const snapshot = actor.toObject(false);
 
+  // Extract archetype feat slot levels from PF2e's computed feat groups.
+  // The free-archetype variant causes PF2e to add an "ArchetypeHeader"
+  // group to actor.feats with slots keyed "archetype-2", "archetype-4",
+  // etc. When the variant is disabled the group is absent, so this array
+  // comes back empty and the Progression tab shows no archetype slots.
+  const archetypeFeatLevels: number[] = [];
+  if (actor.feats) {
+    for (const group of actor.feats) {
+      if (typeof group.label === 'string' && group.label.includes('Archetype') && group.slots) {
+        for (const slot of Object.values(group.slots)) {
+          if (typeof slot.level === 'number') archetypeFeatLevels.push(slot.level);
+        }
+        break;
+      }
+    }
+  }
+
   return Promise.resolve({
     id: actor.id,
     uuid: actor.uuid,
@@ -119,5 +148,6 @@ export function getPreparedActorHandler(params: GetActorParams): Promise<Prepare
     items,
     statusEffects,
     flags: snapshot.flags ?? {},
+    ...(archetypeFeatLevels.length > 0 ? { archetypeFeatLevels } : {}),
   });
 }

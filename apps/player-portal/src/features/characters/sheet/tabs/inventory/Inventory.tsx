@@ -16,9 +16,9 @@ import {
   type ShopView,
   groupByCategory,
 } from './inventory-categories';
-import { spendCoins, grantCoins, type SellContext, type InvestContext, type PartyContext } from './inventory-shop';
+import { spendCoins, grantCoins, type SellContext, type InvestContext, type PartyContext, type EquipContext } from './inventory-shop';
 import { ItemRow, GridTile } from './InventoryItemRow';
-import { CoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
+import { CoinStrip, CoinTransferButton, PartyCoinStrip, ViewToggle, ShopViewToggle, ShopGearMenu } from './InventoryControls';
 import { PartyStash } from './PartyStash';
 
 interface Props {
@@ -54,6 +54,7 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
   const [pendingSells, setPendingSells] = useState<Set<string>>(new Set());
   const [pendingInvestments, setPendingInvestments] = useState<Set<string>>(new Set());
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
+  const [pendingEquips, setPendingEquips] = useState<Set<string>>(new Set());
   const [stashNonce, setStashNonce] = useState(0);
   const [txError, setTxError] = useState<string | null>(null);
   const shopMode = useShopMode();
@@ -149,6 +150,36 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
     }
   };
 
+  const handleToggleEquip = async (item: PhysicalItem): Promise<void> => {
+    if (!canTransact) return;
+    setTxError(null);
+    setPendingEquips((prev) => new Set(prev).add(item.id));
+    try {
+      const eq = item.system.equipped;
+      const isSlotItem = item.type === 'armor' || item.type === 'backpack';
+      let patch: Record<string, unknown>;
+      if (isSlotItem) {
+        const worn = eq.inSlot === true;
+        patch = { 'equipped.inSlot': !worn, 'equipped.carryType': worn ? 'stowed' : 'worn' };
+      } else {
+        const handsHeld = eq.handsHeld ?? 0;
+        const hasTwoHand = item.type === 'weapon' && item.system.traits.value.some((t) => t.startsWith('two-hand'));
+        const nextHands = handsHeld === 0 ? 1 : handsHeld === 1 && hasTwoHand ? 2 : 0;
+        patch = { 'equipped.handsHeld': nextHands, 'equipped.carryType': nextHands > 0 ? 'held' : 'stowed' };
+      }
+      await api.updateActorItem(actorId, item.id, { system: patch });
+      onActorChanged();
+    } catch (err) {
+      setTxError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPendingEquips((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
   const physical = items.filter(isPhysicalItem);
   const investedCount = physical.filter((i) => supportsInvestment(i) && i.system.equipped.invested === true).length;
 
@@ -211,6 +242,18 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
                   : {})}
               />
             )}
+            {partyId !== undefined && canTransact && actorId !== undefined && onActorChanged !== undefined && (
+              <CoinTransferButton
+                actorId={actorId}
+                partyId={partyId}
+                items={items}
+                onActorChanged={onActorChanged}
+                onStashChanged={(): void => {
+                  setStashNonce((n) => n + 1);
+                }}
+              />
+            )}
+            {partyId !== undefined && <PartyCoinStrip partyId={partyId} refreshKey={stashNonce} />}
             {hasSelector && (
               <ShopViewToggle
                 view={effectiveShopView}
@@ -237,7 +280,6 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
             <PartyStash
               partyId={partyId}
               refreshKey={stashNonce}
-              playerItems={items}
               {...(actorId !== undefined ? { actorId } : {})}
               {...(onActorChanged !== undefined ? { onActorChanged } : {})}
             />
@@ -272,6 +314,9 @@ export function Inventory({ items, actorId, onActorChanged, investiture, partyId
                   ? { partyId, pending: pendingTransfers, onTransfer: handleTransferToParty }
                   : undefined
               }
+              equipContext={
+                canTransact ? { pending: pendingEquips, onToggle: handleToggleEquip } : undefined
+              }
             />
           )}
         </>
@@ -295,6 +340,7 @@ function CategorizedInventory({
   sellContext,
   investContext,
   partyContext,
+  equipContext,
 }: {
   view: ViewMode;
   tileColumns: number;
@@ -304,6 +350,7 @@ function CategorizedInventory({
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
   partyContext: PartyContext | undefined;
+  equipContext: EquipContext | undefined;
 }): React.ReactElement {
   const buckets = view === 'list' ? topLevelByCategory : allByCategory;
   const presentCategories = CATEGORY_ORDER.filter((c) => (buckets.get(c)?.length ?? 0) > 0);
@@ -327,6 +374,7 @@ function CategorizedInventory({
                     sellContext={sellContext}
                     investContext={investContext}
                     partyContext={partyContext}
+                    equipContext={equipContext}
                   />
                 ))}
               </ul>
@@ -343,6 +391,7 @@ function CategorizedInventory({
                     sellContext={sellContext}
                     investContext={investContext}
                     partyContext={partyContext}
+                    equipContext={equipContext}
                   />
                 ))}
               </ul>

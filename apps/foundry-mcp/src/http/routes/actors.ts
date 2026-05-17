@@ -8,6 +8,7 @@ import {
   actorTraceParams,
   addItemFromCompendiumBody,
   createActorBody,
+  createSpellcastingEntryBody,
   invokeActorActionBody,
   partyActorsQuery,
   updateActorBody,
@@ -78,6 +79,15 @@ export function registerActorRoutes(app: FastifyInstance): void {
     const { id } = actorIdParam.parse(req.params);
     const body = addItemFromCompendiumBody.parse(req.body);
     return sendCommand('add-item-from-compendium', { actorId: id, ...body });
+  });
+
+  // Creates a spellcastingEntry embedded item directly on the actor.
+  // The character creator calls this after class is picked for classes
+  // the PF2e system does not automatically initialize (all full casters).
+  app.post('/api/actors/:id/spellcasting-entry', async (req) => {
+    const { id } = actorIdParam.parse(req.params);
+    const body = createSpellcastingEntryBody.parse(req.body);
+    return sendCommand('create-spellcasting-entry', { actorId: id, ...body });
   });
 
   app.delete('/api/actors/:id/items/:itemId', async (req) => {

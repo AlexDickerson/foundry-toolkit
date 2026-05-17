@@ -18,6 +18,7 @@ import type {
   compendiumItemPayload,
   createActorBody,
   createCompendiumItemBody,
+  createSpellcastingEntryBody,
   ensureCompendiumPackBody,
   invokeActorActionBody,
   resolvePromptBody,
@@ -39,6 +40,7 @@ export type InvokeActorActionBody = z.infer<typeof invokeActorActionBody>;
 export type EnsureCompendiumPackBody = z.infer<typeof ensureCompendiumPackBody>;
 export type CreateCompendiumItemBody = z.infer<typeof createCompendiumItemBody>;
 export type CompendiumItemPayload = z.infer<typeof compendiumItemPayload>;
+export type CreateSpellcastingEntryBody = z.infer<typeof createSpellcastingEntryBody>;
 
 // Response from POST /api/compendium/packs/ensure — mirrored on the
 // bridge side. `created: true` means a new pack was provisioned;

@@ -5,6 +5,7 @@ import type {
   AdjustActorConditionResponse,
   AdjustActorResourceResponse,
   CreateActorBody,
+  CreateSpellcastingEntryBody,
   DispatchRequest,
   DispatchResponse,
   PartyForMember,
@@ -83,6 +84,8 @@ export const api = {
     request<ActorRef>(`/actors/${id}`, { method: 'PATCH', body: patch }),
   addItemFromCompendium: (id: string, body: AddItemFromCompendiumBody): Promise<ActorItemRef> =>
     request<ActorItemRef>(`/actors/${id}/items/from-compendium`, { method: 'POST', body }),
+  createSpellcastingEntry: (id: string, body: CreateSpellcastingEntryBody): Promise<ActorItemRef> =>
+    request<ActorItemRef>(`/actors/${id}/spellcasting-entry`, { method: 'POST', body }),
   deleteActorItem: (id: string, itemId: string): Promise<{ success: boolean }> =>
     request<{ success: boolean }>(`/actors/${id}/items/${itemId}`, { method: 'DELETE' }),
   updateActorItem: (id: string, itemId: string, patch: UpdateActorItemBody): Promise<ActorItemRef> =>
@@ -190,6 +193,17 @@ export const api = {
   // heighten. Actor state refresh comes via the `actors` event channel.
   castSpell: (id: string, entryId: string, spellId: string, rank: number): Promise<{ ok: boolean }> =>
     api.invokeActorAction<{ ok: boolean }>(id, 'cast-spell', { entryId, spellId, rank }),
+  // Slots a known spell into a specific prepared-caster slot (or clears
+  // the slot when spellId is null). `rank` is the slot rank (0 = cantrip);
+  // `slotIndex` is the position inside the rank's prepared array.
+  prepareSpell: (
+    id: string,
+    entryId: string,
+    rank: number,
+    slotIndex: number,
+    spellId: string | null,
+  ): Promise<{ ok: boolean }> =>
+    api.invokeActorAction<{ ok: boolean }>(id, 'prepare-spell', { entryId, rank, slotIndex, spellId }),
   // Formula book management. Add/remove dedupe on the bridge, so the
   // SPA can fire-and-forget; the `added`/`removed` flag in the
   // response tells callers whether a write actually happened.

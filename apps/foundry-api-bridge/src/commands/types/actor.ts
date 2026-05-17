@@ -71,6 +71,10 @@ export interface ActorSummary {
   type: string;
   img: string;
   flags?: Record<string, Record<string, unknown>>;
+  /** First party this character belongs to (PF2e party actor). `null`
+   *  when the character isn't in any party. Drives the per-party grouping
+   *  in the player-portal character index. */
+  party?: { id: string; name: string } | null;
 }
 
 export interface ItemSummary {
@@ -111,6 +115,10 @@ export interface PreparedActorResult {
   items: ItemSummary[];
   statusEffects: StatusEffectEntry[];
   flags?: Record<string, Record<string, unknown>>;
+  /** Levels that carry a free-archetype feat slot when the free-archetype
+   *  variant rule is enabled (e.g. [2, 4, 6, 8] for a level-8 character).
+   *  Empty / absent when the variant is off. */
+  archetypeFeatLevels?: number[];
 }
 
 export interface GetStatisticTraceParams {
@@ -219,4 +227,12 @@ export interface WorldInfoResult {
   world: WorldInfoData;
   counts: WorldCounts;
   compendiumMeta: CompendiumMetaSummary[];
+}
+
+export interface CreateSpellcastingEntryParams {
+  actorId: string;
+  name: string;
+  tradition: string;
+  prepared: string;
+  ability: string;
 }

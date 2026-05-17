@@ -16,4 +16,8 @@ export interface PreparedCharacter {
    *  persists sheet-level preferences (e.g. background image path)
    *  under the `character-creator` scope. */
   flags?: Record<string, Record<string, unknown>>;
+  /** Levels carrying a free-archetype feat slot (e.g. [2, 4, 6, 8] for a
+   *  level-8 character with the variant enabled). Sourced from PF2e's
+   *  computed actor.feats archetype group. */
+  archetypeFeatLevels?: number[];
 }

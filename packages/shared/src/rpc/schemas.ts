@@ -383,3 +383,17 @@ export const createCompendiumItemBody = z.object({
   packId: z.string().min(1),
   item: compendiumItemPayload,
 });
+
+// POST /api/actors/:id/spellcasting-entry — create a spellcastingEntry
+// embedded item on an actor. Used by the character creator to wire up
+// spellcasting for classes that the PF2e system does not initialize
+// automatically via class-feature rule elements.
+export const SPELL_TRADITIONS = ['arcane', 'divine', 'occult', 'primal'] as const;
+export const PREPARED_MODES = ['prepared', 'spontaneous', 'focus', 'innate'] as const;
+
+export const createSpellcastingEntryBody = z.object({
+  name: z.string().min(1),
+  tradition: z.enum(SPELL_TRADITIONS),
+  prepared: z.enum(PREPARED_MODES),
+  ability: z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha']),
+});

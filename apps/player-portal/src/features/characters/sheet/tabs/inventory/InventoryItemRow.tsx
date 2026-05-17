@@ -1,80 +1,49 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import type { PhysicalItem } from '@/features/characters/types';
 import { isContainer } from '@/features/characters/types';
 import { supportsInvestment } from '@/features/characters/lib/investment';
 import { cpToDenominations, priceToCp } from '@/features/characters/lib/coins';
 import { DetailsCard } from '@/shared/ui/DetailsCard';
 import { EnrichedDescription } from '@/shared/ui/EnrichedDescription';
-import type { SellContext, InvestContext, PartyContext } from './inventory-shop';
+import type { SellContext, InvestContext, PartyContext, EquipContext } from './inventory-shop';
 
 // Items whose img field is a /item-art/* URL have a purchased art override.
-// Thumbnails for these get a tighter crop and become click-to-open buttons
-// that show the full uncropped art in a lightbox. The expanded details
-// panel still shows the rules text — players need to read the card.
 function hasArtOverride(img: string): boolean {
   return img.startsWith('/item-art/');
 }
 
-/** Renders the item thumbnail as a clickable button when there's an art
- *  override (opens a lightbox with the full art); plain <img> otherwise. */
+/** Thumbnail that lets the surrounding <summary> handle all click events.
+ *  Art-override items get a tighter crop so the portrait fills the small box;
+ *  the full art is shown in the expanded details panel instead of a lightbox. */
 function ItemThumb({
   item,
   sizeClass,
   containClass,
 }: {
   item: PhysicalItem;
-  /** Tailwind size + flex utilities for the thumbnail box (e.g. "h-8 w-8 flex-shrink-0"). */
   sizeClass: string;
-  /** Optional extra classes for the non-override <img> (e.g. "object-contain"
-   *  for the grid tile that uses an aspect-square wrapper). Default empty. */
   containClass?: string;
 }): React.ReactElement {
-  const [open, setOpen] = useState(false);
   const baseImgClass = `${sizeClass} rounded border border-pf-border bg-pf-bg-dark`;
-
-  if (!hasArtOverride(item.img)) {
-    return <img src={item.img} alt="" className={`${baseImgClass} ${containClass ?? ''}`} />;
+  if (hasArtOverride(item.img)) {
+    return (
+      <div className={`${sizeClass} overflow-hidden rounded border border-pf-border bg-pf-bg-dark flex-shrink-0`}>
+        <img src={item.img} alt="" className="h-full w-full scale-150 origin-top object-cover object-[center_2%]" />
+      </div>
+    );
   }
+  return <img src={item.img} alt="" className={`${baseImgClass} ${containClass ?? ''}`} />;
+}
 
+/** Shows the full art inside the expanded details panel for art-override items. */
+function FullArtPanel({ item }: { item: PhysicalItem }): React.ReactElement | null {
+  if (!hasArtOverride(item.img)) return null;
   return (
-    <>
-      <button
-        type="button"
-        onClick={(e) => {
-          // Stop the surrounding <summary> from toggling the details element.
-          e.stopPropagation();
-          e.preventDefault();
-          setOpen(true);
-        }}
-        aria-label={`View full art for ${item.name}`}
-        className={`${sizeClass} cursor-zoom-in overflow-hidden rounded border border-pf-border bg-pf-bg-dark`}
-      >
-        <img
-          src={item.img}
-          alt=""
-          className="h-full w-full scale-150 origin-top object-cover object-[center_2%]"
-        />
-      </button>
-      {open &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${item.name} – full art`}
-            className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
-            onClick={() => { setOpen(false); }}
-          >
-            <img
-              src={item.img}
-              alt={item.name}
-              className="max-h-full max-w-full rounded shadow-2xl"
-              onClick={(e) => { e.stopPropagation(); }}
-            />
-          </div>,
-          document.body,
-        )}
-    </>
+    <img
+      src={item.img}
+      alt={item.name}
+      className="mb-3 w-full rounded border border-pf-border object-contain"
+    />
   );
 }
 
@@ -88,12 +57,14 @@ export function ItemRow({
   sellContext,
   investContext,
   partyContext,
+  equipContext,
 }: {
   item: PhysicalItem;
   contents: PhysicalItem[];
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
   partyContext: PartyContext | undefined;
+  equipContext: EquipContext | undefined;
 }): React.ReactElement {
   const isContainerRow = isContainer(item);
   const bulk = item.system.bulk;
@@ -128,16 +99,20 @@ export function ItemRow({
             <EquippedBadge item={item} suppressInvested={hasInvestButton} />
             {hasInvestButton && <InvestButton item={item} context={investContext} />}
             <BulkLabel value={bulk.value} />
-            {sellContext && <SellButton item={item} context={sellContext} />}
           </>
         }
       >
-        {partyContext && (
-          <div className="mb-2">
-            <StashButton item={item} context={partyContext} />
+        <FullArtPanel item={item} />
+        {(equipContext !== undefined || sellContext !== undefined || partyContext !== undefined) && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {equipContext !== undefined && supportsEquip(item) && (
+              <EquipButton item={item} context={equipContext} />
+            )}
+            {sellContext && <SellButton item={item} context={sellContext} />}
+            {partyContext && <StashButton item={item} context={partyContext} />}
           </div>
         )}
-        <ItemDescription item={item} />
+        {!hasArtOverride(item.img) && <ItemDescription item={item} />}
       </DetailsCard>
       {isContainerRow && contents.length > 0 && (
         <ul
@@ -183,11 +158,13 @@ export function GridTile({
   sellContext,
   investContext,
   partyContext,
+  equipContext,
 }: {
   item: PhysicalItem;
   sellContext: SellContext | undefined;
   investContext: InvestContext | undefined;
   partyContext: PartyContext | undefined;
+  equipContext: EquipContext | undefined;
 }): React.ReactElement {
   const hasInvestButton = investContext !== undefined && supportsInvestment(item);
   const equipped = isEquippedItem(item);
@@ -213,9 +190,7 @@ export function GridTile({
 
   const [zIndex, setZIndex] = useState<number | undefined>(undefined);
   const [flipLeft, setFlipLeft] = useState(false);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const overrideOnImg = hasArtOverride(item.img);
 
   useLayoutEffect(() => {
     if (zIndex === undefined) {
@@ -252,16 +227,7 @@ export function GridTile({
               <img
                 src={item.img}
                 alt=""
-                onClick={
-                  overrideOnImg
-                    ? (e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setLightboxOpen(true);
-                      }
-                    : undefined
-                }
-                className={`h-full w-full ${overrideOnImg ? 'scale-150 origin-top cursor-zoom-in object-cover object-[center_2%]' : 'object-contain'}`}
+                className={`h-full w-full ${hasArtOverride(item.img) ? 'scale-150 origin-top object-cover object-[center_2%]' : 'object-contain'}`}
               />
               <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1.5 py-1">
                 <span
@@ -278,43 +244,25 @@ export function GridTile({
               </span>
             )}
           </div>
-          {sellContext && <SellButton item={item} context={sellContext} />}
         </summary>
         <div
           ref={panelRef}
           className={`absolute -top-px ${flipLeft ? 'right-full' : 'left-full'} z-20 min-h-[calc(100%+2px)] w-max min-w-[150%] max-w-[300%] overflow-y-auto ${flipLeft ? 'rounded-l' : 'rounded-r'} border border-pf-primary/60 bg-pf-bg p-4 text-sm text-pf-text shadow-lg`}
         >
-          {hasInvestButton && (
-            <div className="mb-3">
-              <InvestButton item={item} context={investContext} />
+          {(hasInvestButton || equipContext !== undefined || sellContext !== undefined || partyContext !== undefined) && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {hasInvestButton && <InvestButton item={item} context={investContext} />}
+              {equipContext !== undefined && supportsEquip(item) && (
+                <EquipButton item={item} context={equipContext} />
+              )}
+              {sellContext && <SellButton item={item} context={sellContext} />}
+              {partyContext && <StashButton item={item} context={partyContext} />}
             </div>
           )}
-          {partyContext && (
-            <div className="mb-3">
-              <StashButton item={item} context={partyContext} />
-            </div>
-          )}
-          <ItemDescription item={item} />
+          <FullArtPanel item={item} />
+          {!hasArtOverride(item.img) && <ItemDescription item={item} />}
         </div>
       </details>
-      {lightboxOpen &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${item.name} – full art`}
-            className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
-            onClick={() => { setLightboxOpen(false); }}
-          >
-            <img
-              src={item.img}
-              alt={item.name}
-              className="max-h-full max-w-full rounded shadow-2xl"
-              onClick={(e) => { e.stopPropagation(); }}
-            />
-          </div>,
-          document.body,
-        )}
     </li>
   );
 }
@@ -325,6 +273,60 @@ function ItemDescription({ item }: { item: PhysicalItem }): React.ReactElement {
   const description = (item.system.description as { value?: unknown } | undefined)?.value;
   const raw = typeof description === 'string' ? description : undefined;
   return <EnrichedDescription raw={raw} maxHeightClass="max-h-[24rem]" />;
+}
+
+// Equip toggle applies to wearable/holdable item types only.
+function supportsEquip(item: PhysicalItem): boolean {
+  return item.type === 'weapon' || item.type === 'armor' || item.type === 'shield' || item.type === 'backpack';
+}
+
+function EquipButton({ item, context }: { item: PhysicalItem; context: EquipContext }): React.ReactElement {
+  const busy = context.pending.has(item.id);
+  const eq = item.system.equipped;
+  const isSlotItem = item.type === 'armor' || item.type === 'backpack';
+  const handsHeld = eq.handsHeld ?? 0;
+  const equipped = isSlotItem ? eq.inSlot === true : handsHeld > 0;
+  // Weapons with a two-hand-* trait cycle stowed → 1H → 2H → stowed.
+  const hasTwoHand =
+    item.type === 'weapon' && item.system.traits.value.some((t) => t.startsWith('two-hand'));
+
+  let label: string;
+  if (busy) {
+    label = 'Updating…';
+  } else if (isSlotItem) {
+    label = equipped ? 'Remove' : item.type === 'backpack' ? 'Wear' : 'Equip';
+  } else if (handsHeld === 0) {
+    label = 'Hold';
+  } else if (handsHeld === 1 && hasTwoHand) {
+    label = '2H';
+  } else {
+    label = 'Stow';
+  }
+
+  return (
+    <button
+      type="button"
+      data-testid="equip-button"
+      disabled={busy}
+      onClick={(e): void => {
+        e.preventDefault();
+        e.stopPropagation();
+        void context.onToggle(item);
+      }}
+      aria-pressed={equipped}
+      aria-label={label}
+      className={[
+        'shrink-0 rounded border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
+        busy
+          ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
+          : equipped
+            ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+            : 'border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50',
+      ].join(' ')}
+    >
+      {label}
+    </button>
+  );
 }
 
 function StashButton({ item, context }: { item: PhysicalItem; context: PartyContext }): React.ReactElement {

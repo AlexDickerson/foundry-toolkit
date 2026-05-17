@@ -23,6 +23,7 @@ interface MockSpellcastingEntry {
     slots?: Record<string, { max: number; value?: number; prepared?: Array<{ id: string | null; expended?: boolean }> }>;
   };
   cast: jest.Mock;
+  prepareSpell?: jest.Mock;
 }
 
 interface MockSpellcasting {
@@ -80,6 +81,7 @@ function makeEntry(overrides: Partial<MockSpellcastingEntry> = {}): MockSpellcas
       },
     },
     cast: jest.fn().mockResolvedValue(undefined),
+    prepareSpell: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -328,5 +330,88 @@ describe('invokeActorActionHandler — get-spellcasting', () => {
     });
 
     expect(result).toEqual({ actorId: 'actor-1', entries: [] });
+  });
+});
+
+// ─── prepare-spell ────────────────────────────────────────────────────────────
+
+describe('invokeActorActionHandler — prepare-spell', () => {
+  it('calls entry.prepareSpell with the resolved spell, rank-as-groupId, and slot index', async () => {
+    const spell = makeSpellItem();
+    const entry = makeEntry();
+    const actor = makeActor(entry, spell);
+    setupFoundry(actor);
+
+    const result = await invokeActorActionHandler({
+      actorId: 'actor-1',
+      action: 'prepare-spell',
+      params: { entryId: 'entry-1', rank: 2, slotIndex: 1, spellId: 'spell-1' },
+    });
+
+    expect(entry.prepareSpell).toHaveBeenCalledWith(spell, '2', 1);
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('uses "cantrips" as groupId when rank is 0', async () => {
+    const spell = makeSpellItem();
+    const entry = makeEntry();
+    const actor = makeActor(entry, spell);
+    setupFoundry(actor);
+
+    await invokeActorActionHandler({
+      actorId: 'actor-1',
+      action: 'prepare-spell',
+      params: { entryId: 'entry-1', rank: 0, slotIndex: 0, spellId: 'spell-1' },
+    });
+
+    expect(entry.prepareSpell).toHaveBeenCalledWith(spell, 'cantrips', 0);
+  });
+
+  it('passes null to entry.prepareSpell when spellId is null (clear slot)', async () => {
+    const spell = makeSpellItem();
+    const entry = makeEntry();
+    const actor = makeActor(entry, spell);
+    setupFoundry(actor);
+
+    await invokeActorActionHandler({
+      actorId: 'actor-1',
+      action: 'prepare-spell',
+      params: { entryId: 'entry-1', rank: 1, slotIndex: 0, spellId: null },
+    });
+
+    expect(entry.prepareSpell).toHaveBeenCalledWith(null, '1', 0);
+  });
+
+  it('throws when slotIndex is missing', async () => {
+    setupFoundry(makeActor(makeEntry(), makeSpellItem()));
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor-1',
+        action: 'prepare-spell',
+        params: { entryId: 'entry-1', rank: 1, spellId: 'spell-1' },
+      }),
+    ).rejects.toThrow(/params\.slotIndex must be a non-negative integer/);
+  });
+
+  it('throws when rank is out of range', async () => {
+    setupFoundry(makeActor(makeEntry(), makeSpellItem()));
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor-1',
+        action: 'prepare-spell',
+        params: { entryId: 'entry-1', rank: 12, slotIndex: 0, spellId: 'spell-1' },
+      }),
+    ).rejects.toThrow(/params\.rank must be an integer 0\.\.11/);
+  });
+
+  it('throws when the resolved spell item is not on the actor', async () => {
+    setupFoundry(makeActor(makeEntry(), makeSpellItem()));
+    await expect(
+      invokeActorActionHandler({
+        actorId: 'actor-1',
+        action: 'prepare-spell',
+        params: { entryId: 'entry-1', rank: 1, slotIndex: 0, spellId: 'no-such-spell' },
+      }),
+    ).rejects.toThrow(/spell item 'no-such-spell' not found/);
   });
 });

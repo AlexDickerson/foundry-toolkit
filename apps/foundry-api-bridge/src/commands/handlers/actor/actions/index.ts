@@ -10,6 +10,7 @@ import { addFormulaAction } from './addFormula';
 import { removeFormulaAction } from './removeFormula';
 import { getSpellcastingAction } from './getSpellcasting';
 import { castSpellAction } from './castSpell';
+import { prepareSpellAction } from './prepareSpell';
 import { transferToPartyAction } from './transferToParty';
 import type { ActionHandler } from './types';
 
@@ -33,5 +34,6 @@ export const ACTION_HANDLERS: Record<string, ActionHandler> = {
   'remove-formula': removeFormulaAction,
   'get-spellcasting': getSpellcastingAction,
   'cast-spell': castSpellAction,
+  'prepare-spell': prepareSpellAction,
   'transfer-to-party': transferToPartyAction,
 };
