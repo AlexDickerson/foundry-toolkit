@@ -1,11 +1,17 @@
 import { getActorsHandler } from '../GetActorsHandler';
 
+interface MockPartyRef {
+  id: string;
+  name: string;
+}
+
 interface MockActor {
   id: string;
   name: string;
   type: string;
   img: string | undefined;
   flags?: Record<string, Record<string, unknown>>;
+  parties?: MockPartyRef[];
 }
 
 function createMockActor(overrides?: Partial<MockActor>): MockActor {
@@ -46,7 +52,9 @@ describe('getActorsHandler', () => {
 
     const result = await getActorsHandler({} as Record<string, never>);
 
-    expect(result).toEqual([{ id: 'a2', name: 'Frodo', type: 'character', img: 'tokens/frodo.webp' }]);
+    expect(result).toEqual([
+      { id: 'a2', name: 'Frodo', type: 'character', img: 'tokens/frodo.webp', party: null },
+    ]);
   });
 
   it('should return empty array for empty collection', async () => {
@@ -123,5 +131,30 @@ describe('getActorsHandler', () => {
     const result = await getActorsHandler({} as Record<string, never>);
 
     expect(result[0]?.flags).toBeUndefined();
+  });
+
+  it('extracts party ref from actor.parties (first entry)', async () => {
+    setGame([
+      createMockActor({
+        id: 'a1',
+        parties: [{ id: 'p1', name: 'The Dents' }],
+      }),
+    ]);
+
+    const result = await getActorsHandler({} as Record<string, never>);
+
+    expect(result[0]?.party).toEqual({ id: 'p1', name: 'The Dents' });
+  });
+
+  it('returns party=null when actor has no parties', async () => {
+    setGame([createMockActor({ id: 'a1' })]);
+    const result = await getActorsHandler({} as Record<string, never>);
+    expect(result[0]?.party).toBeNull();
+  });
+
+  it('returns party=null when parties is empty', async () => {
+    setGame([createMockActor({ id: 'a1', parties: [] })]);
+    const result = await getActorsHandler({} as Record<string, never>);
+    expect(result[0]?.party).toBeNull();
   });
 });

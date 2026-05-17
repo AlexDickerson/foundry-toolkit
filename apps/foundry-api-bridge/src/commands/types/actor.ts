@@ -71,6 +71,10 @@ export interface ActorSummary {
   type: string;
   img: string;
   flags?: Record<string, Record<string, unknown>>;
+  /** First party this character belongs to (PF2e party actor). `null`
+   *  when the character isn't in any party. Drives the per-party grouping
+   *  in the player-portal character index. */
+  party?: { id: string; name: string } | null;
 }
 
 export interface ItemSummary {

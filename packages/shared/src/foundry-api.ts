@@ -27,6 +27,10 @@ export interface ActorSummary {
    *  `creatorDraft`, `creatorVersion`). Absent when the actor has no flags or
    *  the bridge version pre-dates this field. */
   flags?: Record<string, Record<string, unknown>>;
+  /** First party this character belongs to (PF2e party actor). Drives the
+   *  per-party grouping in the character index. `null` when the character
+   *  isn't in any party; absent when the bridge pre-dates this field. */
+  party?: { id: string; name: string } | null;
 }
 
 /** Narrow result shape returned by create-actor / update-actor — just

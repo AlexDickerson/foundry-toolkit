@@ -182,3 +182,64 @@ describe('env', () => {
     });
   });
 });
+
+describe('ActorList — party grouping', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('renders a section header per party (sorted alphabetically by party name)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch([
+        { id: 'c1', name: 'Alpha', type: 'character', img: '', party: { id: 'pZ', name: 'Zephyr Squad' } },
+        { id: 'c2', name: 'Beta', type: 'character', img: '', party: { id: 'pA', name: 'Anchor Crew' } },
+      ]),
+    );
+    render(<ActorList />);
+    await waitFor(() => screen.getByText('Alpha'));
+    const headers = screen.getAllByRole('heading', { level: 2 });
+    expect(headers.map((h) => h.textContent)).toEqual(['Anchor Crew', 'Zephyr Squad']);
+  });
+
+  it('groups characters with the same party together under one header', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch([
+        { id: 'c1', name: 'Broccoli', type: 'character', img: '', party: { id: 'p1', name: 'The Dents' } },
+        { id: 'c2', name: 'Jackstone', type: 'character', img: '', party: { id: 'p1', name: 'The Dents' } },
+      ]),
+    );
+    const { container } = render(<ActorList />);
+    await waitFor(() => screen.getByText('Broccoli'));
+    const section = container.querySelector('[data-party-id="p1"]');
+    expect(section).toBeTruthy();
+    expect(section!.textContent).toContain('Broccoli');
+    expect(section!.textContent).toContain('Jackstone');
+  });
+
+  it('places unaffiliated characters in an "Unaffiliated" section at the end', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch([
+        { id: 'c1', name: 'Lonely', type: 'character', img: '', party: null },
+        { id: 'c2', name: 'Joined', type: 'character', img: '', party: { id: 'p1', name: 'The Dents' } },
+      ]),
+    );
+    render(<ActorList />);
+    await waitFor(() => screen.getByText('Lonely'));
+    const headers = screen.getAllByRole('heading', { level: 2 });
+    expect(headers.map((h) => h.textContent)).toEqual(['The Dents', 'Unaffiliated']);
+  });
+
+  it('treats absent `party` field as unaffiliated (legacy bridge compat)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch([{ id: 'c1', name: 'NoPartyField', type: 'character', img: '' }]),
+    );
+    render(<ActorList />);
+    await waitFor(() => screen.getByText('NoPartyField'));
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Unaffiliated');
+  });
+});
