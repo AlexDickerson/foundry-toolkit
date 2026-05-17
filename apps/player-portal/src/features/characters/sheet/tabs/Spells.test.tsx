@@ -8,6 +8,7 @@ vi.mock('@/features/characters/api', () => ({
   api: {
     dispatch: vi.fn().mockResolvedValue({ result: null }),
     invokeActorAction: vi.fn().mockResolvedValue({ ok: true }),
+    prepareSpell: vi.fn().mockResolvedValue({ ok: true }),
   },
   ApiRequestError: class ApiRequestError extends Error {},
 }));
@@ -92,7 +93,9 @@ describe('Spells tab', () => {
     const items = [makeEntry(), makeSpell()] as PreparedActorItem[];
     renderSpells(items);
     expect(screen.getByText('Arcane Spellcasting')).toBeTruthy();
-    expect(screen.getByText('Magic Missile')).toBeTruthy();
+    // Prepared-mode rendering surfaces a known spell twice: once in its
+    // assigned slot and once in the spellbook below.
+    expect(screen.getAllByText('Magic Missile').length).toBeGreaterThan(0);
   });
 
   it('renders a Cast button for each spell', () => {
@@ -183,5 +186,96 @@ describe('Spells tab', () => {
 
     const castBtn = screen.getByRole('button', { name: /cast magic missile/i });
     expect(castBtn.hasAttribute('disabled')).toBe(false);
+  });
+});
+
+describe('Spells tab — prepared-caster slots', () => {
+  beforeEach(() => {
+    vi.mocked(api.invokeActorAction).mockReset();
+    vi.mocked(api.invokeActorAction).mockResolvedValue({ ok: true });
+    vi.mocked(api.prepareSpell).mockReset();
+    vi.mocked(api.prepareSpell).mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('renders an empty drop-zone cell for each unfilled slot', () => {
+    const entry = makeEntry({
+      slots: {
+        slot1: { max: 2, value: 2, prepared: [{ id: null, expended: false }, { id: null, expended: false }] },
+      },
+    });
+    const { container } = renderSpells([entry] as PreparedActorItem[]);
+    const empties = container.querySelectorAll('[data-slot-state="empty"]');
+    expect(empties.length).toBe(2);
+    expect(container.textContent).toContain('Drag a spell here');
+  });
+
+  it('shows a x/max counter in the rank heading', () => {
+    const entry = makeEntry({
+      slots: {
+        slot1: {
+          max: 3,
+          value: 3,
+          prepared: [{ id: 'spell-1', expended: false }, { id: null }, { id: null }],
+        },
+      },
+    });
+    const items = [entry, makeSpell()] as PreparedActorItem[];
+    renderSpells(items);
+    expect(screen.getByText('1/3')).toBeTruthy();
+  });
+
+  it('lists known spells in the spellbook section as draggable chips', () => {
+    const entry = makeEntry({
+      slots: { slot1: { max: 1, value: 1, prepared: [{ id: null }] } },
+    });
+    const items = [entry, makeSpell()] as PreparedActorItem[];
+    const { container } = renderSpells(items);
+    const chip = container.querySelector('[data-spellbook-entry="spell-1"]');
+    expect(chip).toBeTruthy();
+    expect(chip!.getAttribute('draggable')).toBe('true');
+  });
+
+  it('dropping a spell on an empty slot calls api.prepareSpell with the slot rank + index', async () => {
+    const entry = makeEntry({
+      slots: { slot1: { max: 1, value: 1, prepared: [{ id: null, expended: false }] } },
+    });
+    const items = [entry, makeSpell()] as PreparedActorItem[];
+    const { container } = renderSpells(items);
+    const dropZone = container.querySelector('[data-slot-state="empty"]') as HTMLElement;
+    expect(dropZone).toBeTruthy();
+
+    // Simulate dragging a spell from the spellbook onto the empty slot.
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      getData: (k: string): string => data.get(k) ?? '',
+      setData: (k: string, v: string): void => { data.set(k, v); },
+      dropEffect: 'move',
+      effectAllowed: 'move',
+    };
+    data.set('text/x-pf2e-spell-id', 'spell-1');
+
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    await vi.waitFor(() => {
+      expect(api.prepareSpell).toHaveBeenCalledWith('actor-1', 'entry-1', 1, 0, 'spell-1');
+    });
+  });
+
+  it('clicking the unprepare × calls api.prepareSpell with spellId=null', async () => {
+    const entry = makeEntry({
+      slots: { slot1: { max: 1, value: 1, prepared: [{ id: 'spell-1', expended: false }] } },
+    });
+    const items = [entry, makeSpell()] as PreparedActorItem[];
+    renderSpells(items);
+    const clearBtn = screen.getByRole('button', { name: /clear prepared slot/i });
+    fireEvent.click(clearBtn);
+
+    await vi.waitFor(() => {
+      expect(api.prepareSpell).toHaveBeenCalledWith('actor-1', 'entry-1', 1, 0, null);
+    });
   });
 });

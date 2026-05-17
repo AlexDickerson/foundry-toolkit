@@ -13,6 +13,7 @@ const EXPECTED_ACTIONS = [
   'remove-formula',
   'get-spellcasting',
   'cast-spell',
+  'prepare-spell',
   'transfer-to-party',
 ] as const;
 

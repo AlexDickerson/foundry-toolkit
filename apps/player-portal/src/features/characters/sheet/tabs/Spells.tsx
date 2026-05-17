@@ -154,8 +154,16 @@ function EntryBlock({
           </button>
         )}
       </div>
-      {spells.length === 0 ? (
+      {spells.length === 0 && prepRaw !== 'prepared' ? (
         <p className="text-xs italic text-neutral-400">No spells.</p>
+      ) : prepRaw === 'prepared' ? (
+        <PreparedEntryBody
+          entry={entry}
+          spells={spells}
+          characterLevel={characterLevel}
+          actorId={actorId}
+          onCast={onCast}
+        />
       ) : (
         <RankedSpellListWithEntry
           entry={entry}
@@ -167,6 +175,278 @@ function EntryBlock({
         />
       )}
     </div>
+  );
+}
+
+// ─── Prepared-caster rendering ────────────────────────────────────────────
+
+// Per-entry drag payload key. Plain text MIME so the browser doesn't
+// barf on it across drag-source ↔ drop-target hops; the value is the
+// spell item id from the actor's spellbook.
+const DRAG_MIME = 'text/x-pf2e-spell-id';
+
+// Render the prepared-caster body: a per-rank slot grid at the top
+// (drag-and-drop targets) followed by the spellbook section listing
+// every known spell in this entry. Cantrips share the layout; their
+// slot rank is 0 ("slot0") and only cantrips can drop into them.
+function PreparedEntryBody({
+  entry,
+  spells,
+  characterLevel,
+  actorId,
+  onCast,
+}: {
+  entry: SpellcastingEntryItem;
+  spells: SpellItem[];
+  characterLevel: number;
+  actorId: string;
+  onCast: () => void;
+}): React.ReactElement {
+  const slots = entry.system.slots ?? {};
+  // Every rank with max > 0 gets a row. Cantrips first, then ranks 1-10.
+  const ranks: number[] = [];
+  for (let r = 0; r <= 10; r += 1) {
+    if ((slots[`slot${r.toString()}`]?.max ?? 0) > 0) ranks.push(r);
+  }
+
+  const spellById = new Map<string, SpellItem>(spells.map((s) => [s.id, s]));
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3">
+        {ranks.map((r) => (
+          <PreparedSlotRow
+            key={r}
+            entry={entry}
+            rank={r}
+            spellById={spellById}
+            characterLevel={characterLevel}
+            actorId={actorId}
+            onCast={onCast}
+          />
+        ))}
+      </div>
+      <SpellbookSection spells={spells} />
+    </div>
+  );
+}
+
+function PreparedSlotRow({
+  entry,
+  rank,
+  spellById,
+  characterLevel,
+  actorId,
+  onCast,
+}: {
+  entry: SpellcastingEntryItem;
+  rank: number;
+  spellById: Map<string, SpellItem>;
+  characterLevel: number;
+  actorId: string;
+  onCast: () => void;
+}): React.ReactElement {
+  const slot = entry.system.slots?.[`slot${rank.toString()}`];
+  const prepared = slot?.prepared ?? [];
+  const max = slot?.max ?? 0;
+  const filledCount = prepared.filter((p) => p.id !== null && spellById.has(p.id)).length;
+  const heading = rank === 0 ? 'Cantrips' : `${ordinal(rank)}-Rank Spells`;
+
+  return (
+    <div data-spell-rank={heading} data-prepared-rank={rank}>
+      <h3 className="mb-1 flex items-baseline gap-2 font-serif text-xs font-semibold uppercase tracking-widest text-pf-alt-dark">
+        {heading}
+        <span className="rounded-full bg-pf-bg-dark px-1.5 py-0.5 font-mono text-[10px] text-pf-alt-dark">
+          {filledCount}/{max}
+        </span>
+      </h3>
+      <ul className="grid grid-cols-2 gap-2" data-role="prepared-slots">
+        {Array.from({ length: max }, (_, idx) => {
+          const entryRef = prepared[idx];
+          const preparedSpell = entryRef?.id ? spellById.get(entryRef.id) : undefined;
+          return (
+            <PreparedSlotCell
+              key={idx}
+              entry={entry}
+              rank={rank}
+              slotIndex={idx}
+              expended={entryRef?.expended === true}
+              preparedSpell={preparedSpell ?? null}
+              characterLevel={characterLevel}
+              actorId={actorId}
+              onCast={onCast}
+            />
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function PreparedSlotCell({
+  entry,
+  rank,
+  slotIndex,
+  expended,
+  preparedSpell,
+  characterLevel,
+  actorId,
+  onCast,
+}: {
+  entry: SpellcastingEntryItem;
+  rank: number;
+  slotIndex: number;
+  expended: boolean;
+  preparedSpell: SpellItem | null;
+  characterLevel: number;
+  actorId: string;
+  onCast: () => void;
+}): React.ReactElement {
+  const [dragOver, setDragOver] = useState(false);
+
+  const { state: prepState, trigger: triggerPrepare } = useActorAction({
+    run: (spellId: string | null) => api.prepareSpell(actorId, entry.id, rank, slotIndex, spellId),
+    onSuccess: onCast,
+  });
+
+  const handleDragOver = (e: React.DragEvent): void => {
+    // Always accept — we validate spell rank inside onDrop. preventDefault
+    // is required to mark the element as a drop target.
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!dragOver) setDragOver(true);
+  };
+  const handleDragLeave = (): void => {
+    setDragOver(false);
+  };
+  const handleDrop = (e: React.DragEvent): void => {
+    e.preventDefault();
+    setDragOver(false);
+    const spellId = e.dataTransfer.getData(DRAG_MIME);
+    if (!spellId) return;
+    triggerPrepare(spellId);
+  };
+  const handleClear = (): void => {
+    triggerPrepare(null);
+  };
+
+  if (preparedSpell !== null) {
+    return (
+      <li
+        data-slot-index={slotIndex}
+        data-slot-state="filled"
+        data-spell-id={preparedSpell.id}
+      >
+        <SpellCardWithCast
+          spell={preparedSpell}
+          characterLevel={characterLevel}
+          entry={entry}
+          actorId={actorId}
+          onCast={onCast}
+          focusPoints={{ value: 0, max: 0, cap: 0 }}
+          rankOverride={rank}
+          extraSummary={
+            <button
+              type="button"
+              aria-label="Clear prepared slot"
+              title="Unprepare"
+              onClick={(e): void => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClear();
+              }}
+              disabled={prepState === 'pending'}
+              className="flex-shrink-0 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-[10px] text-pf-alt-dark hover:bg-pf-bg-dark disabled:opacity-40"
+            >
+              ×
+            </button>
+          }
+          expendedOverride={expended}
+        />
+      </li>
+    );
+  }
+
+  return (
+    <li
+      data-slot-index={slotIndex}
+      data-slot-state="empty"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={[
+        'flex min-h-[2.25rem] items-center justify-center rounded border border-dashed px-3 py-2 text-[11px] italic transition-colors',
+        dragOver
+          ? 'border-pf-primary bg-pf-primary/10 text-pf-primary'
+          : 'border-pf-border bg-pf-bg/40 text-pf-alt-dark',
+        prepState === 'pending' ? 'opacity-50' : '',
+      ].join(' ')}
+    >
+      {prepState === 'pending' ? 'Preparing…' : 'Drag a spell here'}
+    </li>
+  );
+}
+
+function SpellbookSection({ spells }: { spells: SpellItem[] }): React.ReactElement {
+  if (spells.length === 0) {
+    return (
+      <div data-role="spellbook">
+        <h3 className="mb-1 font-serif text-xs font-semibold uppercase tracking-widest text-pf-alt-dark">
+          Spellbook
+        </h3>
+        <p className="text-xs italic text-neutral-400">No spells yet — use + Add Spell above.</p>
+      </div>
+    );
+  }
+  // Group by base rank so the player can find compatible spells per slot.
+  const byRank = new Map<number, SpellItem[]>();
+  for (const s of spells) {
+    const rank = isCantripSpell(s) ? 0 : s.system.level.value;
+    const arr = byRank.get(rank) ?? [];
+    arr.push(s);
+    byRank.set(rank, arr);
+  }
+  const ranks = [...byRank.keys()].sort((a, b) => a - b);
+
+  return (
+    <div data-role="spellbook" className="rounded border border-pf-border bg-pf-bg/40 p-3">
+      <h3 className="mb-2 font-serif text-xs font-semibold uppercase tracking-widest text-pf-alt-dark">
+        Spellbook
+      </h3>
+      <div className="space-y-2">
+        {ranks.map((r) => (
+          <div key={r}>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-pf-text-muted">
+              {r === 0 ? 'Cantrips' : `${ordinal(r)} Rank`}
+            </p>
+            <ul className="mt-1 flex flex-wrap gap-1.5">
+              {[...byRank.get(r)!].sort((a, b) => a.name.localeCompare(b.name)).map((spell) => (
+                <SpellbookChip key={spell.id} spell={spell} />
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SpellbookChip({ spell }: { spell: SpellItem }): React.ReactElement {
+  return (
+    <li
+      draggable
+      onDragStart={(e): void => {
+        e.dataTransfer.setData(DRAG_MIME, spell.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      data-spellbook-entry={spell.id}
+      data-spell-slug={spell.system.slug ?? ''}
+      className="inline-flex cursor-grab items-center gap-1.5 rounded border border-pf-border bg-pf-bg px-1.5 py-0.5 text-xs text-pf-text active:cursor-grabbing hover:border-pf-primary"
+      title={`Drag to prepare ${spell.name}`}
+    >
+      <img src={spell.img} alt="" className="h-4 w-4 rounded bg-pf-bg-dark" />
+      <span className="truncate">{spell.name}</span>
+    </li>
   );
 }
 
@@ -360,7 +640,7 @@ function SpellCard({ spell, characterLevel }: { spell: SpellItem; characterLevel
   const traits = spell.system.traits.value.filter((t) => t !== 'cantrip');
   const castCost = formatCastCost(spell.system.time?.value);
   const description = spell.system.description?.value ?? '';
-  const heightening = computeHeighteningStep(spell, characterLevel);
+  const heightening = computeHeighteningStep(spell, effectiveRank(spell, characterLevel));
   const enriched =
     description.length > 0 ? enrichDescription(description, heightening !== null ? { heightening } : undefined) : '';
 
@@ -399,6 +679,9 @@ function SpellCardWithCast({
   actorId,
   onCast,
   focusPoints,
+  extraSummary,
+  expendedOverride,
+  rankOverride,
 }: {
   spell: SpellItem;
   characterLevel: number;
@@ -406,12 +689,22 @@ function SpellCardWithCast({
   actorId: string;
   onCast: () => void;
   focusPoints: FocusPool;
+  /** Extra summary slot rendered after the Cast button. Used by prepared-slot
+   *  cells to surface an "unprepare" × control. */
+  extraSummary?: React.ReactNode;
+  /** Overrides the entry-wide "find by spell id" expended derivation. Prepared
+   *  slots expose per-slot expended state, not per-spell. */
+  expendedOverride?: boolean;
+  /** Overrides the spell's intrinsic effective rank for casting. Prepared
+   *  slots cast at the slot's rank, which can be higher than the spell's
+   *  base rank (heightening up). */
+  rankOverride?: number;
 }): React.ReactElement {
   const traits = spell.system.traits.value.filter((t) => t !== 'cantrip');
   const castCost = formatCastCost(spell.system.time?.value);
   const description = spell.system.description?.value ?? '';
-  const rank = effectiveRank(spell, characterLevel);
-  const heightening = computeHeighteningStep(spell, characterLevel);
+  const rank = rankOverride ?? effectiveRank(spell, characterLevel);
+  const heightening = computeHeighteningStep(spell, rank);
   const enriched =
     description.length > 0 ? enrichDescription(description, heightening !== null ? { heightening } : undefined) : '';
 
@@ -423,9 +716,11 @@ function SpellCardWithCast({
   const slotData = entry.system.slots?.[slotKey];
 
   const isExpended =
-    mode === 'prepared'
-      ? (slotData?.prepared?.find((p) => p.id === spell.id)?.expended ?? false)
-      : false;
+    expendedOverride !== undefined
+      ? expendedOverride
+      : mode === 'prepared'
+        ? (slotData?.prepared?.find((p) => p.id === spell.id)?.expended ?? false)
+        : false;
 
   const noSlotsLeft = !isCantrip && mode === 'spontaneous' && (slotData?.value ?? 0) <= 0;
 
@@ -468,6 +763,7 @@ function SpellCardWithCast({
           >
             {pending ? '…' : 'Cast'}
           </button>
+          {extraSummary}
         </>
       }
     >
@@ -583,10 +879,9 @@ function effectiveRank(spell: SpellItem, characterLevel: number): number {
 // spell isn't heightened above its base rank, lacks interval-type
 // heightening, or exposes no damage step — those cases render the
 // description unchanged.
-function computeHeighteningStep(spell: SpellItem, characterLevel: number): { delta: number; perStep: string } | null {
+function computeHeighteningStep(spell: SpellItem, castRank: number): { delta: number; perStep: string } | null {
   const base = spell.system.level.value;
-  const cast = effectiveRank(spell, characterLevel);
-  const delta = cast - base;
+  const delta = castRank - base;
   if (delta <= 0) return null;
   const h = spell.system.heightening;
   if (h === undefined || h.type !== 'interval') return null;
