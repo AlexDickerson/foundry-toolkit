@@ -358,6 +358,94 @@ When your primary GM account is active in a browser:
 
 ---
 
+## Notes (Quartz)
+
+The `quartz` service builds a static site from an Obsidian vault directory and
+serves it at `/notes/*` behind player-portal's existing cookie auth. It uses
+[Quartz v4](https://quartz.jzhao.xyz/) — a Node-based static site generator
+with full Obsidian support (wikilinks, backlinks, graph, search).
+
+### Frontmatter convention
+
+Only notes with `publish: true` in their YAML frontmatter appear in the built
+site. All other notes — including those with no frontmatter at all — are
+excluded. This is enforced by the `ExplicitPublish` filter in `quartz.config.ts`.
+
+Minimal example of a publishable note:
+
+```markdown
+---
+title: Session 12 — The Iron Keep
+publish: true
+tags: [session, combat]
+---
+
+The party descended into the dungeon...
+```
+
+Use Obsidian's Templater or Templates plugin to stamp `publish: false` on new
+notes by default, and flip them to `true` when you're ready to share.
+
+### Directory layout on the server
+
+Set `QUARTZ_VAULT_DIR` in `deploy/.env` to the absolute host path where you
+want to land your vault:
+
+```
+/var/quartz-vault/         ← QUARTZ_VAULT_DIR
+  index.md                 ← root note (publish: true to appear as homepage)
+  sessions/
+    session-12.md
+    session-13.md
+  npcs/
+    big-boss.md
+```
+
+The quartz container mounts this as `/vault` (read-only) and Quartz watches it
+for changes. Every time you rsync a new batch of notes, Quartz detects the
+change and rebuilds automatically — no manual rebuild required.
+
+### Rsync flow
+
+From your Mac or Windows machine, after editing notes in Obsidian:
+
+```sh
+# Mac / Linux
+rsync -avz --delete /path/to/your/vault/ user@addnd.net:/var/quartz-vault/
+
+# Windows (WSL or Git Bash)
+rsync -avz --delete /mnt/c/Users/you/Documents/Vault/ user@addnd.net:/var/quartz-vault/
+```
+
+The `--delete` flag removes files on the server that you've deleted locally,
+keeping the published site in sync with your vault.
+
+`QUARTZ_VAULT_DIR` is intentionally not managed by compose volumes — you own
+the host directory and sync into it on your schedule.
+
+### Auth model
+
+`/notes/*` is served exclusively through player-portal. The Quartz container
+is on the compose internal network and is not mapped to any host port — it is
+not reachable from the public internet. A logged-out user hitting `/notes/`
+receives a `401 Unauthorized` from player-portal's cookie-session middleware
+and is redirected to the login page.
+
+### Theme
+
+The site uses Quartz's default theme. Matching it to player-portal's visual
+style is a follow-up.
+
+### Hot-reload WebSocket
+
+Quartz's watch+serve mode broadcasts a hot-reload signal over a WebSocket
+(port 3001 internally). Because the browser connects through player-portal's
+HTTP proxy, the WebSocket is not forwarded and in-browser auto-refresh doesn't
+work. Content still rebuilds on every vault change; a manual browser refresh
+picks it up.
+
+---
+
 ## CI / releases
 
 Pushing a `v*` tag triggers `.github/workflows/release-image.yml`, which

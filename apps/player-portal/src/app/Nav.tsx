@@ -9,6 +9,10 @@ const tabs = [
   { to: '/characters', label: 'Characters' },
 ];
 
+// Notes lives outside the SPA (served by Quartz), so it uses a plain <a>.
+const NAV_LINK_CLASS =
+  'inline-flex items-center px-5 py-3 text-sm font-medium tracking-wide border-b-2 transition-colors duration-150 no-underline border-transparent text-portal-text-muted hover:text-portal-text';
+
 interface Props {
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -49,6 +53,10 @@ export function Nav({ theme, onToggleTheme, user, onSignOut }: Props) {
           {tab.label}
         </NavLink>
       ))}
+      {/* Notes: external link to Quartz — navigates out of the SPA */}
+      <a href="/notes/" className={NAV_LINK_CLASS}>
+        Notes
+      </a>
 
       {/* Right-side controls */}
       <div className="ml-auto flex items-center gap-3 px-3">

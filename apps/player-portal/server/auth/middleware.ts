@@ -14,7 +14,7 @@ const PUBLIC_PREFIXES = ['/api/auth/', '/health', '/assets/'];
 // Route prefixes that gate on a valid session.
 // SPA HTML routes (e.g. /, /globe, /login) are left unmatched so index.html
 // is served; the client-side auth guard then redirects to /login as needed.
-const GATED_PREFIXES = ['/api/', '/map/', '/icons/', '/systems/', '/modules/', '/worlds/'];
+const GATED_PREFIXES = ['/api/', '/map/', '/icons/', '/systems/', '/modules/', '/worlds/', '/notes/'];
 
 function isPublic(url: string): boolean {
   return PUBLIC_PREFIXES.some((p) => url === p.slice(0, -1) || url.startsWith(p));
