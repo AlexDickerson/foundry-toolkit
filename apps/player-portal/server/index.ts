@@ -157,6 +157,17 @@ export async function buildServer(): Promise<FastifyInstance> {
     http2: false,
   });
 
+  // Proxy /api/books/upload → foundry-mcp /books/upload. The /books/ wildcard
+  // proxy above only covers /books/* paths (file serving + index). This route
+  // allows the SPA to POST to /api/books/upload and have it reach the upload
+  // endpoint on foundry-mcp while staying inside the session-gated /api/ namespace.
+  await app.register(fastifyHttpProxy, {
+    upstream: MCP_URL,
+    prefix: '/api/books/upload',
+    rewritePrefix: '/books/upload',
+    http2: false,
+  });
+
   // --- SSE streams (proxy to foundry-mcp) -----------------------------------
   // All long-lived SSE endpoints must use makeSseProxy rather than the
   // general @fastify/http-proxy because the plugin's request timeout closes

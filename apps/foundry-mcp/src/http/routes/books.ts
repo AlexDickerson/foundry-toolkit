@@ -9,10 +9,13 @@
 //
 // If FOUNDRY_MCP_BOOKS_DIR is unset every route returns 404.
 
-import { createReadStream } from 'node:fs';
-import { readdir, stat } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { readdir, stat, mkdir, unlink } from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
+import { Transform } from 'node:stream';
 import { join, resolve, extname, basename } from 'node:path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { MultipartFile } from '@fastify/multipart';
 import { FOUNDRY_MCP_BOOKS_DIR } from '../../config.js';
 import { log } from '../../logger.js';
 import { getPf2eDb, isPf2eDbOpen } from '@foundry-toolkit/db/pf2e';
@@ -49,6 +52,42 @@ interface BookDbRow {
   ai_title: string | null;
   ai_publisher: string | null;
   has_cover: number; // 0 or 1
+}
+
+const MAX_PDF_BYTES = 300 * 1024 * 1024; // 300 MB
+
+function sanitizeSegment(s: string): string {
+  return s
+    .replace(/\.{2,}/g, '')
+    .replace(/[/\\]/g, '')
+    .replace(/^\./g, '')
+    .replace(/\0/g, '')
+    .trim();
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function createPdfMagicTransform(): Transform {
+  let checked = false;
+  return new Transform({
+    transform(chunk: Buffer, _enc, cb) {
+      if (!checked) {
+        checked = true;
+        if (chunk.length < 4 || chunk.subarray(0, 4).toString('ascii') !== '%PDF') {
+          cb(Object.assign(new Error('Not a PDF'), { code: 'NOT_PDF' }));
+          return;
+        }
+      }
+      cb(null, chunk);
+    },
+  });
 }
 
 export function registerBooksRoute(app: FastifyInstance): void {
@@ -175,6 +214,128 @@ export function registerBooksRoute(app: FastifyInstance): void {
       .header('Accept-Ranges', 'bytes')
       .header('Content-Length', String(total))
       .send(createReadStream(filePath));
+  });
+
+  app.post('/books/upload', async (req, reply) => {
+    // Read from process.env at request time (not module constant) so tests can override.
+    const booksDir = process.env['FOUNDRY_MCP_BOOKS_DIR'];
+    if (!booksDir) {
+      reply.code(404).send({ error: 'Books directory not configured (FOUNDRY_MCP_BOOKS_DIR unset)' });
+      return;
+    }
+    if (!isPf2eDbOpen()) {
+      reply.code(503).send({ error: 'pf2e.db not configured' });
+      return;
+    }
+
+    const fields: Record<string, string> = {};
+    let coverBlob: Buffer | null = null;
+    let savedPath: string | null = null;
+    let fileSize = 0;
+    let finalTitle = '';
+    let finalCategory = 'Uncategorized';
+    let finalFilename = '';
+
+    try {
+      const parts = req.parts({ limits: { fileSize: MAX_PDF_BYTES } });
+      for await (const part of parts) {
+        if (part.type === 'field') {
+          fields[part.fieldname] = String(part.value);
+        } else if (part.fieldname === 'cover') {
+          const chunks: Buffer[] = [];
+          for await (const chunk of part.file) chunks.push(chunk as Buffer);
+          coverBlob = Buffer.concat(chunks);
+        } else if (part.fieldname === 'file') {
+          // Resolve names from text fields collected so far.
+          const rawCat = fields['category'] ?? 'Uncategorized';
+          finalCategory = sanitizeSegment(rawCat) || 'Uncategorized';
+          const stem = basename(part.filename ?? 'upload.pdf', '.pdf');
+          const rawTitle = fields['title'] || stem.replace(/_/g, ' ');
+          finalTitle = rawTitle;
+          const slug = slugify(finalTitle) || 'upload';
+          finalFilename = `${slug}.pdf`;
+
+          const subdir = join(resolve(booksDir), finalCategory);
+          await mkdir(subdir, { recursive: true });
+          const dest = join(subdir, finalFilename);
+
+          // 409 if file already exists.
+          let exists = false;
+          try {
+            await stat(dest);
+            exists = true;
+          } catch {
+            /* not found */
+          }
+          if (exists) {
+            part.file.resume();
+            reply.code(409).send({ error: `Book already exists: ${finalCategory}/${finalFilename}` });
+            return;
+          }
+
+          // Stream to disk with magic-bytes check.
+          try {
+            await pipeline(part.file, createPdfMagicTransform(), createWriteStream(dest));
+          } catch (err) {
+            await unlink(dest).catch(() => undefined);
+            if ((err as { code?: string }).code === 'NOT_PDF') {
+              reply.code(415).send({ error: 'Uploaded file is not a PDF' });
+              return;
+            }
+            throw err;
+          }
+
+          // Truncated means the file exceeded the size limit.
+          if ((part as MultipartFile).file.truncated) {
+            await unlink(dest).catch(() => undefined);
+            reply.code(413).send({ error: 'File exceeds the 300 MB limit' });
+            return;
+          }
+
+          const st = await stat(dest);
+          fileSize = st.size;
+          savedPath = dest;
+        }
+      }
+    } catch (err) {
+      if (savedPath) await unlink(savedPath).catch(() => undefined);
+      const msg = String(err instanceof Error ? err.message : err).toLowerCase();
+      if (msg.includes('file too large') || msg.includes('request file too large')) {
+        reply.code(413).send({ error: 'File exceeds the 300 MB limit' });
+        return;
+      }
+      throw err;
+    }
+
+    if (!savedPath) {
+      reply.code(400).send({ error: 'No PDF file was provided in the upload' });
+      return;
+    }
+
+    const st = await stat(savedPath);
+    const now = Date.now();
+    const rawPageCount = fields['pageCount'] ? parseInt(fields['pageCount'], 10) : NaN;
+    const pageCount = Number.isFinite(rawPageCount) && rawPageCount > 0 ? rawPageCount : null;
+    const rawSub = fields['subcategory'] ? sanitizeSegment(fields['subcategory']) : '';
+    const subcategory = rawSub || null;
+
+    const db = getPf2eDb();
+    db.prepare(
+      `INSERT INTO books (path, title, category, subcategory, page_count, file_size, cover_blob, mtime, ingested_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(savedPath, finalTitle, finalCategory, subcategory, pageCount, fileSize, coverBlob, Math.round(st.mtimeMs), now);
+    const row = db.prepare('SELECT id FROM books WHERE path = ?').get(savedPath) as { id: number } | undefined;
+
+    log.info(`books: uploaded "${finalTitle}" → ${finalCategory}/${finalFilename} (${fileSize} bytes)`);
+
+    return reply.code(200).send({
+      id: row?.id ?? 0,
+      title: finalTitle,
+      category: finalCategory,
+      subcategory,
+      pageCount,
+      sizeBytes: fileSize,
+    });
   });
 }
 

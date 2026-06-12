@@ -18,3 +18,37 @@ export function indexEntryToBookEntry(entry: BookIndexEntry): BookEntry {
   if (entry.pageCount != null) book.pageCount = entry.pageCount;
   return book;
 }
+
+export interface UploadBookResult {
+  id: number;
+  title: string;
+  category: string;
+  subcategory: string | null;
+  pageCount: number | null;
+  sizeBytes: number;
+}
+
+export function uploadBook(formData: FormData, onProgress: (pct: number) => void): Promise<UploadBookResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/books/upload');
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    });
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText) as UploadBookResult);
+      } else {
+        let msg = `Upload failed (HTTP ${xhr.status})`;
+        try {
+          msg = (JSON.parse(xhr.responseText) as { error?: string }).error ?? msg;
+        } catch {
+          /* ignore */
+        }
+        reject(new Error(msg));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.send(formData);
+  });
+}

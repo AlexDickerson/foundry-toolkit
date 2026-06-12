@@ -379,6 +379,16 @@ git push origin v0.2.0
 
 ---
 
+## Books
+
+PDFs are served from the path configured in `FOUNDRY_MCP_BOOKS_DIR`. There are two ways to add books to the library:
+
+**In-app upload (new):** Click **Upload PDF** on the Library page. Pick a PDF, choose a category, and submit — the file is streamed to the server, a cover thumbnail is extracted client-side, and the book appears in the catalog immediately. Files are stored under `$FOUNDRY_MCP_BOOKS_DIR/<category>/`. Maximum file size: 300 MB.
+
+**rsync (bulk/sysadmin):** Continue to rsync PDF directories to the server and mount them into the container. Files added this way will appear in the filesystem index but will NOT have a database row (no cover thumbnail, no page count) until a rescan is run. A dedicated rescan endpoint is not yet built; for now, uploaded files through the UI are the only way to get full catalog metadata for new books.
+
+---
+
 ## Migrating from v0.1.0 (all-in-one image)
 
 v0.1.0 shipped a single container (`ghcr.io/alexdickerson/foundry-toolkit`).
