@@ -30,7 +30,6 @@ import fastifyStatic from '@fastify/static';
 import fastifyHttpProxy from '@fastify/http-proxy';
 import { registerSession } from './auth/session.js';
 import { requireAuth } from './auth/middleware.js';
-import { initUsers, type User } from './auth/users.js';
 import { registerAuthRoutes } from './routes/auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -109,7 +108,6 @@ export async function buildServer(): Promise<FastifyInstance> {
   await registerSession(app);
 
   // Cookie-session auth gate — runs on all routes; skips /api/auth/*, /health, /assets/*
-  app.decorateRequest<User | undefined>('user', undefined);
   app.addHook('preHandler', requireAuth);
 
   // Public auth routes (login / logout / me)
@@ -207,8 +205,9 @@ export async function buildServer(): Promise<FastifyInstance> {
 }
 
 async function main(): Promise<void> {
-  // Load user records into memory before accepting requests
-  initUsers();
+  if (!process.env['PORTAL_AUTH_BYPASS'] && !process.env['PLAYER_PORTAL_PASSWORD']) {
+    console.warn('[auth] PLAYER_PORTAL_PASSWORD is not set — all login attempts will be rejected');
+  }
 
   const app = await buildServer();
   await app.listen({ port: PORT, host: HOST });

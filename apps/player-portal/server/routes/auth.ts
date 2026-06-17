@@ -1,44 +1,36 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { findById, findByUsername, hashPassword, toPublic, verifyPassword } from '../auth/users.js';
-import { DEV_BYPASS_USER, isBypassActive } from '../auth/middleware.js';
+import { isBypassActive } from '../auth/middleware.js';
 
-interface LoginBody {
-  username: string;
-  password: string;
+function checkPassword(submitted: string): boolean {
+  const stored = process.env['PLAYER_PORTAL_PASSWORD'] ?? '';
+  if (!stored) return false;
+  const a = Buffer.from(submitted);
+  const b = Buffer.from(stored);
+  // timingSafeEqual requires equal-length buffers — length mismatch is itself the answer
+  return a.byteLength === b.byteLength && timingSafeEqual(a, b);
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/auth/login
-  app.post<{ Body: LoginBody }>('/api/auth/login', {
+  app.post<{ Body: { password: string } }>('/api/auth/login', {
     schema: {
       body: {
         type: 'object',
-        required: ['username', 'password'],
+        required: ['password'],
         properties: {
-          username: { type: 'string' },
           password: { type: 'string' },
         },
       },
     },
   }, async (request, reply) => {
-    const { username, password } = request.body;
-
-    const user = findByUsername(username);
-    if (user === undefined) {
-      // Still run bcrypt to prevent timing-based username enumeration
-      await hashPassword('__timing_dummy__');
-      await reply.code(401).send({ error: 'invalid credentials' });
+    const { password } = request.body;
+    if (!checkPassword(password)) {
+      await reply.code(401).send({ error: 'incorrect password' });
       return;
     }
-
-    const ok = await verifyPassword(password, user.passwordHash);
-    if (!ok) {
-      await reply.code(401).send({ error: 'invalid credentials' });
-      return;
-    }
-
-    request.session.set('userId', user.id);
-    await reply.code(200).send({ user: toPublic(user) });
+    request.session.set('authenticated', true);
+    await reply.code(200).send({ ok: true });
   });
 
   // POST /api/auth/logout
@@ -47,26 +39,17 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     await reply.code(200).send({ ok: true });
   });
 
-  // GET /api/auth/me — returns the current user without the password hash
+  // GET /api/auth/me — 200 if the session is authenticated, 401 otherwise
   app.get('/api/auth/me', async (request, reply) => {
     if (isBypassActive()) {
-      await reply.code(200).send({ user: toPublic(DEV_BYPASS_USER) });
+      await reply.code(200).send({ ok: true });
       return;
     }
-
-    const userId = request.session.get('userId');
-    if (userId === undefined) {
+    const authenticated = request.session.get('authenticated');
+    if (!authenticated) {
       await reply.code(401).send({ error: 'unauthorized' });
       return;
     }
-
-    const user = findById(userId);
-    if (user === undefined) {
-      request.session.delete();
-      await reply.code(401).send({ error: 'unauthorized' });
-      return;
-    }
-
-    await reply.code(200).send({ user: toPublic(user) });
+    await reply.code(200).send({ ok: true });
   });
 }
